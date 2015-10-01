@@ -3,13 +3,16 @@
 -module(ceiba_scanner).
 -include("ceiba.hrl").
 
--export([token_category/1,
+-export([location_line/1,
+         location_column/1,
+         token_category/1,
          token_location/1,
          token_line/1,
          token_column/1,
          token_symbol/1,
          scan/3,
-         scan/4]).
+         scan/4,
+         format_error/1]).
 
 -type category() :: atom().
 -type line() :: integer().
@@ -22,10 +25,19 @@
 -type tokens() :: [token()].
 -type option() :: {atom(), term()}.
 -type options() :: [option()].
--type error_description() :: {string()}
-                           | {string(), term()}
-                           | {string(), string(), term()}.
--type error_info() :: {location(), error_description()}.
+-type error_info() :: {location(), module(), term()}.
+
+-spec location_line(Location :: location()) -> Result :: line().
+location_line(Location) when is_integer(Location) ->
+    Location;
+location_line(Location) when is_tuple(Location) ->
+    element(1, Location).
+
+-spec location_column(Location :: location()) -> Result :: column().
+location_column(Location) when is_integer(Location) ->
+    1;
+location_column(Location) when is_tuple(Location) ->
+    element(2, Location).
 
 -spec token_category(Token :: token()) -> Return :: category().
 token_category(Token) ->
@@ -92,10 +104,9 @@ scan([], EndLine, Column,
      #ceiba_scan_context{terminators=[{Open, {{OpenLine, _} ,_}}|_]},
      Tokens) ->
     Close = terminator(Open),
-    Message = io_lib:format(
-                "missing terminator: ~ts (for \"~ts\" opening at line ~B",
-                [Close, Open, OpenLine]),
-    {error, {{EndLine, Column}, {Message}}, [], lists:reverse(Tokens)};
+    {error,
+     {{EndLine, Column}, ?MODULE, {missing_terminator, Close, Open, OpenLine}},
+     [], lists:reverse(Tokens)};
 
 %% Base integers
 
@@ -120,10 +131,8 @@ scan([B1, $r, H|T], Line, Column, Context, Tokens)
             scan(Rest, Line, Column + 2 + Length, Context,
                  [{number, {Line, Column}, Number}|Tokens]);
         _ ->
-            Message = io_lib:format(
-                        "invalid char: ~tc for ~B-base number at line ~B",
-                        [H, N, Line]),
-            {error, {{Line, Column}, {Message}}, [], Tokens}
+            {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
+             [], lists:reverse(Tokens)}
     end;
 scan([B1, B2, $r, H|T], Line, Column, Context, Tokens)
   when (B1 >= $1 andalso B1 =< $2), (B2 >= $0 andalso B2 =< $9);
@@ -135,10 +144,8 @@ scan([B1, B2, $r, H|T], Line, Column, Context, Tokens)
             scan(Rest, Line, Column + 3 + Length, Context,
                  [{number, {Line, Column}, Number}|Tokens]);
         _ ->
-            Message = io_lib:format(
-                        "invalid char: ~tc for ~B-base number at line ~B",
-                        [H, N, Line]),
-            {error, {{Line, Column}, {Message}}, [], Tokens}
+            {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
+             [], Tokens}
     end;
 
 %% Comment
@@ -214,14 +221,14 @@ scan([$\\, $r,$e,$t,$u,$r,$n|T], Line, Column, Context, Tokens) ->
 %% End of line
 
 scan("\\" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid escape \\ at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, escape}}, Original,
+     lists:reverse(Tokens)};
 scan("\\\n" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid escape \\ at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, escape}}, Original,
+     lists:reverse(Tokens)};
 scan("\\\r\n" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid escape \\ at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, escape}}, Original,
+     lists:reverse(Tokens)};
 scan("\\\n" ++ T, Line, _Column, Context, Tokens) ->
     scan(T, Line + 1, 1, Context, Tokens);
 scan("\\\r\n" ++ T, Line, _Column, Context, Tokens) ->
@@ -254,11 +261,12 @@ scan([$:, H|T] = Original, Line, Column, Context, Tokens) when ?is_quote(H) ->
                     scan(Rest, NewLine, NewColumn, Context,
                          [{atom, {Line, Column}, Unescaped}|Tokens]);
                 {error, ErrorDescription} ->
-                    {error, {{Line, Column}, ErrorDescription}, Original,
-                     Tokens}
+                    {error, {{Line, Column}, ?MODULE, ErrorDescription},
+                     Original, lists:reverse(Tokens)}
             end;
-        {error, ErrorInfo}->
-            {error, ErrorInfo, Original, Tokens}
+        {error, Location, _}->
+            {error, {Location, ?MODULE, {missing_terminator, H, H, Line}},
+             Original, lists:reverse(Tokens)}
     end;
 scan([$:, H|T], Line, Column, Context, Tokens) when ?is_identifier_start(H) ->
     handle_atom([H|T], Line, Column, Context, Tokens);
@@ -267,17 +275,19 @@ scan([$:, H|T], Line, Column, Context, Tokens) when ?is_identifier_start(H) ->
 
 %% Binary
 scan("<<" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid binary at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, binary}}, Original,
+     lists:reverse(Tokens)};
 scan([H, H|T], Line, Column, Context, Tokens) when H == $<; H == $> ->
     Token = {list_to_atom([H, H]), {Line, Column}},
     handle_terminator(T, Line, Column + 2, Context, Token, Tokens);
 
 %% map, set
 scan("#{" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid set at end of file"}}, Original, Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, map}}, Original,
+     lists:reverse(Tokens)};
 scan("%{" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid set at end of file"}}, Original, Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, set}}, Original,
+     lists:reverse(Tokens)};
 scan([H1, H2|T], Line, Column, Context, Tokens)
   when H1 == $#, H2 == ${; H1 == $%, H2 == ${ ->
     Token = {list_to_atom([H1, H2]), {Line, Column}},
@@ -293,8 +303,8 @@ scan([H|T], Line, Column, Context, Tokens)
 %% two chars operators
 
 scan("~@" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid unquote-splicing at end of file"}},
-     Original, Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, unquote_splicing}},
+     Original, lists:reverse(Tokens)};
 scan([$~, $@|T], Line, Column, Context, Tokens) ->
     scan(T, Line, Column + 2, Context,
          [{unquote_splicing, {Line, Column}}|Tokens]);
@@ -302,26 +312,26 @@ scan([$~, $@|T], Line, Column, Context, Tokens) ->
 %% one char operators
 
 scan("`" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid backquote at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, backquote}}, Original,
+     lists:reverse(Tokens)};
 scan([$`|T], Line, Column, Context, Tokens) ->
     scan(T, Line, Column + 1, Context, [{backquote, {Line, Column}}|Tokens]);
 
 scan("'" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid quote at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, quote}}, Original,
+     lists:reverse(Tokens)};
 scan([$'|T], Line, Column, Context, Tokens) ->
     scan(T, Line, Column + 1, Context, [{quote, {Line, Column}}|Tokens]);
 
 scan("~" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid unquote at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, unquote}}, Original,
+     lists:reverse(Tokens)};
 scan([$~|T], Line, Column, Context, Tokens) ->
     scan(T, Line, Column + 1, Context, [{unquote, {Line, Column}}|Tokens]);
 
 scan("&" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid rest at end of file"}}, Original,
-     Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_eof, rest}}, Original,
+     lists:reverse(Tokens)};
 scan([$&|T], Line, Column, Context, Tokens) ->
     scan(T, Line, Column + 1, Context, [{rest, {Line, Column}}|Tokens]);
 
@@ -344,11 +354,12 @@ scan([H|T], Line, Column, Context, Tokens) when ?is_horizontal_space(H) ->
 
 scan([H|T] = Original, Line, Column, _Context, Tokens)
   when ?is_invalid_space(H) ->
-    Message = io_lib:format("invalid space character U+~.16B before: ", [H]),
-    {error, {{Line, Column}, {Message, until_eol(T)}}, Original, Tokens};
+    {error, {{Line, Column}, ?MODULE, {invalid_space, H, until_eol(T)}},
+     Original, lists:reverse(Tokens)};
 
 scan(T, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, {"invalid token: ", until_eol(T)}}, T, Tokens}.
+    {error, {{Line, Column}, ?MODULE, {invalid_token, until_eol(T)}}, T,
+     lists:reverse(Tokens)}.
 
 %% end of scan()
 
@@ -467,8 +478,7 @@ unescape_chars(<<$\\, $x, ${,A,B,C,D,E,F,$}, Rest/binary>>, Map, true, Acc)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E), ?is_hex(F) ->
     append_escaped(Rest, Map, [A, B, C, D, E, F], true, Acc, 16);
 unescape_chars(<<$\\, $x, _/binary>>, _Map, true, _Acc) ->
-    Message = "missing hex sequence after \\x",
-    {error, {Message}};
+    {error, {missing_hex_sequence}};
 unescape_chars(<<$\\, Escaped, Rest/binary>>, Map, Hex, Acc) ->
     case Map(Escaped) of
         false -> unescape_chars(Rest, Map, Hex, <<Acc/binary, $\\, Escaped>>);
@@ -485,9 +495,7 @@ append_escaped(Rest, Map, List, Hex, Acc, Base) ->
     catch
         error:badarg ->
             P = integer_to_binary(Codepoint),
-            Message = io_lib:format("invalid or reserved unicode codepoint ~tc",
-                                    [P]),
-            {error, {Message}}
+            {error, {invalid_codepoint, P}}
     end.
 
 %% Unescape Helpers
@@ -514,16 +522,15 @@ handle_string(T, Line, Column, Term, Context,Tokens) ->
             Unescaped = unescape_tokens([Bin]),
             scan(Rest, NewLine, NewColumn, Context,
                  [{string_type(Term), {Line, Column-1}, Unescaped}|Tokens]);
-        {error, ErrorInfo} ->
-            {error, ErrorInfo, T, Tokens}
+        {error, Location, _} ->
+            {error, {Location, ?MODULE, {missing_terminator, Term, Term, Line}},
+             T, lists:reverse(Tokens)}
     end.
 
 scan_string(Line, Column, T, Term) ->
     scan_string(Line, Column, T, Term, []).
-scan_string(Line, Column, [], Term, Acc) ->
-    {error,
-     {{Line, Column}, {io_lib:format("missing terminator: ~ts", [[Term]]),
-                       lists:reverse(Acc)}}};
+scan_string(Line, Column, [], _Term, Acc) ->
+    {error, {Line, Column}, lists:reverse(Acc)};
 %% Terminators
 scan_string(Line, Column, [Term|Remaining], Term, Acc) ->
     String = unicode:characters_to_binary(lists:reverse(Acc)),
@@ -562,7 +569,7 @@ handle_identifier(T, Line, Column, Context, Tokens) ->
             scan(Rest, NewLine, NewColumn, Context,
                  [{identifier, {Line, Column}, Identifier}|Tokens]);
         {error, ErrorInfo} ->
-            {error, ErrorInfo, T, Tokens}
+            {error, ErrorInfo, T, lists:reverse(Tokens)}
     end.
 
 scan_identifier(Line, Column, T) ->
@@ -572,7 +579,7 @@ scan_identifier(Line, Column, [], Acc) ->
 %% binary terminators "<<" ">>" are always higher priority
 scan_identifier(Line, Column, [A, B|_], [])
   when ((A == $<) andalso (B == $<)); ((A == $>) andalso (B == $>)) ->
-    {error, {{Line, Column}, {io_lib:format("empty name before ~tc~tc", [A, B])}}};
+    {error, {{Line, Column}, ?MODULE, {empty_name, A, B, Line}}};
 scan_identifier(Line, Column, [A, B|_] = Rest, Acc)
   when ((A == $<) andalso (B == $<)); ((A == $>) andalso (B == $>))->
     {ok, Line, Column, lists:reverse(Acc), Rest};
@@ -613,13 +620,13 @@ check_terminator({C, _}, [{O, _}|Terminators])
 check_terminator({C, {Line, Column}}, [{Open, {{OpenLine, _}, _}}|_])
   when C == ')'; C == ']'; C == '}'; C == '>>' ->
     Close = terminator(Open),
-    MessagePrefix = "unexpected token: \"",
-    Format = "\". \"~ts\" starting at line ~B is missing terminator \"~ts\"",
-    MessageSuffix = io_lib:format(Format, [Open, OpenLine, Close]),
-    {error, {{Line, Column}, {MessagePrefix, MessageSuffix, atom_to_list(C)}}};
+    {error,
+     {{Line, Column}, ?MODULE,
+      {missing_container_terminator, atom_to_list(C), Open, OpenLine, Close}}};
 check_terminator({C, {Line, Column}}, [])
   when C == ')'; C == ']'; C == '}'; C == '>>' ->
-    {error, {{Line, Column}, {"unexpected token: ", atom_to_list(C)}}};
+    {error, {{Line, Column}, ?MODULE,
+             {unexpected_token, atom_to_list(C)}}};
 check_terminator(_, Terminators) ->
     Terminators.
 
@@ -632,4 +639,47 @@ terminator('{') -> '}';
 terminator('%{') -> '}';
 terminator('#{') -> '}';
 terminator('<<') -> '>>'.
+
+% Error
+
+format_error({missing_terminator, Close, Open, OpenLine}) ->
+    io_lib:format("missing terminator: ~ts (for \"~ts\" opening at line ~B",
+                  [Close, Open, OpenLine]);
+format_error({invalid_n_base_char, Char, Base, Line}) ->
+    io_lib:format("invalid char: ~tc for ~B-base number at line ~B",
+                  [Char, Base, Line]);
+format_error({invalid_eof, escape}) ->
+    "invalid escape \\ at end of file";
+format_error({invalid_eof, binary}) ->
+    "invalid binary at end of file";
+format_error({invalid_eof, map}) ->
+    "invalid map at end of file";
+format_error({invalid_eof, set}) ->
+    "invalid set at end of file";
+format_error({invalid_eof, unquote_splicing}) ->
+    "invalid unquote-splicing at end of file";
+format_error({invalid_eof, backquote}) ->
+    "invalid backquote at end of file";
+format_error({invalid_eof, quote}) ->
+    "invalid quote at end of file";
+format_error({invalid_eof, unquote}) ->
+    "invalid unquote at end of file";
+format_error({invalid_eof, rest}) ->
+    "invalid rest at end of file";
+format_error({missing_hex_sequence}) ->
+    "missing hex sequence after \\x";
+format_error({invalid_codepoint, CodePoint}) ->
+    io_lib:format("invalid or reserved unicode codepoint ~tc", [CodePoint]);
+format_error({empty_name, Char1, Char2, Line}) ->
+    io_lib:format("empty name before ~tc~tc at line ~B", [Char1, Char2, Line]);
+format_error({missing_container_terminator, Token, Open, OpenLine, Close}) ->
+    Format = "unexpected token: \"~ts\". \"~ts\" starting at line ~B \
+is missing terminator \"~ts\"",
+    io_lib:format(Format, [Token, Open, OpenLine, Close]);
+format_error({unexpected_token, Token}) ->
+    io_lib:format("unexpected token: ~ts", [Token]);
+format_error({invalid_space, Char, LineAfterChar}) ->
+    io_lib:format("invalid space character U+~.16B before: ~ts", [Char, LineAfterChar]);
+format_error({invalid_token, Line}) ->
+    io_lib:format("invalid token: ~ts", [Line]).
 

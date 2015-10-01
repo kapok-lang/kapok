@@ -12,6 +12,7 @@ Nonterminals
     open_curly close_curly tuple
     paired_comma_values paired_value_list paired_values unpaired_values open_bang_curly map
     open_percent_curly set
+    %fun_reference
     .
 
 Terminals
@@ -108,7 +109,7 @@ open_bang_curly -> '#{' : '$1'.
 
 map -> open_bang_curly close_curly : build_map('$1', []).
 map -> open_bang_curly paired_values close_curly : build_map('$1', '$2').
-map -> open_bang_curly unpaired_values close_curly : throw_unpaired_map('$1', '$2').
+map -> open_bang_curly unpaired_values close_curly : throw_unpaired_map('$1').
 
 %% Set
 
@@ -117,10 +118,15 @@ open_percent_curly -> '%{' : '$1'.
 set -> open_percent_curly close_curly : build_set('$1', []).
 set -> open_percent_curly values close_curly : build_set('$1', '$2').
 
+%% function reference
+
+%fun_reference -> identifier '.' identifier : -> build_fun_reference().
 
 Erlang code.
 
--import(ceiba_scanner, [token_location/1, token_line/1]).
+-import(ceiba_scanner, [token_location/1,
+                        token_line/1,
+                        token_symbol/1]).
 
 build_binary(Marker, Args) ->
     {binary, token_location(Marker), Args}.
@@ -151,7 +157,7 @@ build_set(Marker, Args) ->
 
 %% Errors
 throw(Line, Error, Token) ->
-    throw({error, {Line, [Error, Token]}}).
+    throw({error, {Line, ?MODULE, [Error, Token]}}).
 
-throw_unpaired_map(Marker, Args) ->
-    throw(token_line(Marker), "unpaired values in map", Args).
+throw_unpaired_map(Marker) ->
+    throw(token_line(Marker), "unpaired values in map", token_symbol(Marker)).
