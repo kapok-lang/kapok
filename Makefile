@@ -32,12 +32,6 @@ define modules-to-beams
   $(addprefix $1/,$(addsuffix .beam,$2))
 endef
 
-# calculate module from beam file
-# $(call beams-to-modules)
-define beams-to-modules
-  $(patsubst %.beam,%,$(notdir $1))
-endef
-
 modules           := $(call get-modules-in-dir,$(src_dir))
 beam_files        := $(call modules-to-beams,$(beam_output_dir),$(modules))
 test_modules      := $(call get-modules-in-dir,$(test_dir))
@@ -108,9 +102,10 @@ all: build
 
 build: $(beam_files)
 
-$(beam_output_dir)/%.beam: $(src_dir)/%.erl
+$(beam_files): $(beam_output_dir)/%.beam: $(src_dir)/%.erl
 
 $(beam_files):
+	$(QUIET) echo "--- build source files ---"
 	$(REBAR) compile
 
 test: $(beam_files) $(test_beam_files) run-test

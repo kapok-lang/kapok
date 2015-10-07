@@ -18,9 +18,9 @@ ast_to_abstract_format(Ast) ->
 string_to_ast(String, StartLine, File, Options)
   when is_integer(StartLine), is_binary(File) ->
     case ceiba_scanner:scan(String, StartLine, [{file, File}|Options]) of
-        {ok, _Line, _Column, Tokens} ->
+        {ok, Tokens, _EndLocation} ->
             try ceiba_parser:parse(Tokens) of
-                {ok, Forms} -> io:format("~p~n", [Forms]);
+                {ok, Forms} -> {ok, Forms};
                 {error, {Line, _, [Error, Token]}} ->
                     {error, {Line, to_binary(Error), to_binary(Token)}}
             catch
