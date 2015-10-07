@@ -16,9 +16,10 @@ get_opt(Key) ->
 
 string(Contents, File) when is_list(Contents), is_binary(File) ->
     string(Contents, File, nil).
-string(Contents, File, Dest) ->
-    Forms = ceiba:string_to_ast(Contents, 1, File, []),
-    Forms.
+string(Contents, File, _) ->
+    Ast = ceiba:string_to_ast(Contents, 1, File, []),
+    Format = ceiba:ast_to_abstract_format(Ast),
+    Format.
 %    quoted(Forms, File, Dest).
 
 %% ss() ->

@@ -2,8 +2,9 @@
 -include_lib("eunit/include/eunit.hrl").
 
 scan(String) ->
-    {ok, _Line, _Column, Result} = ceiba_scanner:scan(String, 1, []),
-    Result.
+    {ok, Tokens, _Location} = ceiba_scanner:scan(String, 1, []),
+    Tokens.
 
 hex_bin_octal_test() ->
-    [{number, {{1, 1}, {1, 5}}, 255}] = scan("0xFF").
+    ?assertEqual([{number, {1, 1}, 255}], scan("0xFF")).
+
