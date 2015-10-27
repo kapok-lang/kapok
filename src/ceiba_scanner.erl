@@ -61,7 +61,6 @@ token_symbol(Token) ->
     end.
 
 
-
 %% start of scan()
 
 -type tokens_result() :: {'ok', Tokens :: tokens(), EndLocation :: location()}
@@ -90,18 +89,23 @@ scan(String, Line, Column, Options) ->
                 {check_terminators, false} -> false;
                 false -> true
             end,
-    Context = #ceiba_scan_context{
+    Existing = case lists:keyfind(existing_atoms_only, 1, Options) of
+                   {existing_atoms_only, true} -> true;
+                   false -> false
+               end,
+    Scope = #ceiba_scanner_scope{
                  file = File,
-                 check_terminators = Check},
-    scan(String, Line, Column, Context, []).
+                 check_terminators = Check,
+                 existing_atoms_only = Existing},
+    scan(String, Line, Column, Scope, []).
 
 %% success
-scan([], Line, Column, #ceiba_scan_context{terminators=[]}, Tokens) ->
+scan([], Line, Column, #ceiba_scanner_scope{terminators=[]}, Tokens) ->
     {ok, lists:reverse(Tokens), {Line, Column}};
 
 %% terminator missing
 scan([], EndLine, Column,
-     #ceiba_scan_context{terminators=[{Open, {{OpenLine, _} ,_}}|_]},
+     #ceiba_scanner_scope{terminators=[{Open, {{OpenLine, _} ,_}}|_]},
      Tokens) ->
     Close = terminator(Open),
     {error,
@@ -111,37 +115,37 @@ scan([], EndLine, Column,
 %% Base integers
 
 %% hex
-scan([$0, $x, H|T], Line, Column, Context, Tokens) when ?is_hex(H) ->
+scan([$0, $x, H|T], Line, Column, Scope, Tokens) when ?is_hex(H) ->
     {Rest, Number, Length} = scan_hex([H|T], []),
-    scan(Rest, Line, Column + 2 + Length, Context,
+    scan(Rest, Line, Column + 2 + Length, Scope,
          [{number, {Line, Column}, Number}|Tokens]);
 %% octal
-scan([$0, H|T], Line, Column, Context, Tokens) when ?is_octal(H) ->
+scan([$0, H|T], Line, Column, Scope, Tokens) when ?is_octal(H) ->
     {Rest, Number, Length} = scan_octal([H|T], []),
-    scan(Rest, Line, Column + 1 + Length, Context,
+    scan(Rest, Line, Column + 1 + Length, Scope,
          [{number, {Line, Column}, Number}|Tokens]);
 
 %% flexible N(2 - 36) numeral bases
-scan([B1, $r, H|T], Line, Column, Context, Tokens)
+scan([B1, $r, H|T], Line, Column, Scope, Tokens)
   when (B1 >= $2 andalso B1 =< $9) ->
     N = B1 - $0,
     case ?is_n_base(H, N) of
         true ->
             {Rest, Number, Length} = scan_n_base([H|T], N, []),
-            scan(Rest, Line, Column + 2 + Length, Context,
+            scan(Rest, Line, Column + 2 + Length, Scope,
                  [{number, {Line, Column}, Number}|Tokens]);
         _ ->
             {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
              [], lists:reverse(Tokens)}
     end;
-scan([B1, B2, $r, H|T], Line, Column, Context, Tokens)
+scan([B1, B2, $r, H|T], Line, Column, Scope, Tokens)
   when (B1 >= $1 andalso B1 =< $2), (B2 >= $0 andalso B2 =< $9);
        (B1 == $3), (B2 >= $0 andalso B2 =< $6) ->
     N = list_to_integer([B1, B2]),
     case ?is_n_base(H, N) of
         true ->
             {Rest, Number, Length} = scan_n_base([H|T], N, []),
-            scan(Rest, Line, Column + 3 + Length, Context,
+            scan(Rest, Line, Column + 3 + Length, Scope,
                  [{number, {Line, Column}, Number}|Tokens]);
         _ ->
             {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
@@ -150,116 +154,120 @@ scan([B1, B2, $r, H|T], Line, Column, Context, Tokens)
 
 %% Comment
 
-scan([$;|T], Line, Column, Context, Tokens) ->
+scan([$;|T], Line, Column, Scope, Tokens) ->
     Rest = scan_comment(T),
-    scan(Rest, Line, Column, Context, Tokens);
+    scan(Rest, Line, Column, Scope, Tokens);
 
 %% Char
 
-scan([$\\, $x, ${,A,B,C,D,E,F,$}|T], Line, Column, Context, Tokens)
+scan([$\\, $x, ${,A,B,C,D,E,F,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E), ?is_hex(F) ->
     Char = escape_char([$\\, $x, ${,A,B,C,D,E,F,$}]),
-    scan(T, Line, Column+10, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column+10, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, ${,A,B,C,D,E,$}|T], Line, Column, Context, Tokens)
+scan([$\\, $x, ${,A,B,C,D,E,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E) ->
     Char = escape_char([$\\, $x, ${,A,B,C,D,E,$}]),
-    scan(T, Line, Column+9, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column+9, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, ${,A,B,C,D,$}|T], Line, Column, Context, Tokens)
+scan([$\\, $x, ${,A,B,C,D,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     Char = escape_char([$\\, $x, ${,A,B,C,D,$}]),
-    scan(T, Line, Column + 8, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 8, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, ${,A,B,C,$}|T], Line, Column, Context, Tokens)
+scan([$\\, $x, ${,A,B,C,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C) ->
     Char = escape_char([$\\, $x, ${,A,B,C,$}]),
-    scan(T, Line, Column + 7, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 7, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, ${,A,B,$}|T], Line, Column, Context, Tokens)
+scan([$\\, $x, ${,A,B,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B) ->
     Char = escape_char([$\\, $x, ${,A,B,$}]),
-    scan(T, Line, Column + 6, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 6, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, ${,A,$}|T], Line, Column, Context, Tokens) when ?is_hex(A) ->
+scan([$\\, $x, ${,A,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
     Char = escape_char([$\\, $x, ${,A,$}]),
-    scan(T, Line, Column + 5, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 5, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, A, B|T], Line, Column, Context, Tokens)
+scan([$\\, $x, A, B|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B) ->
     Char = escape_char([$\\, $x, A, B]),
-    scan(T, Line, Column + 4, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 4, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $x, A|T], Line, Column, Context, Tokens) when ?is_hex(A) ->
+scan([$\\, $x, A|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
     Char = escape_char([$\\, $x, A]),
-    scan(T, Line, Column + 3, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 3, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $s,$p,$a,$c,$e|T], Line, Column, Context, Tokens) ->
+scan([$\\, $s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
     Char = $\s,
-    scan(T, Line, Column + 6, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 6, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $t,$a,$b|T], Line, Column, Context, Tokens) ->
+scan([$\\, $t,$a,$b|T], Line, Column, Scope, Tokens) ->
     Char = $\t,
-    scan(T, Line, Column + 4, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 4, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $f,$o,$r,$m,$f,$e,$e,$d|T], Line, Column, Context, Tokens) ->
+scan([$\\, $f,$o,$r,$m,$f,$e,$e,$d|T], Line, Column, Scope, Tokens) ->
     Char = $\f,
-    scan(T, Line, Column + 9, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 9, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $b,$a,$c,$k,$s,$p,$a,$c,$e|T], Line, Column, Context, Tokens) ->
+scan([$\\, $b,$a,$c,$k,$s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
     Char = $\b,
-    scan(T, Line, Column+10, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column+10, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $n,$e,$w,$l,$i,$n,$e|T], Line, Column, Context, Tokens) ->
+scan([$\\, $n,$e,$w,$l,$i,$n,$e|T], Line, Column, Scope, Tokens) ->
     Char = $\n,
-    scan(T, Line, Column + 8, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 8, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
-scan([$\\, $r,$e,$t,$u,$r,$n|T], Line, Column, Context, Tokens) ->
+scan([$\\, $r,$e,$t,$u,$r,$n|T], Line, Column, Scope, Tokens) ->
     Char = $\r,
-    scan(T, Line, Column + 7, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 7, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
 %% End of line
 
-scan("\\" = Original, Line, Column, _Context, Tokens) ->
+scan("\\" = Original, Line, Column, _Scope, Tokens) ->
     {error, {{Line, Column}, ?MODULE, {invalid_eof, escape}}, Original,
      lists:reverse(Tokens)};
-scan("\\\n" = Original, Line, Column, _Context, Tokens) ->
+scan("\\\n" = Original, Line, Column, _Scope, Tokens) ->
     {error, {{Line, Column}, ?MODULE, {invalid_eof, escape}}, Original,
      lists:reverse(Tokens)};
-scan("\\\r\n" = Original, Line, Column, _Context, Tokens) ->
+scan("\\\r\n" = Original, Line, Column, _Scope, Tokens) ->
     {error, {{Line, Column}, ?MODULE, {invalid_eof, escape}}, Original,
      lists:reverse(Tokens)};
-scan("\\\n" ++ T, Line, _Column, Context, Tokens) ->
-    scan(T, Line + 1, 1, Context, Tokens);
-scan("\\\r\n" ++ T, Line, _Column, Context, Tokens) ->
-    scan(T, Line + 1, 1, Context, Tokens);
-scan("\n" ++ T, Line, _Column, Context, Tokens) ->
-    scan(T, Line + 1, 1, Context, Tokens);
-scan("\r\n" ++ T, Line, _Column, Context, Tokens) ->
-    scan(T, Line + 1, 1, Context, Tokens);
+scan("\\\n" ++ T, Line, _Column, Scope, Tokens) ->
+    scan(T, Line + 1, 1, Scope, Tokens);
+scan("\\\r\n" ++ T, Line, _Column, Scope, Tokens) ->
+    scan(T, Line + 1, 1, Scope, Tokens);
+scan("\n" ++ T, Line, _Column, Scope, Tokens) ->
+    scan(T, Line + 1, 1, Scope, Tokens);
+scan("\r\n" ++ T, Line, _Column, Scope, Tokens) ->
+    scan(T, Line + 1, 1, Scope, Tokens);
 
 %% Escaped chars
 
-scan([$\\, H|T], Line, Column, Context, Tokens) ->
+scan([$\\, H|T], Line, Column, Scope, Tokens) ->
     Char = unescape_map(H),
-    scan(T, Line, Column + 2, Context, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 2, Scope, [{number, {Line, Column}, Char}|Tokens]);
 
 %% Strings
 
-scan([$"|T], Line, Column, Context, Tokens) ->
-    handle_string(T, Line, Column + 1, $", Context, Tokens);
-scan([$'|T], Line, Column, Context, Tokens) ->
-    handle_string(T, Line, Column + 1, $', Context, Tokens);
+scan([$"|T], Line, Column, Scope, Tokens) ->
+    handle_string(T, Line, Column + 1, $", Scope, Tokens);
+scan([$'|T], Line, Column, Scope, Tokens) ->
+    handle_string(T, Line, Column + 1, $', Scope, Tokens);
 
 %% Atoms
 
-scan([$:, H|T] = Original, Line, Column, Context, Tokens) when ?is_quote(H) ->
+scan([$:, H|T] = Original, Line, Column, Scope, Tokens) when ?is_quote(H) ->
     case scan_string(Line, Column + 2, T, H) of
         {ok, NewLine, NewColumn, Bin, Rest} ->
             case unescape_tokens([Bin]) of
                 {ok, Unescaped} ->
-                    scan(Rest, NewLine, NewColumn, Context,
-                         [{atom, {Line, Column}, Unescaped}|Tokens]);
+                    Tag = case Scope#ceiba_scanner_scope.existing_atoms_only of
+                              true -> atom_safe;
+                              false -> atom_unsafe
+                          end,
+                    scan(Rest, NewLine, NewColumn, Scope,
+                         [{Tag, {Line, Column}, Unescaped}|Tokens]);
                 {error, ErrorDescription} ->
                     {error, {{Line, Column}, ?MODULE, ErrorDescription},
                      Original, lists:reverse(Tokens)}
@@ -268,96 +276,85 @@ scan([$:, H|T] = Original, Line, Column, Context, Tokens) when ?is_quote(H) ->
             {error, {Location, ?MODULE, {missing_terminator, H, H, Line}},
              Original, lists:reverse(Tokens)}
     end;
-scan([$:, H|T], Line, Column, Context, Tokens) when ?is_identifier_start(H) ->
-    handle_atom([H|T], Line, Column, Context, Tokens);
+scan([$:, H|T], Line, Column, Scope, Tokens) when ?is_identifier_start(H) ->
+    handle_atom([H|T], Line, Column, Scope, Tokens);
 
 %% Containers
 
 %% Binary
-scan("<<" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, binary}}, Original,
-     lists:reverse(Tokens)};
-scan([H, H|T], Line, Column, Context, Tokens) when H == $<; H == $> ->
+scan([H, H|T], Line, Column, Scope, Tokens) when H == $<; H == $< ->
     Token = {list_to_atom([H, H]), {Line, Column}},
-    handle_terminator(T, Line, Column + 2, Context, Token, Tokens);
+    handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
+
+scan([H, H|T], Line, Column, Scope, Tokens) when H == $>; H == $> ->
+    Token = {list_to_atom([H, H]), {Line, Column}},
+    handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
 %% map, set
-scan("#{" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, map}}, Original,
-     lists:reverse(Tokens)};
-scan("%{" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, set}}, Original,
-     lists:reverse(Tokens)};
-scan([H1, H2|T], Line, Column, Context, Tokens)
+scan([H1, H2|T], Line, Column, Scope, Tokens)
   when H1 == $#, H2 == ${; H1 == $%, H2 == ${ ->
     Token = {list_to_atom([H1, H2]), {Line, Column}},
-    handle_terminator(T, Line, Column + 2, Context, Token, Tokens);
+    handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
-%% List, tuple, container seperator
-scan([H|T], Line, Column, Context, Tokens)
-  when H == $(; H == $); H == $[; H == $]; H == ${; H == $}; H == $, ->
+%% List, tuple
+scan([H|T], Line, Column, Scope, Tokens)
+  when H == $(; H == $); H == $[; H == $]; H == ${; H == $} ->
     NextColumn = Column + 1,
     Token = {list_to_atom([H]), {Line, Column}},
-    handle_terminator(T, Line, NextColumn, Context, Token, Tokens);
+    handle_terminator(T, Line, NextColumn, Scope, Token, Tokens);
 
 %% two chars operators
 
-scan("~@" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, unquote_splicing}},
-     Original, lists:reverse(Tokens)};
-scan([$~, $@|T], Line, Column, Context, Tokens) ->
-    scan(T, Line, Column + 2, Context,
+scan([$~, $@|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 2, Scope,
          [{unquote_splicing, {Line, Column}}|Tokens]);
 
 %% one char operators
 
-scan("`" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, backquote}}, Original,
-     lists:reverse(Tokens)};
-scan([$`|T], Line, Column, Context, Tokens) ->
-    scan(T, Line, Column + 1, Context, [{backquote, {Line, Column}}|Tokens]);
+scan([$`|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 1, Scope, [{backquote, {Line, Column}}|Tokens]);
 
-scan("'" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, quote}}, Original,
-     lists:reverse(Tokens)};
-scan([$'|T], Line, Column, Context, Tokens) ->
-    scan(T, Line, Column + 1, Context, [{quote, {Line, Column}}|Tokens]);
+scan([$'|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 1, Scope, [{quote, {Line, Column}}|Tokens]);
 
-scan("~" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, unquote}}, Original,
-     lists:reverse(Tokens)};
-scan([$~|T], Line, Column, Context, Tokens) ->
-    scan(T, Line, Column + 1, Context, [{unquote, {Line, Column}}|Tokens]);
+scan([$~|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 1, Scope, [{unquote, {Line, Column}}|Tokens]);
 
-scan("&" = Original, Line, Column, _Context, Tokens) ->
-    {error, {{Line, Column}, ?MODULE, {invalid_eof, rest}}, Original,
-     lists:reverse(Tokens)};
-scan([$&|T], Line, Column, Context, Tokens) ->
-    scan(T, Line, Column + 1, Context, [{rest, {Line, Column}}|Tokens]);
+scan([$&|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 1, Scope, [{rest, {Line, Column}}|Tokens]);
+
+scan([$,|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 1, Scope, [{',', {Line, Column}}|Tokens]);
+
+%% Others
+
+scan([$.|T], Line, Column, Scope, Tokens) ->
+    scan(T, Line, Column + 1, Scope, [{'.', {Line, Column}}|Tokens]);
+
 
 %% Integers and floats
 
-scan([H|_] = Original, Line, Column, Context, Tokens) when ?is_digit(H) ->
+scan([H|_] = Original, Line, Column, Scope, Tokens) when ?is_digit(H) ->
     {Rest, Number, Length} = scan_number(Original, [], false),
-    scan(Rest, Line, Column + Length, Context,
+    scan(Rest, Line, Column + Length, Scope,
          [{number, {Line, Column}, Number}|Tokens]);
 
 %% Identifiers
 
-scan([H|_] = Original, Line, Column, Context, Tokens)
+scan([H|_] = Original, Line, Column, Scope, Tokens)
   when ?is_identifier_start(H) ->
-    handle_identifier(Original, Line, Column, Context, Tokens);
+    handle_identifier(Original, Line, Column, Scope, Tokens);
 
 %% Spaces
-scan([H|T], Line, Column, Context, Tokens) when ?is_horizontal_space(H) ->
-    scan(T, Line, Column + 1, Context, Tokens);
+scan([H|T], Line, Column, Scope, Tokens) when ?is_horizontal_space(H) ->
+    scan(T, Line, Column + 1, Scope, Tokens);
 
-scan([H|T] = Original, Line, Column, _Context, Tokens)
+scan([H|T] = Original, Line, Column, _Scope, Tokens)
   when ?is_invalid_space(H) ->
     {error, {{Line, Column}, ?MODULE, {invalid_space, H, until_eol(T)}},
      Original, lists:reverse(Tokens)};
 
-scan(T, Line, Column, _Context, Tokens) ->
+scan(T, Line, Column, _Scope, Tokens) ->
     {error, {{Line, Column}, ?MODULE, {invalid_token, until_eol(T)}}, T,
      lists:reverse(Tokens)}.
 
@@ -428,7 +425,7 @@ scan_comment([]) -> [].
 %% Chars
 
 escape_char(List) ->
-    <<Char/utf8>> = unescape_chars(list_to_binary(List)),
+    {ok, <<Char/utf8>>} = unescape_chars(list_to_binary(List)),
     Char.
 
 %% Unescape a series of tokens as returned by extract.
@@ -500,8 +497,6 @@ append_escaped(Rest, Map, List, Hex, Acc, Base) ->
 
 %% Unescape Helpers
 
-unescape_map($0) -> 0;
-unescape_map($a) -> 7;
 unescape_map($b) -> $\b;
 unescape_map($d) -> $\d;
 unescape_map($e) -> $\e;
@@ -516,12 +511,17 @@ unescape_map(E)  -> E.
 
 %% Strings
 
-handle_string(T, Line, Column, Term, Context,Tokens) ->
+handle_string(T, Line, Column, Term, Scope, Tokens) ->
     case scan_string(Line, Column, T, Term) of
         {ok, NewLine, NewColumn, Bin, Rest} ->
-            Unescaped = unescape_tokens([Bin]),
-            scan(Rest, NewLine, NewColumn, Context,
-                 [{string_type(Term), {Line, Column-1}, Unescaped}|Tokens]);
+            case unescape_tokens([Bin]) of
+                {ok, Unescaped} ->
+                    Token = {string_type(Term), {Line, Column-1}, Unescaped},
+                    scan(Rest, NewLine, NewColumn, Scope, [Token|Tokens]);
+                {error, ErrorDescription} ->
+                    {error, {{Line, Column}, ?MODULE, ErrorDescription},
+                     [Term|T], lists:reverse(Tokens)}
+            end;
         {error, Location, _} ->
             {error, {Location, ?MODULE, {missing_terminator, Term, Term, Line}},
              T, lists:reverse(Tokens)}
@@ -554,19 +554,23 @@ scan_string(Line, Column, [Char|Rest], Term, Acc) ->
 
 %% Identifiers
 
-handle_atom(T, Line, Column, Context, Tokens) ->
+handle_atom(T, Line, Column, Scope, Tokens) ->
     case scan_identifier(Line, Column, T) of
         {ok, NewLine, NewColumn, Identifier, Rest} ->
-            scan(Rest, NewLine, NewColumn, Context,
-                 [{atom, {Line, Column}, list_to_binary(Identifier)}|Tokens]);
+            Atom = case Scope#ceiba_scanner_scope.existing_atoms_only of
+                       true -> list_to_existing_atom(Identifier);
+                       false -> list_to_atom(Identifier)
+                   end,
+            scan(Rest, NewLine, NewColumn, Scope,
+                 [{atom, {Line, Column}, Atom}|Tokens]);
         {error, ErrorInfo} ->
             {error, ErrorInfo, [$: | T], Tokens}
     end.
 
-handle_identifier(T, Line, Column, Context, Tokens) ->
+handle_identifier(T, Line, Column, Scope, Tokens) ->
     case scan_identifier(Line, Column, T) of
         {ok, NewLine, NewColumn, Identifier, Rest} ->
-            scan(Rest, NewLine, NewColumn, Context,
+            scan(Rest, NewLine, NewColumn, Scope,
                  [{identifier, {Line, Column}, Identifier}|Tokens]);
         {error, ErrorInfo} ->
             {error, ErrorInfo, T, lists:reverse(Tokens)}
@@ -590,20 +594,19 @@ scan_identifier(Line, Column, Rest, Acc) ->
 
 %% Terminators
 
-handle_terminator(Rest, Line, Column, Context, Token, Tokens) ->
-    case handle_terminator(Token, Context) of
+handle_terminator(Rest, Line, Column, Scope, Token, Tokens) ->
+    case handle_terminator(Token, Scope) of
         {error, ErrorInfo} ->
             {error, ErrorInfo, atom_to_list(element(1, Token)) ++ Rest, Tokens};
-        NewContext ->
-            scan(Rest, Line, Column, NewContext, [Token|Tokens])
+        NewScope ->
+            scan(Rest, Line, Column, NewScope, [Token|Tokens])
     end.
-handle_terminator(_, #ceiba_scan_context{check_terminators=false} = Context) ->
-    Context;
-handle_terminator(Token,
-                  #ceiba_scan_context{terminators=Terminators} = Context) ->
+handle_terminator(_, #ceiba_scanner_scope{check_terminators=false} = Scope) ->
+    Scope;
+handle_terminator(Token, #ceiba_scanner_scope{terminators=Terminators} = Scope) ->
     case check_terminator(Token, Terminators) of
         {error, _} = Error -> Error;
-        New -> Context#ceiba_scan_context{terminators=New}
+        New -> Scope#ceiba_scanner_scope{terminators=New}
     end.
 
 check_terminator({O, _} = New, Terminators)
@@ -650,22 +653,6 @@ format_error({invalid_n_base_char, Char, Base, Line}) ->
                   [Char, Base, Line]);
 format_error({invalid_eof, escape}) ->
     "invalid escape \\ at end of file";
-format_error({invalid_eof, binary}) ->
-    "invalid binary at end of file";
-format_error({invalid_eof, map}) ->
-    "invalid map at end of file";
-format_error({invalid_eof, set}) ->
-    "invalid set at end of file";
-format_error({invalid_eof, unquote_splicing}) ->
-    "invalid unquote-splicing at end of file";
-format_error({invalid_eof, backquote}) ->
-    "invalid backquote at end of file";
-format_error({invalid_eof, quote}) ->
-    "invalid quote at end of file";
-format_error({invalid_eof, unquote}) ->
-    "invalid unquote at end of file";
-format_error({invalid_eof, rest}) ->
-    "invalid rest at end of file";
 format_error({missing_hex_sequence}) ->
     "missing hex sequence after \\x";
 format_error({invalid_codepoint, CodePoint}) ->

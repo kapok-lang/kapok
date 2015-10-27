@@ -1,9 +1,10 @@
 %%
 
--record(ceiba_scan_context,
+-record(ceiba_scanner_scope,
         {file,
          terminators=[],
-         check_terminators=true
+         check_terminators=true,
+         existing_atoms_only=false
         }).
 
 %% Used in scanner
