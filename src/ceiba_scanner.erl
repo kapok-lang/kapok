@@ -331,6 +331,9 @@ scan([$,|T], Line, Column, Scope, Tokens) ->
 scan([$.|T], Line, Column, Scope, Tokens) ->
     scan(T, Line, Column + 1, Scope, [{'.', {Line, Column}}|Tokens]);
 
+scan([Op|T], Line, Column, Scope, Tokens) when ?is_sign(Op) ->
+    scan(T, Line, Column + 1, Scope,
+         [{list_to_atom([Op]), {Line, Column}}|Tokens]);
 
 %% Integers and floats
 

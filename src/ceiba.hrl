@@ -9,6 +9,9 @@
 
 %% Used in scanner
 
+%% Sign
+-define(is_sign(S), ((S == $+) orelse (S == $-))).
+
 %% Numbers
 -define(is_hex(S), (?is_digit(S) orelse (S >= $A andalso S =< $F) orelse (S >= $a andalso S =< $f))).
 -define(is_octal(S), (S >= $0 andalso S =< $7)).
@@ -21,8 +24,8 @@
 
 %% Identifiers
 -define(is_identifier_start(S),
-        (?is_upcase(S) orelse ?is_downcase(S) orelse (S == $!) orelse (S == $#) orelse (S == $$) orelse (S == $*) orelse (S == $+) orelse (S == $-) orelse (S == $/) orelse (S == $<) orelse (S == $=) orelse (S == $>) orelse (S == $?) orelse (S == $@) orelse (S == $^) orelse (S == $_) orelse (S == $|))).
--define(is_identifier(S), (?is_identifier_start(S) orelse ?is_digit(S))).
+        (?is_upcase(S) orelse ?is_downcase(S) orelse (S == $!) orelse (S == $#) orelse (S == $$) orelse (S == $*) orelse (S == $/) orelse (S == $<) orelse (S == $=) orelse (S == $>) orelse (S == $?) orelse (S == $@) orelse (S == $^) orelse (S == $_) orelse (S == $|))).
+-define(is_identifier(S), (?is_identifier_start(S) orelse ?is_digit(S) orelse ?is_sign(S))).
 
 %% Quotes
 -define(is_quote(S), (S == $" orelse S == $')).

@@ -15,8 +15,8 @@ unquoted_atom_test() ->
     ?assertEqual([{atom, {1,1}, '#'}], scan(":#")),
     ?assertEqual([{atom, {1,1}, '$'}], scan(":$")),
     ?assertEqual([{atom, {1,1}, '*'}], scan(":*")),
-    ?assertEqual([{atom, {1,1}, '+'}], scan(":+")),
-    ?assertEqual([{atom, {1,1}, '-'}], scan(":-")),
+    ?assertEqual([{atom, {1,1}, 't+'}], scan(":t+")),
+    ?assertEqual([{atom, {1,1}, 't-'}], scan(":t-")),
     ?assertEqual([{atom, {1,1}, '/'}], scan(":/")),
     ?assertEqual([{atom, {1,1}, '<'}], scan(":<")),
     ?assertEqual([{atom, {1,1}, '='}], scan(":=")),
@@ -69,6 +69,10 @@ float_test() ->
 
 scientific_test() ->
     ?assertEqual([{number, {1,1}, 0.1}], scan("1.0e-1")).
+
+signed_number_test() ->
+    ?assertEqual([{'+', {1, 1}}, {number, {1, 3}, 234}], scan("+ 234")),
+    ?assertEqual([{'-', {1, 1}}, {number, {1, 3}, 23.4}], scan("- 23.4")).
 
 comment_test() ->
     ?assertEqual([{number, {1,1}, 1}, {number, {2,1}, 2}], scan("1 ;; comment\n2")),

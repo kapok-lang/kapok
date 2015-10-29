@@ -1,9 +1,14 @@
 %% Translate Ceiba AST to Erlang Abstract Format.
 -module(ceiba_translator).
+
 -export([translate/1]).
 -import(ceiba_scanner,
         [token_line/1,
          location_line/1]).
+
+%% Operators
+translate({Op, Meta, Number}) when Op == '+', Op == '-' ->
+    {op, location_line(Meta), Op, translate(Number)};
 
 %% Containers
 
