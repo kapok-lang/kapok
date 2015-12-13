@@ -1,5 +1,8 @@
 %%
 
+%-record(ceiba_scope,
+%       ).
+
 -record(ceiba_scanner_scope,
         {file,
          terminators=[],

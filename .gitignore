@@ -3,4 +3,5 @@ erl_crash.dump
 ebin/
 .rebar/
 .eunit/
+src/ceiba_parser.erl
 

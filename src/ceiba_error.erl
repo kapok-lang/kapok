@@ -1,7 +1,8 @@
 %% A bunch of helpers to help to deal with errors in Ceiba source code.
 %% This is not exposed in the Ceiba language.
 -module(ceiba_error).
--export([parse_error/4]).
+-export([parse_error/4,
+         'syntax-error'/3]).
 -include("ceiba.hrl").
 
 %% Tokenization/parsing errors.

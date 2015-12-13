@@ -260,7 +260,7 @@ scan([$'|T], Line, Column, Scope, Tokens) ->
 scan([$:, H|T] = Original, Line, Column, Scope, Tokens) when ?is_quote(H) ->
     case scan_string(Line, Column + 2, T, H) of
         {ok, NewLine, NewColumn, Bin, Rest} ->
-            case unescape_tokens([Bin]) of
+            case unescape_token(Bin) of
                 {ok, Unescaped} ->
                     Tag = case Scope#ceiba_scanner_scope.existing_atoms_only of
                               true -> atom_safe;
@@ -444,6 +444,8 @@ unescape_tokens([Token|T], Map, Acc) ->
             {error, ErrorDescription}
     end.
 
+unescape_token(Token) ->
+    unescape_token(Token, fun unescape_map/1).
 unescape_token(Token, Map) when is_binary(Token) -> unescape_chars(Token, Map);
 unescape_token(Other, _Map) -> {ok, Other}.
 
@@ -517,7 +519,7 @@ unescape_map(E)  -> E.
 handle_string(T, Line, Column, Term, Scope, Tokens) ->
     case scan_string(Line, Column, T, Term) of
         {ok, NewLine, NewColumn, Bin, Rest} ->
-            case unescape_tokens([Bin]) of
+            case unescape_token(Bin) of
                 {ok, Unescaped} ->
                     Token = {string_type(Term), {Line, Column-1}, Unescaped},
                     scan(Rest, NewLine, NewColumn, Scope, [Token|Tokens]);

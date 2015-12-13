@@ -22,8 +22,27 @@ translate(List) when is_list(List) ->
 
 %% literals
 
-translate({number, Meta, Value}) ->
-    {integer, location_line(Meta), Value}.
+%% number
+
+%% integer
+translate({number, Meta, Value}) when is_integer(Value) ->
+    {integer, location_line(Meta), Value};
+%% float
+translate({number, Meta, Value}) when is_float(Value) ->
+    {float, location_line(Meta), Value};
+
+%% atom
+translate({atom, Meta, Value}) ->
+    {atom, location_line(Meta), Value};
+
+%% list string
+translate({list_string, Meta, Value}) ->
+    {string, location_line(Meta), binary_to_list(Value)};
+%% tuple
+translate({tuple, Meta, Value}) ->
+    {tuple, location_line(Meta), Value}.
+
+
 
 
 %% Helpers

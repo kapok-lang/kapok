@@ -29,7 +29,7 @@ unquoted_atom_test() ->
     ?assertEqual([{atom, {1,1}, '|'}], scan(":|")).
 
 quoted_atom_test() ->
-    ?assertEqual([{atom_unsafe, {1,1}, [<<"foo bar">>]}], scan(":\"foo bar\"")).
+    ?assertEqual([{atom_unsafe, {1,1}, <<"foo bar">>}], scan(":\"foo bar\"")).
 
 atom_test() ->
     ?assertEqual([{atom, {1,1}, f0_1}], scan(":f0_1")).
@@ -101,12 +101,12 @@ newline_test() ->
                  scan("1\n~@2")).
 
 string_test() ->
-    ?assertEqual([{binary_string, {1,1}, [<<"foo">>]}], scan("\"foo\"")),
-    ?assertEqual([{binary_string, {1,1}, [<<"f\"">>]}], scan("\"f\\\"\"")),
-    ?assertEqual([{list_string, {1,1}, [<<"foo">>]}], scan("'foo'")),
+    ?assertEqual([{binary_string, {1,1}, <<"foo">>}], scan("\"foo\"")),
+    ?assertEqual([{binary_string, {1,1}, <<"f\"">>}], scan("\"f\\\"\"")),
+    ?assertEqual([{list_string, {1,1}, <<"foo">>}], scan("'foo'")),
     %% empty string
-    ?assertEqual([{binary_string, {1,1}, [<<>>]}], scan("\"\"")),
-    ?assertEqual([{list_string, {1,1}, [<<>>]}], scan("''")).
+    ?assertEqual([{binary_string, {1,1}, <<>>}], scan("\"\"")),
+    ?assertEqual([{list_string, {1,1}, <<>>}], scan("''")).
 
 space_test() ->
     %% valid
