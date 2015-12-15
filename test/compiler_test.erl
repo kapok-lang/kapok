@@ -2,7 +2,45 @@
 -include_lib("eunit/include/eunit.hrl").
 
 warn(Warnings) ->
-    io:fwrite("~w~n", [Warnings]).
+    io:fwrite("~s~n", [Warnings]).
+warn(Format, Args) ->
+    io:fwrite(Format, Args).
+
+erl_to_abstract_format(Contents, Type) ->
+    case erl_scan:string(Contents) of
+        {ok, Tokens, _EndLocation} ->
+            case Type of
+                term ->
+                    {ok, Term} = erl_parse:parse_term(Tokens),
+                    Term;
+                exprs ->
+                    {ok, ExprList} = erl_parse:parse_exprs(Tokens),
+                    ExprList;
+                form ->
+                    {ok, Form} = erl_parse:parse_form(Tokens),
+                    Form;
+                _ ->
+                    throw({"invalid type of erl tokens: ~s~n", [Type]})
+            end;
+        {error, ErrorInfo, ErrorLocation}->
+            ?assert(false),
+            throw({"scan error, location: ~w, error: ~s~n", [ErrorLocation, ErrorInfo]})
+    end.
+
+eval_erlang_exprs(Exprs) ->
+    Parsed = erl_to_abstract_format(Exprs, exprs),
+    erl_eval:expr_list(Parsed, []).
+
+eval_ceiba_exprs(Exprs) ->
+    Parsed = ceiba_compiler:string(Exprs, <<"file">>),
+    erl_eval:expr_list(Parsed, []).
+
+string2_test() ->
+    Output1 = eval_erlang_exprs("[1 | [2]]."),
+    Output2 = eval_erlang_exprs("[1, 2]."),
+    Output3 = eval_ceiba_exprs("(1 2)"),
+    ?assertEqual(Output3, Output1),
+    ?assertEqual(Output3, Output2).
 
 string_test() ->
     Format = ceiba_compiler:string("(1 2)", <<"file">>),
