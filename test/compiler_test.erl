@@ -35,12 +35,14 @@ eval_ceiba_exprs(Exprs) ->
     Parsed = ceiba_compiler:string(Exprs, <<"file">>),
     erl_eval:expr_list(Parsed, []).
 
-string2_test() ->
+list_test() ->
     Output1 = eval_erlang_exprs("[1 | [2]]."),
     Output2 = eval_erlang_exprs("[1, 2]."),
     Output3 = eval_ceiba_exprs("(1 2)"),
+    Output4 = eval_ceiba_exprs("[1 2]"),
     ?assertEqual(Output3, Output1),
-    ?assertEqual(Output3, Output2).
+    ?assertEqual(Output3, Output2),
+    ?assertEqual(Output4, Output3).
 
 string_test() ->
     Format = ceiba_compiler:string("(1 2)", <<"file">>),

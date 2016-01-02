@@ -1,7 +1,6 @@
 %%
-
-%-record(ceiba_scope,
-%       ).
+-define(m(M, K), maps:get(K, M)).
+-define(line(Opts), ceiba_utils:get_line(Opts)).
 
 -record(ceiba_scanner_scope,
         {file,
@@ -10,7 +9,16 @@
          existing_atoms_only=false
         }).
 
-%% Used in scanner
+-record(ceiba_scope,
+        {module = nil,
+         file = nil,
+         function = nil,
+         context = nil,
+         vars = [],
+         super = false,
+         caller = false,
+         return = true
+        }).
 
 %% Sign
 -define(is_sign(S), ((S == $+) orelse (S == $-))).

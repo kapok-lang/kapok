@@ -1,8 +1,5 @@
 %%
-
 -module(ceiba_scanner).
--include("ceiba.hrl").
-
 -export([location_line/1,
          location_column/1,
          token_category/1,
@@ -13,6 +10,7 @@
          scan/3,
          scan/4,
          format_error/1]).
+-include("ceiba.hrl").
 
 -type category() :: atom().
 -type line() :: integer().

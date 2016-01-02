@@ -28,7 +28,7 @@ string_to_ast(String, StartLine, File, Options)
                     {error, {Line, to_binary(Error), to_binary(Token)}}
             end;
         {error, {Location, Module, ErrorDescription}, _Rest, _SoFar} ->
-            {error, Location, Module:format_error(ErrorDescription)}
+            {error, Location, Module, ErrorDescription}
     end.
 
 'string_to_ast!'(String, StartLine, File, Options) ->
@@ -36,7 +36,8 @@ string_to_ast(String, StartLine, File, Options)
         {ok, Forms} ->
             Forms;
         {error, Location, Module, ErrorDesc} ->
-            ceiba_errors:parse_error(Location, File, Module, ErrorDesc)
+            Line = ceiba_scanner:location_line(Location),
+            ceiba_error:parse_error(Line, File, Module, ErrorDesc)
     end.
 
 to_binary(List) when is_list(List) -> unicode:characters_to_binary(List);
