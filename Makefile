@@ -102,6 +102,9 @@ all: build
 
 build: $(beam_files)
 
+# add dependencies for yecc parser definitions
+$(src_dir)/%.erl: $(src_dir)/%.yrl
+
 $(beam_files): $(beam_output_dir)/%.beam: $(src_dir)/%.erl
 
 $(beam_files):

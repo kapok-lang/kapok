@@ -17,8 +17,8 @@ translate(Meta, Args, Scope) ->
     end.
 
 build_binary(Fun, Args, Meta, Scope) ->
-    {Result, ResultScope} = build_binary_each(Fun, Args, Meta, Scope, []),
-    {{bin, Meta, lists:reverse(Result)}, ResultScope}.
+    {Result, NewScope} = build_binary_each(Fun, Args, Meta, Scope, []),
+    {{bin, Meta, lists:reverse(Result)}, NewScope}.
 
 build_binary_each(_Fun, [], _Meta, Scope, Acc) ->
     {Acc, Scope};

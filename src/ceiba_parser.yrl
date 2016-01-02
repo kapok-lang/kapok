@@ -39,12 +39,12 @@ expressions -> expression_list : lists:reverse('$1').
 
 %% Value
 
-value       -> number : '$1'.
+value       -> number : transfer_meta('$1').
 value       -> signed_number : '$1'.
-value       -> binary_string : '$1'.
-value       -> list_string : '$1'.
+value       -> binary_string : transfer_meta('$1').
+value       -> list_string : transfer_meta('$1').
 value       -> binary_container : '$1'.
-value       -> identifier : '$1'.
+value       -> identifier : transfer_meta('$1').
 value       -> atom_expr : '$1'.
 value       -> list_container : '$1'.
 value       -> tuple_container : '$1'.
@@ -78,7 +78,7 @@ unquote_splicing_expr -> '~@' list_container : build_unquote_splicing('$1', '$2'
 binary_arg_list  -> binary_arg_list list_container : ['$2' | '$1'].
 
 binary_args      -> binary_arg_list : lists:reverse('$1').
-binary_args      -> values : ['$1'].
+binary_args      -> values : '$1'.
 
 binary_container -> '<<' '>>' : build_binary('$1', []).
 binary_container -> '<<' binary_args '>>' : build_binary('$1', '$2').
@@ -149,6 +149,9 @@ Erlang code.
 build_meta(Token) ->
     [{line, token_line(Token)}, {column, token_column(Token)}].
 
+transfer_meta(Token) ->
+    {token_category(Token), build_meta(Token), token_symbol(Token)}.
+
 build_atom(Token) ->
     token_symbol(Token).
 %%    {atom, build_meta(Token), token_symbol(Token)}.
@@ -159,7 +162,6 @@ build_quoted_atom({_, _Meta, Bin}, Safe) when is_binary(Bin) ->
 
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
-
 
 build_signed_number(Op, Number) ->
     {token_category(Op), build_meta(Op), Number}.

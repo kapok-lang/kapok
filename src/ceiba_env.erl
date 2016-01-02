@@ -1,6 +1,8 @@
 %% The compilation time environment for a module
 -module(ceiba_env).
--export([new/0, env_to_scope/1]).
+-export([new/0,
+         env_to_scope/1,
+         env_to_scope_with_vars/2]).
 -include("ceiba.hrl").
 
 new() ->
@@ -28,4 +30,7 @@ env_to_scope(#{module := Module,
                  file = File,
                  function = Function,
                  context = Context}.
+
+env_to_scope_with_vars(Env, Vars) ->
+    (env_to_scope(Env))#ceiba_scope{vars = orddict:from_list(Vars)}.
 

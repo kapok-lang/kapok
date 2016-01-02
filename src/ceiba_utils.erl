@@ -1,4 +1,4 @@
-%% Convenience functions used throughout ceiba source code.
+%% Helper functions used throughout ceiba source code.
 
 -module(ceiba_utils).
 -export([get_line/1,

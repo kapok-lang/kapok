@@ -15,6 +15,7 @@
          function = nil,
          context = nil,
          vars = [],
+         export_vars = nil,
          super = false,
          caller = false,
          return = true
