@@ -18,7 +18,7 @@ translate(Meta, Args, Scope) ->
 
 build_binary(Fun, Args, Meta, Scope) ->
     {Result, NewScope} = build_binary_each(Fun, Args, Meta, Scope, []),
-    {{bin, Meta, lists:reverse(Result)}, NewScope}.
+    {{bin, ?line(Meta), lists:reverse(Result)}, NewScope}.
 
 build_binary_each(_Fun, [], _Meta, Scope, Acc) ->
     {Acc, Scope};
@@ -56,20 +56,26 @@ build_binary_each(Fun, Args, Meta, Scope, Acc, V, Size, Types) ->
         {bin, _, Elements} ->
             case (Size == default) andalso types_allow_splice(Types, Elements) of
                 true -> build_binary_each(Fun, Args, Meta, NewScope, lists:reverse(Elements, Acc));
-                false -> build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])end;
+                false -> build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+            end;
         _ ->
             build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
     end.
 
 %% Extra binary element specifiers
-extract_element_spec([H|T], Scope) ->
+extract_element_spec({list, _Meta, [H|T]}, Scope) ->
+    io:format("spec: ~w~n", [[H|T]]),
+    io:format("spec tail: ~w~n", [T]),
     {Size, TypeSpecList} = extract_element_size_tsl(T, Scope),
+    io:format("size: ~w~n", [Size]),
+    io:format("tsl: ~w~n", [TypeSpecList]),
     {H, Size, TypeSpecList}.
 
 %% Extra binary element size and type spec list
 extract_element_size_tsl([], _Scope) ->
     {default, default};
 extract_element_size_tsl(L, _Scope) ->
+    io:format("~nsize and tsl: ~w~n", [L]),
     extract_element_size_tsl(L, _Scope, {default, []}).
 
 extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
@@ -78,10 +84,13 @@ extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
             X -> X
         end,
     {Size, L};
-extract_element_size_tsl([[size, SizeExpr]|T], Scope, {_Size, TypeSpecList}) ->
-    extract_element_size_tsl(T, Scope, {SizeExpr, TypeSpecList});
-extract_element_size_tsl([[unit, Unit]|T], Scope, {Size, TypeSpecList}) ->
-    extract_element_size_tsl(T, Scope, {Size, [{unit, Unit}|TypeSpecList]});
+extract_element_size_tsl([{list, _Meta, [size, SizeExpr]}|T], Scope, {_, TypeSpecList}) ->
+    {Size, _} = ceiba_translator:translate(SizeExpr, Scope),
+    extract_element_size_tsl(T, Scope, {Size, TypeSpecList});
+extract_element_size_tsl([{list, _Meta, [unit, UnitExpr]}|T], Scope, {Size, TypeSpecList}) ->
+    {Unit, _} = ceiba_translator:translate(UnitExpr, Scope),
+    {integer, _, Value} = Unit,
+    extract_element_size_tsl(T, Scope, {Size, [{unit, Value}|TypeSpecList]});
 extract_element_size_tsl([Other|T], Scope, {Size, TypeSpecList}) ->
     extract_element_size_tsl(T, Scope, {Size, [Other|TypeSpecList]}).
 

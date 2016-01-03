@@ -29,10 +29,12 @@ erl_to_abstract_format(Contents, Type) ->
 
 eval_erlang_exprs(Exprs) ->
     Parsed = erl_to_abstract_format(Exprs, exprs),
+    io:format("~nerlang exprs: ~w~n", [Parsed]),
     erl_eval:expr_list(Parsed, []).
 
 eval_ceiba_exprs(Exprs) ->
     Parsed = ceiba_compiler:string(Exprs, <<"file">>),
+    io:format("ceiba  exprs: ~w~n", [Parsed]),
     erl_eval:expr_list(Parsed, []).
 
 list_test() ->
@@ -43,6 +45,12 @@ list_test() ->
     ?assertEqual(Output3, Output1),
     ?assertEqual(Output3, Output2),
     ?assertEqual(Output4, Output3).
+
+binary_test() ->
+    Output1 = eval_erlang_exprs("<<256:8/big-unsigned-integer-unit:1>>."),
+    Output2 = eval_ceiba_exprs("<<(256 (:size 8) :big :unsigned :integer (:unit 1))>>"),
+    ?assertEqual(Output1, Output2).
+
 
 string_test() ->
     Format = ceiba_compiler:string("(1 2)", <<"file">>),
