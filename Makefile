@@ -36,6 +36,7 @@ modules           := $(call get-modules-in-dir,$(src_dir))
 beam_files        := $(call modules-to-beams,$(beam_output_dir),$(modules))
 test_modules      := $(call get-modules-in-dir,$(test_dir))
 test_beam_files   := $(call modules-to-beams,$(test_output_dir),$(test_modules))
+parser_src_file   := $(src_dir)/ceiba_parser.erl
 
 # ensure directory's existence
 # $(call ensure-dir,dir-name)
@@ -100,10 +101,13 @@ endef
 
 all: build
 
-build: $(beam_files)
+build: $(parser_src_file) $(beam_files)
 
-# add dependencies for yecc parser definitions
-$(src_dir)/%.erl: $(src_dir)/%.yrl
+$(parser_src_file): $(src_dir)/%.erl:  $(src_dir)/%.yrl
+
+$(parser_src_file):
+	$(QUIET) echo "--- generate parser and build source files ---"
+	$(REBAR) compile
 
 $(beam_files): $(beam_output_dir)/%.beam: $(src_dir)/%.erl
 
@@ -125,5 +129,5 @@ $(foreach m,$(test_modules), \
   $(eval $(call gen-run-test-rule,$m)))
 
 clean:
-	$(RM) $(beam_files) $(test_beam_files)
+	$(RM) $(parser_src_file) $(beam_files) $(test_beam_files)
 

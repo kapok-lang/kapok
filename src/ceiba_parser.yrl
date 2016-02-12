@@ -13,7 +13,7 @@ Nonterminals
     open_curly close_curly tuple_container
     paired_comma_values paired_value_list paired_values unpaired_values open_bang_curly map_container
     open_percent_curly set_container
-    %fun_reference
+    dot_op dot_identifier
     .
 
 Terminals
@@ -39,31 +39,38 @@ expressions -> expression_list : lists:reverse('$1').
 
 %% Value
 
-value       -> number : transfer_meta('$1').
+value       -> number : '$1'.
 value       -> signed_number : '$1'.
-value       -> binary_string : transfer_meta('$1').
-value       -> list_string : transfer_meta('$1').
-value       -> binary_container : '$1'.
-value       -> identifier : transfer_meta('$1').
 value       -> atom_expr : '$1'.
-value       -> list_container : '$1'.
-value       -> tuple_container : '$1'.
-value       -> map_container : '$1'.
-value       -> set_container : '$1'.
+value       -> dot_identifier : '$1'.
 value       -> quote_expr : '$1'.
 value       -> backquote_expr : '$1'.
 value       -> unquote_expr : '$1'.
 value       -> unquote_splicing_expr : '$1'.
+value       -> binary_string : '$1'.
+value       -> list_string : '$1'.
+value       -> binary_container : '$1'.
+value       -> list_container : '$1'.
+value       -> tuple_container : '$1'.
+value       -> map_container : '$1'.
+value       -> set_container : '$1'.
 
 %% signed number
-sign          -> '+' : '$1'.
-sign          -> '-' : '$1'.
-signed_number -> sign number : build_signed_number('$1', '$2').
+sign           -> '+' : '$1'.
+sign           -> '-' : '$1'.
+signed_number  -> sign number : build_signed_number('$1', '$2').
 
 %% atom
-atom_expr     -> atom : build_atom('$1').
-atom_expr     -> atom_safe : build_quoted_atom('$1', true).
-atom_expr     -> atom_unsafe : build_quoted_atom('$1', false).
+atom_expr      -> atom : build_atom('$1').
+atom_expr      -> atom_safe : build_quoted_atom('$1', true).
+atom_expr      -> atom_unsafe : build_quoted_atom('$1', false).
+
+%% identifier
+dot_op         -> '.' : '$1'.
+
+dot_identifier -> identifier : '$1'.
+dot_identifier -> identifier dot_op identifier : build_dot('$2', '$1', '$3').
+dot_identifier -> dot_identifier dot_op identifier : build_dot('$2', '$1', '$3').
 
 %% Macro syntaxs
 quote_expr            -> '\'' value : build_quote('$1', '$2').
@@ -93,10 +100,10 @@ value_list  -> value_list comma_value : ['$2' | '$1'].
 
 values      -> value_list : lists:reverse('$1').
 
-open_paren  -> '(' : '$1'.
-close_paren -> ')' : '$1'.
 open_bracket  -> '[' : '$1'.
 close_bracket -> ']' : '$1'.
+open_paren  -> '(' : '$1'.
+close_paren -> ')' : '$1'.
 
 list_container -> open_bracket close_bracket : build_list('$1', []).
 list_container -> open_bracket values close_bracket : build_list('$1', '$2').
@@ -135,26 +142,19 @@ open_percent_curly -> '%{' : '$1'.
 set_container -> open_percent_curly close_curly : build_set('$1', []).
 set_container -> open_percent_curly values close_curly : build_set('$1', '$2').
 
-%% function reference
-
-%fun_reference -> identifier '.' identifier : -> build_fun_reference().
-
 Erlang code.
 
 -import(ceiba_scanner, [token_category/1,
-                        token_line/1,
-                        token_column/1,
+                        token_meta/1,
                         token_symbol/1]).
+-include("ceiba.hrl").
 
-build_meta(Token) ->
-    [{line, token_line(Token)}, {column, token_column(Token)}].
-
-transfer_meta(Token) ->
-    {token_category(Token), build_meta(Token), token_symbol(Token)}.
+build_signed_number(Op, Number) ->
+    {token_category(Op), token_meta(Op), Number}.
 
 build_atom(Token) ->
     token_symbol(Token).
-%%    {atom, build_meta(Token), token_symbol(Token)}.
+%%    {atom, token_meta(Token), token_symbol(Token)}.
 
 build_quoted_atom({_, _Meta, Bin}, Safe) when is_binary(Bin) ->
     Op = binary_to_atom_op(Safe),
@@ -163,39 +163,40 @@ build_quoted_atom({_, _Meta, Bin}, Safe) when is_binary(Bin) ->
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
 
-build_signed_number(Op, Number) ->
-    {token_category(Op), build_meta(Op), Number}.
+build_dot(Dot, Left, Right) ->
+    {dot, token_meta(Dot), [Left, Right]}.
 
 build_binary(Marker, Args) ->
-    {binary, build_meta(Marker), Args}.
+    {binary, token_meta(Marker), Args}.
 
 build_quote(Marker, Args) ->
-    {quote, build_meta(Marker), Args}.
+    {quote, token_meta(Marker), Args}.
 
 build_backquote(Marker, Args) ->
-    {backquote, build_meta(Marker), Args}.
+    {backquote, token_meta(Marker), Args}.
 
 build_unquote(Marker, Args) ->
-    {unquote, build_meta(Marker), Args}.
+    {unquote, token_meta(Marker), Args}.
 
 build_unquote_splicing(Marker, Args) ->
-    {unquote_splicing, build_meta(Marker), Args}.
+    {unquote_splicing, token_meta(Marker), Args}.
 
 build_list(Marker, Args) ->
-    {list, build_meta(Marker), Args}.
+    io:format("build_list: ~p~n", [Args]),
+    {list, token_meta(Marker), Args}.
 
 build_tuple(Marker, Args) ->
-    {tuple, build_meta(Marker), Args}.
+    {tuple, token_meta(Marker), Args}.
 
 build_map(Marker, Args) ->
-    {map, build_meta(Marker), Args}.
+    {map, token_meta(Marker), Args}.
 
 build_set(Marker, Args) ->
-    {set, build_meta(Marker), Args}.
+    {set, token_meta(Marker), Args}.
 
 %% Errors
 throw(Line, Error, Token) ->
     throw({error, {Line, ?MODULE, [Error, Token]}}).
 
 throw_unpaired_map(Marker) ->
-    throw(token_line(Marker), "unpaired values in map", token_symbol(Marker)).
+    throw(?line(token_meta(Marker)), "unpaired values in map", token_symbol(Marker)).

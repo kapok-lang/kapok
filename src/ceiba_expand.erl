@@ -1,5 +1,5 @@
 %%
--module(ceiba_exp).
+-module(ceiba_expand).
 -export([expand/2, expand_args/2, expand_arg/2]).
 
 %%

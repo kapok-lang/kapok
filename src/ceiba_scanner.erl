@@ -1,11 +1,7 @@
 %%
 -module(ceiba_scanner).
--export([location_line/1,
-         location_column/1,
-         token_category/1,
-         token_location/1,
-         token_line/1,
-         token_column/1,
+-export([token_category/1,
+         token_meta/1,
          token_symbol/1,
          scan/3,
          scan/4,
@@ -15,40 +11,22 @@
 -type category() :: atom().
 -type line() :: integer().
 -type column() :: pos_integer().
--type location() :: line() | {line(),column()}.
+-type meta() :: [{line, line()} | {column, column()}].
+-type location() :: {line(), column()}.
 -type symbol() :: atom() | float() | integer() | string() | binary().
--type attributes() :: location().
--type token() :: {category(), attributes(), symbol()}
-               | {category(), attributes()}.
+-type token() :: {category(), meta(), symbol()}
+               | {category(), meta()}.
 -type tokens() :: [token()].
 -type option() :: {atom(), term()}.
 -type options() :: [option()].
 -type error_info() :: {location(), module(), term()}.
 
--spec location_line(Location :: location()) -> Result :: line().
-location_line(Location) when is_integer(Location) ->
-    Location;
-location_line(Location) when is_tuple(Location) ->
-    element(1, Location).
-
--spec location_column(Location :: location()) -> Result :: column().
-location_column(Location) when is_integer(Location) ->
-    1;
-location_column(Location) when is_tuple(Location) ->
-    element(2, Location).
-
 -spec token_category(Token :: token()) -> Return :: category().
 token_category(Token) ->
     element(1, Token).
--spec token_location(Token :: token()) -> Return :: location().
-token_location(Token) ->
+-spec token_meta(Token :: token()) -> Return :: meta().
+token_meta(Token) ->
     element(2, Token).
--spec token_line(Token :: token()) -> Return :: line().
-token_line(Token) ->
-    element(1, token_location(Token)).
--spec token_column(Token :: token()) -> Return :: column().
-token_column(Token) ->
-    element(2, token_location(Token)).
 -spec token_symbol(Token :: token()) -> Return :: symbol().
 token_symbol(Token) ->
     case Token of
@@ -58,6 +36,8 @@ token_symbol(Token) ->
             nil
     end.
 
+build_meta(Line, Column) ->
+    [{line, Line}, {column, Column}].
 
 %% start of scan()
 
@@ -99,7 +79,7 @@ scan(String, Line, Column, Options) ->
 
 %% success
 scan([], Line, Column, #ceiba_scanner_scope{terminators=[]}, Tokens) ->
-    {ok, lists:reverse(Tokens), {Line, Column}};
+    {ok, lists:reverse(Tokens), build_meta(Line, Column)};
 
 %% terminator missing
 scan([], EndLine, Column,
@@ -116,12 +96,12 @@ scan([], EndLine, Column,
 scan([$0, $x, H|T], Line, Column, Scope, Tokens) when ?is_hex(H) ->
     {Rest, Number, Length} = scan_hex([H|T], []),
     scan(Rest, Line, Column + 2 + Length, Scope,
-         [{number, {Line, Column}, Number}|Tokens]);
+         [{number, build_meta(Line, Column), Number}|Tokens]);
 %% octal
 scan([$0, H|T], Line, Column, Scope, Tokens) when ?is_octal(H) ->
     {Rest, Number, Length} = scan_octal([H|T], []),
     scan(Rest, Line, Column + 1 + Length, Scope,
-         [{number, {Line, Column}, Number}|Tokens]);
+         [{number, build_meta(Line, Column), Number}|Tokens]);
 
 %% flexible N(2 - 36) numeral bases
 scan([B1, $r, H|T], Line, Column, Scope, Tokens)
@@ -131,7 +111,7 @@ scan([B1, $r, H|T], Line, Column, Scope, Tokens)
         true ->
             {Rest, Number, Length} = scan_n_base([H|T], N, []),
             scan(Rest, Line, Column + 2 + Length, Scope,
-                 [{number, {Line, Column}, Number}|Tokens]);
+                 [{number, build_meta(Line, Column), Number}|Tokens]);
         _ ->
             {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
              [], lists:reverse(Tokens)}
@@ -144,7 +124,7 @@ scan([B1, B2, $r, H|T], Line, Column, Scope, Tokens)
         true ->
             {Rest, Number, Length} = scan_n_base([H|T], N, []),
             scan(Rest, Line, Column + 3 + Length, Scope,
-                 [{number, {Line, Column}, Number}|Tokens]);
+                 [{number, build_meta(Line, Column), Number}|Tokens]);
         _ ->
             {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
              [], Tokens}
@@ -161,64 +141,64 @@ scan([$;|T], Line, Column, Scope, Tokens) ->
 scan([$\\, $x, ${,A,B,C,D,E,F,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E), ?is_hex(F) ->
     Char = escape_char([$\\, $x, ${,A,B,C,D,E,F,$}]),
-    scan(T, Line, Column+10, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column+10, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,C,D,E,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E) ->
     Char = escape_char([$\\, $x, ${,A,B,C,D,E,$}]),
-    scan(T, Line, Column+9, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column+9, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,C,D,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     Char = escape_char([$\\, $x, ${,A,B,C,D,$}]),
-    scan(T, Line, Column + 8, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 8, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,C,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B), ?is_hex(C) ->
     Char = escape_char([$\\, $x, ${,A,B,C,$}]),
-    scan(T, Line, Column + 7, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 7, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,$}|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B) ->
     Char = escape_char([$\\, $x, ${,A,B,$}]),
-    scan(T, Line, Column + 6, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 6, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
     Char = escape_char([$\\, $x, ${,A,$}]),
-    scan(T, Line, Column + 5, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 5, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, A, B|T], Line, Column, Scope, Tokens)
   when ?is_hex(A), ?is_hex(B) ->
     Char = escape_char([$\\, $x, A, B]),
-    scan(T, Line, Column + 4, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 4, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, A|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
     Char = escape_char([$\\, $x, A]),
-    scan(T, Line, Column + 3, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 3, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
     Char = $\s,
-    scan(T, Line, Column + 6, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 6, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $t,$a,$b|T], Line, Column, Scope, Tokens) ->
     Char = $\t,
-    scan(T, Line, Column + 4, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 4, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $f,$o,$r,$m,$f,$e,$e,$d|T], Line, Column, Scope, Tokens) ->
     Char = $\f,
-    scan(T, Line, Column + 9, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 9, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $b,$a,$c,$k,$s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
     Char = $\b,
-    scan(T, Line, Column+10, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column+10, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $n,$e,$w,$l,$i,$n,$e|T], Line, Column, Scope, Tokens) ->
     Char = $\n,
-    scan(T, Line, Column + 8, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 8, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $r,$e,$t,$u,$r,$n|T], Line, Column, Scope, Tokens) ->
     Char = $\r,
-    scan(T, Line, Column + 7, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 7, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 %% End of line
 
@@ -244,7 +224,7 @@ scan("\r\n" ++ T, Line, _Column, Scope, Tokens) ->
 
 scan([$\\, H|T], Line, Column, Scope, Tokens) ->
     Char = unescape_map(H),
-    scan(T, Line, Column + 2, Scope, [{number, {Line, Column}, Char}|Tokens]);
+    scan(T, Line, Column + 2, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
 
 %% Strings
 
@@ -265,7 +245,7 @@ scan([$:, H|T] = Original, Line, Column, Scope, Tokens) when ?is_quote(H) ->
                               false -> atom_unsafe
                           end,
                     scan(Rest, NewLine, NewColumn, Scope,
-                         [{Tag, {Line, Column}, Unescaped}|Tokens]);
+                         [{Tag, build_meta(Line, Column), Unescaped}|Tokens]);
                 {error, ErrorDescription} ->
                     {error, {{Line, Column}, ?MODULE, ErrorDescription},
                      Original, lists:reverse(Tokens)}
@@ -281,64 +261,64 @@ scan([$:, H|T], Line, Column, Scope, Tokens) when ?is_identifier_start(H) ->
 
 %% Binary
 scan([H, H|T], Line, Column, Scope, Tokens) when H == $<; H == $< ->
-    Token = {list_to_atom([H, H]), {Line, Column}},
+    Token = {list_to_atom([H, H]), build_meta(Line, Column)},
     handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
 scan([H, H|T], Line, Column, Scope, Tokens) when H == $>; H == $> ->
-    Token = {list_to_atom([H, H]), {Line, Column}},
+    Token = {list_to_atom([H, H]), build_meta(Line, Column)},
     handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
 %% map, set
 scan([H1, H2|T], Line, Column, Scope, Tokens)
   when H1 == $#, H2 == ${; H1 == $%, H2 == ${ ->
-    Token = {list_to_atom([H1, H2]), {Line, Column}},
+    Token = {list_to_atom([H1, H2]), build_meta(Line, Column)},
     handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
 %% List, tuple
 scan([H|T], Line, Column, Scope, Tokens)
   when H == $(; H == $); H == $[; H == $]; H == ${; H == $} ->
     NextColumn = Column + 1,
-    Token = {list_to_atom([H]), {Line, Column}},
+    Token = {list_to_atom([H]), build_meta(Line, Column)},
     handle_terminator(T, Line, NextColumn, Scope, Token, Tokens);
 
 %% two chars operators
 
 scan([$~, $@|T], Line, Column, Scope, Tokens) ->
     scan(T, Line, Column + 2, Scope,
-         [{unquote_splicing, {Line, Column}}|Tokens]);
+         [{unquote_splicing, build_meta(Line, Column)}|Tokens]);
 
 %% one char operators
 
 scan([$`|T], Line, Column, Scope, Tokens) ->
-    scan(T, Line, Column + 1, Scope, [{backquote, {Line, Column}}|Tokens]);
+    scan(T, Line, Column + 1, Scope, [{backquote, build_meta(Line, Column)}|Tokens]);
 
 scan([$'|T], Line, Column, Scope, Tokens) ->
-    scan(T, Line, Column + 1, Scope, [{quote, {Line, Column}}|Tokens]);
+    scan(T, Line, Column + 1, Scope, [{quote, build_meta(Line, Column)}|Tokens]);
 
 scan([$~|T], Line, Column, Scope, Tokens) ->
-    scan(T, Line, Column + 1, Scope, [{unquote, {Line, Column}}|Tokens]);
+    scan(T, Line, Column + 1, Scope, [{unquote, build_meta(Line, Column)}|Tokens]);
 
 scan([$&|T], Line, Column, Scope, Tokens) ->
-    scan(T, Line, Column + 1, Scope, [{rest, {Line, Column}}|Tokens]);
+    scan(T, Line, Column + 1, Scope, [{rest, build_meta(Line, Column)}|Tokens]);
 
 scan([$,|T], Line, Column, Scope, Tokens) ->
-    scan(T, Line, Column + 1, Scope, [{',', {Line, Column}}|Tokens]);
+    scan(T, Line, Column + 1, Scope, [{',', build_meta(Line, Column)}|Tokens]);
 
 %% Others
 
 scan([$.|T], Line, Column, Scope, Tokens) ->
-    scan(T, Line, Column + 1, Scope, [{'.', {Line, Column}}|Tokens]);
+    scan(T, Line, Column + 1, Scope, [{'.', build_meta(Line, Column)}|Tokens]);
 
 scan([Op|T], Line, Column, Scope, Tokens) when ?is_sign(Op) ->
     scan(T, Line, Column + 1, Scope,
-         [{list_to_atom([Op]), {Line, Column}}|Tokens]);
+         [{list_to_atom([Op]), build_meta(Line, Column)}|Tokens]);
 
 %% Integers and floats
 
 scan([H|_] = Original, Line, Column, Scope, Tokens) when ?is_digit(H) ->
     {Rest, Number, Length} = scan_number(Original, [], false),
     scan(Rest, Line, Column + Length, Scope,
-         [{number, {Line, Column}, Number}|Tokens]);
+         [{number, build_meta(Line, Column), Number}|Tokens]);
 
 %% Identifiers
 
@@ -519,7 +499,7 @@ handle_string(T, Line, Column, Term, Scope, Tokens) ->
         {ok, NewLine, NewColumn, Bin, Rest} ->
             case unescape_token(Bin) of
                 {ok, Unescaped} ->
-                    Token = {string_type(Term), {Line, Column-1}, Unescaped},
+                    Token = {string_type(Term), build_meta(Line, Column-1), Unescaped},
                     scan(Rest, NewLine, NewColumn, Scope, [Token|Tokens]);
                 {error, ErrorDescription} ->
                     {error, {{Line, Column}, ?MODULE, ErrorDescription},
@@ -565,7 +545,7 @@ handle_atom(T, Line, Column, Scope, Tokens) ->
                        false -> list_to_atom(Identifier)
                    end,
             scan(Rest, NewLine, NewColumn, Scope,
-                 [{atom, {Line, Column}, Atom}|Tokens]);
+                 [{atom, build_meta(Line, Column), Atom}|Tokens]);
         {error, ErrorInfo} ->
             {error, ErrorInfo, [$: | T], Tokens}
     end.
@@ -574,7 +554,7 @@ handle_identifier(T, Line, Column, Scope, Tokens) ->
     case scan_identifier(Line, Column, T) of
         {ok, NewLine, NewColumn, Identifier, Rest} ->
             scan(Rest, NewLine, NewColumn, Scope,
-                 [{identifier, {Line, Column}, Identifier}|Tokens]);
+                 [{identifier, build_meta(Line, Column), Identifier}|Tokens]);
         {error, ErrorInfo} ->
             {error, ErrorInfo, T, lists:reverse(Tokens)}
     end.

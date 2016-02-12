@@ -37,6 +37,16 @@ eval_ceiba_exprs(Exprs) ->
     io:format("ceiba  exprs: ~w~n", [Parsed]),
     erl_eval:expr_list(Parsed, []).
 
+local_call_test() ->
+    Output1 = eval_erlang_exprs("self()."),
+    Output2 = eval_ceiba_exprs("(self)"),
+    ?assertEqual(Output1, Output2).
+
+remote_call_test() ->
+    Output1 = eval_erlang_exprs("erlang:self()."),
+    Output2 = eval_ceiba_exprs("(erlang.self)"),
+    ?assertEqual(Output1, Output2).
+
 list_test() ->
     Output1 = eval_erlang_exprs("[1 | [2]]."),
     Output2 = eval_erlang_exprs("[1, 2]."),

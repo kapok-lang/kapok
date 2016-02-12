@@ -73,7 +73,7 @@ ast_to_abstract_format(Ast, Env) ->
     ast_to_abstract_format(Ast, Env, ceiba_env:env_to_scope(Env)).
 
 ast_to_abstract_format(Ast, Env, Scope) ->
-    {Expanded, NewEnv} = ceiba_exp:expand(Ast, Env),
+    {Expanded, NewEnv} = ceiba_expand:expand(Ast, Env),
     {Erl, NewScope} = ceiba_translator:translate(Expanded, Scope),
     {Erl, NewEnv, NewScope}.
 

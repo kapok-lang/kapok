@@ -7,19 +7,41 @@
 -import(ceiba_scope, [mergev/2, mergef/2]).
 -include("ceiba.hrl").
 
+%% Identifiers
+translate({identifier, Meta, Identifier}, Scope) ->
+    %% search scope to check whether identifier is a variable
+    {{atom, ?line(Meta), list_to_atom(Identifier)}, Scope};
+
 %% Operators
 translate({Op, Meta, Number}, Scope) when Op == '+', Op == '-' ->
     {Erl, NewScope} = translate(Number, Scope),
     {{op, ?line(Meta), Op, Erl}, NewScope};
 
+%% Local call
+translate({list, Meta, [{identifier, _, _} = I|Args]}, Scope) ->
+    Line = ?line(Meta),
+    {TI, _} = translate(I, Scope),
+    {TArgs, NewScope} = translate_args(Args, Scope),
+    {{call, Line, TI, TArgs}, NewScope};
+
+%%  Remote call
+translate({list, Meta, [{dot, _, [Left, Right]}|Args]}, Scope) ->
+    Line = ?line(Meta),
+    {TLeft, _} = translate(Left, Scope),
+    {TRight, _} = translate(Right, Scope),
+    {TArgs, SA} = translate_args(Args, Scope),
+    {{call, Line, {remote, Line, TLeft, TRight}, TArgs}, SA};
+    %% TODO
+
 %% Containers
+
+%% list
+translate({list, _Meta, List}, Scope) ->
+     translate_list(List, [], Scope);
 
 %% binary
 translate({binary, Meta, Args}, Scope) ->
     ceiba_binary:translate(Meta, Args, Scope);
-%% list
-translate({list, _Meta, List}, Scope) ->
-    translate_list(List, [], Scope);
 
 %% literals
 
