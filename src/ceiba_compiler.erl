@@ -60,7 +60,7 @@ code_loading_compilation(Forms, Vars, #{line := _Line} = Env) ->
     Scope = ceiba_env:env_to_scope_with_vars(Env, Dict),
     {Expr, _NewEnv, _NewScope} = ceiba:ast_to_abstract_format(Forms, Env, Scope),
     %% TODO
-    Expr.
+    io:format("~p~n", [Expr]).
 
 allows_fast_compilation({'__block__', _, Exprs}) ->
     lists:all(fun allows_fast_compilation/1, Exprs);

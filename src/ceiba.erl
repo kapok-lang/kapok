@@ -1,8 +1,9 @@
 %% Main entry point for Ceiba functions. All of those functions are
 %% private to the Ceiba compiler and reserved to be used by Ceiba only.
 -module(ceiba).
-%%-behaviour(application).
--export([string_to_ast/4,
+-behaviour(application).
+-export([start_cli/0,
+         string_to_ast/4,
          'string_to_ast!'/4,
          ast_to_abstract_format/2,
          ast_to_abstract_format/3,
@@ -10,7 +11,81 @@
          env_for_eval/2]).
 -include("ceiba.hrl").
 
-%% eval hooks
+%% OTP Application API
+
+-export([start/2, stop/1, config_change/3]).
+
+start(_Type, _Args) ->
+  %% In case there is a shell, we can't really change its encoding,
+  %% so we just set binary to true. Otherwise we must set the encoding
+  %% as the user with no shel has encoding to latin1.
+  Opts =
+    case init:get_argument(noshell) of
+      {ok, _} -> [binary, {encoding, utf8}];
+      error -> [binary]
+    end,
+  ok = io:setopts(standard_io, Opts),
+
+  %% TODO: Remove this once we support only OTP >18
+  ok = case io:setopts(standard_error, [{encoding, utf8}]) of
+         ok -> ok;
+         {error, _} -> io:setopts(standard_error, [{unicode, true}]) %% OTP 17.3 and earlier
+       end,
+
+  case file:native_name_encoding() of
+    latin1 ->
+      io:format(standard_error,
+                "warning: the VM is running with native name encoding of latin1, which may cause "
+                "Ceiba to malfunction as it expects utf8. Please ensure your locale is set to "
+                "UTF-8~n", []);
+    _ ->
+      ok
+  end,
+
+  URIs = [{<<"ftp">>, 21},
+          {<<"sftp">>, 22},
+          {<<"tftp">>, 69},
+          {<<"http">>, 80},
+          {<<"https">>, 443},
+          {<<"ldap">>, 389}],
+  URIConfig = [{{uri, Scheme}, Port} || {Scheme, Port} <- URIs],
+  CompilerOpts = [{docs, true}, {debug_info, true}, {warnings_as_errors, false}],
+  Config = [{at_exit, []},
+            {compiler_options, orddict:from_list(CompilerOpts)}
+            | URIConfig],
+  Tab = ceiba_config:new(Config),
+  case ceiba_sup:start_link() of
+    {ok, Sup} ->
+      {ok, Sup, Tab};
+    {error, _Reason} = Error ->
+      ceiba_config:delete(Tab),
+      Error
+  end.
+
+stop(Tab) ->
+  ceiba_config:delete(Tab).
+
+config_change(_Changed, _New, _Remove) ->
+  ok.
+
+%% Boot and process given options. Invoked by Ceiba's script.
+
+start_cli() ->
+  {ok, _} = application:ensure_all_started(?MODULE),
+
+  %% We start the Logger so tools which depend on Ceiba always have the Logger directly accessible.
+  %% However Logger is not dependency of the Ceiba application, which means releases that want to
+  %% use Logger must always list it as part of its applications.
+  %% TODO add standard library logger
+  %% _ = case code:ensure_loaded('Ceiba.Logger') of
+  %%       {module, _} -> application:start(logger);
+  %%       {error, _} -> ok
+  %%     end,
+
+  %% TODO move ceiba_cli:main() to Ceiba.Core.CLI:main()
+  ceiba_cli:main(init:get_plain_arguments()).
+
+%% EVAL HOOKS
 
 env_for_eval(Opts) ->
     env_for_eval((ceiba_env:new())#{

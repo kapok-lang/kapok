@@ -7,20 +7,18 @@
 
 new() ->
     #{'__struct__' => 'Ceiba.Macro.Env',
-      module => nil,
-      file => <<"nofile">>,
-      line => 1,
-      function => nil,
-      context => nil,
-      requires => [],
-      aliases => [],
-      functions => [],
-      macros => [],
-      macro_aliases => [],
-      context_modules => [],
-      vars => [],
-      lexical_tracker => nil}.
-
+      module => nil,                         %% the current module
+      file => <<"nofile">>,                  %% the current filename
+      line => 1,                             %% the current line
+      function => nil,                       %% the current function
+      context => nil,                        %% can be match_vars, guards, or nil
+      requires => [],                        %% a set with modules required
+      aliases => [],                         %% an orddict with aliases by new -> old names
+      functions => [],                       %% a list with functions imported
+      macros => [],                          %% a list with macros imported
+      macro_aliases => [],                   %% keep aliases defined inside a macro
+      vars => [],                            %% a set of defined variables
+      lexical_tracker => nil}.               %% holds the lexical tracker pid
 
 env_to_scope(#{module := Module,
                file := File,

@@ -9,7 +9,7 @@
 %% public api
 
 new(Options) ->
-    Tid = ets:new(?MODULE, [named_tuble, public, {read_concurrency, true}]),
+    Tid = ets:new(?MODULE, [named_table, public, {read_concurrency, true}]),
     true = ets:insert_new(?MODULE, Options),
     Tid.
 

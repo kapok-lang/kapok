@@ -182,7 +182,6 @@ build_unquote_splicing(Marker, Args) ->
     {unquote_splicing, token_meta(Marker), Args}.
 
 build_list(Marker, Args) ->
-    io:format("build_list: ~p~n", [Args]),
     {list, token_meta(Marker), Args}.
 
 build_tuple(Marker, Args) ->

@@ -1,12 +1,9 @@
 {application, ceiba,
- [
-  {description, ""},
-  {vsn, "1"},
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib
-                 ]},
-  {mod, { ceiba_app, []}},
+ [{description, "ceiba"},
+  {vsn, "0.0.1"},
+  {modules, [ceiba]},
+  {registered, [ceiba_config]},
+  {applications, [kernel,stdlib]},
+  {mod, {ceiba, []}},
   {env, []}
  ]}.

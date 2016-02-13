@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -x
+
+usage() {
+    echo "Usage: $(basename $0) [options] [.cb file]" >&2
+}
+
+if [ $# == 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    usage
+    exit 1
+fi
+
+ERL="erl"
+ERL_OPTIONS="-noshell -s ceiba start_cli"
+
+exec "${ERL}" -pa "./ebin" ${ERL_OPTIONS} -extra "$@"
+

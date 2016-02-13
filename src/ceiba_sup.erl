@@ -1,5 +1,4 @@
 -module(ceiba_sup).
-
 -behaviour(supervisor).
 
 %% API
@@ -16,12 +15,21 @@
 %% ===================================================================
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, []} }.
+  Workers = [
+             {ceiba_config,
+              {ceiba_config, start_link, []},
+              permanent,
+              2000,
+              worker,
+              [ceiba_config]
+             }
+            ],
+  {ok, {{one_for_one, 5, 10}, Workers}}.
 
