@@ -2,7 +2,7 @@
  [{description, "ceiba"},
   {vsn, "0.0.1"},
   {modules, [ceiba]},
-  {registered, [ceiba_config]},
+  {registered, [ceiba_config, ceiba_code_server]},
   {applications, [kernel,stdlib]},
   {mod, {ceiba, []}},
   {env, []}

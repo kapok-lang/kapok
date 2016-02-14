@@ -8,7 +8,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 2000, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -22,14 +22,8 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-  Workers = [
-             {ceiba_config,
-              {ceiba_config, start_link, []},
-              permanent,
-              2000,
-              worker,
-              [ceiba_config]
-             }
+  Workers = [?CHILD(ceiba_config, worker),
+             ?CHILD(ceiba_code_server, worker)
             ],
   {ok, {{one_for_one, 5, 10}, Workers}}.
 
