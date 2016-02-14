@@ -7,11 +7,11 @@
 
 
 default_functions() ->
-    [].
+  [].
 
 default_macros() ->
-    [].
+  [].
 
 default_requires() ->
-    [].
+  [].
 

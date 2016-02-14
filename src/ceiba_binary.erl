@@ -6,99 +6,99 @@
 %% Translation
 
 translate(Meta, Args, Scope) ->
-    case Scope#ceiba_scope.context of
-        match ->
-            build_binary(fun ceiba_translator:translate/2, Args, Meta, Scope);
-        _ ->
-            build_binary(fun(X, Acc) -> ceiba_translator:translate_arg(X, Acc, Scope) end,
-                         Args,
-                         Meta,
-                         Scope)
-    end.
+  case Scope#ceiba_scope.context of
+    match ->
+      build_binary(fun ceiba_translator:translate/2, Args, Meta, Scope);
+    _ ->
+      build_binary(fun(X, Acc) -> ceiba_translator:translate_arg(X, Acc, Scope) end,
+                   Args,
+                   Meta,
+                   Scope)
+  end.
 
 build_binary(Fun, Args, Meta, Scope) ->
-    {Result, NewScope} = build_binary_each(Fun, Args, Meta, Scope, []),
-    {{bin, ?line(Meta), lists:reverse(Result)}, NewScope}.
+  {Result, NewScope} = build_binary_each(Fun, Args, Meta, Scope, []),
+  {{bin, ?line(Meta), lists:reverse(Result)}, NewScope}.
 
 build_binary_each(_Fun, [], _Meta, Scope, Acc) ->
-    {Acc, Scope};
+  {Acc, Scope};
 
 build_binary_each(Fun, [Arg | Left], Meta, Scope, Acc) ->
-    {V, Size, Types} = extract_element_spec(Arg, Scope#ceiba_scope{context=nil}),
-    build_binary_each(Fun, Left, Meta, Scope, Acc, V, Size, Types).
+  {V, Size, Types} = extract_element_spec(Arg, Scope#ceiba_scope{context=nil}),
+  build_binary_each(Fun, Left, Meta, Scope, Acc, V, Size, Types).
 
 build_binary_each(Fun, Args, Meta, Scope, Acc, V, default, Types) when is_binary(V) ->
-    Element =
-        case types_allow_splice(Types, []) of
-            true ->
-                {bin_element, ?line(Meta), {string, 0, binary_to_list(V)}};
-            false ->
-                case types_require_conversion(Types) of
-                    true ->
-                        {bin_element, ?line(Meta), {string, 0, ceiba_utils:characters_to_list(V)}, default, Types};
-                    false ->
-                        ceiba_error:compile_error(
-                          Meta, Scope#ceiba_scope.file, "invalid types for literal string in binary. "
-                          "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
-                end
-        end,
-    build_binary_each(Fun, Args, Meta, Scope, [Element|Acc]);
+  Element =
+    case types_allow_splice(Types, []) of
+      true ->
+        {bin_element, ?line(Meta), {string, 0, binary_to_list(V)}};
+      false ->
+        case types_require_conversion(Types) of
+          true ->
+            {bin_element, ?line(Meta), {string, 0, ceiba_utils:characters_to_list(V)}, default, Types};
+          false ->
+            ceiba_error:compile_error(
+                Meta, Scope#ceiba_scope.file, "invalid types for literal string in binary. "
+                "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
+        end
+    end,
+  build_binary_each(Fun, Args, Meta, Scope, [Element|Acc]);
 
 build_binary_each(_Fun, _Args, Meta, Scope, _Acc, V, _Size, _Types) when is_binary(V) ->
-    ceiba_error:compile_error(Meta, Scope#ceiba_scope.file, "size is not supported for literal string in binary");
+  ceiba_error:compile_error(Meta, Scope#ceiba_scope.file, "size is not supported for literal string in binary");
 
 build_binary_each(_Fun, _Args, Meta, Scope, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
-    ceiba_error:compile_error(Meta, Scope#ceiba_scope.file, "invalid literal ~ts in binary", [V]);
+  ceiba_error:compile_error(Meta, Scope#ceiba_scope.file, "invalid literal ~ts in binary", [V]);
 
 build_binary_each(Fun, Args, Meta, Scope, Acc, V, Size, Types) ->
-    {Expr, NewScope} = Fun(V, Scope),
-    case Expr of
-        {bin, _, Elements} ->
-            case (Size == default) andalso types_allow_splice(Types, Elements) of
-                true -> build_binary_each(Fun, Args, Meta, NewScope, lists:reverse(Elements, Acc));
-                false -> build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
-            end;
-        _ ->
-            build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
-    end.
+  {Expr, NewScope} = Fun(V, Scope),
+  case Expr of
+    {bin, _, Elements} ->
+      case (Size == default) andalso types_allow_splice(Types, Elements) of
+        true -> build_binary_each(Fun, Args, Meta, NewScope, lists:reverse(Elements, Acc));
+        false -> build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+      end;
+    _ ->
+      build_binary_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+  end.
 
 %% Extra binary element specifiers
 extract_element_spec({list, _Meta, [H|T]}, Scope) ->
-    io:format("spec: ~w~n", [[H|T]]),
-    io:format("spec tail: ~w~n", [T]),
-    {Size, TypeSpecList} = extract_element_size_tsl(T, Scope),
-    io:format("size: ~w~n", [Size]),
-    io:format("tsl: ~w~n", [TypeSpecList]),
-    {H, Size, TypeSpecList}.
+  io:format("spec: ~w~n", [[H|T]]),
+  io:format("spec tail: ~w~n", [T]),
+  {Size, TypeSpecList} = extract_element_size_tsl(T, Scope),
+  io:format("size: ~w~n", [Size]),
+  io:format("tsl: ~w~n", [TypeSpecList]),
+  {H, Size, TypeSpecList}.
 
 %% Extra binary element size and type spec list
 extract_element_size_tsl([], _Scope) ->
-    {default, default};
+  {default, default};
 extract_element_size_tsl(L, _Scope) ->
-    io:format("~nsize and tsl: ~w~n", [L]),
-    extract_element_size_tsl(L, _Scope, {default, []}).
+  io:format("~nsize and tsl: ~w~n", [L]),
+  extract_element_size_tsl(L, _Scope, {default, []}).
 
 extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
-    L = case TypeSpecList of
-            [] -> default;
-            X -> X
-        end,
-    {Size, L};
+  L = case TypeSpecList of
+        [] -> default;
+        X -> X
+      end,
+  {Size, L};
 extract_element_size_tsl([{list, _Meta, [size, SizeExpr]}|T], Scope, {_, TypeSpecList}) ->
-    {Size, _} = ceiba_translator:translate(SizeExpr, Scope),
-    extract_element_size_tsl(T, Scope, {Size, TypeSpecList});
+  {Size, _} = ceiba_translator:translate(SizeExpr, Scope),
+  extract_element_size_tsl(T, Scope, {Size, TypeSpecList});
 extract_element_size_tsl([{list, _Meta, [unit, UnitExpr]}|T], Scope, {Size, TypeSpecList}) ->
-    {Unit, _} = ceiba_translator:translate(UnitExpr, Scope),
-    {integer, _, Value} = Unit,
-    extract_element_size_tsl(T, Scope, {Size, [{unit, Value}|TypeSpecList]});
+  {Unit, _} = ceiba_translator:translate(UnitExpr, Scope),
+  {integer, _, Value} = Unit,
+  extract_element_size_tsl(T, Scope, {Size, [{unit, Value}|TypeSpecList]});
 extract_element_size_tsl([Other|T], Scope, {Size, TypeSpecList}) ->
-    extract_element_size_tsl(T, Scope, {Size, [Other|TypeSpecList]}).
+  extract_element_size_tsl(T, Scope, {Size, [Other|TypeSpecList]}).
 
 %% Check whether the given type rerquire conversion
 types_require_conversion([End|T]) when End == little; End == big ->
-    types_require_conversion(T);
+  types_require_conversion(T);
 types_require_conversion([UTF|T]) when UTF == utf8; UTF == utf16; UTF == utf32 ->
-    types_require_conversion(T);
+  types_require_conversion(T);
 types_require_conversion([]) -> true;
 types_require_conversion(_) -> false.
 
@@ -112,13 +112,13 @@ types_allow_splice(_, _)               -> false.
 
 %% check the total size of all elements in a binary.
 is_byte_size([Element|T], Acc) ->
-    case element_size(Element) of
-        {unknown, Unit} when Unit rem 8 == 0 -> is_byte_size(T, Acc);
-        {unknown, _Unit} -> false;
-        {Size, Unit} -> is_byte_size(T, Size * Unit + Acc)
-    end;
+  case element_size(Element) of
+    {unknown, Unit} when Unit rem 8 == 0 -> is_byte_size(T, Acc);
+    {unknown, _Unit} -> false;
+    {Size, Unit} -> is_byte_size(T, Size * Unit + Acc)
+  end;
 is_byte_size([], Size) ->
-    Size rem 8 == 0.
+  Size rem 8 == 0.
 
 %% get the size of element
 element_size({bin_element, _, _, default, Types})  -> {unknown, unit_size(Types)};

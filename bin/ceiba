@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
-
 usage() {
     echo "Usage: $(basename $0) [options] [.cb file]" >&2
 }

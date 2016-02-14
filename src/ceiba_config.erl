@@ -9,58 +9,58 @@
 %% public api
 
 new(Options) ->
-    Tid = ets:new(?MODULE, [named_table, public, {read_concurrency, true}]),
-    true = ets:insert_new(?MODULE, Options),
-    Tid.
+  Tid = ets:new(?MODULE, [named_table, public, {read_concurrency, true}]),
+  true = ets:insert_new(?MODULE, Options),
+  Tid.
 
 delete(?MODULE) ->
-    ets:delete(?MODULE).
+  ets:delete(?MODULE).
 
 put(Key, Value) ->
-    gen_server:call(?MODULE, {put, Key, Value}).
+  gen_server:call(?MODULE, {put, Key, Value}).
 
 get(Key) ->
-    case ets:lookup(?MODULE, Key) of
-        [{_, Value}] -> Value;
-        [] -> nil
-    end.
+  case ets:lookup(?MODULE, Key) of
+    [{_, Value}] -> Value;
+    [] -> nil
+  end.
 
 update(Key, Fun) ->
-    gen_server:call(?MODULE, {update, Key, Fun}).
+  gen_server:call(?MODULE, {update, Key, Fun}).
 
 get_and_put(Key, Value) ->
-    gen_server:call(?MODULE, {get_and_put, Key, Value}).
+  gen_server:call(?MODULE, {get_and_put, Key, Value}).
 
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, ?MODULE, []).
+  gen_server:start_link({local, ?MODULE}, ?MODULE, ?MODULE, []).
 
 %% gen_server api
 
 init(Tid) ->
-    public = ets:info(Tid, protection),
-    {ok, Tid}.
+  public = ets:info(Tid, protection),
+  {ok, Tid}.
 
 handle_call({put, Key, Value}, _From, Tid) ->
-    ets:insert(Tid, {Key, Value}),
-    {reply, ok, Tid};
+  ets:insert(Tid, {Key, Value}),
+  {reply, ok, Tid};
 handle_call({update, Key, Fun}, _From, Tid) ->
-    Value = Fun(get(Key)),
-    ets:insert(Tid, {Key, Value}),
-    {reply, Value, Tid};
+  Value = Fun(get(Key)),
+  ets:insert(Tid, {Key, Value}),
+  {reply, Value, Tid};
 handle_call({get_and_put, Key, Value}, _From, Tid) ->
-    OldValue = get(Key),
-    ets:insert(Tid, {Key, Value}),
-    {reply, OldValue, Tid}.
+  OldValue = get(Key),
+  ets:insert(Tid, {Key, Value}),
+  {reply, OldValue, Tid}.
 
 handle_cast(Cast, Tid) ->
-    {stop, {bad_cast, Cast}, Tid}.
+  {stop, {bad_cast, Cast}, Tid}.
 
 handle_info(_Msg, Tid) ->
-    {noreply, Tid}.
+  {noreply, Tid}.
 
 code_change(_OldVersion, Tid, _Extra) ->
-    {ok, Tid}.
+  {ok, Tid}.
 
 terminate(_Reason, _Tid) ->
-    ok.
+  ok.
 

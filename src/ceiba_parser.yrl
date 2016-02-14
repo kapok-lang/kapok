@@ -150,52 +150,52 @@ Erlang code.
 -include("ceiba.hrl").
 
 build_signed_number(Op, Number) ->
-    {token_category(Op), token_meta(Op), Number}.
+  {token_category(Op), token_meta(Op), Number}.
 
 build_atom(Token) ->
-    token_symbol(Token).
-%%    {atom, token_meta(Token), token_symbol(Token)}.
+  token_symbol(Token).
+%%  {atom, token_meta(Token), token_symbol(Token)}.
 
 build_quoted_atom({_, _Meta, Bin}, Safe) when is_binary(Bin) ->
-    Op = binary_to_atom_op(Safe),
-    erlang:Op(Bin, utf8).
+  Op = binary_to_atom_op(Safe),
+  erlang:Op(Bin, utf8).
 
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
 
 build_dot(Dot, Left, Right) ->
-    {dot, token_meta(Dot), [Left, Right]}.
+  {dot, token_meta(Dot), [Left, Right]}.
 
 build_binary(Marker, Args) ->
-    {binary, token_meta(Marker), Args}.
+  {binary, token_meta(Marker), Args}.
 
 build_quote(Marker, Args) ->
-    {quote, token_meta(Marker), Args}.
+  {quote, token_meta(Marker), Args}.
 
 build_backquote(Marker, Args) ->
-    {backquote, token_meta(Marker), Args}.
+  {backquote, token_meta(Marker), Args}.
 
 build_unquote(Marker, Args) ->
-    {unquote, token_meta(Marker), Args}.
+  {unquote, token_meta(Marker), Args}.
 
 build_unquote_splicing(Marker, Args) ->
-    {unquote_splicing, token_meta(Marker), Args}.
+  {unquote_splicing, token_meta(Marker), Args}.
 
 build_list(Marker, Args) ->
-    {list, token_meta(Marker), Args}.
+  {list, token_meta(Marker), Args}.
 
 build_tuple(Marker, Args) ->
-    {tuple, token_meta(Marker), Args}.
+  {tuple, token_meta(Marker), Args}.
 
 build_map(Marker, Args) ->
-    {map, token_meta(Marker), Args}.
+  {map, token_meta(Marker), Args}.
 
 build_set(Marker, Args) ->
-    {set, token_meta(Marker), Args}.
+  {set, token_meta(Marker), Args}.
 
 %% Errors
 throw(Line, Error, Token) ->
-    throw({error, {Line, ?MODULE, [Error, Token]}}).
+  throw({error, {Line, ?MODULE, [Error, Token]}}).
 
 throw_unpaired_map(Marker) ->
-    throw(?line(token_meta(Marker)), "unpaired values in map", token_symbol(Marker)).
+  throw(?line(token_meta(Marker)), "unpaired values in map", token_symbol(Marker)).

@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    ceiba_sup:start_link().
+  ceiba_sup:start_link().
 
 stop(_State) ->
-    ok.
+  ok.

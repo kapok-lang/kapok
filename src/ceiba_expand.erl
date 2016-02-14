@@ -5,11 +5,11 @@
 %%
 
 expand(Ast, Env) ->
-    {Ast, Env}.
+  {Ast, Env}.
 
 
 expand_args(Ast, Env) ->
-    {Ast, Env}.
+  {Ast, Env}.
 
 expand_arg(Ast, Env) ->
-    {Ast, Env}.
+  {Ast, Env}.
