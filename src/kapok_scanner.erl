@@ -1,12 +1,12 @@
 %%
--module(ceiba_scanner).
+-module(kapok_scanner).
 -export([token_category/1,
          token_meta/1,
          token_symbol/1,
          scan/3,
          scan/4,
          format_error/1]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 -type category() :: atom().
 -type line() :: integer().
@@ -69,19 +69,19 @@ scan(String, Line, Column, Options) ->
                {existing_atoms_only, true} -> true;
                false -> false
              end,
-  Scope = #ceiba_scanner_scope{
+  Scope = #kapok_scanner_scope{
                file = File,
                check_terminators = Check,
                existing_atoms_only = Existing},
   scan(String, Line, Column, Scope, []).
 
 %% success
-scan([], Line, Column, #ceiba_scanner_scope{terminators=[]}, Tokens) ->
+scan([], Line, Column, #kapok_scanner_scope{terminators=[]}, Tokens) ->
   {ok, lists:reverse(Tokens), build_meta(Line, Column)};
 
 %% terminator missing
 scan([], EndLine, Column,
-     #ceiba_scanner_scope{terminators=[{Open, {{OpenLine, _} ,_}}|_]},
+     #kapok_scanner_scope{terminators=[{Open, {{OpenLine, _} ,_}}|_]},
      Tokens) ->
   Close = terminator(Open),
   {error, {{EndLine, Column}, ?MODULE, {missing_terminator, Close, Open, OpenLine}}, [],
@@ -232,7 +232,7 @@ scan([$:, H|T] = Original, Line, Column, Scope, Tokens) when ?is_quote(H) ->
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
         {ok, Unescaped} ->
-          Tag = case Scope#ceiba_scanner_scope.existing_atoms_only of
+          Tag = case Scope#kapok_scanner_scope.existing_atoms_only of
                   true -> atom_safe;
                   false -> atom_unsafe
                 end,
@@ -522,7 +522,7 @@ scan_string(Line, Column, [Char|Rest], Term, Acc) ->
 handle_atom(T, Line, Column, Scope, Tokens) ->
   case scan_identifier(Line, Column, T) of
     {ok, NewLine, NewColumn, Identifier, Rest} ->
-      Atom = case Scope#ceiba_scanner_scope.existing_atoms_only of
+      Atom = case Scope#kapok_scanner_scope.existing_atoms_only of
                true -> list_to_existing_atom(Identifier);
                false -> list_to_atom(Identifier)
              end,
@@ -565,12 +565,12 @@ handle_terminator(Rest, Line, Column, Scope, Token, Tokens) ->
     NewScope ->
       scan(Rest, Line, Column, NewScope, [Token|Tokens])
   end.
-handle_terminator(_, #ceiba_scanner_scope{check_terminators=false} = Scope) ->
+handle_terminator(_, #kapok_scanner_scope{check_terminators=false} = Scope) ->
   Scope;
-handle_terminator(Token, #ceiba_scanner_scope{terminators=Terminators} = Scope) ->
+handle_terminator(Token, #kapok_scanner_scope{terminators=Terminators} = Scope) ->
   case check_terminator(Token, Terminators) of
     {error, _} = Error -> Error;
-    New -> Scope#ceiba_scanner_scope{terminators=New}
+    New -> Scope#kapok_scanner_scope{terminators=New}
   end.
 
 check_terminator({O, _} = New, Terminators)

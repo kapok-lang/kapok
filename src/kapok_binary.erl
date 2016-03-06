@@ -1,16 +1,16 @@
 %% binary
--module(ceiba_binary).
+-module(kapok_binary).
 -export([translate/3]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 %% Translation
 
 translate(Meta, Args, Scope) ->
-  case Scope#ceiba_scope.context of
+  case Scope#kapok_scope.context of
     match ->
-      build_binary(fun ceiba_translator:translate/2, Args, Meta, Scope);
+      build_binary(fun kapok_translator:translate/2, Args, Meta, Scope);
     _ ->
-      build_binary(fun(X, Acc) -> ceiba_translator:translate_arg(X, Acc, Scope) end,
+      build_binary(fun(X, Acc) -> kapok_translator:translate_arg(X, Acc, Scope) end,
                    Args,
                    Meta,
                    Scope)
@@ -24,7 +24,7 @@ build_binary_each(_Fun, [], _Meta, Scope, Acc) ->
   {Acc, Scope};
 
 build_binary_each(Fun, [Arg | Left], Meta, Scope, Acc) ->
-  {V, Size, Types} = extract_element_spec(Arg, Scope#ceiba_scope{context=nil}),
+  {V, Size, Types} = extract_element_spec(Arg, Scope#kapok_scope{context=nil}),
   build_binary_each(Fun, Left, Meta, Scope, Acc, V, Size, Types).
 
 build_binary_each(Fun, Args, Meta, Scope, Acc, V, default, Types) when is_binary(V) ->
@@ -35,20 +35,20 @@ build_binary_each(Fun, Args, Meta, Scope, Acc, V, default, Types) when is_binary
       false ->
         case types_require_conversion(Types) of
           true ->
-            {bin_element, ?line(Meta), {string, 0, ceiba_utils:characters_to_list(V)}, default, Types};
+            {bin_element, ?line(Meta), {string, 0, kapok_utils:characters_to_list(V)}, default, Types};
           false ->
-            ceiba_error:compile_error(
-                Meta, Scope#ceiba_scope.file, "invalid types for literal string in binary. "
+            kapok_error:compile_error(
+                Meta, Scope#kapok_scope.file, "invalid types for literal string in binary. "
                 "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
         end
     end,
   build_binary_each(Fun, Args, Meta, Scope, [Element|Acc]);
 
 build_binary_each(_Fun, _Args, Meta, Scope, _Acc, V, _Size, _Types) when is_binary(V) ->
-  ceiba_error:compile_error(Meta, Scope#ceiba_scope.file, "size is not supported for literal string in binary");
+  kapok_error:compile_error(Meta, Scope#kapok_scope.file, "size is not supported for literal string in binary");
 
 build_binary_each(_Fun, _Args, Meta, Scope, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
-  ceiba_error:compile_error(Meta, Scope#ceiba_scope.file, "invalid literal ~ts in binary", [V]);
+  kapok_error:compile_error(Meta, Scope#kapok_scope.file, "invalid literal ~ts in binary", [V]);
 
 build_binary_each(Fun, Args, Meta, Scope, Acc, V, Size, Types) ->
   {Expr, NewScope} = Fun(V, Scope),
@@ -85,10 +85,10 @@ extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
       end,
   {Size, L};
 extract_element_size_tsl([{list, _Meta, [size, SizeExpr]}|T], Scope, {_, TypeSpecList}) ->
-  {Size, _} = ceiba_translator:translate(SizeExpr, Scope),
+  {Size, _} = kapok_translator:translate(SizeExpr, Scope),
   extract_element_size_tsl(T, Scope, {Size, TypeSpecList});
 extract_element_size_tsl([{list, _Meta, [unit, UnitExpr]}|T], Scope, {Size, TypeSpecList}) ->
-  {Unit, _} = ceiba_translator:translate(UnitExpr, Scope),
+  {Unit, _} = kapok_translator:translate(UnitExpr, Scope),
   {integer, _, Value} = Unit,
   extract_element_size_tsl(T, Scope, {Size, [{unit, Value}|TypeSpecList]});
 extract_element_size_tsl([Other|T], Scope, {Size, TypeSpecList}) ->

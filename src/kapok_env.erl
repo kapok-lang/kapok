@@ -1,12 +1,12 @@
 %% The compilation time environment for a module
--module(ceiba_env).
+-module(kapok_env).
 -export([new/0,
          env_to_scope/1,
          env_to_scope_with_vars/2]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 new() ->
-  #{'__struct__' => 'Ceiba.Macro.Env',
+  #{'__struct__' => 'Kapok.Macro.Env',
     module => nil,                         %% the current module
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line
@@ -24,11 +24,11 @@ env_to_scope(#{module := Module,
                file := File,
                function := Function,
                context := Context}) ->
-  #ceiba_scope{module = Module,
+  #kapok_scope{module = Module,
                file = File,
                function = Function,
                context = Context}.
 
 env_to_scope_with_vars(Env, Vars) ->
-  (env_to_scope(Env))#ceiba_scope{vars = orddict:from_list(Vars)}.
+  (env_to_scope(Env))#kapok_scope{vars = orddict:from_list(Vars)}.
 

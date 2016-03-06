@@ -32,38 +32,38 @@ eval_erlang_exprs(Exprs) ->
     io:format("~nerlang exprs: ~w~n", [Parsed]),
     erl_eval:expr_list(Parsed, []).
 
-eval_ceiba_exprs(Exprs) ->
-    Parsed = ceiba_compiler:string(Exprs, <<"file">>),
-    io:format("ceiba  exprs: ~w~n", [Parsed]),
+eval_kapok_exprs(Exprs) ->
+    Parsed = kapok_compiler:string(Exprs, <<"file">>),
+    io:format("kapok  exprs: ~w~n", [Parsed]),
     erl_eval:expr_list(Parsed, []).
 
 local_call_test() ->
     Output1 = eval_erlang_exprs("self()."),
-    Output2 = eval_ceiba_exprs("(self)"),
+    Output2 = eval_kapok_exprs("(self)"),
     ?assertEqual(Output1, Output2).
 
 remote_call_test() ->
     Output1 = eval_erlang_exprs("erlang:self()."),
-    Output2 = eval_ceiba_exprs("(erlang.self)"),
+    Output2 = eval_kapok_exprs("(erlang.self)"),
     ?assertEqual(Output1, Output2).
 
 list_test() ->
     Output1 = eval_erlang_exprs("[1 | [2]]."),
     Output2 = eval_erlang_exprs("[1, 2]."),
-    Output3 = eval_ceiba_exprs("(1 2)"),
-    Output4 = eval_ceiba_exprs("[1 2]"),
+    Output3 = eval_kapok_exprs("(1 2)"),
+    Output4 = eval_kapok_exprs("[1 2]"),
     ?assertEqual(Output3, Output1),
     ?assertEqual(Output3, Output2),
     ?assertEqual(Output4, Output3).
 
 binary_test() ->
     Output1 = eval_erlang_exprs("<<256:8/big-unsigned-integer-unit:1>>."),
-    Output2 = eval_ceiba_exprs("<<(256 (:size 8) :big :unsigned :integer (:unit 1))>>"),
+    Output2 = eval_kapok_exprs("<<(256 (:size 8) :big :unsigned :integer (:unit 1))>>"),
     ?assertEqual(Output1, Output2).
 
 
 string_test() ->
-    Format = ceiba_compiler:string("(1 2)", <<"file">>),
+    Format = kapok_compiler:string("(1 2)", <<"file">>),
     Expect = [{cons,0,{integer,1,1},{cons,0,{integer,1,2},{nil,0}}}],
     ?assertEqual(Expect, Format),
     F1 = {function,3,f,0,

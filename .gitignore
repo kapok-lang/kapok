@@ -3,5 +3,5 @@ erl_crash.dump
 ebin/
 .rebar/
 .eunit/
-src/ceiba_parser.erl
+src/kapok_parser.erl
 

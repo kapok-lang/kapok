@@ -1,7 +1,7 @@
 %%
--module(ceiba_expand).
+-module(kapok_expand).
 -export([expand/2, expand_args/2, expand_arg/2]).
--import(ceiba_errors, [compile_error/3, compile_error/4]).
+-import(kapok_errors, [compile_error/3, compile_error/4]).
 
 %% Local calls
 

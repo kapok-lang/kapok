@@ -1,4 +1,4 @@
--module(ceiba_sup).
+-module(kapok_sup).
 -behaviour(supervisor).
 
 %% API
@@ -22,8 +22,8 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-  Workers = [?CHILD(ceiba_config, worker),
-             ?CHILD(ceiba_code_server, worker)
+  Workers = [?CHILD(kapok_config, worker),
+             ?CHILD(kapok_code_server, worker)
             ],
   {ok, {{one_for_one, 5, 10}, Workers}}.
 

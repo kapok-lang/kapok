@@ -1,0 +1,9 @@
+{application, kapok,
+ [{description, "kapok"},
+  {vsn, "0.0.1"},
+  {modules, [kapok]},
+  {registered, [kapok_config, kapok_code_server]},
+  {applications, [kernel,stdlib]},
+  {mod, {kapok, []}},
+  {env, []}
+ ]}.

@@ -36,7 +36,8 @@ modules           := $(call get-modules-in-dir,$(src_dir))
 beam_files        := $(call modules-to-beams,$(beam_output_dir),$(modules))
 test_modules      := $(call get-modules-in-dir,$(test_dir))
 test_beam_files   := $(call modules-to-beams,$(test_output_dir),$(test_modules))
-parser_src_file   := $(src_dir)/ceiba_parser.erl
+parser_src_file   := $(src_dir)/kapok_parser.erl
+other_files       := ./erl_crash.dump
 
 # ensure directory's existence
 # $(call ensure-dir,dir-name)
@@ -129,5 +130,5 @@ $(foreach m,$(test_modules), \
   $(eval $(call gen-run-test-rule,$m)))
 
 clean:
-	$(RM) $(parser_src_file) $(beam_files) $(test_beam_files)
+	$(RM) $(parser_src_file) $(beam_files) $(test_beam_files) $(other_files)
 

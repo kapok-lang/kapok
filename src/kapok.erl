@@ -1,6 +1,6 @@
-%% Main entry point for Ceiba functions. All of those functions are
-%% private to the Ceiba compiler and reserved to be used by Ceiba only.
--module(ceiba).
+%% Main entry point for Kapok functions. All of those functions are
+%% private to the Kapok compiler and reserved to be used by Kapok only.
+-module(kapok).
 -behaviour(application).
 -export([start_cli/0,
          string_to_ast/4,
@@ -11,7 +11,7 @@
          abstract_format_remote_call/4,
          env_for_eval/1,
          env_for_eval/2]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 %% OTP Application API
 
@@ -38,7 +38,7 @@ start(_Type, _Args) ->
     latin1 ->
       io:format(standard_error,
                 "warning: the VM is running with native name encoding of latin1, which may cause "
-                "Ceiba to malfunction as it expects utf8. Please ensure your locale is set to "
+                "Kapok to malfunction as it expects utf8. Please ensure your locale is set to "
                 "UTF-8~n", []);
     _ ->
       ok
@@ -55,45 +55,45 @@ start(_Type, _Args) ->
   Config = [{at_exit, []},
             {compiler_options, orddict:from_list(CompilerOpts)}
             | URIConfig],
-  Tab = ceiba_config:new(Config),
-  case ceiba_sup:start_link() of
+  Tab = kapok_config:new(Config),
+  case kapok_sup:start_link() of
     {ok, Sup} ->
       {ok, Sup, Tab};
     {error, _Reason} = Error ->
-      ceiba_config:delete(Tab),
+      kapok_config:delete(Tab),
       Error
   end.
 
 stop(Tab) ->
-  ceiba_config:delete(Tab).
+  kapok_config:delete(Tab).
 
 config_change(_Changed, _New, _Remove) ->
   ok.
 
-%% Boot and process given options. Invoked by Ceiba's script.
+%% Boot and process given options. Invoked by Kapok's script.
 
 start_cli() ->
   {ok, _} = application:ensure_all_started(?MODULE),
 
-  %% We start the Logger so tools which depend on Ceiba always have the Logger directly accessible.
-  %% However Logger is not dependency of the Ceiba application, which means releases that want to
+  %% We start the Logger so tools which depend on Kapok always have the Logger directly accessible.
+  %% However Logger is not dependency of the Kapok application, which means releases that want to
   %% use Logger must always list it as part of its applications.
   %% TODO add standard library logger
-  %% _ = case code:ensure_loaded('Ceiba.Logger') of
+  %% _ = case code:ensure_loaded('Kapok.Logger') of
   %%       {module, _} -> application:start(logger);
   %%       {error, _} -> ok
   %%     end,
 
-  %% TODO move ceiba_cli:main() to Ceiba.Core.CLI:main()
-  ceiba_cli:main(init:get_plain_arguments()).
+  %% TODO move kapok_cli:main() to Kapok.Core.CLI:main()
+  kapok_cli:main(init:get_plain_arguments()).
 
 %% EVAL HOOKS
 
 env_for_eval(Opts) ->
-  env_for_eval((ceiba_env:new())#{
-                   requires := ceiba_dispatch:default_requires(),
-                   functions := ceiba_dispatch:default_functions(),
-                   macros := ceiba_dispatch:default_macros()},
+  env_for_eval((kapok_env:new())#{
+                   requires := kapok_dispatch:default_requires(),
+                   functions := kapok_dispatch:default_functions(),
+                   macros := kapok_dispatch:default_macros()},
                Opts).
 
 env_for_eval(Env, Opts) ->
@@ -147,11 +147,11 @@ env_for_eval(Env, Opts) ->
 %% Converts AST to erlang abstract format
 
 ast_to_abstract_format(Ast, Env) ->
-  ast_to_abstract_format(Ast, Env, ceiba_env:env_to_scope(Env)).
+  ast_to_abstract_format(Ast, Env, kapok_env:env_to_scope(Env)).
 
 ast_to_abstract_format(Ast, Env, Scope) ->
-  {Expanded, NewEnv} = ceiba_expand:expand(Ast, Env),
-  {Erl, NewScope} = ceiba_translator:translate(Expanded, Scope),
+  {Expanded, NewEnv} = kapok_expand:expand(Ast, Env),
+  {Erl, NewScope} = kapok_translator:translate(Expanded, Scope),
   {Erl, NewEnv, NewScope}.
 
 %% Converts specified code to erlang abstract format
@@ -214,9 +214,9 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 
 string_to_ast(String, StartLine, File, Options)
     when is_integer(StartLine), is_binary(File) ->
-  case ceiba_scanner:scan(String, StartLine, [{file, File}|Options]) of
+  case kapok_scanner:scan(String, StartLine, [{file, File}|Options]) of
     {ok, Tokens, _EndLocation} ->
-      try ceiba_parser:parse(Tokens) of
+      try kapok_parser:parse(Tokens) of
           {ok, Forms} -> {ok, Forms};
           {error, {Line, _, [Error, Token]}} ->
           {error, {Line, to_binary(Error), to_binary(Token)}}
@@ -233,8 +233,8 @@ string_to_ast(String, StartLine, File, Options)
     {ok, Forms} ->
       Forms;
     {error, Location, Module, ErrorDesc} ->
-      Line = ceiba_scanner:location_line(Location),
-      ceiba_error:parse_error(Line, File, Module, ErrorDesc)
+      Line = kapok_scanner:location_line(Location),
+      kapok_error:parse_error(Line, File, Module, ErrorDesc)
   end.
 
 to_binary(List) when is_list(List) -> unicode:characters_to_binary(List);

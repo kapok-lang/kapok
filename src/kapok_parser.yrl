@@ -144,10 +144,10 @@ set_container -> open_percent_curly values close_curly : build_set('$1', '$2').
 
 Erlang code.
 
--import(ceiba_scanner, [token_category/1,
+-import(kapok_scanner, [token_category/1,
                         token_meta/1,
                         token_symbol/1]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 build_signed_number(Op, Number) ->
   {token_category(Op), token_meta(Op), Number}.

@@ -1,5 +1,5 @@
-ceiba
+kapok
 ==========
 
-```ceiba``` is a Lisp programming language on Erlang VM.
+```kapok``` is a Lisp programming language on Erlang VM.
 

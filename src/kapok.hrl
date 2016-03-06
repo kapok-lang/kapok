@@ -1,15 +1,15 @@
 %%
 -define(m(M, K), maps:get(K, M)).
--define(line(Opts), ceiba_utils:get_line(Opts)).
+-define(line(Opts), kapok_utils:get_line(Opts)).
 
--record(ceiba_scanner_scope,
+-record(kapok_scanner_scope,
         {file,
          terminators=[],
          check_terminators=true,
          existing_atoms_only=false
         }).
 
--record(ceiba_scope,
+-record(kapok_scope,
         {module = nil,
          file = nil,
          function = nil,

@@ -1,16 +1,16 @@
 %%
--module(ceiba_compiler).
+-module(kapok_compiler).
 -export([get_opt/1,
          string/2,
          quoted/2,
          file/1,
          file/2]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 %% Pubilc API
 
 get_opt(Key) ->
-  Dict = ceiba_config:get(compiler_options),
+  Dict = kapok_config:get(compiler_options),
   case lists:keyfind(Key, 1, Dict) of
     false -> false;
     {Key, Value} -> Value
@@ -21,13 +21,13 @@ get_opt(Key) ->
 string(Contents, File) when is_list(Contents), is_binary(File) ->
   string(Contents, File, nil).
 string(Contents, File, Dest) ->
-  Ast = ceiba:'string_to_ast!'(Contents, 1, File, []),
+  Ast = kapok:'string_to_ast!'(Contents, 1, File, []),
   quoted(Ast, File, Dest).
 
 quoted(Forms, File) when is_binary(File) ->
   quoted(Forms, File, nil).
 quoted(Forms, File, _Dest) ->
-  Env = ceiba:env_for_eval([{line, 1}, {file, File}]),
+  Env = kapok:env_for_eval([{line, 1}, {file, File}]),
   %% TODO
   eval_forms(Forms, [], Env).
 
@@ -36,7 +36,7 @@ file(Relative) when is_binary(Relative) ->
 file(Relative, Dest) ->
   File = filename:absname(Relative),
   {ok, Bin} = file:read_file(File),
-  string(ceiba_utils:characters_to_list(Bin),
+  string(kapok_utils:characters_to_list(Bin),
          File,
          case Dest of
            nil -> Dest;
@@ -53,21 +53,21 @@ eval_forms(Forms, Vars, Env) ->
 
 eval_compilation(Forms, Vars, Env) ->
   Binding = [{Key, Value} || {_Name, _Kind, Key, Value} <- Vars],
-  {Result, _Binding, NewEnv, _Scope} = ceiba:eval_forms(Forms, Binding, Env),
+  {Result, _Binding, NewEnv, _Scope} = kapok:eval_forms(Forms, Binding, Env),
   {Result, NewEnv}.
 
 code_loading_compilation(Forms, Vars, #{line := _Line} = Env) ->
   Dict = [{{Name, Kind}, {Value, 0}} || {Name, Kind, Value, _} <- Vars],
-  Scope = ceiba_env:env_to_scope_with_vars(Env, Dict),
-  {Expr, _NewEnv, _NewScope} = ceiba:ast_to_abstract_format(Forms, Env, Scope),
+  Scope = kapok_env:env_to_scope_with_vars(Env, Dict),
+  {Expr, _NewEnv, _NewScope} = kapok:ast_to_abstract_format(Forms, Env, Scope),
   %% TODO
   io:format("~p~n", [Expr]),
   Expr.
 
 options() ->
-  case ceiba_config:get(erl_compiler_options) of
+  case kapok_config:get(erl_compiler_options) of
     nil ->
-      ceiba_config:update(erl_compiler_options, fun options/1);
+      kapok_config:update(erl_compiler_options, fun options/1);
     Opts ->
       Opts
   end.
@@ -112,20 +112,20 @@ code_mod(Fun, Expr, Line, File, Module, Vars) when is_binary(File), is_integer(L
   Tuple = {tuple, Line, [{var, Line, K} || {_, _, K, _} <- Vars]},
   Relative = elixir_utils:relative_to_cwd(File),
   [
-   {attribute, Line, file, {ceiba_utils:characters_to_list(Relative), 1}},
+   {attribute, Line, file, {kapok_utils:characters_to_list(Relative), 1}},
    {attribute, Line, module, Module},
    {attribute, Line, export, [{Fun, 1}, {'__RELATIVE__', 0}]},
    {function, Line, Fun, 1,
     [{clause, Line, [Tuple], [], [Expr]}]},
    {function, Line, '__RELATIVE__', 0,
-    [{clause, Line, [], [], [ceiba:to_abstract_format(Relative)]}]}
+    [{clause, Line, [], [], [kapok:to_abstract_format(Relative)]}]}
   ].
 
 retrieve_module_name() ->
-  ceiba_code_server:call(retrieve_module_name).
+  kapok_code_server:call(retrieve_module_name).
 
 return_module_name(I) ->
-  ceiba_code_server:cast({return_module_name, I}).
+  kapok_code_server:cast({return_module_name, I}).
 
 allows_fast_compilation({'__block__', _, Exprs}) ->
   lists:all(fun allows_fast_compilation/1, Exprs);

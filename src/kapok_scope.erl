@@ -1,25 +1,25 @@
 %% Helper functions used to manipulate scope and its variables.
--module(ceiba_scope).
+-module(kapok_scope).
 -export([mergev/2,
          mergef/2]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 %% Scope merging
 
 %% Receives two scopes and return a new scope based on
 %% the second with their variables merged.
 mergev(S1, S2) ->
-    S2#ceiba_scope{
-      vars = merge_vars(S1#ceiba_scope.vars, S2#ceiba_scope.vars),
-      export_vars = merge_opt_vars(S1#ceiba_scope.export_vars, S2#ceiba_scope.export_vars)
+    S2#kapok_scope{
+      vars = merge_vars(S1#kapok_scope.vars, S2#kapok_scope.vars),
+      export_vars = merge_opt_vars(S1#kapok_scope.export_vars, S2#kapok_scope.export_vars)
      }.
 
 %% Receives two scopes and return the first scope with
 %% counters and flags from the later.
 mergef(S1, S2) ->
-    S1#ceiba_scope{
-      super = S2#ceiba_scope.super,
-      caller = S2#ceiba_scope.caller
+    S1#kapok_scope{
+      super = S2#kapok_scope.super,
+      caller = S2#kapok_scope.caller
      }.
 
 %% Mergers.

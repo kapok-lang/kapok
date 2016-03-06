@@ -1,11 +1,11 @@
-%% Translate Ceiba AST to Erlang Abstract Format.
--module(ceiba_translator).
+%% Translate Kapok AST to Erlang Abstract Format.
+-module(kapok_translator).
 
 -export([translate/2,
          translate_arg/3,
          translate_args/2]).
--import(ceiba_scope, [mergev/2, mergef/2]).
--include("ceiba.hrl").
+-import(kapok_scope, [mergev/2, mergef/2]).
+-include("kapok.hrl").
 
 %% Identifiers
 translate({identifier, Meta, Identifier}, Scope) ->
@@ -41,7 +41,7 @@ translate({list, _Meta, List}, Scope) ->
 
 %% binary
 translate({binary, Meta, Args}, Scope) ->
-    ceiba_binary:translate(Meta, Args, Scope);
+    kapok_binary:translate(Meta, Args, Scope);
 
 %% literals
 
@@ -80,7 +80,7 @@ translate_arg(Arg, Acc, Scope) ->
     {TArg, TAcc} = translate(Arg, mergef(Scope, Acc)),
     {TArg, mergev(Acc, TAcc)}.
 
-translate_args(Args, #ceiba_scope{context=match} = Scope) ->
+translate_args(Args, #kapok_scope{context=match} = Scope) ->
     lists:mapfoldl(fun translate/2, Scope, Args);
 translate_args(Args, Scope) ->
     lists:mapfoldl(fun(X, Acc) -> translate_arg(X, Acc, Scope) end,

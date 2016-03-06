@@ -10,7 +10,7 @@ if [ $# == 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
 fi
 
 ERL="erl"
-ERL_OPTIONS="-noshell -s ceiba start_cli"
+ERL_OPTIONS="-noshell -s kapok start_cli"
 
 exec "${ERL}" -pa "./ebin" ${ERL_OPTIONS} -extra "$@"
 

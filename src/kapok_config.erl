@@ -1,5 +1,5 @@
 %% read/write configuration
--module(ceiba_config).
+-module(kapok_config).
 -compile({no_auto_import, [get/1]}).
 -export([new/1, delete/1, put/2, get/1, update/2, get_and_put/2]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2,

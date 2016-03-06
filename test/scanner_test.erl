@@ -2,11 +2,11 @@
 -include_lib("eunit/include/eunit.hrl").
 
 scan(String) ->
-    {ok, Tokens, _Location} = ceiba_scanner:scan(String, 1, []),
+    {ok, Tokens, _Location} = kapok_scanner:scan(String, 1, []),
     Tokens.
 
 scan_error(String) ->
-    {error, ErrorInfo, _, _} = ceiba_scanner:scan(String, 1, []),
+    {error, ErrorInfo, _, _} = kapok_scanner:scan(String, 1, []),
     {_, Module, ErrorDesc} = ErrorInfo,
     Module:format_error(ErrorDesc).
 
@@ -113,7 +113,7 @@ space_test() ->
     ?assertEqual([{identifier, [{line,1},{column,1}], "foo"}, {number, [{line,1},{column,5}], 2}], scan("foo 2")),
     ?assertEqual([{identifier, [{line,1},{column,1}], "foo"}, {number, [{line,1},{column,6}], 2}], scan("foo  2")),
     %% invalid
-    Expect = ceiba_scanner:format_error({invalid_space, 16#A0, "2"}),
+    Expect = kapok_scanner:format_error({invalid_space, 16#A0, "2"}),
     ?assertEqual(Expect, scan_error("foo" ++ [16#A0] ++"2")).
 
 container_test() ->

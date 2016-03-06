@@ -1,10 +1,10 @@
-%% A bunch of helpers to help to deal with errors in Ceiba source code.
-%% This is not exposed in the Ceiba language.
--module(ceiba_error).
+%% A bunch of helpers to help to deal with errors in Kapok source code.
+%% This is not exposed in the Kapok language.
+-module(kapok_error).
 -export([parse_error/4,
          compile_error/3,
          compile_error/4]).
--include("ceiba.hrl").
+-include("kapok.hrl").
 
 %% Tokenization/parsing error.
 

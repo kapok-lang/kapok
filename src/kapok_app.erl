@@ -1,4 +1,4 @@
--module(ceiba_app).
+-module(kapok_app).
 
 -behaviour(application).
 
@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-  ceiba_sup:start_link().
+  kapok_sup:start_link().
 
 stop(_State) ->
   ok.

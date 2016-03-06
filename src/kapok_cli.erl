@@ -1,10 +1,10 @@
 %% Command line functionals.
--module(ceiba_cli).
+-module(kapok_cli).
 -export([main/1]).
 
 
 main(Args) ->
-  Args1 = [ceiba_utils:chardata_to_string(A) || A <- Args ],
+  Args1 = [kapok_utils:chardata_to_string(A) || A <- Args ],
   {Config, _} = parse_args(Args1),
   run(fun (_) ->
           Errors = process_commands(Config),
@@ -63,7 +63,7 @@ exec_fun(Fun, Res) when is_function(Fun, 1) andalso is_tuple(Res) ->
   end.
 
 at_exit(Res) ->
-  Hooks = ceiba_config:get(at_exit),
+  Hooks = kapok_config:get(at_exit),
   lists:foldl(fun exec_fun/2, Res, Hooks).
 
 print_error(Kind, Reason, Stacktrace) ->
@@ -110,5 +110,5 @@ process_command({file, File}, _Config) when is_binary(File) ->
   require_file(File).
 
 require_file(File) ->
-  ceiba_compiler:file(File).
+  kapok_compiler:file(File).
 

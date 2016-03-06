@@ -1,6 +1,6 @@
-%% Helper functions used throughout ceiba source code.
+%% Helper functions used throughout kapok source code.
 
--module(ceiba_utils).
+-module(kapok_utils).
 -export([get_line/1,
          characters_to_list/1,
          chardata_to_string/1]).
