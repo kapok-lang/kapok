@@ -605,7 +605,7 @@ terminator('%{') -> '}';
 terminator('#{') -> '}';
 terminator('<<') -> '>>'.
 
-                                                % Error
+%% Error
 
 format_error({missing_terminator, Close, Open, OpenLine}) ->
   io_lib:format("missing terminator: ~ts (for \"~ts\" opening at line ~B", [Close, Open, OpenLine]);

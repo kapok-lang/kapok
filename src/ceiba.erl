@@ -7,6 +7,8 @@
          'string_to_ast!'/4,
          ast_to_abstract_format/2,
          ast_to_abstract_format/3,
+         to_abstract_format/1,
+         abstract_format_remote_call/4,
          env_for_eval/1,
          env_for_eval/2]).
 -include("ceiba.hrl").
@@ -152,6 +154,61 @@ ast_to_abstract_format(Ast, Env, Scope) ->
   {Erl, NewScope} = ceiba_translator:translate(Expanded, Scope),
   {Erl, NewEnv, NewScope}.
 
+%% Converts specified code to erlang abstract format
+
+to_abstract_format(Tree) when is_tuple(Tree) ->
+  {tuple, 0, [to_abstract_format(X) || X <- tuple_to_list(Tree)]};
+to_abstract_format([]) ->
+  {nil, 0};
+to_abstract_format(<<>>) ->
+  {bin, 0, []};
+to_abstract_format(Tree) when is_list(Tree) ->
+  to_abstract_format_cons_1(Tree, []);
+to_abstract_format(Tree) when is_atom(Tree) ->
+  {atom, 0, Tree};
+to_abstract_format(Tree) when is_integer(Tree) ->
+  {integer, 0, Tree};
+to_abstract_format(Tree) when is_float(Tree) ->
+  {float, 0, Tree};
+to_abstract_format(Tree) when is_binary(Tree) ->
+  %% Note that our binaries are utf-8 encoded and we are converting
+  %% to a list using binary_to_list. The reason for this is that Erlang
+  %% considers a string in a binary to be encoded in latin1, so the bytes
+  %% are not changed in any fashion.
+  {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(Tree)}, default, default}]};
+to_abstract_format(Function) when is_function(Function) ->
+  case (erlang:fun_info(Function, type) == {type, external}) andalso
+       (erlang:fun_info(Function, env) == {env, []}) of
+    true ->
+      {module, Module} = erlang:fun_info(Function, module),
+      {name, Name}     = erlang:fun_info(Function, name),
+      {arity, Arity}   = erlang:fun_info(Function, arity),
+
+      {'fun', 0, {function,
+        {atom, 0, Module},
+        {atom, 0, Name},
+        {integer, 0, Arity}}};
+    false ->
+      error(badarg)
+  end;
+
+to_abstract_format(Pid) when is_pid(Pid) ->
+  abstract_format_remote_call(0, erlang, binary_to_term, [to_abstract_format(term_to_binary(Pid))]);
+to_abstract_format(_Other) ->
+  error(badarg).
+
+to_abstract_format_cons_1([H|T], Acc) ->
+  to_abstract_format_cons_1(T, [H|Acc]);
+to_abstract_format_cons_1(Other, Acc) ->
+  to_abstract_format_cons_2(Acc, to_abstract_format(Other)).
+
+to_abstract_format_cons_2([H|T], Acc) ->
+  to_abstract_format_cons_2(T, {cons, 0, to_abstract_format(H), Acc});
+to_abstract_format_cons_2([], Acc) ->
+  Acc.
+
+abstract_format_remote_call(Line, Module, Function, Args) ->
+  {call, Line, {remote, Line, {atom, Line, Module}, {atom, Line, Function}}, Args}.
 
 %% Converts a given string (char list) into AST.
 
