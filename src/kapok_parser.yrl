@@ -105,8 +105,8 @@ close_bracket -> ']' : '$1'.
 open_paren  -> '(' : '$1'.
 close_paren -> ')' : '$1'.
 
-list_container -> open_bracket close_bracket : build_list('$1', []).
-list_container -> open_bracket values close_bracket : build_list('$1', '$2').
+list_container -> open_bracket close_bracket : build_literal_list('$1', []).
+list_container -> open_bracket values close_bracket : build_literal_list('$1', '$2').
 list_container -> open_paren close_paren : build_list('$1', []).
 list_container -> open_paren values close_paren: build_list('$1', '$2').
 
@@ -180,6 +180,9 @@ build_unquote(Marker, Args) ->
 
 build_unquote_splicing(Marker, Args) ->
   {unquote_splicing, token_meta(Marker), Args}.
+
+build_literal_list(Marker, Args) ->
+  {literal_list, token_meta(Marker), Args}.
 
 build_list(Marker, Args) ->
   {list, token_meta(Marker), Args}.

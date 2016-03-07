@@ -21,8 +21,6 @@ run(Fun) ->
   run(Fun, true).
 run(Fun, Halt) ->
   Res = exec_fun(Fun, {ok, 0}),
-  io:format("cli run: ~p~n", [Res]),
-  io:format("halt: ~p ~p ~n", [Halt, shutdown =:= shutdown]),
   if
     element(0, Res) == shutdown; Halt ->
       {_, Int} = at_exit(Res),

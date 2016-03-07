@@ -64,18 +64,13 @@ build_binary_each(Fun, Args, Meta, Scope, Acc, V, Size, Types) ->
 
 %% Extra binary element specifiers
 extract_element_spec({list, _Meta, [H|T]}, Scope) ->
-  io:format("spec: ~w~n", [[H|T]]),
-  io:format("spec tail: ~w~n", [T]),
   {Size, TypeSpecList} = extract_element_size_tsl(T, Scope),
-  io:format("size: ~w~n", [Size]),
-  io:format("tsl: ~w~n", [TypeSpecList]),
   {H, Size, TypeSpecList}.
 
 %% Extra binary element size and type spec list
 extract_element_size_tsl([], _Scope) ->
   {default, default};
 extract_element_size_tsl(L, _Scope) ->
-  io:format("~nsize and tsl: ~w~n", [L]),
   extract_element_size_tsl(L, _Scope, {default, []}).
 
 extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
