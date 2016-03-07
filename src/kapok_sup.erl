@@ -22,8 +22,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-  Workers = [?CHILD(kapok_config, worker),
-             ?CHILD(kapok_code_server, worker)
-            ],
+  Workers = [],
   {ok, {{one_for_one, 5, 10}, Workers}}.
 
