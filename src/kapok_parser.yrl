@@ -153,8 +153,7 @@ build_signed_number(Op, Number) ->
   {token_category(Op), token_meta(Op), Number}.
 
 build_atom(Token) ->
-  token_symbol(Token).
-%%  {atom, token_meta(Token), token_symbol(Token)}.
+  {atom, token_meta(Token), token_symbol(Token)}.
 
 build_quoted_atom({_, _Meta, Bin}, Safe) when is_binary(Bin) ->
   Op = binary_to_atom_op(Safe),

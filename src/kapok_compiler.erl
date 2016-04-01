@@ -1,8 +1,14 @@
 %% Compiler for kapok
 -module(kapok_compiler).
--export([string/2,
+-export([string_to_ast/4,
+         'string_to_ast!'/4,
+         ast_to_abstract_format/2,
+         string/2,
          file/1,
-         file/2]).
+         file/2,
+         eval_ast/2,
+         eval_abstract_format/2
+        ]).
 -include("kapok.hrl").
 
 %% Converts a given string (char list) into AST.
@@ -41,8 +47,9 @@ ast_to_abstract_format(Ast, Env) ->
   ast_to_abstract_format(Ast, Env, kapok_env:env_to_scope(Env)).
 
 ast_to_abstract_format(Ast, Env, Scope) ->
-  {Expanded, NewEnv} = kapok_expand:expand(Ast, Env),
+  {Expanded, NewEnv} = kapok_expand:'expand-all'(Ast, Env),
   {Erl, NewScope} = kapok_translator:translate(Expanded, Scope),
+  io:format("~n after translate: ~p~n", [Erl]),
   {Erl, NewEnv, NewScope}.
 
 %% Compilation entry points.
@@ -63,14 +70,20 @@ string(Contents, File) when is_list(Contents), is_binary(File) ->
   string(Contents, File, nil).
 string(Contents, File, _Dest) ->
   Ast = 'string_to_ast!'(Contents, 1, File, []),
+  io:format("~nto ast: ~w~n", [Ast]),
   Env = kapok_env:env_for_eval([{line, 1}, {file, File}]),
-  {Erl, _NewEnv, _NewScope} = ast_to_abstract_format(Ast, Env),
-  eval_abstract_format(Erl, Env).
+  eval_ast(Ast, Env).
 
 %% Evaluation
 
-eval_abstract_format(Forms, _Env) ->
+eval_ast(Ast, Env) ->
   %% TODO add impl
-  io:format("~p~n", [Forms]),
-  Forms.
+  {Erl, NewEnv, _NewScope} = ast_to_abstract_format(Ast, Env),
+  eval_abstract_format(Erl, NewEnv).
+
+eval_abstract_format(Erl, #{vars := Vars} = Env) ->
+  %% TODO add impl
+  %% Erl is expression?
+  {value, Value, NewBindings} = erl_eval:exprs(Erl, Vars),
+  {Value, Env#{vars => NewBindings}}.
 

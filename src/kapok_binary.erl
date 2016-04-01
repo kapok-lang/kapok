@@ -79,14 +79,14 @@ extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
         X -> X
       end,
   {Size, L};
-extract_element_size_tsl([{list, _Meta, [size, SizeExpr]}|T], Scope, {_, TypeSpecList}) ->
+extract_element_size_tsl([{list, _Meta, [{atom, _, size}, SizeExpr]}|T], Scope, {_, TypeSpecList}) ->
   {Size, _} = kapok_translator:translate(SizeExpr, Scope),
   extract_element_size_tsl(T, Scope, {Size, TypeSpecList});
-extract_element_size_tsl([{list, _Meta, [unit, UnitExpr]}|T], Scope, {Size, TypeSpecList}) ->
+extract_element_size_tsl([{list, _Meta, [{atom, _, unit}, UnitExpr]}|T], Scope, {Size, TypeSpecList}) ->
   {Unit, _} = kapok_translator:translate(UnitExpr, Scope),
   {integer, _, Value} = Unit,
   extract_element_size_tsl(T, Scope, {Size, [{unit, Value}|TypeSpecList]});
-extract_element_size_tsl([Other|T], Scope, {Size, TypeSpecList}) ->
+extract_element_size_tsl([{atom, _, Other}|T], Scope, {Size, TypeSpecList}) ->
   extract_element_size_tsl(T, Scope, {Size, [Other|TypeSpecList]}).
 
 %% Check whether the given type rerquire conversion

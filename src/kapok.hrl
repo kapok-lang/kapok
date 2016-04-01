@@ -21,6 +21,12 @@
          return = true
         }).
 
+-record(kapok_macro_context,
+        {backquote_level = 0,                 %% the level in backquote form (probably embedded)
+         unquote_level = 0,                   %% the level in unquote form (probably embedded)
+         form = nil                           %% the body of current macro
+        }).
+
 %% Sign
 -define(is_sign(S), ((S == $+) orelse (S == $-))).
 

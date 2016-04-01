@@ -74,7 +74,10 @@ translate({tuple, Meta, Value}, Scope) ->
 translate(List, Scope) when is_list(List) ->
   lists:mapfoldl(fun(E, S) -> translate(E, S) end,
                  Scope,
-                 List).
+                 List);
+
+translate(Other, Scope) ->
+  {to_abstract_format(Other), Scope}.
 
 %% Translate args
 
