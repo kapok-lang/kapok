@@ -251,7 +251,7 @@ scan([$:, H|T], Line, Column, Scope, Tokens) when ?is_identifier_start(H) ->
 
 %% Containers
 
-%% Binary
+%% Bitstring
 scan([H, H|T], Line, Column, Scope, Tokens) when H == $<; H == $< ->
   Token = {list_to_atom([H, H]), build_meta(Line, Column)},
   handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
@@ -544,7 +544,7 @@ scan_identifier(Line, Column, T) ->
   scan_identifier(Line, Column, T, []).
 scan_identifier(Line, Column, [], Acc) ->
   {ok, Line, Column, lists:reverse(Acc), []};
-%% binary terminators "<<" ">>" are always higher priority
+%% bitstring terminators "<<" ">>" are always higher priority
 scan_identifier(Line, Column, [A, B|_], [])
     when ((A == $<) andalso (B == $<)); ((A == $>) andalso (B == $>)) ->
   {error, {{Line, Column}, ?MODULE, {empty_name, A, B, Line}}};

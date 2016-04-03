@@ -7,42 +7,6 @@
 -import(kapok_scope, [mergev/2, mergef/2]).
 -include("kapok.hrl").
 
-%% Identifiers
-translate({identifier, Meta, Identifier}, Scope) ->
-  %% search scope to check whether identifier is a variable
-  {{atom, ?line(Meta), list_to_atom(Identifier)}, Scope};
-
-%% Operators
-translate({Op, Meta, Number}, Scope) when Op == '+', Op == '-' ->
-  {Erl, NewScope} = translate(Number, Scope),
-  {{op, ?line(Meta), Op, Erl}, NewScope};
-
-%% Local call
-translate({list, Meta, [{identifier, _, _} = I|Args]}, Scope) ->
-  Line = ?line(Meta),
-  {TI, _} = translate(I, Scope),
-  {TArgs, NewScope} = translate_args(Args, Scope),
-  {{call, Line, TI, TArgs}, NewScope};
-
-%%  Remote call
-translate({list, Meta, [{dot, _, [Left, Right]}|Args]}, Scope) ->
-  Line = ?line(Meta),
-  {TLeft, _} = translate(Left, Scope),
-  {TRight, _} = translate(Right, Scope),
-  {TArgs, SA} = translate_args(Args, Scope),
-  {{call, Line, {remote, Line, TLeft, TRight}, TArgs}, SA};
-%% TODO
-
-%% Containers
-
-%% list
-translate({list, _Meta, List}, Scope) ->
-  translate_list(List, [], Scope);
-
-%% binary
-translate({binary, Meta, Args}, Scope) ->
-  kapok_binary:translate(Meta, Args, Scope);
-
 %% literals
 
 %% number
@@ -54,16 +18,67 @@ translate({number, Meta, Value}, Scope) when is_integer(Value) ->
 translate({number, Meta, Value}, Scope) when is_float(Value) ->
   {{float, ?line(Meta), Value}, Scope};
 
+%% Operators
+translate({Op, Meta, Number}, Scope) when Op == '+', Op == '-' ->
+  {Erl, NewScope} = translate(Number, Scope),
+  {{op, ?line(Meta), Op, Erl}, NewScope};
+
 %% atom
 translate({atom, Meta, Value}, Scope) ->
   {{atom, ?line(Meta), Value}, Scope};
+
+%% Identifiers
+translate({identifier, Meta, Identifier}, Scope) ->
+  %% search scope to check whether identifier is a variable
+  {{atom, ?line(Meta), list_to_atom(Identifier)}, Scope};
+
+%% binary string
+%% TODO
+%%translate({binary_string, Meta, Value}, Scope) ->
+%%  {{}};
 
 %% list string
 translate({list_string, Meta, Value}, Scope) ->
   {{string, ?line(Meta), binary_to_list(Value)}, Scope};
 
+%% Containers
+
+%% bitstring
+translate({bitstring, Meta, Args}, Scope) ->
+  kapok_bitstring:translate(Meta, Args, Scope);
+
 %% list
 translate({literal_list, _Meta, List}, Scope) ->
+  translate_list(List, [], Scope);
+
+%% Local call
+%% translate({list, Meta, [{identifier, _, "ns"} | Args]}, Scope) ->
+
+translate({list, Meta, [{identifier, Meta2, ID} | Args]}, Scope) ->
+  case kapok_core:is_core_function(ID) of
+    false ->
+      %% TODO
+      {unknown_id};
+    {M, F} ->
+      {TM, _} = translate(M, Scope),
+      {TF, _} = translate(F, Scope),
+      {TArgs, TScope} = translate_args(Args, Scope),
+      {{call, ?line(Meta), {remote, ?line(Meta2), TM, TF}, TArgs}, TScope};
+    Local ->
+      {TLocal, TScope} = translate(Local, Scope),
+      {TArgs, TScope1} = translate_args(Args, TScope),
+      {{call, ?line(Meta), TLocal, TArgs}, TScope1}
+  end;
+
+%%  Remote call
+translate({list, Meta, [{dot, _, [Left, Right]} | Args]}, Scope) ->
+  Line = ?line(Meta),
+  {TLeft, _} = translate(Left, Scope),
+  {TRight, _} = translate(Right, Scope),
+  {TArgs, SA} = translate_args(Args, Scope),
+  {{call, Line, {remote, Line, TLeft, TRight}, TArgs}, SA};
+
+translate({list, _Meta, List}, Scope) ->
   translate_list(List, [], Scope);
 
 %% tuple
@@ -85,9 +100,9 @@ translate_arg(Arg, Acc, Scope)
     when is_number(Arg); is_atom(Arg); is_binary(Arg); is_pid(Arg); is_function(Arg) ->
   {TArg, _} = translate(Arg, Scope),
   {TArg, Acc};
-translate_arg(Arg, Acc, Scope) ->
-  {TArg, TAcc} = translate(Arg, mergef(Scope, Acc)),
-  {TArg, mergev(Acc, TAcc)}.
+translate_arg(Arg, Acc, _Scope) ->
+  {TArg, TAcc} = translate(Arg, Acc),
+  {TArg, TAcc}.
 
 translate_args(Args, #kapok_scope{context=match} = Scope) ->
   lists:mapfoldl(fun translate/2, Scope, Args);

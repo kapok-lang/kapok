@@ -117,7 +117,7 @@ space_test() ->
   ?assertEqual(Expect, scan_error("foo" ++ [16#A0] ++"2")).
 
 container_test() ->
-  %% binary
+  %% bitstring
   ?assertEqual([{'<<', [{line,1},{column,2}]},
                 {number, [{line,1},{column,5}], 1},
                 {'>>', [{line,1},{column,7}]}], scan(" << 1 >> ")),

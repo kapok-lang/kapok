@@ -6,7 +6,7 @@ Nonterminals
     grammar
     expression expression_list expressions
     sign signed_number atom_expr
-    binary_arg_list binary_args binary_container
+    bitstring_arg_list bitstring_args bitstring_container
     quote_expr backquote_expr unquote_expr unquote_splicing_expr
     value comma_value value_list values
     open_paren close_paren open_bracket close_bracket list_container
@@ -39,17 +39,24 @@ expressions -> expression_list : lists:reverse('$1').
 
 %% Value
 
+%% Literals
+%% number
 value       -> number : '$1'.
 value       -> signed_number : '$1'.
+%% atom
 value       -> atom_expr : '$1'.
+%% identifier
 value       -> dot_identifier : '$1'.
+%% macro syntax
 value       -> quote_expr : '$1'.
 value       -> backquote_expr : '$1'.
 value       -> unquote_expr : '$1'.
 value       -> unquote_splicing_expr : '$1'.
+%% strings
 value       -> binary_string : '$1'.
 value       -> list_string : '$1'.
-value       -> binary_container : '$1'.
+%% containers
+value       -> bitstring_container : '$1'.
 value       -> list_container : '$1'.
 value       -> tuple_container : '$1'.
 value       -> map_container : '$1'.
@@ -80,15 +87,15 @@ unquote_splicing_expr -> '~@' list_container : build_unquote_splicing('$1', '$2'
 
 %%% Containers
 
-%% Binary
+%% Bitstring
 
-binary_arg_list  -> binary_arg_list list_container : ['$2' | '$1'].
+bitstring_arg_list  -> bitstring_arg_list list_container : ['$2' | '$1'].
 
-binary_args      -> binary_arg_list : lists:reverse('$1').
-binary_args      -> values : '$1'.
+bitstring_args      -> bitstring_arg_list : lists:reverse('$1').
+bitstring_args      -> values : '$1'.
 
-binary_container -> '<<' '>>' : build_binary('$1', []).
-binary_container -> '<<' binary_args '>>' : build_binary('$1', '$2').
+bitstring_container -> '<<' '>>' : build_bitstring('$1', []).
+bitstring_container -> '<<' bitstring_args '>>' : build_bitstring('$1', '$2').
 
 %% List
 
@@ -165,8 +172,8 @@ binary_to_atom_op(false) -> binary_to_atom.
 build_dot(Dot, Left, Right) ->
   {dot, token_meta(Dot), [Left, Right]}.
 
-build_binary(Marker, Args) ->
-  {binary, token_meta(Marker), Args}.
+build_bitstring(Marker, Args) ->
+  {bitstring, token_meta(Marker), Args}.
 
 build_quote(Marker, Args) ->
   {quote, token_meta(Marker), Args}.

@@ -39,10 +39,9 @@ env_to_scope_with_vars(Env, Vars) ->
 %% EVAL HOOKS
 
 env_for_eval(Opts) ->
-  env_for_eval((new())#{
-                   requires := kapok_dispatch:default_requires(),
-                   functions := kapok_dispatch:default_functions(),
-                   macros := kapok_dispatch:default_macros()},
+  env_for_eval((new())#{requires := [],
+                        functions := [],
+                        macros := []},
                Opts).
 
 env_for_eval(Env, Opts) ->

@@ -5,26 +5,18 @@
          expand/2]).
 -include("kapok.hrl").
 
+
 'expand-1'(Ast, Env) ->
-  %% TODO add impl
   expand(Ast, Env).
 
 'expand-all'(Ast, Env) ->
-  %% TODO add impl
   {EAst, NewEnv, Expanded} = expand(Ast, Env),
   case Expanded of
     true -> 'expand-all'(EAst, NewEnv);
     _ -> {EAst, NewEnv}
   end.
 
-%% macro expansion
-
-expand({'list', Meta, List}, Env) ->
-  {EList, NewEnv, Expanded} = expand_list(List, fun expand/2, Env),
-  io:format("after expand, list: ~p~n", [EList]),
-  {{'list', Meta, EList}, NewEnv, Expanded};
-
-%% special forms
+%% macro special forms
 
 expand({quote, Meta, Arg}, Env) ->
   {EArg, NewEnv, Expanded} = expand(Arg, Env),
@@ -68,18 +60,44 @@ expand({unquote_splicing, Meta, List}, #{macro_context := Context} = Env) ->
   end;
 
 
-%% Literals
+%% identifier
+expand({dot, Meta, [Left, Right]}, Env) ->
+  {ELeft, LEnv, LExpanded} = expand(Left, Env),
+  {ERight, REnv, RExpanded} = expand(Right, LEnv),
+  {{dot, Meta, [ELeft, ERight]}, REnv, LExpanded or RExpanded};
 
-expand({number, _, _} = Ast, Env) ->
-  {Ast, Env, false};
-expand({atom, _, _} = Ast, Env) ->
-  {Ast, Env, false};
+%% Containers
 
-expand(List, Env) when is_list(List) ->
-  {EArgs, NewEnv, Expanded} = expand_list(List, fun expand/2, Env),
-  {EArgs, NewEnv, Expanded};
+%% bitstring
+expand({bitstring, Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand(Args, Env),
+  {{bitstring, Meta, EArgs}, NewEnv, Expanded};
+
+%% list
+
+expand({'list', Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand_list(Args, fun expand/2, Env),
+  {{'list', Meta, EArgs}, NewEnv, Expanded};
+
+%% tuple
+expand({tuple, Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand_list(Args, fun expand/2, Env),
+  {{tuple, Meta, EArgs}, NewEnv, Expanded};
+
+%% map
+expand({map, Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand_list(Args, fun expand/2, Env),
+  {{map, Meta, EArgs}, NewEnv, Expanded};
+
+%% set
+
+expand({set, Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand_list(Args, fun expand/2, Env),
+  {{set, Meta, EArgs}, NewEnv, Expanded};
 
 expand(Ast, Env) ->
+  %% the default handler, which handles
+  %% number, atom, identifier, strings(binary string and list string)
   {Ast, Env, false}.
 
 %% Helpers

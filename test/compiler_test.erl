@@ -25,8 +25,8 @@ erl_to_abstract_format(Contents, Type) ->
 eval_erlang_exprs(Exprs) ->
   Parsed = erl_to_abstract_format(Exprs, exprs),
   io:format("~nerlang exprs: ~w~n", [Parsed]),
-  {ValueList, _NewBindings} = erl_eval:expr_list(Parsed, []),
-  ValueList.
+  {value, Value, _NewBindings} = erl_eval:exprs(Parsed, []),
+  Value.
 
 eval_kapok_exprs(Exprs) ->
   Line = 1,
@@ -36,7 +36,7 @@ eval_kapok_exprs(Exprs) ->
   {Erl, NewEnv, _NewScope} = kapok_compiler:ast_to_abstract_format(Ast, Env),
   #{vars := Vars} = NewEnv,
   {value, Value, _NewBindings} = erl_eval:exprs(Erl, Vars),
-  [Value].
+  Value.
 
 local_call_test() ->
   Output1 = eval_erlang_exprs("self()."),
