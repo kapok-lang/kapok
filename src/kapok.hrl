@@ -9,24 +9,6 @@
          existing_atoms_only=false
         }).
 
--record(kapok_scope,
-        {module = nil,
-         file = nil,
-         function = nil,
-         context = nil,
-         vars = [],
-         export_vars = nil,
-         super = false,
-         caller = false,
-         return = true
-        }).
-
--record(kapok_macro_context,
-        {backquote_level = 0,                 %% the level in backquote form (probably embedded)
-         unquote_level = 0,                   %% the level in unquote form (probably embedded)
-         form = nil                           %% the body of current macro
-        }).
-
 %% Sign
 -define(is_sign(S), ((S == $+) orelse (S == $-))).
 
@@ -53,4 +35,8 @@
 -define(is_vertical_space(S), ((S == $\r) orelse (S == $\n))).
 -define(is_space(S), (?is_horizontal_space(S) orelse ?is_vertical_space(S))).
 -define(is_invalid_space(S), (S == 16#A0)).
+
+%% default source file suffix
+-define(SOURCE_FILE_SUFFIX, ".kpk").
+-define(BEAM_FILE_SUFFIX, ".beam").
 

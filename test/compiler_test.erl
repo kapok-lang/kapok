@@ -33,7 +33,7 @@ eval_kapok_exprs(Exprs) ->
   File = <<"file">>,
   Ast = kapok_compiler:'string_to_ast!'(Exprs, Line, File, []),
   Env = kapok_env:env_for_eval([{line, Line}, {file, File}]),
-  {Erl, NewEnv, _NewScope} = kapok_compiler:ast_to_abstract_format(Ast, Env),
+  {Erl, NewEnv} = kapok_compiler:ast_to_abstract_format(Ast, Env),
   #{vars := Vars} = NewEnv,
   {value, Value, _NewBindings} = erl_eval:exprs(Erl, Vars),
   Value.

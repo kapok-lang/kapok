@@ -5,29 +5,29 @@
 
 %% Translation
 
-translate(Meta, Args, Scope) ->
-  case Scope#kapok_scope.context of
+translate(Meta, Args, #{context := Context} = Env) ->
+  case Context of
     match ->
-      build_bitstring(fun kapok_translator:translate/2, Args, Meta, Scope);
+      build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env);
     _ ->
-      build_bitstring(fun(X, Acc) -> kapok_translator:translate_arg(X, Acc, Scope) end,
+      build_bitstring(fun(X, Acc) -> kapok_translate:translate_arg(X, Acc, Env) end,
                    Args,
                    Meta,
-                   Scope)
+                   Env)
   end.
 
-build_bitstring(Fun, Args, Meta, Scope) ->
-  {Result, NewScope} = build_bitstring_each(Fun, Args, Meta, Scope, []),
-  {{bin, ?line(Meta), lists:reverse(Result)}, NewScope}.
+build_bitstring(Fun, Args, Meta, Env) ->
+  {Result, TEnv} = build_bitstring_each(Fun, Args, Meta, Env, []),
+  {{bin, ?line(Meta), lists:reverse(Result)}, TEnv}.
 
-build_bitstring_each(_Fun, [], _Meta, Scope, Acc) ->
-  {Acc, Scope};
+build_bitstring_each(_Fun, [], _Meta, Env, Acc) ->
+  {Acc, Env};
 
-build_bitstring_each(Fun, [Arg | Left], Meta, Scope, Acc) ->
-  {V, Size, Types} = extract_element_spec(Arg, Scope#kapok_scope{context=nil}),
-  build_bitstring_each(Fun, Left, Meta, Scope, Acc, V, Size, Types).
+build_bitstring_each(Fun, [Arg | Left], Meta, Env, Acc) ->
+  {V, Size, Types} = extract_element_spec(Arg, Env#{context := nil}),
+  build_bitstring_each(Fun, Left, Meta, Env, Acc, V, Size, Types).
 
-build_bitstring_each(Fun, Args, Meta, Scope, Acc, V, default, Types) when is_binary(V) ->
+build_bitstring_each(Fun, Args, Meta, Env, Acc, V, default, Types) when is_binary(V) ->
   Element =
     case types_allow_splice(Types, []) of
       true ->
@@ -38,56 +38,56 @@ build_bitstring_each(Fun, Args, Meta, Scope, Acc, V, default, Types) when is_bin
             {bin_element, ?line(Meta), {string, 0, kapok_utils:characters_to_list(V)}, default, Types};
           false ->
             kapok_error:compile_error(
-                Meta, Scope#kapok_scope.file, "invalid types for literal string in bitstring. "
+                Meta, maps:get(file, Env), "invalid types for literal string in bitstring. "
                 "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
         end
     end,
-  build_bitstring_each(Fun, Args, Meta, Scope, [Element|Acc]);
+  build_bitstring_each(Fun, Args, Meta, Env, [Element|Acc]);
 
-build_bitstring_each(_Fun, _Args, Meta, Scope, _Acc, V, _Size, _Types) when is_binary(V) ->
-  kapok_error:compile_error(Meta, Scope#kapok_scope.file, "size is not supported for literal string in bitstring");
+build_bitstring_each(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_binary(V) ->
+  kapok_error:compile_error(Meta, maps:get(file, Env), "size is not supported for literal string in bitstring");
 
-build_bitstring_each(_Fun, _Args, Meta, Scope, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
-  kapok_error:compile_error(Meta, Scope#kapok_scope.file, "invalid literal ~ts in bitstring", [V]);
+build_bitstring_each(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
+  kapok_error:compile_error(Meta, maps:get(file, Env), "invalid literal ~ts in bitstring", [V]);
 
-build_bitstring_each(Fun, Args, Meta, Scope, Acc, V, Size, Types) ->
-  {Expr, NewScope} = Fun(V, Scope),
+build_bitstring_each(Fun, Args, Meta, Env, Acc, V, Size, Types) ->
+  {Expr, TEnv} = Fun(V, Env),
   case Expr of
     {bin, _, Elements} ->
       case (Size == default) andalso types_allow_splice(Types, Elements) of
-        true -> build_bitstring_each(Fun, Args, Meta, NewScope, lists:reverse(Elements, Acc));
-        false -> build_bitstring_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+        true -> build_bitstring_each(Fun, Args, Meta, TEnv, lists:reverse(Elements, Acc));
+        false -> build_bitstring_each(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
       end;
     _ ->
-      build_bitstring_each(Fun, Args, Meta, NewScope, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+      build_bitstring_each(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
   end.
 
 %% Extra bitstring element specifiers
-extract_element_spec({list, _Meta, [H|T]}, Scope) ->
-  {Size, TypeSpecList} = extract_element_size_tsl(T, Scope),
+extract_element_spec({list, _Meta, [H|T]}, Env) ->
+  {Size, TypeSpecList} = extract_element_size_tsl(T, Env),
   {H, Size, TypeSpecList}.
 
 %% Extra bitstring element size and type spec list
-extract_element_size_tsl([], _Scope) ->
+extract_element_size_tsl([], _Env) ->
   {default, default};
-extract_element_size_tsl(L, _Scope) ->
-  extract_element_size_tsl(L, _Scope, {default, []}).
+extract_element_size_tsl(L, _Env) ->
+  extract_element_size_tsl(L, _Env, {default, []}).
 
-extract_element_size_tsl([], _Scope, {Size, TypeSpecList}) ->
+extract_element_size_tsl([], _Env, {Size, TypeSpecList}) ->
   L = case TypeSpecList of
         [] -> default;
         X -> X
       end,
   {Size, L};
-extract_element_size_tsl([{list, _Meta, [{atom, _, size}, SizeExpr]}|T], Scope, {_, TypeSpecList}) ->
-  {Size, _} = kapok_translator:translate(SizeExpr, Scope),
-  extract_element_size_tsl(T, Scope, {Size, TypeSpecList});
-extract_element_size_tsl([{list, _Meta, [{atom, _, unit}, UnitExpr]}|T], Scope, {Size, TypeSpecList}) ->
-  {Unit, _} = kapok_translator:translate(UnitExpr, Scope),
+extract_element_size_tsl([{list, _Meta, [{atom, _, size}, SizeExpr]}|T], Env, {_, TypeSpecList}) ->
+  {Size, _} = kapok_translator:translate(SizeExpr, Env),
+  extract_element_size_tsl(T, Env, {Size, TypeSpecList});
+extract_element_size_tsl([{list, _Meta, [{atom, _, unit}, UnitExpr]}|T], Env, {Size, TypeSpecList}) ->
+  {Unit, _} = kapok_translator:translate(UnitExpr, Env),
   {integer, _, Value} = Unit,
-  extract_element_size_tsl(T, Scope, {Size, [{unit, Value}|TypeSpecList]});
-extract_element_size_tsl([{atom, _, Other}|T], Scope, {Size, TypeSpecList}) ->
-  extract_element_size_tsl(T, Scope, {Size, [Other|TypeSpecList]}).
+  extract_element_size_tsl(T, Env, {Size, [{unit, Value}|TypeSpecList]});
+extract_element_size_tsl([{atom, _, Other}|T], Env, {Size, TypeSpecList}) ->
+  extract_element_size_tsl(T, Env, {Size, [Other|TypeSpecList]}).
 
 %% Check whether the given type rerquire conversion
 types_require_conversion([End|T]) when End == little; End == big ->

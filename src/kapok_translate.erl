@@ -1,10 +1,9 @@
 %% Translate Kapok AST to Erlang Abstract Format.
--module(kapok_translator).
+-module(kapok_translate).
 -export([translate/2,
          translate_arg/3,
          translate_args/2,
          to_abstract_format/1]).
--import(kapok_scope, [mergev/2, mergef/2]).
 -include("kapok.hrl").
 
 %% literals
@@ -12,111 +11,123 @@
 %% number
 
 %% integer
-translate({number, Meta, Value}, Scope) when is_integer(Value) ->
-  {{integer, ?line(Meta), Value}, Scope};
+translate({number, Meta, Value}, Env) when is_integer(Value) ->
+  {{integer, ?line(Meta), Value}, Env};
 %% float
-translate({number, Meta, Value}, Scope) when is_float(Value) ->
-  {{float, ?line(Meta), Value}, Scope};
+translate({number, Meta, Value}, Env) when is_float(Value) ->
+  {{float, ?line(Meta), Value}, Env};
 
 %% Operators
-translate({Op, Meta, Number}, Scope) when Op == '+', Op == '-' ->
-  {Erl, NewScope} = translate(Number, Scope),
-  {{op, ?line(Meta), Op, Erl}, NewScope};
+translate({Op, Meta, Number}, Env) when Op == '+', Op == '-' ->
+  {Erl, TEnv} = translate(Number, Env),
+  {{op, ?line(Meta), Op, Erl}, TEnv};
 
 %% atom
-translate({atom, Meta, Value}, Scope) ->
-  {{atom, ?line(Meta), Value}, Scope};
+translate({atom, Meta, Value}, Env) ->
+  {{atom, ?line(Meta), Value}, Env};
 
 %% Identifiers
-translate({identifier, Meta, Identifier}, Scope) ->
-  %% search scope to check whether identifier is a variable
-  {{atom, ?line(Meta), list_to_atom(Identifier)}, Scope};
+translate({identifier, Meta, Identifier}, Env) ->
+  %% search env to check whether identifier is a variable
+  {{atom, ?line(Meta), list_to_atom(Identifier)}, Env};
 
 %% binary string
 %% TODO
-%%translate({binary_string, Meta, Value}, Scope) ->
+%%translate({binary_string, Meta, Value}, Env) ->
 %%  {{}};
 
 %% list string
-translate({list_string, Meta, Value}, Scope) ->
-  {{string, ?line(Meta), binary_to_list(Value)}, Scope};
+translate({list_string, Meta, Value}, Env) ->
+  {{string, ?line(Meta), binary_to_list(Value)}, Env};
 
 %% Containers
 
 %% bitstring
-translate({bitstring, Meta, Args}, Scope) ->
-  kapok_bitstring:translate(Meta, Args, Scope);
+translate({bitstring, Meta, Args}, Env) ->
+  kapok_bitstring:translate(Meta, Args, Env);
 
 %% list
-translate({literal_list, _Meta, List}, Scope) ->
-  translate_list(List, [], Scope);
+translate({literal_list, _Meta, List}, Env) ->
+  translate_list(List, [], Env);
 
 %% Local call
-%% translate({list, Meta, [{identifier, _, "ns"} | Args]}, Scope) ->
 
-translate({list, Meta, [{identifier, Meta2, ID} | Args]}, Scope) ->
-  case kapok_core:is_core_function(ID) of
+%% special forms
+translate({list, Meta, [{identifier, _, "ns"} | _] = Args}, Env) ->
+  kapok_namespace:translate(Meta, Args, Env);
+
+translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
+    when Id == "def";
+         Id == "defp";
+         Id == "defmacro";
+         Id == "defmacrop" ->
+  kapok_defs:translate(Meta, Args, Env);
+
+translate({list, Meta, [{identifier, Meta2, Id} | Args]}, Env) ->
+  case kapok_core:is_core_function(Id) of
     false ->
       %% TODO
       {unknown_id};
     {M, F} ->
-      {TM, _} = translate(M, Scope),
-      {TF, _} = translate(F, Scope),
-      {TArgs, TScope} = translate_args(Args, Scope),
-      {{call, ?line(Meta), {remote, ?line(Meta2), TM, TF}, TArgs}, TScope};
+      {TM, _} = translate(M, Env),
+      {TF, _} = translate(F, Env),
+      {TArgs, TEnv} = translate_args(Args, Env),
+      {{call, ?line(Meta), {remote, ?line(Meta2), TM, TF}, TArgs}, TEnv};
     Local ->
-      {TLocal, TScope} = translate(Local, Scope),
-      {TArgs, TScope1} = translate_args(Args, TScope),
-      {{call, ?line(Meta), TLocal, TArgs}, TScope1}
+      {TLocal, TEnv} = translate(Local, Env),
+      {TArgs, TEnv1} = translate_args(Args, TEnv),
+      {{call, ?line(Meta), TLocal, TArgs}, TEnv1}
   end;
 
 %%  Remote call
-translate({list, Meta, [{dot, _, [Left, Right]} | Args]}, Scope) ->
+translate({list, Meta, [{dot, _, [Left, Right]} | Args]}, Env) ->
   Line = ?line(Meta),
-  {TLeft, _} = translate(Left, Scope),
-  {TRight, _} = translate(Right, Scope),
-  {TArgs, SA} = translate_args(Args, Scope),
+  {TLeft, _} = translate(Left, Env),
+  {TRight, _} = translate(Right, Env),
+  {TArgs, SA} = translate_args(Args, Env),
   {{call, Line, {remote, Line, TLeft, TRight}, TArgs}, SA};
 
-translate({list, _Meta, List}, Scope) ->
-  translate_list(List, [], Scope);
+translate({list, _Meta, List}, Env) ->
+  translate_list(List, [], Env);
 
 %% tuple
-translate({tuple, Meta, Value}, Scope) ->
-  {{tuple, ?line(Meta), Value}, Scope};
+translate({tuple, Meta, Value}, Env) ->
+  {{tuple, ?line(Meta), Value}, Env};
 
 %% a list of ast
-translate(List, Scope) when is_list(List) ->
-  lists:mapfoldl(fun(E, S) -> translate(E, S) end,
-                 Scope,
+translate(List, Env) when is_list(List) ->
+  lists:mapfoldl(fun(E, S) ->
+                     io:format("to translate E: ~p~n", [E]),
+                     translate(E, S) end,
+                 Env,
                  List);
 
-translate(Other, Scope) ->
-  {to_abstract_format(Other), Scope}.
+translate(Other, Env) ->
+  {to_abstract_format(Other), Env}.
 
 %% Translate args
 
-translate_arg(Arg, Acc, Scope)
+translate_arg(Arg, Acc, Env)
     when is_number(Arg); is_atom(Arg); is_binary(Arg); is_pid(Arg); is_function(Arg) ->
-  {TArg, _} = translate(Arg, Scope),
+  {TArg, _} = translate(Arg, Env),
   {TArg, Acc};
-translate_arg(Arg, Acc, _Scope) ->
+translate_arg(Arg, Acc, _Env) ->
   {TArg, TAcc} = translate(Arg, Acc),
   {TArg, TAcc}.
 
-translate_args(Args, #kapok_scope{context=match} = Scope) ->
-  lists:mapfoldl(fun translate/2, Scope, Args);
-translate_args(Args, Scope) ->
-  lists:mapfoldl(fun(X, Acc) -> translate_arg(X, Acc, Scope) end,
-                 Scope,
+translate_args(Args, #{context := match} = Env) ->
+  lists:mapfoldl(fun translate/2, Env, Args);
+translate_args(Args, Env) ->
+  lists:mapfoldl(fun(X, Acc) -> translate_arg(X, Acc, Env) end,
+                 Env,
                  Args).
 
 %% Helpers
-translate_list([H|T], Acc, Scope) ->
-  {Erl, NewScope} = translate(H, Scope),
-  translate_list(T, [Erl|Acc], NewScope);
-translate_list([], Acc, Scope) ->
-  {build_list(Acc, {nil, 0}), Scope}.
+translate_list([H|T], Acc, Env) ->
+  {Erl, TEnv} = translate(H, Env),
+  translate_list(T, [Erl|Acc], TEnv);
+translate_list([], Acc, Env) ->
+  {build_list(Acc, {nil, 0}), Env}.
 
 build_list([H|T], Acc) ->
   build_list(T, {cons, 0, H, Acc});

@@ -1,20 +1,26 @@
 %% The compilation time environment for a module
 -module(kapok_env).
--export([new/0,
-         env_to_scope/1,
-         env_to_scope_with_vars/2,
+-export([new_env/0,
          env_for_eval/1,
          env_for_eval/2]).
+
 -include("kapok.hrl").
 
-new() ->
+new_macro_context() ->
+  #{'__struct__' => 'Kapok.MacroContext',
+    backquote_level => 0,                  %% the level in backquote form (probably embedded)
+    unquote_level => 0,                    %% the level in unquote form (probably embedded)
+    form => nil                            %% the body of current macro
+   }.
+
+new_env() ->
   #{'__struct__' => 'Kapok.Env',
-    module => nil,                         %% the current module
+    namespace => nil,                      %% the current namespace
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line
     function => nil,                       %% the current function
     context => nil,                        %% can be match_vars, guards, or nil
-    macro_context => #kapok_macro_context{},
+    macro_context => new_macro_context(),
     requires => [],                        %% a set with modules required
     aliases => [],                         %% an orddict with aliases by new -> old names
     functions => [],                       %% a list with functions imported
@@ -23,30 +29,14 @@ new() ->
     vars => []                             %% a set of defined variables
    }.
 
-env_to_scope(#{module := Module,
-               file := File,
-               function := Function,
-               context := Context}) ->
-  #kapok_scope{module = Module,
-               file = File,
-               function = Function,
-               context = Context}.
-
-env_to_scope_with_vars(Env, Vars) ->
-  (env_to_scope(Env))#kapok_scope{vars = orddict:from_list(Vars)}.
-
-
 %% EVAL HOOKS
 
 env_for_eval(Opts) ->
-  env_for_eval((new())#{requires := [],
-                        functions := [],
-                        macros := []},
-               Opts).
+  env_for_eval(new_env(), Opts).
 
 env_for_eval(Env, Opts) ->
-  Module = case lists:keyfind(module, 1, Opts) of
-             {module, ModuleOpt} when is_atom(ModuleOpt) -> ModuleOpt;
+  Namespace = case lists:keyfind(namespace, 1, Opts) of
+             {namespace, NamespaceOpt} when is_atom(NamespaceOpt) -> NamespaceOpt;
              false -> nil
            end,
 
@@ -81,7 +71,7 @@ env_for_eval(Env, Opts) ->
            end,
 
   Env#{
-      module := Module,
+      namespace := Namespace,
       file := File,
       line := Line,
       requires := Requires,

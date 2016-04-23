@@ -23,25 +23,25 @@ expand({quote, Meta, Arg}, Env) ->
   {{quote, Meta, EArg}, NewEnv, Expanded};
 
 expand({backquote, Meta, Arg}, #{macro_context := Context} = Env) ->
-  #kapok_macro_context{backquote_level = B} = Context,
-  NewContext = Context#kapok_macro_context{backquote_level = B + 1},
+  #{backquote_level := B} = Context,
+  NewContext = Context#{backquote_level => B + 1},
   {EArg, NewEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
   {{quote, Meta, EArg}, NewEnv#{macro_context => Context}, Expanded};
 
 expand({unquote, Meta, Arg}, #{macro_context := Context} = Env) ->
-  #kapok_macro_context{backquote_level = B, unquote_level = U} = Context,
+  #{backquote_level := B, unquote_level := U} = Context,
   CurrentU = U + 1,
   case CurrentU of
     B ->
       kapok_compiler:eval_ast(Arg, Env);
     _ ->
-      NewContext = Context#kapok_macro_context{unquote_level = CurrentU},
+      NewContext = Context#{unquote_level => CurrentU},
       {EArg, NewEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
       {{unquote, Meta, EArg}, NewEnv#{macro_context => Context}, Expanded}
   end;
 
 expand({unquote_splicing, Meta, List}, #{macro_context := Context} = Env) ->
-  #kapok_macro_context{backquote_level = B, unquote_level = U} = Context,
+  #{backquote_level := B, unquote_level := U} = Context,
   CurrentU = U + 1,
   case CurrentU of
     B ->
@@ -54,7 +54,7 @@ expand({unquote_splicing, Meta, List}, #{macro_context := Context} = Env) ->
           kapok_error:compile_error(Meta, File, "unquoie splice should take list")
       end;
     _ ->
-      NewContext = Context#kapok_macro_context{unquote_level = CurrentU},
+      NewContext = Context#{unquote_level => CurrentU},
       {EArg, NewEnv, Expanded} = expand(List, Env#{macro_context => NewContext}),
       {{unquote_splicing, Meta, EArg}, NewEnv#{macro_context => Context}, Expanded}
   end;
