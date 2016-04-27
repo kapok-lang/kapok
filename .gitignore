@@ -3,5 +3,5 @@ erl_crash.dump
 ebin/
 .rebar/
 .eunit/
-src/kapok_parser.erl
+lib/kapok/src/kapok_parser.erl
 
