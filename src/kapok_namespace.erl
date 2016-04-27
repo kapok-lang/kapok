@@ -17,7 +17,7 @@
 
 export_forms(Namespace) ->
   Exports = namespace_exports(Namespace),
-  {attribute,0,export,[sets:to_list(Exports)]}.
+  {attribute,0,export,sets:to_list(Exports)}.
 
 
 %% namespace table
@@ -49,7 +49,11 @@ translate(Meta, [{identifier, _, "ns"}], Env) ->
 
 translate(Meta, [{identifier, _, "ns"}, {identifier, _, Id}|_T], Env) ->
   Name = list_to_atom(Id),
-  %%add_namespace({Name, maps:new(), maps:new(), sets:new()}),
+  case ets:info(kapok_namespaces) of
+    undefined -> init_namespace_table();
+    _ -> ok
+  end,
+  add_namespace({Name, maps:new(), maps:new(), sets:new()}),
   Line = ?line(Meta),
-  {{attribute, Line, module, Name}, Env}.
+  {{attribute, Line, module, Name}, Env#{namespace := Name}}.
 

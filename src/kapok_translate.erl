@@ -67,7 +67,8 @@ translate({list, Meta, [{identifier, Meta2, Id} | Args]}, Env) ->
   case kapok_core:is_core_function(Id) of
     false ->
       %% TODO
-      {unknown_id};
+      io:format("unknown ident: ~p~n", [Id]),
+      throw(Id);
     {M, F} ->
       {TM, _} = translate(M, Env),
       {TF, _} = translate(F, Env),
@@ -96,9 +97,7 @@ translate({tuple, Meta, Value}, Env) ->
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun(E, S) ->
-                     io:format("to translate E: ~p~n", [E]),
-                     translate(E, S) end,
+  lists:mapfoldl(fun(E, S) -> translate(E, S) end,
                  Env,
                  List);
 

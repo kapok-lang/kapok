@@ -3,12 +3,11 @@
 -export([string_to_ast/4,
          'string_to_ast!'/4,
          ast_to_abstract_format/2,
-         compile/2,
-         compile_file/1,
-         compile_file/2,
-         compile_file_and_eval/1,
+         string/2,
+         string/3,
+         file/1,
+         file/2,
          %% TODO
-         eval_ast/2,
          eval_abstract_format/2
         ]).
 
@@ -45,48 +44,54 @@ string_to_ast(String, StartLine, File, Options)
 
 ast_to_abstract_format(Ast, Env) ->
   {Expanded, EEnv} = kapok_expand:'expand-all'(Ast, Env),
-  io:format("~n after expand: ~p~n", [Expanded]),
   {Erl, TEnv} = kapok_translate:translate(Expanded, EEnv),
   io:format("~n after translate: ~p~n", [Erl]),
-  {Erl, TEnv}.
+  %% TODO hard code exports
+  [H | _T] = Erl,
+  #{namespace := Namespace} = TEnv,
+  T = {function,1,f,0,
+          [{clause,1,[],[],
+                   [{call,1,
+                          {remote,1,{atom,1,io},{atom,1,format}},
+                          [{string,1,"hello world!~n"},{nil,1}]}]}]},
+%%{function,1,f,0,[{clause,1,[],[],[{nil,1}]}]},
+  Erl0 = [H, kapok_namespace:export_forms(Namespace), T],
+  io:format("~n after add exports: ~p~n", [Erl0]),
+  {Erl0, TEnv}.
 
 %% Compilation entry points.
 
-compile(Contents, File) when is_list(Contents) ->
+string(Contents, File) when is_list(Contents), is_binary(File) ->
+  string(Contents, File, nil).
+string(Contents, File, DestFile) ->
   Ast = 'string_to_ast!'(Contents, 1, File, []),
   Env = kapok_env:env_for_eval([{line, 1}, {file, File}]),
   {Erl, _TEnv} = ast_to_abstract_format(Ast, Env),
-  Erl.
+  case compile:forms(Erl) of
+    {ok, ModuleName, Binary} ->
+      case DestFile of
+        nil -> code:load_binary(Binary);
+        _ ->
+          io:format("compiled module: ~p~n", [ModuleName]),
+          ok = file:write_file(DestFile, Binary),
+          %% TODO hard code
+          {module, Module} = code:load_binary(ModuleName, binary_to_list(File), Binary),
+          io:format("hot: ~p~n", [Module:f()])
+      end,
+      io:format("done compiling ~p~n", [ModuleName]);
+    {error, Errors, Warnings} ->
+      io:format("~p~n", [Errors]),
+      io:format("~p~n", [Warnings])
+  end.
 
-dest_to_compile(SourceFile) ->
-  AbsName = filename:absname(SourceFile),
-  DirName = filename:dirname(AbsName),
-  BaseName = filename:basename(AbsName, ?SOURCE_FILE_SUFFIX),
-  filename:join([DirName, BaseName, ?BEAM_FILE_SUFFIX]).
-
-compile_file(Relative) when is_binary(Relative) ->
-  SourceFile = filename:absname(Relative),
-  compile_file(SourceFile, dest_to_compile(SourceFile)).
-compile_file(SourceFile, DestFile) ->
+file(Relative) when is_binary(Relative) ->
+  file(Relative, nil).
+file(SourceFile, DestFile) ->
   {ok, Bin} = file:read_file(SourceFile),
   Contents = kapok_utils:characters_to_list(Bin),
-  Erl = compile(Contents, SourceFile),
-  Bytes = io_lib:format("~p", [Erl]),
-  ok = file:write_file(DestFile, Bytes).
-
-compile_file_and_eval(Relative) when is_binary(Relative) ->
-  compile_file(Relative).
-%% eval compilation.
-%%eval_ast(Ast, Env).
+  string(Contents, SourceFile, DestFile).
 
 %% Evaluation
-
-eval_ast(Ast, Env) ->
-  %% TODO add impl
-  {Erl, NewEnv} = ast_to_abstract_format(Ast, Env),
-  %% TODO translate module definition
-
-  eval_abstract_format(Erl, NewEnv).
 
 eval_abstract_format(Erl, #{vars := Vars} = Env) ->
   %% TODO add impl
