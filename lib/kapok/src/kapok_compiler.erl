@@ -35,7 +35,7 @@ string_to_ast(String, StartLine, File, Options)
     {ok, Forms} ->
       Forms;
     {error, Location, Module, ErrorDesc} ->
-      Line = kapok_scanner:location_line(Location),
+      {Line, _} = Location,
       kapok_error:parse_error(Line, File, Module, ErrorDesc)
   end.
 

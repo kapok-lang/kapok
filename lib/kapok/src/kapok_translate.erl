@@ -88,8 +88,8 @@ translate({list, Meta, [{dot, _, [Left, Right]} | Args]}, Env) ->
   {TArgs, SA} = translate_args(Args, Env),
   {{call, Line, {remote, Line, TLeft, TRight}, TArgs}, SA};
 
-translate({list, _Meta, List}, Env) ->
-  translate_list(List, [], Env);
+translate({list, _Meta, Args}, Env) ->
+  translate_list(Args, [], Env);
 
 %% tuple
 translate({tuple, Meta, Value}, Env) ->

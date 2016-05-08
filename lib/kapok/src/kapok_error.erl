@@ -26,20 +26,6 @@ raise(Meta, File, Kind, Message) when is_list(Meta) ->
   {MetaLine, MetaFile} = meta_location(Meta, File),
   do_raise(MetaLine, MetaFile, Kind, Message).
 
-do_raise({Line, _}, File, Kind, Message) when is_integer(Line) ->
-  do_raise(Line, File, Kind, Message);
-do_raise(Line, File, Kind, Message)
-    when is_binary(File), is_integer(Line), is_binary(Message) ->
-  %% reset stacktrace
-  try
-    throw(ok)
-  catch
-    ok -> ok
-  end,
-  Stacktrace = erlang:get_stacktrace(),
-  Exception = Kind(File, Line, Message),
-  erlang:raise(error, Exception, tl(Stacktrace)).
-
 meta_location(Meta, File) ->
   case lists:keyfind(file, 1, Meta) of
     {file, MetaFile} when is_binary(MetaFile) ->
@@ -51,6 +37,17 @@ meta_location(Meta, File) ->
     _ ->
       {?line(Meta), File}
   end.
+
+do_raise(Line, File, Kind, Message) when is_binary(File), is_integer(Line), is_list(Message) ->
+  %% reset stacktrace
+  try
+    throw(ok)
+  catch
+    ok -> ok
+  end,
+  Stacktrace = erlang:get_stacktrace(),
+  Exception = Kind(File, Line, Message),
+  erlang:raise(error, Exception, tl(Stacktrace)).
 
 %% error kind functions
 

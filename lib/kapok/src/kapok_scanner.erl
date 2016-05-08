@@ -92,11 +92,11 @@ scan([], EndLine, Column,
 %% hex
 scan([$0, $x, H|T], Line, Column, Scope, Tokens) when ?is_hex(H) ->
   {Rest, Number, Length} = scan_hex([H|T], []),
-  scan(Rest, Line, Column + 2 + Length, Scope, [{number, build_meta(Line, Column), Number}|Tokens]);
+  scan(Rest, Line, Column + 2 + Length, Scope, [{hex_number, build_meta(Line, Column), Number}|Tokens]);
 %% octal
 scan([$0, H|T], Line, Column, Scope, Tokens) when ?is_octal(H) ->
   {Rest, Number, Length} = scan_octal([H|T], []),
-  scan(Rest, Line, Column + 1 + Length, Scope, [{number, build_meta(Line, Column), Number}|Tokens]);
+  scan(Rest, Line, Column + 1 + Length, Scope, [{hex_number, build_meta(Line, Column), Number}|Tokens]);
 
 %% flexible N(2 - 36) numeral bases
 scan([B1, $r, H|T], Line, Column, Scope, Tokens) when (B1 >= $2 andalso B1 =< $9) ->
@@ -105,7 +105,7 @@ scan([B1, $r, H|T], Line, Column, Scope, Tokens) when (B1 >= $2 andalso B1 =< $9
     true ->
       {Rest, Number, Length} = scan_n_base([H|T], N, []),
       scan(Rest, Line, Column + 2 + Length, Scope,
-           [{number, build_meta(Line, Column), Number}|Tokens]);
+           [{base_number, build_meta(Line, Column), Number}|Tokens]);
     _ ->
       {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
        [], lists:reverse(Tokens)}
@@ -118,7 +118,7 @@ scan([B1, B2, $r, H|T], Line, Column, Scope, Tokens)
     true ->
       {Rest, Number, Length} = scan_n_base([H|T], N, []),
       scan(Rest, Line, Column + 3 + Length, Scope,
-           [{number, build_meta(Line, Column), Number}|Tokens]);
+           [{base_number, build_meta(Line, Column), Number}|Tokens]);
     _ ->
       {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
        [], Tokens}
@@ -135,62 +135,62 @@ scan([$;|T], Line, Column, Scope, Tokens) ->
 scan([$\\, $x, ${,A,B,C,D,E,F,$}|T], Line, Column, Scope, Tokens)
     when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E), ?is_hex(F) ->
   Char = escape_char([$\\, $x, ${,A,B,C,D,E,F,$}]),
-  scan(T, Line, Column+10, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column+10, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,C,D,E,$}|T], Line, Column, Scope, Tokens)
     when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E) ->
   Char = escape_char([$\\, $x, ${,A,B,C,D,E,$}]),
-  scan(T, Line, Column+9, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column+9, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,C,D,$}|T], Line, Column, Scope, Tokens)
     when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
   Char = escape_char([$\\, $x, ${,A,B,C,D,$}]),
-  scan(T, Line, Column + 8, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 8, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,C,$}|T], Line, Column, Scope, Tokens)
     when ?is_hex(A), ?is_hex(B), ?is_hex(C) ->
   Char = escape_char([$\\, $x, ${,A,B,C,$}]),
-  scan(T, Line, Column + 7, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 7, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,B,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A), ?is_hex(B) ->
   Char = escape_char([$\\, $x, ${,A,B,$}]),
-  scan(T, Line, Column + 6, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 6, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, ${,A,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
   Char = escape_char([$\\, $x, ${,A,$}]),
-  scan(T, Line, Column + 5, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 5, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, A, B|T], Line, Column, Scope, Tokens) when ?is_hex(A), ?is_hex(B) ->
   Char = escape_char([$\\, $x, A, B]),
-  scan(T, Line, Column + 4, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 4, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $x, A|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
   Char = escape_char([$\\, $x, A]),
-  scan(T, Line, Column + 3, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 3, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
   Char = $\s,
-  scan(T, Line, Column + 6, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 6, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $t,$a,$b|T], Line, Column, Scope, Tokens) ->
   Char = $\t,
-  scan(T, Line, Column + 4, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 4, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $f,$o,$r,$m,$f,$e,$e,$d|T], Line, Column, Scope, Tokens) ->
   Char = $\f,
-  scan(T, Line, Column + 9, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 9, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $b,$a,$c,$k,$s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
   Char = $\b,
-  scan(T, Line, Column+10, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column+10, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $n,$e,$w,$l,$i,$n,$e|T], Line, Column, Scope, Tokens) ->
   Char = $\n,
-  scan(T, Line, Column + 8, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 8, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 scan([$\\, $r,$e,$t,$u,$r,$n|T], Line, Column, Scope, Tokens) ->
   Char = $\r,
-  scan(T, Line, Column + 7, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 7, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 %% End of line
 
@@ -216,7 +216,7 @@ scan("\r\n" ++ T, Line, _Column, Scope, Tokens) ->
 
 scan([$\\, H|T], Line, Column, Scope, Tokens) ->
   Char = unescape_map(H),
-  scan(T, Line, Column + 2, Scope, [{number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column + 2, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 %% Strings
 
@@ -297,8 +297,8 @@ scan([$,|T], Line, Column, Scope, Tokens) ->
 
 %% Others
 
-scan([$.|T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 1, Scope, [{'.', build_meta(Line, Column)}|Tokens]);
+scan([H|T], Line, Column, Scope, Tokens) when ?is_identifier_special(H) ->
+  scan(T, Line, Column + 1, Scope, [{list_to_atom([H]), build_meta(Line, Column)}|Tokens]);
 
 scan([Op|T], Line, Column, Scope, Tokens) when ?is_sign(Op) ->
   scan(T, Line, Column + 1, Scope, [{list_to_atom([Op]), build_meta(Line, Column)}|Tokens]);
@@ -306,8 +306,8 @@ scan([Op|T], Line, Column, Scope, Tokens) when ?is_sign(Op) ->
 %% Integers and floats
 
 scan([H|_] = Original, Line, Column, Scope, Tokens) when ?is_digit(H) ->
-  {Rest, Number, Length} = scan_number(Original, [], false),
-  scan(Rest, Line, Column + Length, Scope, [{number, build_meta(Line, Column), Number}|Tokens]);
+  {Rest, Category, Number, Length} = scan_number(Original, [], false),
+  scan(Rest, Line, Column + Length, Scope, [{Category, build_meta(Line, Column), Number}|Tokens]);
 
 %% Identifiers
 
@@ -362,11 +362,11 @@ scan_number([H|T], Acc, Bool) when ?is_digit(H) ->
 
 %% Cast to float...
 scan_number(Rest, Acc, true) ->
-  {Rest, list_to_float(lists:reverse(Acc)), length(Acc)};
+  {Rest, float, list_to_float(lists:reverse(Acc)), length(Acc)};
 
 %% Or integer.
 scan_number(Rest, Acc, false) ->
-  {Rest, list_to_integer(lists:reverse(Acc)), length(Acc)}.
+  {Rest, integer, list_to_integer(lists:reverse(Acc)), length(Acc)}.
 
 scan_hex([H|T], Acc) when ?is_hex(H) ->
   scan_hex(T, [H|Acc]);
