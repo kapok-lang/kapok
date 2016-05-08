@@ -69,14 +69,15 @@ string(Contents, File, DestFile) ->
   {Erl, _TEnv} = ast_to_abstract_format(Ast, Env),
   case compile:forms(Erl) of
     {ok, ModuleName, Binary} ->
+      io:format("compiled module: ~p~n", [ModuleName]),
       case DestFile of
-        nil -> code:load_binary(Binary);
-        _ ->
-          io:format("compiled module: ~p~n", [ModuleName]),
-          ok = file:write_file(DestFile, Binary),
-          %% TODO hard code
+        nil ->
           {module, Module} = code:load_binary(ModuleName, binary_to_list(File), Binary),
-          io:format("hot: ~p~n", [Module:f()])
+          %% TODO hard code
+          io:format("hot: ~p~n", [Module:f()]);
+        _ ->
+          ok = file:write_file(DestFile, Binary),
+          {module, _Module} = code:load_binary(ModuleName, binary_to_list(File), Binary)
       end,
       io:format("done compiling ~p~n", [ModuleName]);
     {error, Errors, Warnings} ->

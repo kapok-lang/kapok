@@ -38,17 +38,17 @@ build_bitstring_each(Fun, Args, Meta, Env, Acc, V, default, Types) when is_binar
             {bin_element, ?line(Meta), {string, 0, kapok_utils:characters_to_list(V)}, default, Types};
           false ->
             kapok_error:compile_error(
-                Meta, maps:get(file, Env), "invalid types for literal string in bitstring. "
+                Meta, ?m(Env, file), "invalid types for literal string in bitstring. "
                 "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
         end
     end,
   build_bitstring_each(Fun, Args, Meta, Env, [Element|Acc]);
 
 build_bitstring_each(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_binary(V) ->
-  kapok_error:compile_error(Meta, maps:get(file, Env), "size is not supported for literal string in bitstring");
+  kapok_error:compile_error(Meta, ?m(Env, file), "size is not supported for literal string in bitstring");
 
 build_bitstring_each(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
-  kapok_error:compile_error(Meta, maps:get(file, Env), "invalid literal ~ts in bitstring", [V]);
+  kapok_error:compile_error(Meta, ?m(Env, file), "invalid literal ~ts in bitstring", [V]);
 
 build_bitstring_each(Fun, Args, Meta, Env, Acc, V, Size, Types) ->
   {Expr, TEnv} = Fun(V, Env),

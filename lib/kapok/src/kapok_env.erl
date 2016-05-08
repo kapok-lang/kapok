@@ -1,6 +1,10 @@
 %% The compilation time environment for a module
 -module(kapok_env).
 -export([new_env/0,
+         add_require/3,
+         add_alias/4,
+         add_function/3,
+         add_functions/3,
          env_for_eval/1,
          env_for_eval/2]).
 
@@ -21,13 +25,47 @@ new_env() ->
     function => nil,                       %% the current function
     context => nil,                        %% can be match_vars, guards, or nil
     macro_context => new_macro_context(),
-    requires => [],                        %% a set with modules required
+    requires => [],                        %% a set of modules required
+    uses => [],                            %% a set of modules used
     aliases => [],                         %% an orddict with aliases by new -> old names
     functions => [],                       %% a list with functions imported
     macros => [],                          %% a list with macros imported
     macro_aliases => [],                   %% keep aliases defined inside a macro
     vars => []                             %% a set of defined variables
    }.
+
+add_require(Meta, #{requires := Requires} = Env, Require) ->
+  %% check for duplicate
+  case ordsets:is_element(Require, Requires) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate require: ~p", [Require]);
+    false -> ok
+  end,
+  NewRequires = ordsets:add_element(Require, Requires),
+  Env#{requires => NewRequires}.
+
+add_alias(Meta, #{aliases := Aliases} = Env, Alias, Original) ->
+  %% check for duplicate
+  case orddict:is_key(Alias, Aliases) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate alias: ~p", [Alias]);
+    false -> ok
+  end,
+  NewAliases = orddict:append(Alias, Original, Aliases),
+  Env#{aliases => NewAliases}.
+
+add_function(Meta, #{functions := Functions} = Env, Function) ->
+  %% chekt for duplicate
+  case orddict:is_key(Function, Functions) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function: ~p", [Function]);
+    false -> ok
+  end,
+  NewFunctions = ordsets:add_element(Function, Functions),
+  Env#{functions => NewFunctions}.
+
+add_functions(_Meta, Env, []) ->
+  Env;
+add_functions(Meta, Env, [H|T]) ->
+  add_function(Meta, Env, H),
+  add_functions(Meta, Env, T).
 
 %% EVAL HOOKS
 

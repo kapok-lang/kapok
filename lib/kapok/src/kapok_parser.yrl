@@ -162,9 +162,9 @@ build_signed_number(Op, Number) ->
 build_atom(Token) ->
   {atom, token_meta(Token), token_symbol(Token)}.
 
-build_quoted_atom({_, _Meta, Bin}, Safe) when is_binary(Bin) ->
+build_quoted_atom(Token, Safe) ->
   Op = binary_to_atom_op(Safe),
-  erlang:Op(Bin, utf8).
+  {atom, token_meta(Token), erlang:Op(token_symbol(Token), utf8)}.
 
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.

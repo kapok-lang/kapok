@@ -1,6 +1,7 @@
 %% Command line functionals.
 -module(kapok_cli).
 -export([main/1]).
+-include("kapok.hrl").
 
 
 main(Args) ->
@@ -15,7 +16,7 @@ main(Args) ->
             true -> ok
           end
       end,
-      maps:get(halt, Config)).
+      ?m(Config, halt)).
 
 run(Fun) ->
   run(Fun, true).
@@ -61,8 +62,10 @@ exec_fun(Fun, Res) when is_function(Fun, 1) andalso is_tuple(Res) ->
   end.
 
 at_exit(Res) ->
-  Hooks = kapok_config:get(at_exit),
-  lists:foldl(fun exec_fun/2, Res, Hooks).
+  %% TODO hard code
+  {Res, 0}.
+  %%Hooks = kapok_config:get(at_exit),
+  %%lists:foldl(fun exec_fun/2, Res, Hooks).
 
 print_error(Kind, Reason, Stacktrace) ->
   io:format(standard_error, "~w~s~n~p~n",[Kind, Reason, Stacktrace]).
@@ -84,10 +87,10 @@ new_config() ->
 parse_args(Args) ->
   parse_args(Args, new_config()).
 parse_args(["-S", H | T], Config) ->
-  NewConfig = Config#{commands := [{script, H} | maps:get(commands, Config)]},
+  NewConfig = Config#{commands := [{script, H} | ?m(Config, commands)]},
   parse_args(T, NewConfig);
 parse_args([H|T], Config) ->
-  NewConfig = Config#{commands := [{file, H} | maps:get(commands, Config)]},
+  NewConfig = Config#{commands := [{file, H} | ?m(Config, commands)]},
   parse_args(T, NewConfig);
 parse_args([], Config) ->
   {Config, []}.
@@ -98,9 +101,9 @@ process_commands(Config) ->
                 fun (C) ->
                     process_command(C, Config)
                 end,
-                lists:reverse(maps:get(commands, Config))),
+                lists:reverse(?m(Config, commands))),
   Errors = [Msg || {error, Msg} <- Results],
-  lists:reverse(maps:get(errors, Config)) ++ Errors.
+  lists:reverse(?m(Config, errors)) ++ Errors.
 
 process_command({script, File}, _Config) when is_binary(File) ->
   require_file(File);
