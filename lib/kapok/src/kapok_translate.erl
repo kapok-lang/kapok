@@ -97,7 +97,7 @@ translate({tuple, Meta, Value}, Env) ->
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun(E, S) -> translate(E, S) end,
+  lists:mapfoldl(fun (E, S) -> translate(E, S) end,
                  Env,
                  List);
 
@@ -117,7 +117,7 @@ translate_arg(Arg, Acc, _Env) ->
 translate_args(Args, #{context := match} = Env) ->
   lists:mapfoldl(fun translate/2, Env, Args);
 translate_args(Args, Env) ->
-  lists:mapfoldl(fun(X, Acc) -> translate_arg(X, Acc, Env) end,
+  lists:mapfoldl(fun (X, Acc) -> translate_arg(X, Acc, Env) end,
                  Env,
                  Args).
 

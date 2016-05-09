@@ -32,7 +32,7 @@ run(Fun, Halt) ->
 exec_fun(Fun, Res) when is_function(Fun, 1) andalso is_tuple(Res) ->
   Parent = self(),
   {Pid, Ref} = erlang:spawn_monitor(
-                   fun() ->
+                   fun () ->
                        try Fun(element(1, Res)) of
                            _ -> Parent ! {self(), Res}
                        catch

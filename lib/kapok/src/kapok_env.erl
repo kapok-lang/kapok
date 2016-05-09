@@ -5,6 +5,7 @@
          add_module_alias/4,
          add_function/4,
          add_functions/3,
+         add_function_aliases/3,
          env_for_eval/1,
          env_for_eval/2]).
 
@@ -63,12 +64,28 @@ add_function(Meta, #{functions := Functions} = Env, Function, Original) ->
 
 add_functions(Meta, #{functions := Functions} = Env, ToAdd) when is_list(ToAdd) ->
   %% check for duplicate
-  Duplicates = orddict:filter(fun(K, _) -> orddict:is_key(K, Functions) end, ToAdd),
+  Duplicates = orddict:filter(fun (K, _V) -> orddict:is_key(K, Functions) end, ToAdd),
   case orddict:size(Duplicates) of
     0 -> ok;
     _ -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate functions: ~p", [Duplicates])
   end,
-  Env#{functions => orddict:merge(fun(_K, _V1, V2) -> V2 end, Functions, ToAdd)}.
+  Env#{functions => orddict:merge(fun (_K, _V1, V2) -> V2 end, Functions, ToAdd)}.
+
+add_function_aliases(Meta, #{functions := Functions, function_aliases := Aliases} = Env, ToAdd) when is_list(ToAdd) ->
+  %% check for original names
+  Absent = orddict:filter(fun (_K, V) -> orddict:is_key(V, Functions) == false end, ToAdd),
+  case orddict:size(Absent) of
+    0 -> ok;
+    _ -> kapok_error:compile_error(Meta, ?m(Env, file), "couldnot rename unimported function: ~p", [Absent])
+  end,
+  %% check for duplicate
+  Duplicates = orddict:filter(fun (K, _V) -> orddict:is_key(K, Aliases) end, ToAdd),
+  case orddict:size(Duplicates) of
+    0 -> ok;
+    _ -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function aliases: ~p", [Duplicates])
+  end,
+  Env#{function_aliases => orddict:merge(fun (_K, _V1, V2) -> V2 end, Aliases, ToAdd)}.
+
 
 %% EVAL HOOKS
 

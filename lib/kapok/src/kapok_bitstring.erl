@@ -10,10 +10,10 @@ translate(Meta, Args, #{context := Context} = Env) ->
     match ->
       build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env);
     _ ->
-      build_bitstring(fun(X, Acc) -> kapok_translate:translate_arg(X, Acc, Env) end,
-                   Args,
-                   Meta,
-                   Env)
+      build_bitstring(fun (X, Acc) -> kapok_translate:translate_arg(X, Acc, Env) end,
+                      Args,
+                      Meta,
+                      Env)
   end.
 
 build_bitstring(Fun, Args, Meta, Env) ->
