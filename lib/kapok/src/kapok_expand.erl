@@ -16,6 +16,12 @@
     _ -> {EAst, NewEnv}
   end.
 
+%% block
+
+expand({block, Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand(Args, Env),
+  {{block, Meta, EArgs}, NewEnv, Expanded};
+
 %% macro special forms
 
 expand({quote, Meta, Arg}, Env) ->
@@ -94,6 +100,7 @@ expand({map, Meta, Args}, Env) ->
 expand({set, Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand_list(Args, fun expand/2, Env),
   {{set, Meta, EArgs}, NewEnv, Expanded};
+
 
 expand(Ast, Env) ->
   %% the default handler, which handles

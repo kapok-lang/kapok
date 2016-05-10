@@ -6,6 +6,16 @@
          to_abstract_format/1]).
 -include("kapok.hrl").
 
+%% block
+
+translate({block, _Meta, Args}, Env) ->
+  [First | Left] = Args,
+  {HeadErl, TEnv} = kapok_translate:translate(First, Env),
+  {BodyErl, TEnv1} = kapok_translate:translate(Left, TEnv),
+  #{namespace := Namespace} = TEnv1,
+  Erl = [HeadErl, kapok_namespace:export_forms(Namespace) | BodyErl],
+  {Erl, TEnv1};
+
 %% literals
 
 %% number

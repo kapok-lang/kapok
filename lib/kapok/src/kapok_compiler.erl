@@ -46,18 +46,7 @@ ast_to_abstract_format(Ast, Env) ->
   {Expanded, EEnv} = kapok_expand:'expand-all'(Ast, Env),
   {Erl, TEnv} = kapok_translate:translate(Expanded, EEnv),
   io:format("~n after translate: ~p~n", [Erl]),
-  %% TODO hard code exports
-  [H | _T] = Erl,
-  #{namespace := Namespace} = TEnv,
-  T = {function,1,f,0,
-          [{clause,1,[],[],
-                   [{call,1,
-                          {remote,1,{atom,1,io},{atom,1,format}},
-                          [{string,1,"hello world!~n"},{nil,1}]}]}]},
-%%{function,1,f,0,[{clause,1,[],[],[{nil,1}]}]},
-  Erl0 = [H, kapok_namespace:export_forms(Namespace), T],
-  io:format("~n after add exports: ~p~n", [Erl0]),
-  {Erl0, TEnv}.
+  {Erl, TEnv}.
 
 %% Compilation entry points.
 

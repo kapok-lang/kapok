@@ -9,21 +9,20 @@
 translate(Meta, [{identifier, _, _}], Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "no def");
 
-translate(Meta, [{identifier, _, "def"}, {identifier, _, Id}, {ListType, _, Args} | Left],
-          #{namespace := Namespace} = Env) when ListType == list; ListType == list_literal ->
+translate(Meta, [{identifier, _, Keyword}, {identifier, _, Id}, {ListType, Meta1, Args} | Left],
+          #{namespace := Namespace} = Env)
+    when ?is_list_type(ListType), (Keyword =:= "def" orelse Keyword =:= "defp") ->
+  %% only support single clause and no guards
   {TArgs, TEnv} = kapok_translate:translate(Args, Env),
-  {TClause, TEnv1} = translate_clause(Left, TEnv),
+  {TBody, TEnv1} = translate_body(Left, TEnv),
   Arity = length(TArgs),
   Name = list_to_atom(Id),
-  kapok_namespace:add_export(Namespace, {Name, Arity}),
-  Line = ?line(Meta),
-  {{function, Line, Name, Arity, TClause}, TEnv1};
+  case Keyword of
+    "def" -> kapok_namespace:add_export(Namespace, {Name, Arity});
+    _ -> ok
+  end,
+  {{function, ?line(Meta), Name, Arity, [{clause,?line(Meta1),TArgs,[],TBody}]},
+   TEnv1}.
 
-translate(Meta, [{identifier, _, "defp"}, {identifier, _, Name} | _Left], Env) ->
-  Line = ?line(Meta),
-  {{function, Line, list_to_atom(Name), 0, []}, Env}.
-
-
-translate_clause(Ast, Env) ->
-  %% TODO add impl
-  {Ast, Env}.
+translate_body(Ast, Env) ->
+  kapok_translate:translate(Ast, Env).
