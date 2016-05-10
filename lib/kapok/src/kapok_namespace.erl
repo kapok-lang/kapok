@@ -89,13 +89,13 @@ handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType)
   case Args of
     [{atom, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_alias(Meta, TEnv, Id, Name)};
+      {Name, kapok_env:add_module_alias(Meta, TEnv, Id, Name)};
     [{identifier, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_alias(Meta, TEnv, Id, Name)};
+      {Name, kapok_env:add_module_alias(Meta, TEnv, Id, Name)};
     [{dot, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_alias(Meta, TEnv, Id, Name)};
+      {Name, kapok_env:add_module_alias(Meta, TEnv, Id, Name)};
     _ ->
       kapok_error:compile_error(Meta, ?m(Env, file), "invalid require expression ~p", [Args])
   end.
@@ -138,33 +138,43 @@ handle_use_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
   end.
 
 handle_use_element_arguments(Meta, Name, Args, Env) ->
-  handle_use_element_arguments(Meta, Name, nil, Args, Env).
+  GArgs = group_arguments(Meta, Args, Env),
+  handle_use_element_arguments(Meta, Name, nil, GArgs, Env).
 handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
-handle_use_element_arguments(Meta, Name, Flag, [{atom, _, 'as'}, {identifier, _, Id} | T], Env) ->
-  handle_use_element_arguments(Meta, Name, Flag, T, kapok_env:add_alias(Meta, Env, Id, Name));
-handle_use_element_arguments(_Meta, _Name, {atom, Meta1, 'exclude'}, [{atom, Meta2, 'only'}, {ListType, _, _} | _T], Env)
-    when ?is_list_type(ListType) ->
-  kapok_error:compile_error(Meta2, ?m(Env, file), "invalid usage of :only with :exclude present at line: ~p", [?line(Meta1)]);
-handle_use_element_arguments(Meta, Name, _Flag, [{atom, _, 'only'} = Flag, {ListType, _, Args} | T], Env)
-    when ?is_list_type(ListType) ->
-  Functions = filter_exports(Meta, Name, Args, Env),
-  NewEnv = kapok_env:add_functions(Meta, Env, Functions),
-  handle_use_element_arguments(Meta, Name, Flag, T, NewEnv);
-handle_use_element_arguments(_Meta, _Name, {atom, Meta1, 'only'}, [{atom, Meta2, 'exclude'}, {ListType, _, _} | _T], Env)
-    when ?is_list_type(ListType) ->
-  kapok_error:compile_error(Meta2, ?m(Env, file), "invalid usage of :exclude with :only present at line: ~p", [?line(Meta1)]);
-handle_use_element_arguments(Meta, Name, _Flag, [{atom, _, 'exclude'} = Flag, {ListType, _, Args} | T], Env)
-    when ?is_list_type(ListType) ->
+handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'as'}, {identifier, _, Id}} | T], Env) ->
+  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_module_alias(Meta, Env, Id, Name));
+handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {_, _, Args}} | T], Env) ->
   Functions = filter_out_exports(Meta, Name, Args, Env),
   NewEnv = kapok_env:add_functions(Meta, Env, Functions),
-  handle_use_element_arguments(Meta, Name, Flag, T, NewEnv);
-handle_use_element_arguments(Meta, Name, _Flag, [{atom, _, 'rename'}, {ListType, _, Args} | T], Env)
-    when ?is_list_type(ListType) ->
+  handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv);
+handle_use_element_arguments(Meta, Name, nil, [{{atom, _, 'only'}, {_, _, Args}} | T], Env) ->
+  Functions = filter_exports(Meta, Name, Args, Env),
+  NewEnv = kapok_env:add_functions(Meta, Env, Functions),
+  handle_use_element_arguments(Meta, Name, nil, T, NewEnv);
+handle_use_element_arguments(_Meta, _Name, Meta1, [{{atom, Meta2, 'only'}, {_, _, _}} | _T], Env) ->
+  kapok_error:compile_error(Meta2, ?m(Env, file), "invalid usage of :only with :exclude present at line: ~p", [?line(Meta1)]);
+handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'rename'}, {_, _, Args}} | T], Env) ->
   Aliases = get_function_aliases(Meta, Args, Env),
   NewEnv = kapok_env:add_function_aliases(Meta, Env, Aliases),
-  handle_use_element_arguments(Meta, Name, T, NewEnv);
-handle_use_element_arguments(Meta, _Name, _Flag, Args, Env) ->
+  handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv).
+
+group_arguments(Meta, Args, Env) ->
+  group_arguments(Meta, Args, orddict:new(), Env).
+group_arguments(_Meta, [], Acc, _Env) ->
+  lists:map(fun ({_, KV}) -> KV end, orddict:to_list(Acc));
+group_arguments(Meta, [{atom, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Env) ->
+  group_arguments(Meta, T, orddict:store('as', {K, V}, Acc), Env);
+group_arguments(Meta, [{atom, _, 'only'} = K, {ListType, _, _} = V | T], Acc, Env)
+    when ?is_list_type(ListType) ->
+  group_arguments(Meta, T, orddict:store('only', {K, V}, Acc), Env);
+group_arguments(Meta, [{atom, _, 'exclude'} = K, {ListType, _, _} = V | T], Acc, Env)
+    when ?is_list_type(ListType) ->
+  group_arguments(Meta, T, orddict:store('exclude', {K, V}, Acc), Env);
+group_arguments(Meta, [{atom, _, 'rename'} = K, {ListType, _, _} = V | T], Acc, Env)
+    when ?is_list_type(ListType) ->
+  group_arguments(Meta, T, orddict:store('rename', {K, V}, Acc), Env);
+group_arguments(Meta, Args, _Acc, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid use arguments: ~p~n", [Args]).
 
 add_module_exports(Meta, Module, Env) ->
