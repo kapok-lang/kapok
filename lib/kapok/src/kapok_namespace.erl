@@ -52,10 +52,11 @@ translate(Meta, [{identifier, _, "ns"}, {identifier, _, Id}|T], Env) ->
     undefined -> init_namespace_table();
     _ -> ok
   end,
-  {_TClauses, TEnv} = translate_namespace_clauses(T, Env#{namespace := Id}),
-  add_namespace({Id, maps:new(), maps:new(), sets:new()}),
+  Name = list_to_atom(Id),
+  {_TClauses, TEnv} = translate_namespace_clauses(T, Env#{namespace := Name}),
+  add_namespace({Name, maps:new(), maps:new(), sets:new()}),
   Line = ?line(Meta),
-  {{attribute, Line, module, list_to_atom(Id)}, TEnv}.
+  {{attribute, Line, module, Name}, TEnv}.
 
 
 %% Helper functions
@@ -78,12 +79,12 @@ handle_require_clause(List, Env) when is_list(List) ->
   lists:mapfoldl(fun handle_require_element/2, Env, List).
 
 handle_require_element({atom, Meta, Atom}, Env) ->
-  Name = atom_to_list(Atom),
-  {Name, kapok_env:add_require(Meta, Env, Name)};
+  {Atom, kapok_env:add_require(Meta, Env, Atom)};
 handle_require_element({identifier, Meta, Id}, Env) ->
-  {Id, kapok_env:add_require(Meta, Env, Id)};
-handle_require_element({dot, Meta, List}, Env) ->
-  Name = string:join(flatten_dot(List), "."),
+  Name = list_to_atom(Id),
+  {Name, kapok_env:add_require(Meta, Env, Name)};
+handle_require_element({dot, Meta, _} = Dot, Env) ->
+  Name = list_to_atom(kapok_parser:flatten_dot(Dot)),
   {Name, kapok_env:add_require(Meta, Env, Name)};
 handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
   case Args of
@@ -100,26 +101,19 @@ handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType)
       kapok_error:compile_error(Meta, ?m(Env, file), "invalid require expression ~p", [Args])
   end.
 
-flatten_dot(List) ->
- flatten_dot(List, []).
-flatten_dot([{dot, _, List}, {identifier, _, Id}], Acc) ->
-  flatten_dot(List, [Id | Acc]);
-flatten_dot([{identifier, _, Id1}, {identifier, _, Id2}], Acc) ->
-  [Id1, Id2 | Acc].
-
 %% use
 handle_use_clause(List, Env) when is_list(List) ->
   lists:mapfoldl(fun handle_use_element/2, Env, List).
 
 handle_use_element({atom, Meta, Atom}, Env) ->
   NewEnv = add_module_exports(Meta, Atom, Env),
-  Name = atom_to_list(Atom),
-  {Name, kapok_env:add_require(Meta, NewEnv, Name)};
+  {Atom, kapok_env:add_require(Meta, NewEnv, Atom)};
 handle_use_element({identifier, Meta, Id}, Env) ->
-  NewEnv = add_module_exports(Meta, Id, Env),
-  {Id, kapok_env:add_require(Meta, NewEnv, Id)};
-handle_use_element({dot, Meta, Args}, Env) ->
-  Name = string:join(flatten_dot(Args), "."),
+  Name = list_to_atom(Id),
+  NewEnv = add_module_exports(Meta, Name, Env),
+  {Name, kapok_env:add_require(Meta, NewEnv, Name)};
+handle_use_element({dot, Meta, _} = Dot, Env) ->
+  Name = list_to_atom(kapok_parser:flatten_dot(Dot)),
   NewEnv = add_module_exports(Meta, Name, Env),
   {Name, kapok_env:add_require(Meta, NewEnv, Name)};
 handle_use_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
@@ -143,7 +137,8 @@ handle_use_element_arguments(Meta, Name, Args, Env) ->
 handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
 handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'as'}, {identifier, _, Id}} | T], Env) ->
-  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_module_alias(Meta, Env, Id, Name));
+  Alias = list_to_atom(Id),
+  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_module_alias(Meta, Env, Alias, Name));
 handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {_, _, Args}} | T], Env) ->
   Functions = filter_out_exports(Meta, Name, Args, Env),
   NewEnv = kapok_env:add_functions(Meta, Env, Functions),
@@ -182,9 +177,7 @@ add_module_exports(Meta, Module, Env) ->
   Functions = get_exports(Meta, Module, Env),
   kapok_env:add_functions(Meta, Env, Functions).
 
-ensure_loaded(Meta, Module, Env) when is_list(Module) ->
-  ensure_loaded(Meta, list_to_atom(Module), Env);
-ensure_loaded(Meta, Module, Env) when is_atom(Module) ->
+ensure_loaded(Meta, Module, Env) ->
   case code:ensure_loaded(Module) of
     {module, Module} ->
       ok;
@@ -192,9 +185,7 @@ ensure_loaded(Meta, Module, Env) when is_atom(Module) ->
       kapok_error:compile_error(Meta, ?m(Env, file), "fail to load module: ~p due to load error: ~p", [Module, What])
   end.
 
-get_exports(Meta, Module, Env) when is_list(Module) ->
-  get_exports(Meta, list_to_atom(Module), Env);
-get_exports(Meta, Module, Env) when is_atom(Module) ->
+get_exports(Meta, Module, Env) ->
   try
     Exports = Module:module_info(exports),
     orddict:from_list(lists:map(fun (E) -> {E, {Module, E}} end, Exports))

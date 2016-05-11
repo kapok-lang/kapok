@@ -165,7 +165,11 @@ Erlang code.
 -import(kapok_scanner, [token_category/1,
                         token_meta/1,
                         token_symbol/1]).
+-export([flatten_dot/1,
+        extract_dot/1]).
 -include("kapok.hrl").
+
+%% Build token
 
 build_block(ExpressionList) ->
   [Token | _T] = ExpressionList,
@@ -222,6 +226,32 @@ build_map(Marker, Args) ->
 
 build_set(Marker, Args) ->
   {set, token_meta(Marker), Args}.
+
+%% Helper Functions
+
+flatten_dot({dot, _, Args}) ->
+  flatten_dot(Args);
+flatten_dot(List) when is_list(List) ->
+ flatten_dot(List, []).
+flatten_dot([{dot, _, List}, {identifier, _, Id}], Acc) ->
+  flatten_dot(List, [Id | Acc]);
+flatten_dot([{identifier, _, Id1}, {identifier, _, Id2}], Acc) ->
+  string:join([Id1, Id2 | Acc], ".").
+
+extract_dot({dot, _, Args}) ->
+  extract_dot(Args);
+extract_dot(List) when is_list(List) ->
+  {PreviousList, Last} = extract_dot(List, {[], nil}),
+  {string:join(PreviousList, "."), Last}.
+extract_dot([{dot, _, List}, {identifier, _, Id}], {Acc, nil}) ->
+  extract_dot(List, {Acc, Id});
+extract_dot([{dot, _, List}, {identifier, _, Id}], {Acc, Last}) ->
+  extract_dot(List, {[Id | Acc], Last});
+extract_dot([{identifier, _, Id1}, {identifier, _, Id2}], {Acc, nil}) ->
+  {[Id1 | Acc], Id2};
+extract_dot([{identifier, _, Id1}, {identifier, _, Id2}], {Acc, Last}) ->
+  {[Id1, Id2 | Acc], Last}.
+
 
 %% Errors
 throw(Line, Error, Token) ->
