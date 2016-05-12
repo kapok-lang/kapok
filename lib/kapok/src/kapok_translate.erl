@@ -39,7 +39,7 @@ translate({atom, Meta, Value}, Env) ->
 %% Identifiers
 translate({identifier, Meta, Identifier}, Env) ->
   %% search env to check whether identifier is a variable
-  {{atom, ?line(Meta), list_to_atom(Identifier)}, Env};
+  {{atom, ?line(Meta), Identifier}, Env};
 
 %% binary string
 translate({binary_string, _Meta, Binary}, Env) ->
@@ -62,20 +62,18 @@ translate({literal_list, _Meta, List}, Env) ->
 %% Local call
 
 %% special forms
-translate({list, Meta, [{identifier, _, "ns"} | _] = Args}, Env) ->
+translate({list, Meta, [{identifier, _, 'ns'} | _] = Args}, Env) ->
   kapok_namespace:translate(Meta, Args, Env);
 
 translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
-    when Id == "def";
-         Id == "defp";
-         Id == "defmacro";
-         Id == "defmacrop" ->
+    when Id == 'defn';
+         Id == 'defn-';
+         Id == 'defmacro' ->
   kapok_defs:translate(Meta, Args, Env);
 
 translate({list, Meta, [{identifier, _, Id} | Args]},
           #{namespace := Namespace, functions := Functions, function_aliases := Aliases} = Env) ->
-  Arity = length(Args),
-  Key = {list_to_atom(Id), Arity},
+  Key = {Id, length(Args)},
   %% check whether it's a local call
   case sets:is_element(Key ,kapok_namespace:namespace_exports(Namespace)) of
     true ->
@@ -115,9 +113,7 @@ translate({list, Meta, [{identifier, _, Id} | Args]},
 %%  Remote call
 translate({list, Meta, [{dot, _, _} = Dot | Args]},
           #{namespace := Namespace, requires := Requires, module_aliases := ModuleAliases} = Env) ->
-  {Prefix, Suffix} = kapok_parser:extract_dot(Dot),
-  Module = list_to_atom(Prefix),
-  F = list_to_atom(Suffix),
+  {Module, F} = kapok_parser:extract_dot(Dot),
   M = case Module of
         Namespace -> Namespace;
         _ ->

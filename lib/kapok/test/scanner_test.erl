@@ -79,21 +79,21 @@ comment_test() ->
   ?assertEqual([{number, [{line,1},{column,1}], 1}, {number, [{line,3},{column,1}], 2}], scan("1\n;; comment ...\n2")).
 
 identifier_test() ->
-  ?assertEqual([{identifier, [{line,1},{column,1}], "abc"}], scan("abc ")),
-  ?assertEqual([{identifier, [{line,1},{column,1}], "Tp!#$*+=/<=>?@^_|"}], scan("Tp!#$*+=/<=>?@^_|")).
+  ?assertEqual([{identifier, [{line,1},{column,1}], 'abc'}], scan("abc ")),
+  ?assertEqual([{identifier, [{line,1},{column,1}], 'Tp!#$*+=<=>?@^_|'}], scan("Tp!#$*+=/<=>?@^_|")).
 
 dot_test() ->
-  ?assertEqual([{identifier, [{line,1},{column,1}], "foo"},
+  ?assertEqual([{identifier, [{line,1},{column,1}], 'foo'},
                 {'.', [{line,1},{column,4}]},
-                {identifier, [{line,1},{column,5}], "bar"},
+                {identifier, [{line,1},{column,5}], 'bar'},
                 {'.', [{line,1},{column,8}]},
-                {identifier, [{line,1},{column,9}], "baz"}],
+                {identifier, [{line,1},{column,9}], 'baz'}],
                scan("foo.bar.baz")).
 
 newline_test() ->
-  ?assertEqual([{identifier, [{line,1},{column,1}], "foo"},
+  ?assertEqual([{identifier, [{line,1},{column,1}], 'foo'},
                 {'.', [{line,2},{column,1}]},
-                {identifier, [{line,2},{column,2}], "bar"}],
+                {identifier, [{line,2},{column,2}], 'bar'}],
                scan("foo\n.bar")),
   ?assertEqual([{number, [{line,1},{column,1}], 1},
                 {unquote_splicing, [{line,2},{column,1}]},
@@ -110,8 +110,8 @@ string_test() ->
 
 space_test() ->
   %% valid
-  ?assertEqual([{identifier, [{line,1},{column,1}], "foo"}, {number, [{line,1},{column,5}], 2}], scan("foo 2")),
-  ?assertEqual([{identifier, [{line,1},{column,1}], "foo"}, {number, [{line,1},{column,6}], 2}], scan("foo  2")),
+  ?assertEqual([{identifier, [{line,1},{column,1}], 'foo'}, {number, [{line,1},{column,5}], 2}], scan("foo 2")),
+  ?assertEqual([{identifier, [{line,1},{column,1}], 'foo'}, {number, [{line,1},{column,6}], 2}], scan("foo  2")),
   %% invalid
   Expect = kapok_scanner:format_error({invalid_space, 16#A0, "2"}),
   ?assertEqual(Expect, scan_error("foo" ++ [16#A0] ++"2")).

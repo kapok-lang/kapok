@@ -234,23 +234,23 @@ flatten_dot({dot, _, Args}) ->
 flatten_dot(List) when is_list(List) ->
  flatten_dot(List, []).
 flatten_dot([{dot, _, List}, {identifier, _, Id}], Acc) ->
-  flatten_dot(List, [Id | Acc]);
+  flatten_dot(List, [atom_to_list(Id) | Acc]);
 flatten_dot([{identifier, _, Id1}, {identifier, _, Id2}], Acc) ->
-  string:join([Id1, Id2 | Acc], ".").
+  list_to_atom(string:join([atom_to_list(Id1), atom_to_list(Id2) | Acc], ".")).
 
 extract_dot({dot, _, Args}) ->
   extract_dot(Args);
 extract_dot(List) when is_list(List) ->
   {PreviousList, Last} = extract_dot(List, {[], nil}),
-  {string:join(PreviousList, "."), Last}.
+  {list_to_atom(string:join(PreviousList, ".")), Last}.
 extract_dot([{dot, _, List}, {identifier, _, Id}], {Acc, nil}) ->
   extract_dot(List, {Acc, Id});
 extract_dot([{dot, _, List}, {identifier, _, Id}], {Acc, Last}) ->
-  extract_dot(List, {[Id | Acc], Last});
+  extract_dot(List, {[atom_to_list(Id) | Acc], Last});
 extract_dot([{identifier, _, Id1}, {identifier, _, Id2}], {Acc, nil}) ->
-  {[Id1 | Acc], Id2};
+  {[atom_to_list(Id1) | Acc], Id2};
 extract_dot([{identifier, _, Id1}, {identifier, _, Id2}], {Acc, Last}) ->
-  {[Id1, Id2 | Acc], Last}.
+  {[atom_to_list(Id1), atom_to_list(Id2) | Acc], Last}.
 
 
 %% Errors

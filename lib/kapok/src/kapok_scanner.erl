@@ -535,7 +535,7 @@ handle_identifier(T, Line, Column, Scope, Tokens) ->
   case scan_identifier(Line, Column, T) of
     {ok, NewLine, NewColumn, Identifier, Rest} ->
       scan(Rest, NewLine, NewColumn, Scope,
-           [{identifier, build_meta(Line, Column), Identifier}|Tokens]);
+           [{identifier, build_meta(Line, Column), list_to_atom(Identifier)}|Tokens]);
     {error, ErrorInfo} ->
       {error, ErrorInfo, T, lists:reverse(Tokens)}
   end.

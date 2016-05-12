@@ -44,31 +44,29 @@ namespace_exports(Namespace) ->
 
 %% Translation
 
-translate(Meta, [{identifier, _, "ns"}], Env) ->
+translate(Meta, [{identifier, _, ns}], Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "no namespace");
 
-translate(Meta, [{identifier, _, "ns"}, {identifier, _, Id}|T], Env) ->
+translate(Meta, [{identifier, _, ns}, {identifier, _, Id}|T], Env) ->
   case ets:info(kapok_namespaces) of
     undefined -> init_namespace_table();
     _ -> ok
   end,
-  Name = list_to_atom(Id),
-  {_TClauses, TEnv} = translate_namespace_clauses(T, Env#{namespace := Name}),
-  add_namespace({Name, maps:new(), maps:new(), sets:new()}),
-  Line = ?line(Meta),
-  {{attribute, Line, module, Name}, TEnv}.
+  {_TClauses, TEnv} = translate_namespace_clauses(T, Env#{namespace := Id}),
+  add_namespace({Id, maps:new(), maps:new(), sets:new()}),
+  {{attribute, ?line(Meta), module, Id}, TEnv}.
 
 
 %% Helper functions
 translate_namespace_clauses(Clauses, Env) when is_list(Clauses) ->
   lists:mapfoldl(fun translate_namespace_clause/2, Env, Clauses).
 
-translate_namespace_clause({list, _, [{identifier, _, "require"} | T]}, Env) ->
+translate_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
   {Names, TEnv} = handle_require_clause(T, Env),
   #{requires := Requires, module_aliases := ModuleAliases} = TEnv,
   io:format("all require: ~p~nall module alias: ~p~n", [Requires, ModuleAliases]),
   {Names, TEnv};
-translate_namespace_clause({list, _, [{identifier, _, "use"} | T]}, Env) ->
+translate_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
   {Names, TEnv} = handle_use_clause(T, Env),
   #{requires := Requires, module_aliases := ModuleAliases, functions := Functions, function_aliases := FunctionAliases} = TEnv,
   io:format("all require: ~p~nall module alias: ~p~nall functions: ~p~nall function aliases: ~p~n", [Requires, ModuleAliases, Functions, FunctionAliases]),
@@ -81,10 +79,9 @@ handle_require_clause(List, Env) when is_list(List) ->
 handle_require_element({atom, Meta, Atom}, Env) ->
   {Atom, kapok_env:add_require(Meta, Env, Atom)};
 handle_require_element({identifier, Meta, Id}, Env) ->
-  Name = list_to_atom(Id),
-  {Name, kapok_env:add_require(Meta, Env, Name)};
+  {Id, kapok_env:add_require(Meta, Env, Id)};
 handle_require_element({dot, Meta, _} = Dot, Env) ->
-  Name = list_to_atom(kapok_parser:flatten_dot(Dot)),
+  Name = kapok_parser:flatten_dot(Dot),
   {Name, kapok_env:add_require(Meta, Env, Name)};
 handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
   case Args of
@@ -109,11 +106,10 @@ handle_use_element({atom, Meta, Atom}, Env) ->
   NewEnv = add_module_exports(Meta, Atom, Env),
   {Atom, kapok_env:add_require(Meta, NewEnv, Atom)};
 handle_use_element({identifier, Meta, Id}, Env) ->
-  Name = list_to_atom(Id),
-  NewEnv = add_module_exports(Meta, Name, Env),
-  {Name, kapok_env:add_require(Meta, NewEnv, Name)};
+  NewEnv = add_module_exports(Meta, Id, Env),
+  {Id, kapok_env:add_require(Meta, NewEnv, Id)};
 handle_use_element({dot, Meta, _} = Dot, Env) ->
-  Name = list_to_atom(kapok_parser:flatten_dot(Dot)),
+  Name = kapok_parser:flatten_dot(Dot),
   NewEnv = add_module_exports(Meta, Name, Env),
   {Name, kapok_env:add_require(Meta, NewEnv, Name)};
 handle_use_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
@@ -137,8 +133,7 @@ handle_use_element_arguments(Meta, Name, Args, Env) ->
 handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
 handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'as'}, {identifier, _, Id}} | T], Env) ->
-  Alias = list_to_atom(Id),
-  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_module_alias(Meta, Env, Alias, Name));
+  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_module_alias(Meta, Env, Id, Name));
 handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {_, _, Args}} | T], Env) ->
   Functions = filter_out_exports(Meta, Name, Args, Env),
   NewEnv = kapok_env:add_functions(Meta, Env, Functions),
@@ -215,7 +210,7 @@ filter_out_exports(Meta, Module, Args, Env) ->
 
 get_functions(Module, Args) ->
   L = lists:map(fun ({function_id, _, {{identifier, _, Id}, {integer, _, Integer}}}) ->
-                    {list_to_atom(Id), Integer}
+                    {Id, Integer}
                 end,
                 Args),
   orddict:from_list(lists:map(fun (E) -> {E, {Module, E}} end, lists:reverse(L))).
@@ -223,7 +218,7 @@ get_functions(Module, Args) ->
 get_function_aliases(Meta, Args, Env) ->
   L = lists:map(fun ({ListType, _, [{function_id, _, {{identifier, _, OriginalId}, {integer, _, Integer}}},
                                     {identifier, _, NewId}]}) when ?is_list_type(ListType) ->
-                    {{list_to_atom(NewId), Integer}, {list_to_atom(OriginalId), Integer}};
+                    {{NewId, Integer}, {OriginalId, Integer}};
                     (Other) ->
                     kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
                 end,
