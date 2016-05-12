@@ -12,5 +12,5 @@ fi
 ERL="erl"
 ERL_OPTIONS="-noshell -s kapok start_cli"
 
-exec "${ERL}" -pa "./ebin" ${ERL_OPTIONS} -extra "$@"
+exec "${ERL}" -pa "./ebin" -run_mode script ${ERL_OPTIONS} -extra "$@"
 

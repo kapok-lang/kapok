@@ -74,49 +74,62 @@ translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
   kapok_defs:translate(Meta, Args, Env);
 
 translate({list, Meta, [{identifier, _, Id} | Args]},
-          #{functions := Functions, function_aliases := Aliases} = Env) ->
+          #{namespace := Namespace, functions := Functions, function_aliases := Aliases} = Env) ->
   Arity = length(Args),
   Key = {list_to_atom(Id), Arity},
-  %% check whether it's in imported function list
-  case orddict:find(Key, Functions) of
-    {ok, {M, {F, _A}}} ->
-      {TM, _} = translate(M, Env),
-      {TF, _} = translate(F, Env),
-      {TArgs, TEnv} = translate_args(Args, Env),
-      Line = ?line(Meta),
-      {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
-    {ok, {F, _A}} ->
+  %% check whether it's a local call
+  case sets:is_element(Key ,kapok_namespace:namespace_exports(Namespace)) of
+    true ->
+      {F, _} = Key,
       {TF, TEnv} = translate(F, Env),
       {TArgs, TEnv1} = translate_args(Args, TEnv),
       {{call, ?line(Meta), TF, TArgs}, TEnv1};
-    error ->
-      %% check whether it's in function alias list
-      case orddict:find(Key, Aliases) of
-        {ok, Function} ->
-          {ok, {M, {F, _A}}} = orddict:find(Function, Functions),
+    false ->
+      %% check whether it's in imported function list
+      case orddict:find(Key, Functions) of
+        {ok, {M, {F, _A}}} ->
           {TM, _} = translate(M, Env),
           {TF, _} = translate(F, Env),
           {TArgs, TEnv} = translate_args(Args, Env),
           Line = ?line(Meta),
           {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
+        {ok, {F, _A}} ->
+          {TF, TEnv} = translate(F, Env),
+          {TArgs, TEnv1} = translate_args(Args, TEnv),
+          {{call, ?line(Meta), TF, TArgs}, TEnv1};
         error ->
-          kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
+          %% check whether it's in function alias list
+          case orddict:find(Key, Aliases) of
+            {ok, Function} ->
+              {ok, {M, {F, _A}}} = orddict:find(Function, Functions),
+              {TM, _} = translate(M, Env),
+              {TF, _} = translate(F, Env),
+              {TArgs, TEnv} = translate_args(Args, Env),
+              Line = ?line(Meta),
+              {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
+            error ->
+              kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
+          end
       end
   end;
 
 %%  Remote call
 translate({list, Meta, [{dot, _, _} = Dot | Args]},
-          #{requires := Requires, module_aliases := ModuleAliases} = Env) ->
+          #{namespace := Namespace, requires := Requires, module_aliases := ModuleAliases} = Env) ->
   {Prefix, Suffix} = kapok_parser:extract_dot(Dot),
   Module = list_to_atom(Prefix),
   F = list_to_atom(Suffix),
-  %% check whether this module is required or aliased
-  M = case ordsets:is_element(Module, Requires) of
-        true -> Module;
-        false ->
-          case orddict:find(Module, ModuleAliases) of
-            {ok, Original} -> Original;
-            error -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid module: ~p", [Module])
+  M = case Module of
+        Namespace -> Namespace;
+        _ ->
+          %% check whether this module is required or aliased
+          case ordsets:is_element(Module, Requires) of
+            true -> Module;
+            false ->
+              case orddict:find(Module, ModuleAliases) of
+                {ok, Original} -> Original;
+                error -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid module: ~p", [Module])
+              end
           end
       end,
   {TM, _} = translate(M, Env),

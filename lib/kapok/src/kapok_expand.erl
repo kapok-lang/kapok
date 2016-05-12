@@ -1,20 +1,19 @@
 %%
 -module(kapok_expand).
--export(['expand-all'/2,
-         'expand-1'/2,
+-export([expand_all/2,
+         expand_1/2,
          expand/2]).
 -include("kapok.hrl").
 
-
-'expand-1'(Ast, Env) ->
-  expand(Ast, Env).
-
-'expand-all'(Ast, Env) ->
+expand_all(Ast, Env) ->
   {EAst, NewEnv, Expanded} = expand(Ast, Env),
   case Expanded of
-    true -> 'expand-all'(EAst, NewEnv);
+    true -> expand_all(EAst, NewEnv);
     _ -> {EAst, NewEnv}
   end.
+
+expand_1(Ast, Env) ->
+  expand(Ast, Env).
 
 %% block
 
@@ -81,9 +80,9 @@ expand({bitstring, Meta, Args}, Env) ->
 
 %% list
 
-expand({'list', Meta, Args}, Env) ->
+expand({list, Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand_list(Args, fun expand/2, Env),
-  {{'list', Meta, EArgs}, NewEnv, Expanded};
+  {{list, Meta, EArgs}, NewEnv, Expanded};
 
 %% tuple
 expand({tuple, Meta, Args}, Env) ->
