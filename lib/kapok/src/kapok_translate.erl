@@ -42,13 +42,12 @@ translate({identifier, Meta, Identifier}, Env) ->
   {{atom, ?line(Meta), list_to_atom(Identifier)}, Env};
 
 %% binary string
-%% TODO
-%%translate({binary_string, Meta, Value}, Env) ->
-%%  {{}};
+translate({binary_string, _Meta, Binary}, Env) ->
+  translate(Binary, Env);
 
 %% list string
-translate({list_string, Meta, Value}, Env) ->
-  {{string, ?line(Meta), binary_to_list(Value)}, Env};
+translate({list_string, Meta, CharList}, Env) ->
+  {{string, ?line(Meta), binary_to_list(CharList)}, Env};
 
 %% Containers
 
