@@ -19,9 +19,9 @@ expand_1(Ast, Env) ->
 
 %% block
 
-expand({block, Meta, Args}, Env) ->
+expand({'__block__', Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
-  {{block, Meta, EArgs}, NewEnv, Expanded};
+  {{'__block__', Meta, EArgs}, NewEnv, Expanded};
 
 %% macro special forms
 
@@ -206,22 +206,21 @@ is_macro_call({list, Meta, [{identifier, _, Id} | Args]},
         error -> false
       end
   end;
-is_macro_call({list, Meta, [{dot, _, _} = Dot | _Args]},
+is_macro_call({list, Meta, [{dot, _, {M, F}} | _Args]},
                  #{namespace := Namespace,
                    requires := Requires,
                    module_aliases := ModuleAliases} = Env) ->
   %% check whether the specified module is required or aliased, and macro is imported.
-  {Module, F} = kapok_parser:extract_dot(Dot),
-  case Module of
+  case M of
     Namespace ->
       kapok_error:compile_error(Meta, ?m(Env, file), "cannot call macro defined in current module: ~p", [F]);
     _ ->
       %% check whether this module is required or aliased
-      case ordsets:is_element(Module, Requires) of
+      case ordsets:is_element(M, Requires) of
         true ->
           true;
         false ->
-          case orddict:find(Module, ModuleAliases) of
+          case orddict:find(M, ModuleAliases) of
             {ok, _} ->
               true;
             error ->

@@ -54,6 +54,7 @@ value       -> signed_number : '$1'.
 %% atom
 value       -> atom_expr : '$1'.
 %% identifier
+value       -> identifier : '$1'.
 value       -> dot_identifier : '$1'.
 value       -> function_identifier: '$1'.
 %% macro syntax
@@ -84,7 +85,6 @@ atom_expr      -> atom_unsafe : build_quoted_atom('$1', false).
 %% identifier
 dot_op         -> '.' : '$1'.
 
-dot_identifier -> identifier : '$1'.
 dot_identifier -> identifier dot_op identifier : build_dot('$2', '$1', '$3').
 dot_identifier -> dot_identifier dot_op identifier : build_dot('$2', '$1', '$3').
 
@@ -166,15 +166,14 @@ Erlang code.
 -import(kapok_scanner, [token_category/1,
                         token_meta/1,
                         token_symbol/1]).
--export([flatten_dot/1,
-        extract_dot/1]).
+-export([dot_fullname/1]).
 -include("kapok.hrl").
 
 %% Build token
 
 build_block(ExpressionList) ->
   [Token | _T] = ExpressionList,
-  {block, token_meta(Token), ExpressionList}.
+  {'__block__', token_meta(Token), ExpressionList}.
 
 build_number(Token) ->
   {number, token_meta(Token), token_symbol(Token)}.
@@ -195,8 +194,10 @@ binary_to_atom_op(false) -> binary_to_atom.
 build_function_identifier(FunctionName, Arity) ->
   {function_id, token_meta(FunctionName), {FunctionName, Arity}}.
 
-build_dot(Dot, Left, Right) ->
-  {dot, token_meta(Dot), [Left, Right]}.
+build_dot(Dot, {identifier, _, Id}, Right) ->
+  {dot, token_meta(Dot), {Id, token_symbol(Right)}};
+build_dot(Dot, {dot, _, _} = Left, Right) ->
+  {dot, token_meta(Dot), {dot_fullname(Left), Right}}.
 
 build_bitstring(Marker, Args) ->
   {bitstring, token_meta(Marker), Args}.
@@ -230,29 +231,8 @@ build_set(Marker, Args) ->
 
 %% Helper Functions
 
-flatten_dot({dot, _, Args}) ->
-  flatten_dot(Args);
-flatten_dot(List) when is_list(List) ->
- flatten_dot(List, []).
-flatten_dot([{dot, _, List}, {identifier, _, Id}], Acc) ->
-  flatten_dot(List, [atom_to_list(Id) | Acc]);
-flatten_dot([{identifier, _, Id1}, {identifier, _, Id2}], Acc) ->
-  list_to_atom(string:join([atom_to_list(Id1), atom_to_list(Id2) | Acc], ".")).
-
-extract_dot({dot, _, Args}) ->
-  extract_dot(Args);
-extract_dot(List) when is_list(List) ->
-  {PreviousList, Last} = extract_dot(List, {[], nil}),
-  {list_to_atom(string:join(PreviousList, ".")), Last}.
-extract_dot([{dot, _, List}, {identifier, _, Id}], {Acc, nil}) ->
-  extract_dot(List, {Acc, Id});
-extract_dot([{dot, _, List}, {identifier, _, Id}], {Acc, Last}) ->
-  extract_dot(List, {[atom_to_list(Id) | Acc], Last});
-extract_dot([{identifier, _, Id1}, {identifier, _, Id2}], {Acc, nil}) ->
-  {[atom_to_list(Id1) | Acc], Id2};
-extract_dot([{identifier, _, Id1}, {identifier, _, Id2}], {Acc, Last}) ->
-  {[atom_to_list(Id1), atom_to_list(Id2) | Acc], Last}.
-
+dot_fullname({dot, _, {Left, Right}}) ->
+  list_to_atom(string:join([atom_to_list(Left), atom_to_list(Right)], ".")).
 
 %% Errors
 throw(Line, Error, Token) ->

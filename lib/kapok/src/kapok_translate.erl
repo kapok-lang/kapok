@@ -8,15 +8,9 @@
 
 %% block
 
-translate({block, _Meta, Args}, Env) ->
-  [First | Left] = Args,
-  {HeadErl, TEnv} = kapok_translate:translate(First, Env),
-  io:format("after translate head, functions: ~p~n", [maps:get(functions, Env)]),
-  {BodyErl, TEnv1} = kapok_translate:translate(Left, TEnv),
-  io:format("after translate body, functions: ~p~n", [maps:get(functions, Env)]),
-  Erl = [HeadErl, {attribute,0,export,kapok_env:get_exports(TEnv1)} | BodyErl],
-  io:format("after translate block: ~p~n", [Erl]),
-  {Erl, TEnv1};
+translate({'__block__', Meta, Args}, Env) ->
+  {TArgs, TEnv} = translate_block(Args, Env),
+  {{block, ?line(Meta), TArgs}, TEnv};
 
 %% literals
 
@@ -117,9 +111,8 @@ translate({list, Meta, [{identifier, _, Id} | Args]},
   end;
 
 %%  Remote call
-translate({list, Meta, [{dot, _, _} = Dot | Args]},
+translate({list, Meta, [{dot, _, {Module, F}} | Args]},
           #{namespace := Namespace, requires := Requires, module_aliases := ModuleAliases} = Env) ->
-  {Module, F} = kapok_parser:extract_dot(Dot),
   M = case Module of
         Namespace ->
           Namespace;
@@ -159,36 +152,6 @@ translate(List, Env) when is_list(List) ->
 
 translate(Other, Env) ->
   {to_abstract_format(Other), Env}.
-
-%% Translate args
-
-translate_arg(Arg, Acc, Env)
-    when is_number(Arg); is_atom(Arg); is_binary(Arg); is_pid(Arg); is_function(Arg) ->
-  {TArg, _} = translate(Arg, Env),
-  {TArg, Acc};
-translate_arg(Arg, Acc, _Env) ->
-  {TArg, TAcc} = translate(Arg, Acc),
-  {TArg, TAcc}.
-
-translate_args(Args, #{context := match} = Env) ->
-  lists:mapfoldl(fun translate/2, Env, Args);
-translate_args(Args, Env) ->
-  lists:mapfoldl(fun (X, Acc) -> translate_arg(X, Acc, Env) end,
-                 Env,
-                 Args).
-
-%% Helpers
-translate_list([H|T], Acc, Env) ->
-  {Erl, TEnv} = translate(H, Env),
-  translate_list(T, [Erl|Acc], TEnv);
-translate_list([], Acc, Env) ->
-  {build_list(Acc, {nil, 0}), Env}.
-
-build_list([H|T], Acc) ->
-  build_list(T, {cons, 0, H, Acc});
-build_list([], Acc) ->
-  Acc.
-
 
 %% Converts specified code to erlang abstract format
 
@@ -245,4 +208,46 @@ to_abstract_format_cons_2([], Acc) ->
 
 abstract_format_remote_call(Line, Module, Function, Args) ->
   {call, Line, {remote, Line, {atom, Line, Module}, {atom, Line, Function}}, Args}.
+
+
+%% Helpers
+
+translate_list([H|T], Acc, Env) ->
+  {Erl, TEnv} = translate(H, Env),
+  translate_list(T, [Erl|Acc], TEnv);
+translate_list([], Acc, Env) ->
+  {build_list(Acc, {nil, 0}), Env}.
+
+build_list([H|T], Acc) ->
+  build_list(T, {cons, 0, H, Acc});
+build_list([], Acc) ->
+  Acc.
+
+%% Translate args
+
+translate_arg(Arg, Acc, Env)
+    when is_number(Arg); is_atom(Arg); is_binary(Arg); is_pid(Arg); is_function(Arg) ->
+  {TArg, _} = translate(Arg, Env),
+  {TArg, Acc};
+translate_arg(Arg, Acc, _Env) ->
+  {TArg, TAcc} = translate(Arg, Acc),
+  {TArg, TAcc}.
+
+translate_args(Args, #{context := match} = Env) ->
+  lists:mapfoldl(fun translate/2, Env, Args);
+translate_args(Args, Env) ->
+  lists:mapfoldl(fun (X, Acc) -> translate_arg(X, Acc, Env) end,
+                 Env,
+                 Args).
+
+%% Translate blocks
+
+translate_block(Args, Env) ->
+  translate_block(Args, [], Env).
+translate_block([], Acc, Env) ->
+  {lists:reverse(Acc), Env};
+translate_block([H|T], Acc, Env) ->
+  {TH, TEnv} = translate(H, Env),
+  {T, [TH|Acc], TEnv}.
+
 

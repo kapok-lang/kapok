@@ -45,7 +45,7 @@ handle_require_element({atom, Meta, Atom}, Env) ->
 handle_require_element({identifier, Meta, Id}, Env) ->
   {Id, kapok_env:add_require(Meta, Env, Id)};
 handle_require_element({dot, Meta, _} = Dot, Env) ->
-  Name = kapok_parser:flatten_dot(Dot),
+  Name = kapok_parser:dot_fullname(Dot),
   {Name, kapok_env:add_require(Meta, Env, Name)};
 handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
   case Args of
@@ -73,7 +73,7 @@ handle_use_element({identifier, Meta, Id}, Env) ->
   NewEnv = add_module_exports(Meta, Id, Env),
   {Id, kapok_env:add_require(Meta, NewEnv, Id)};
 handle_use_element({dot, Meta, _} = Dot, Env) ->
-  Name = kapok_parser:flatten_dot(Dot),
+  Name = kapok_parser:dot_fullname(Dot),
   NewEnv = add_module_exports(Meta, Name, Env),
   {Name, kapok_env:add_require(Meta, NewEnv, Name)};
 handle_use_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
