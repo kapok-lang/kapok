@@ -11,9 +11,11 @@
 translate({block, _Meta, Args}, Env) ->
   [First | Left] = Args,
   {HeadErl, TEnv} = kapok_translate:translate(First, Env),
+  io:format("after translate head, functions: ~p~n", [maps:get(functions, Env)]),
   {BodyErl, TEnv1} = kapok_translate:translate(Left, TEnv),
-  #{namespace := Namespace} = TEnv1,
-  Erl = [HeadErl, kapok_namespace:export_forms(Namespace) | BodyErl],
+  io:format("after translate body, functions: ~p~n", [maps:get(functions, Env)]),
+  Erl = [HeadErl, {attribute,0,export,kapok_env:get_exports(TEnv1)} | BodyErl],
+  io:format("after translate block: ~p~n", [Erl]),
   {Erl, TEnv1};
 
 %% literals
@@ -39,7 +41,8 @@ translate({atom, Meta, Value}, Env) ->
 %% Identifiers
 translate({identifier, Meta, Identifier}, Env) ->
   %% search env to check whether identifier is a variable
-  {{atom, ?line(Meta), Identifier}, Env};
+  io:format("!!!!!!! translate ident: ~p~n", [Identifier]),
+  {{var, ?line(Meta), Identifier}, Env};
 
 %% binary string
 translate({binary_string, _Meta, Binary}, Env) ->
@@ -55,6 +58,10 @@ translate({list_string, Meta, CharList}, Env) ->
 translate({bitstring, Meta, Args}, Env) ->
   kapok_bitstring:translate(Meta, Args, Env);
 
+%% tuple
+translate({tuple, Meta, Value}, Env) ->
+  {{tuple, ?line(Meta), Value}, Env};
+
 %% list
 translate({literal_list, _Meta, List}, Env) ->
   translate_list(List, [], Env);
@@ -69,21 +76,20 @@ translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
     when Id == 'defn';
          Id == 'defn-';
          Id == 'defmacro' ->
-  kapok_defs:translate(Meta, Args, Env);
+  kapok_def:translate(Meta, Args, Env);
 
 translate({list, Meta, [{identifier, _, Id} | Args]},
-          #{namespace := Namespace, functions := Functions, function_aliases := Aliases} = Env) ->
-  Key = {Id, length(Args)},
+          #{functions := Functions, function_aliases := Aliases} = Env) ->
+  FunArity = {Id, length(Args)},
   %% check whether it's a local call
-  case sets:is_element(Key ,kapok_namespace:namespace_exports(Namespace)) of
+  case ordsets:is_element(FunArity, kapok_env:get_exports(Env)) of
     true ->
-      {F, _} = Key,
-      {TF, TEnv} = translate(F, Env),
+      {TF, TEnv} = translate(Id, Env),
       {TArgs, TEnv1} = translate_args(Args, TEnv),
       {{call, ?line(Meta), TF, TArgs}, TEnv1};
     false ->
       %% check whether it's in imported function list
-      case orddict:find(Key, Functions) of
+      case orddict:find(FunArity, Functions) of
         {ok, {M, {F, _A}}} ->
           {TM, _} = translate(M, Env),
           {TF, _} = translate(F, Env),
@@ -96,7 +102,7 @@ translate({list, Meta, [{identifier, _, Id} | Args]},
           {{call, ?line(Meta), TF, TArgs}, TEnv1};
         error ->
           %% check whether it's in function alias list
-          case orddict:find(Key, Aliases) of
+          case orddict:find(FunArity, Aliases) of
             {ok, Function} ->
               {ok, {M, {F, _A}}} = orddict:find(Function, Functions),
               {TM, _} = translate(M, Env),
@@ -115,11 +121,13 @@ translate({list, Meta, [{dot, _, _} = Dot | Args]},
           #{namespace := Namespace, requires := Requires, module_aliases := ModuleAliases} = Env) ->
   {Module, F} = kapok_parser:extract_dot(Dot),
   M = case Module of
-        Namespace -> Namespace;
+        Namespace ->
+          Namespace;
         _ ->
           %% check whether this module is required or aliased
           case ordsets:is_element(Module, Requires) of
-            true -> Module;
+            true ->
+              Module;
             false ->
               case orddict:find(Module, ModuleAliases) of
                 {ok, Original} -> Original;
@@ -136,13 +144,16 @@ translate({list, Meta, [{dot, _, _} = Dot | Args]},
 translate({list, _Meta, Args}, Env) ->
   translate_list(Args, [], Env);
 
-%% tuple
-translate({tuple, Meta, Value}, Env) ->
-  {{tuple, ?line(Meta), Value}, Env};
+translate({quote, _, Arg}, Env) ->
+  {to_abstract_format(Arg), Env};
+  %% case Arg of
+  %%   {identifier, _, _} -> translate(Arg, Env);
+  %%   _ -> {to_abstract_format(Arg), Env}
+  %% end;
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun (E, S) -> translate(E, S) end,
+  lists:mapfoldl(fun (X, E) -> translate(X, E) end,
                  Env,
                  List);
 

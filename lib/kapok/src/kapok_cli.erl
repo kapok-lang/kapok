@@ -5,7 +5,7 @@
 
 
 main(Args) ->
-  Args1 = [kapok_utils:chardata_to_string(A) || A <- Args ],
+  Args1 = [kapok_utils:characters_to_binary(A) || A <- Args],
   {Config, _} = parse_args(Args1),
   run(fun (_) ->
           Errors = process_commands(Config),

@@ -17,7 +17,7 @@ Nonterminals
     .
 
 Terminals
-    hex_number base_number char_number integer float
+    hex_number octal_number n_base_number char_number integer float
     binary_string list_string atom atom_safe atom_unsafe identifier
     '(' ')' '[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
     unquote_splicing backquote quote unquote rest '.' '/' '+' '-'
@@ -43,7 +43,8 @@ expressions -> expression_list : build_block(lists:reverse('$1')).
 %% Literals
 %% number
 number      -> hex_number : build_number('$1').
-number      -> base_number : build_number('$1').
+number      -> octal_number : build_number('$1').
+number      -> n_base_number : build_number('$1').
 number      -> char_number : build_number('$1').
 number      -> integer : build_number('$1').
 number      -> float : build_number('$1').

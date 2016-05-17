@@ -1,46 +1,8 @@
 %%
 -module(kapok_namespace).
--export([translate/3,
-         init_namespace_table/0,
-         add_namespace/1,
-         add_export/2,
-         namespace_functions/1,
-         namespace_macros/1,
-         namespace_exports/1,
-         export_forms/1
-        ]).
+-export([translate/3]).
 
 -include("kapok.hrl").
-
-
-%% helpers
-
-export_forms(Namespace) ->
-  Exports = namespace_exports(Namespace),
-  {attribute,0,export,sets:to_list(Exports)}.
-
-
-%% namespace table
-
-init_namespace_table() ->
-  _ = ets:new(kapok_namespaces, [set, protected, named_table, {read_concurrency, true}]).
-
-add_namespace(Tuple) ->
-  ets:insert(kapok_namespaces, Tuple).
-
-namespace_functions(Namespace) ->
-  ets:lookup_element(kapok_namespaces, Namespace, 2).
-
-namespace_macros(Namespace) ->
-  ets:lookup_element(kapok_namespaces, Namespace, 3).
-
-add_export(Namespace, Export) ->
-  OldExports = namespace_exports(Namespace),
-  NewExports = sets:add_element(Export, OldExports),
-  ets:update_element(kapok_namespaces, Namespace, {4, NewExports}).
-
-namespace_exports(Namespace) ->
-  ets:lookup_element(kapok_namespaces, Namespace, 4).
 
 %% Translation
 
@@ -48,12 +10,7 @@ translate(Meta, [{identifier, _, ns}], Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "no namespace");
 
 translate(Meta, [{identifier, _, ns}, {identifier, _, Id}|T], Env) ->
-  case ets:info(kapok_namespaces) of
-    undefined -> init_namespace_table();
-    _ -> ok
-  end,
   {_TClauses, TEnv} = translate_namespace_clauses(T, Env#{namespace := Id}),
-  add_namespace({Id, maps:new(), maps:new(), sets:new()}),
   {{attribute, ?line(Meta), module, Id}, TEnv}.
 
 
@@ -68,8 +25,15 @@ translate_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
   {Names, TEnv};
 translate_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
   {Names, TEnv} = handle_use_clause(T, Env),
-  #{requires := Requires, module_aliases := ModuleAliases, functions := Functions, function_aliases := FunctionAliases} = TEnv,
-  io:format("all require: ~p~nall module alias: ~p~nall functions: ~p~nall function aliases: ~p~n", [Requires, ModuleAliases, Functions, FunctionAliases]),
+  #{requires := Requires,
+    module_aliases := ModuleAliases,
+    functions := Functions,
+    function_aliases := FunctionAliases,
+    export_functions := ExportFunctions,
+    export_macros := ExportMacros} = TEnv,
+  io:format("<<< after translate ns, return >>>"),
+  io:format("require: ~p~nmodule aliases: ~p~nfunctions: ~p~nfunction aliases: ~p~n", [Requires, ModuleAliases, Functions, FunctionAliases]),
+  io:format("export functions: ~p~nexport macros: ~p~n", [ExportFunctions, ExportMacros]),
   {Names, TEnv}.
 
 %% require
@@ -191,7 +155,7 @@ get_exports(Meta, Module, Env) ->
 
 filter_exports(Meta, Module, Args, Env) ->
   Exports = get_exports(Meta, Module, Env),
-  ToFilter = get_functions(Module, Args),
+  ToFilter = get_functions(Meta, Module, Args, Env),
   Absent = orddict:filter(fun (K, _) -> orddict:is_key(K, Exports) == false end, ToFilter),
   case orddict:size(Absent) of
     0 -> ToFilter;
@@ -200,7 +164,7 @@ filter_exports(Meta, Module, Args, Env) ->
 
 filter_out_exports(Meta, Module, Args, Env) ->
   Exports = get_exports(Meta, Module, Env),
-  ToFilterOut = get_functions(Module, Args),
+  ToFilterOut = get_functions(Meta, Module, Args, Env),
   Absent = orddict:filter(fun (K, _) -> orddict:is_key(K, Exports) == false end, ToFilterOut),
   case orddict:size(Absent) of
     0 -> ok;
@@ -208,9 +172,11 @@ filter_out_exports(Meta, Module, Args, Env) ->
   end,
   orddict:filter(fun (K, _) -> orddict:is_key(K, ToFilterOut) == false end, Exports).
 
-get_functions(Module, Args) ->
+get_functions(Meta, Module, Args, Env) ->
   L = lists:map(fun ({function_id, _, {{identifier, _, Id}, {integer, _, Integer}}}) ->
-                    {Id, Integer}
+                    {Id, Integer};
+                    (Other) ->
+                    kapok_error:compile_error(Meta, ?m(Env, file), "invalid function id: ~p", [Other])
                 end,
                 Args),
   orddict:from_list(lists:map(fun (E) -> {E, {Module, E}} end, lists:reverse(L))).

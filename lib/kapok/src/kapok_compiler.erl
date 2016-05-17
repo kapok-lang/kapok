@@ -42,23 +42,22 @@ string_to_ast(String, StartLine, File, Options)
 ast_to_abstract_format(Ast, Env) ->
   {Expanded, EEnv} = kapok_expand:expand_all(Ast, Env),
   {Erl, TEnv} = kapok_translate:translate(Expanded, EEnv),
-  io:format("~n after translate: ~p~n", [Erl]),
+  io:format("~nafter translate: ~p~n", [Erl]),
   {Erl, TEnv}.
 
 %% Compilation entry points.
 
-string(Contents, File) when is_list(Contents), is_binary(File) ->
-  string(Contents, File, nil).
-string(Contents, File, Dest) ->
-  Ast = 'string_to_ast!'(Contents, 1, File, []),
-  ast(Ast, File, Dest).
-
 ast(Ast, File) when is_binary(File) ->
-  ast(Ast, File, nil).
-ast(Ast, File, _Dest) ->
   Env = kapok_env:env_for_eval([{line, 1}, {file, File}]),
+  ast(Ast, Env);
+ast(Ast, Env) ->
   {Forms, TEnv} = ast_to_abstract_format(Ast, Env),
+  io:format("ast() to abf: ~p~n", [Forms]),
   eval_abstract_format(Forms, TEnv).
+
+string(Contents, File) when is_list(Contents), is_binary(File) ->
+  Ast = 'string_to_ast!'(Contents, 1, File, []),
+  ast(Ast, File).
 
 file(Relative) when is_binary(Relative) ->
   file(Relative, nil).
@@ -103,12 +102,55 @@ core() ->
 
 %% Evaluation
 
-eval_abstract_format(Forms, #{vars := Vars} = Env) ->
-  %% TODO add impl
-  %% Erl is expression?
-  {value, Value, NewBindings} = erl_eval:exprs(Forms, Vars),
-  {Value, Env#{vars => NewBindings}}.
+eval_abstract_format(Form, #{scope := Scope} = Env) ->
+  case Form of
+    {atom, _, Atom} ->
+      {Atom, Env};
+    _ ->
+      Vars = maps:get(vars, Scope),
+      io:format("vars before eval: ~p~n", [Vars]),
+      {value, Value, NewBindings} = erl_eval(Form, Vars, Env),
+      {Value, Env#{scope => Scope#{vars => orddict:from_list(NewBindings)}}}
+  end.
 
+erl_eval(Erl, Binding, Env) ->
+  case erl_eval:check_command([Erl], Binding) of
+    ok -> ok;
+    {error, Desc} -> kapok_error:handle_file_error(?m(Env, file), Desc)
+  end,
+
+  %% Below must be all one line for locations to be the same when the stacktrace
+  %% needs to be extended to the full stacktrace.
+  try erl_eval:expr(Erl, Binding) catch Class:Exception -> erlang:raise(Class, Exception, get_stacktrace()) end.
+
+get_stacktrace() ->
+  Stacktrace = erlang:get_stacktrace(),
+  %% eval_eval and eval_bits can call :erlang.raise/3 without the full
+  %% stacktrace. When this occurs re-add the current stacktrace so that no
+  %% stack information is lost.
+  try
+    throw(stack)
+  catch
+    throw:stack ->
+      % Ignore stack item for current function.
+      [_ | CurrentStack] = erlang:get_stacktrace(),
+      get_stacktrace(Stacktrace, CurrentStack)
+  end.
+
+%% The stacktrace did not include the current stack, re-add it.
+get_stacktrace([], CurrentStack) ->
+  CurrentStack;
+%% The stacktrace includes the current stack.
+get_stacktrace(CurrentStack, CurrentStack) ->
+  CurrentStack;
+get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
+  [StackItem | get_stacktrace(Stacktrace, CurrentStack)].
+
+%% INTERNAL API
+
+%% Compile the module by forms based on the scope information
+%% executes the callback in case of success. This automatically
+%% handles errors and warnings. Used by this module.
 module(Forms, _Opts, #{file := File} = _Env, Callback) ->
   case compile:forms(Forms) of
     {ok, ModuleName, Binary} ->

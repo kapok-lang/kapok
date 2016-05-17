@@ -6,6 +6,13 @@
          add_function/4,
          add_functions/3,
          add_function_aliases/3,
+         reset_macro_context/1,
+         add_export_function/3,
+         add_export_macro/3,
+         get_exports/1,
+         push_scope/1,
+         pop_scope/1,
+         add_var/3,
          env_for_eval/1,
          env_for_eval/2]).
 
@@ -13,9 +20,16 @@
 
 new_macro_context() ->
   #{'__struct__' => 'Kapok.MacroContext',
+    quote => false,                        %% whether in quote form
     backquote_level => 0,                  %% the level in backquote form (probably embedded)
     unquote_level => 0,                    %% the level in unquote form (probably embedded)
     form => nil                            %% the body of current macro
+   }.
+
+new_scope() ->
+  #{'__struct__' => 'Kapok.Scope',
+    parent => nil,                         %% parent scope
+    vars => []                             %% a set of defined variables
    }.
 
 new_env() ->
@@ -32,7 +46,9 @@ new_env() ->
     function_aliases => [],                %% a dict of function aliases by 'new name -> original'
     macros => [],                          %% a dict of imported macros by 'name -> original'
     macro_aliases => [],                   %% a dict of macro aliases by 'new name -> original'
-    vars => []                             %% a set of defined variables
+    export_functions => [],                %% a set of function to export
+    export_macros => [],                   %% a set of macros to export
+    scope => new_scope()                   %% the current scope
    }.
 
 add_require(Meta, #{requires := Requires} = Env, Require) ->
@@ -85,6 +101,61 @@ add_function_aliases(Meta, #{functions := Functions, function_aliases := Aliases
     _ -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function aliases: ~p", [Duplicates])
   end,
   Env#{function_aliases => orddict:merge(fun (_K, _V1, V2) -> V2 end, Aliases, ToAdd)}.
+
+reset_macro_context(Env) ->
+  Env#{macro_context => new_macro_context()}.
+
+add_export_function(Meta, #{export_functions := ExportFunctions, export_macros := ExportMacros} = Env, Export) ->
+  %% check for duplicate function
+  case ordsets:is_element(Export, ExportFunctions) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate export function: ~p", [Export]);
+    false -> ok
+  end,
+  %% check for duplicate macro
+  case ordsets:is_element(Export, ExportMacros) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate macro for export function: ~p", [Export]);
+    false -> ok
+  end,
+  NewExportFunctions = ordsets:add_element(Export, ExportFunctions),
+  Env#{export_functions => NewExportFunctions}.
+
+add_export_macro(Meta, #{export_functions := ExportFunctions, export_macros := ExportMacros} = Env, Export) ->
+  %% check for duplicate macro
+  io:format("add export macro: ~p~n", [Export]),
+  case ordsets:is_element(Export, ExportMacros) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate export macro: ~p", [Export]);
+    false -> ok
+  end,
+  %% check for duplicate function
+  case ordsets:is_element(Export, ExportFunctions) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function for export macro: ~p", [Export]);
+    false -> ok
+  end,
+  NewExportMacros = ordsets:add_element(Export, ExportMacros),
+  Env#{export_macros => NewExportMacros}.
+
+get_exports(#{export_functions := ExportFunctions, export_macros := ExportMacros}) ->
+  io:format("export functions and macros: ~p~n~p~n", [ExportFunctions, ExportMacros]),
+  ordsets:to_list(ordsets:union(ExportFunctions, ExportMacros)).
+
+push_scope(#{scope := Scope} = Env) ->
+  NewScope = (new_scope())#{parent => Scope, vars => maps:get(vars, Scope)},
+  Env#{scope => NewScope}.
+
+pop_scope(#{scope := Scope} = Env) ->
+  case maps:get(parent, Scope) of
+    nil -> Env;
+    ParentScope -> Env#{scope => ParentScope}
+  end.
+
+add_var(Meta, #{scope := Scope} = Env, Var) ->
+  Vars = maps:get(vars, Scope),
+  case orddict:is_key(Var, Vars) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate var: ~p", [Var]);
+    false -> ok
+  end,
+  NewVars = orddict:store(Var, {var,0,Var}, Vars),
+  Env#{Scope => Scope#{vars => NewVars}}.
 
 
 %% EVAL HOOKS

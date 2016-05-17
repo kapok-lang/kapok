@@ -96,7 +96,7 @@ scan([$0, $x, H|T], Line, Column, Scope, Tokens) when ?is_hex(H) ->
 %% octal
 scan([$0, H|T], Line, Column, Scope, Tokens) when ?is_octal(H) ->
   {Rest, Number, Length} = scan_octal([H|T], []),
-  scan(Rest, Line, Column + 1 + Length, Scope, [{hex_number, build_meta(Line, Column), Number}|Tokens]);
+  scan(Rest, Line, Column + 1 + Length, Scope, [{octal_number, build_meta(Line, Column), Number}|Tokens]);
 
 %% flexible N(2 - 36) numeral bases
 scan([B1, $r, H|T], Line, Column, Scope, Tokens) when (B1 >= $2 andalso B1 =< $9) ->
@@ -105,7 +105,7 @@ scan([B1, $r, H|T], Line, Column, Scope, Tokens) when (B1 >= $2 andalso B1 =< $9
     true ->
       {Rest, Number, Length} = scan_n_base([H|T], N, []),
       scan(Rest, Line, Column + 2 + Length, Scope,
-           [{base_number, build_meta(Line, Column), Number}|Tokens]);
+           [{n_base_number, build_meta(Line, Column), Number}|Tokens]);
     _ ->
       {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
        [], lists:reverse(Tokens)}
@@ -118,7 +118,7 @@ scan([B1, B2, $r, H|T], Line, Column, Scope, Tokens)
     true ->
       {Rest, Number, Length} = scan_n_base([H|T], N, []),
       scan(Rest, Line, Column + 3 + Length, Scope,
-           [{base_number, build_meta(Line, Column), Number}|Tokens]);
+           [{n_base_number, build_meta(Line, Column), Number}|Tokens]);
     _ ->
       {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
        [], Tokens}

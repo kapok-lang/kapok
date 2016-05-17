@@ -3,7 +3,7 @@
 -module(kapok_utils).
 -export([get_line/1,
          characters_to_list/1,
-         chardata_to_string/1,
+         characters_to_binary/1,
          to_binary/1]).
 
 get_line(Opts) when is_list(Opts) ->
@@ -17,9 +17,9 @@ characters_to_list(List) when is_list(List) ->
 characters_to_list(Data) ->
   unicode:characters_to_list(Data).
 
-chardata_to_string(Bin) when is_binary(Bin) ->
+characters_to_binary(Bin) when is_binary(Bin) ->
   Bin;
-chardata_to_string(List) when is_list(List) ->
+characters_to_binary(List) when is_list(List) ->
   case unicode:characters_to_binary(List) of
     Result when is_binary(Result) ->
       Result;
