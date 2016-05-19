@@ -43,14 +43,22 @@ translate({binary_string, _Meta, Binary}, Env) ->
   translate(Binary, Env);
 
 %% list string
-translate({list_string, Meta, CharList}, Env) ->
-  {{string, ?line(Meta), binary_to_list(CharList)}, Env};
+translate({list_string, Meta, Arg}, Env) ->
+  {{string, ?line(Meta), binary_to_list(Arg)}, Env};
 
 %% Containers
 
 %% bitstring
-translate({bitstring, Meta, Args}, Env) ->
-  kapok_bitstring:translate(Meta, Args, Env);
+translate({bitstring, Meta, Arg}, Env) ->
+  kapok_bitstring:translate(Meta, Arg, Env);
+
+%% map
+translate({map, Meta, Arg}, Env) ->
+  kapok_map:translate(Meta, Arg, Env);
+
+%% set
+translate({set, Meta, Arg}, Env) ->
+  kapok_set:translate(Meta, Arg, Env);
 
 %% tuple
 translate({tuple, Meta, Value}, Env) ->

@@ -108,6 +108,8 @@ bitstring_args      -> values : '$1'.
 
 bitstring_container -> '<<' '>>' : build_bitstring('$1', []).
 bitstring_container -> '<<' bitstring_args '>>' : build_bitstring('$1', '$2').
+bitstring_container -> '<<' list_string '>>' : build_bitstring('$1', '$2').
+bitstring_container -> '<<' binary_string '>>' : build_bitstring('$1', '$2').
 
 %% List
 

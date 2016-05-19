@@ -3,9 +3,14 @@
 -export([translate/3]).
 -include("kapok.hrl").
 
-%% Translation
+%% Expand
 
-translate(Meta, Args, #{context := Context} = Env) ->
+%% Translate
+
+translate(Meta, {StringType, Meta1, Arg}, Env) when ?is_string_type(StringType) ->
+  {{bin, ?line(Meta), [{bin_element, ?line(Meta1), binary_to_list(Arg)}]}, Env};
+
+translate(Meta, Args, #{context := Context} = Env) when is_list(Args) ->
   case Context of
     match ->
       build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env);
@@ -17,17 +22,17 @@ translate(Meta, Args, #{context := Context} = Env) ->
   end.
 
 build_bitstring(Fun, Args, Meta, Env) ->
-  {Result, TEnv} = build_bitstring_each(Fun, Args, Meta, Env, []),
+  {Result, TEnv} = build_bitstring_element(Fun, Args, Meta, Env, []),
   {{bin, ?line(Meta), lists:reverse(Result)}, TEnv}.
 
-build_bitstring_each(_Fun, [], _Meta, Env, Acc) ->
+build_bitstring_element(_Fun, [], _Meta, Env, Acc) ->
   {Acc, Env};
 
-build_bitstring_each(Fun, [Arg | Left], Meta, Env, Acc) ->
+build_bitstring_element(Fun, [Arg | Left], Meta, Env, Acc) ->
   {V, Size, Types} = extract_element_spec(Arg, Env#{context := nil}),
-  build_bitstring_each(Fun, Left, Meta, Env, Acc, V, Size, Types).
+  build_bitstring_element(Fun, Left, Meta, Env, Acc, V, Size, Types).
 
-build_bitstring_each(Fun, Args, Meta, Env, Acc, V, default, Types) when is_binary(V) ->
+build_bitstring_element(Fun, Args, Meta, Env, Acc, V, default, Types) when is_binary(V) ->
   Element =
     case types_allow_splice(Types, []) of
       true ->
@@ -42,24 +47,24 @@ build_bitstring_each(Fun, Args, Meta, Env, Acc, V, default, Types) when is_binar
                 "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
         end
     end,
-  build_bitstring_each(Fun, Args, Meta, Env, [Element|Acc]);
+  build_bitstring_element(Fun, Args, Meta, Env, [Element|Acc]);
 
-build_bitstring_each(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_binary(V) ->
+build_bitstring_element(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_binary(V) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "size is not supported for literal string in bitstring");
 
-build_bitstring_each(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
+build_bitstring_element(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid literal ~ts in bitstring", [V]);
 
-build_bitstring_each(Fun, Args, Meta, Env, Acc, V, Size, Types) ->
+build_bitstring_element(Fun, Args, Meta, Env, Acc, V, Size, Types) ->
   {Expr, TEnv} = Fun(V, Env),
   case Expr of
     {bin, _, Elements} ->
       case (Size == default) andalso types_allow_splice(Types, Elements) of
-        true -> build_bitstring_each(Fun, Args, Meta, TEnv, lists:reverse(Elements, Acc));
-        false -> build_bitstring_each(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+        true -> build_bitstring_element(Fun, Args, Meta, TEnv, lists:reverse(Elements, Acc));
+        false -> build_bitstring_element(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
       end;
     _ ->
-      build_bitstring_each(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+      build_bitstring_element(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
   end.
 
 %% Extra bitstring element specifiers

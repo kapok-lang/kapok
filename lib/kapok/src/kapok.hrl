@@ -45,6 +45,7 @@
 -define(m(M, K), maps:get(K, M)).
 
 -define(is_list_type(T), (T == list orelse T == literal_list)).
+-define(is_string_type(T), (T == list_string orelse T == binary_string)).
 
 
 %% default source file suffix
