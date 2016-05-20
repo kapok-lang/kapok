@@ -20,19 +20,18 @@ translate_namespace_clauses(Clauses, Env) when is_list(Clauses) ->
 
 translate_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
   {Names, TEnv} = handle_require_clause(T, Env),
-  #{requires := Requires, module_aliases := ModuleAliases} = TEnv,
-  io:format("all require: ~p~nall module alias: ~p~n", [Requires, ModuleAliases]),
+  #{requires := Requires} = TEnv,
+  io:format("<<< after translate require, return >>>"),
+  io:format("require: ~p~n", [Requires]),
   {Names, TEnv};
 translate_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
   {Names, TEnv} = handle_use_clause(T, Env),
   #{requires := Requires,
-    module_aliases := ModuleAliases,
     functions := Functions,
-    function_aliases := FunctionAliases,
     export_functions := ExportFunctions,
     export_macros := ExportMacros} = TEnv,
   io:format("<<< after translate ns, return >>>"),
-  io:format("require: ~p~nmodule aliases: ~p~nfunctions: ~p~nfunction aliases: ~p~n", [Requires, ModuleAliases, Functions, FunctionAliases]),
+  io:format("require: ~p~nfunctions: ~p~n", [Requires, Functions]),
   io:format("export functions: ~p~nexport macros: ~p~n", [ExportFunctions, ExportMacros]),
   {Names, TEnv}.
 
@@ -51,13 +50,13 @@ handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType)
   case Args of
     [{atom, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_module_alias(Meta, TEnv, Id, Name)};
+      {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
     [{identifier, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_module_alias(Meta, TEnv, Id, Name)};
+      {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
     [{dot, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_module_alias(Meta, TEnv, Id, Name)};
+      {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
     _ ->
       kapok_error:compile_error(Meta, ?m(Env, file), "invalid require expression ~p", [Args])
   end.
@@ -97,7 +96,7 @@ handle_use_element_arguments(Meta, Name, Args, Env) ->
 handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
 handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'as'}, {identifier, _, Id}} | T], Env) ->
-  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_module_alias(Meta, Env, Id, Name));
+  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_require(Meta, Env, Id, Name));
 handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {_, _, Args}} | T], Env) ->
   Functions = filter_out_exports(Meta, Name, Args, Env),
   NewEnv = kapok_env:add_functions(Meta, Env, Functions),
@@ -109,8 +108,8 @@ handle_use_element_arguments(Meta, Name, nil, [{{atom, _, 'only'}, {_, _, Args}}
 handle_use_element_arguments(_Meta, _Name, Meta1, [{{atom, Meta2, 'only'}, {_, _, _}} | _T], Env) ->
   kapok_error:compile_error(Meta2, ?m(Env, file), "invalid usage of :only with :exclude present at line: ~p", [?line(Meta1)]);
 handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'rename'}, {_, _, Args}} | T], Env) ->
-  Aliases = get_function_aliases(Meta, Args, Env),
-  NewEnv = kapok_env:add_function_aliases(Meta, Env, Aliases),
+  Aliases = get_function_aliases(Meta, Name, Args, Env),
+  NewEnv = kapok_env:add_function(Meta, Env, Aliases),
   handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv).
 
 group_arguments(Meta, Args, Env) ->
@@ -181,10 +180,10 @@ get_functions(Meta, Module, Args, Env) ->
                 Args),
   orddict:from_list(lists:map(fun (E) -> {E, {Module, E}} end, lists:reverse(L))).
 
-get_function_aliases(Meta, Args, Env) ->
+get_function_aliases(Meta, Module, Args, Env) ->
   L = lists:map(fun ({ListType, _, [{function_id, _, {{identifier, _, OriginalId}, {integer, _, Integer}}},
                                     {identifier, _, NewId}]}) when ?is_list_type(ListType) ->
-                    {{NewId, Integer}, {OriginalId, Integer}};
+                    {{NewId, Integer}, {Module, {OriginalId, Integer}}};
                     (Other) ->
                     kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
                 end,

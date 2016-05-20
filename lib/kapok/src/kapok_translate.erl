@@ -80,8 +80,7 @@ translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
          Id == 'defmacro' ->
   kapok_def:translate(Meta, Args, Env);
 
-translate({list, Meta, [{identifier, _, Id} | Args]},
-          #{functions := Functions, function_aliases := Aliases} = Env) ->
+translate({list, Meta, [{identifier, _, Id} | Args]}, #{functions := Functions} = Env) ->
   FunArity = {Id, length(Args)},
   %% check whether it's a local call
   case ordsets:is_element(FunArity, kapok_env:get_exports(Env)) of
@@ -103,37 +102,23 @@ translate({list, Meta, [{identifier, _, Id} | Args]},
           {TArgs, TEnv1} = translate_args(Args, TEnv),
           {{call, ?line(Meta), TF, TArgs}, TEnv1};
         error ->
-          %% check whether it's in function alias list
-          case orddict:find(FunArity, Aliases) of
-            {ok, Function} ->
-              {ok, {M, {F, _A}}} = orddict:find(Function, Functions),
-              {TM, _} = translate(M, Env),
-              {TF, _} = translate(F, Env),
-              {TArgs, TEnv} = translate_args(Args, Env),
-              Line = ?line(Meta),
-              {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
-            error ->
-              kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
-          end
+          kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
       end
   end;
 
 %%  Remote call
 translate({list, Meta, [{dot, _, {Module, F}} | Args]},
-          #{namespace := Namespace, requires := Requires, module_aliases := ModuleAliases} = Env) ->
+          #{namespace := Namespace, requires := Requires} = Env) ->
   M = case Module of
         Namespace ->
           Namespace;
         _ ->
           %% check whether this module is required or aliased
-          case ordsets:is_element(Module, Requires) of
+          case orddict:is_key(Module, Requires) of
             true ->
               Module;
             false ->
-              case orddict:find(Module, ModuleAliases) of
-                {ok, Original} -> Original;
-                error -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid module: ~p", [Module])
-              end
+              kapok_error:compile_error(Meta, ?m(Env, file), "invalid module: ~p", [Module])
           end
       end,
   {TM, _} = translate(M, Env),
@@ -144,13 +129,6 @@ translate({list, Meta, [{dot, _, {Module, F}} | Args]},
 
 translate({list, _Meta, Args}, Env) ->
   translate_list(Args, [], Env);
-
-translate({quote, _, Arg}, Env) ->
-  {to_abstract_format(Arg), Env};
-  %% case Arg of
-  %%   {identifier, _, _} -> translate(Arg, Env);
-  %%   _ -> {to_abstract_format(Arg), Env}
-  %% end;
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->

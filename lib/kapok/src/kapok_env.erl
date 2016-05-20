@@ -2,10 +2,9 @@
 -module(kapok_env).
 -export([new_env/0,
          add_require/3,
-         add_module_alias/4,
+         add_require/4,
          add_function/4,
          add_functions/3,
-         add_function_aliases/3,
          reset_macro_context/1,
          add_export_function/3,
          add_export_macro/3,
@@ -40,37 +39,27 @@ new_env() ->
     function => nil,                       %% the current function
     context => nil,                        %% can be match_vars, guards, or nil
     macro_context => new_macro_context(),  %%
-    requires => [],                        %% a set of modules required
-    module_aliases => [],                  %% a dict of module aliases by 'new name -> original name'
-    functions => [],                       %% a dict of imported functions by 'name -> original'
-    function_aliases => [],                %% a dict of function aliases by 'new name -> original'
-    macros => [],                          %% a dict of imported macros by 'name -> original'
-    macro_aliases => [],                   %% a dict of macro aliases by 'new name -> original'
+    requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
+    functions => [],                       %% a dict of imported functions(and aliases) by 'name -> original'
+    macros => [],                          %% a dict of imported macros(aliases) by 'name -> original'
     export_functions => [],                %% a set of function to export
     export_macros => [],                   %% a set of macros to export
     scope => new_scope()                   %% the current scope
    }.
 
-add_require(Meta, #{requires := Requires} = Env, Require) ->
+add_require(Meta, Env, Require) when is_atom(Require) ->
+  add_require(Meta, Env, Require, Require).
+add_require(Meta, #{requires := Requires} = Env, Alias, Original) when is_atom(Alias), is_atom(Original) ->
   %% check for duplicate
-  case ordsets:is_element(Require, Requires) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate require: ~p", [Require]);
+  case orddict:is_key(Alias, Requires) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate require: ~p", [Alias]);
     false -> ok
   end,
-  NewRequires = ordsets:add_element(Require, Requires),
+  NewRequires = orddict:store(Alias, Original, Requires),
   Env#{requires => NewRequires}.
 
-add_module_alias(Meta, #{module_aliases := Aliases} = Env, Alias, Original) ->
-  %% check for duplicate
-  case orddict:is_key(Alias, Aliases) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate alias: ~p", [Alias]);
-    false -> ok
-  end,
-  NewAliases = orddict:store(Alias, Original, Aliases),
-  Env#{module_aliases => NewAliases}.
-
 add_function(Meta, #{functions := Functions} = Env, Function, Original) ->
-  %% chekt for duplicate
+  %% check for duplicate
   case orddict:is_key(Function, Functions) of
     true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function: ~p", [Function]);
     false -> ok
@@ -86,21 +75,6 @@ add_functions(Meta, #{functions := Functions} = Env, ToAdd) when is_list(ToAdd) 
     _ -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate functions: ~p", [Duplicates])
   end,
   Env#{functions => orddict:merge(fun (_K, _V1, V2) -> V2 end, Functions, ToAdd)}.
-
-add_function_aliases(Meta, #{functions := Functions, function_aliases := Aliases} = Env, ToAdd) when is_list(ToAdd) ->
-  %% check for original names
-  Absent = orddict:filter(fun (_K, V) -> orddict:is_key(V, Functions) == false end, ToAdd),
-  case orddict:size(Absent) of
-    0 -> ok;
-    _ -> kapok_error:compile_error(Meta, ?m(Env, file), "couldnot rename unimported function: ~p", [Absent])
-  end,
-  %% check for duplicate
-  Duplicates = orddict:filter(fun (K, _V) -> orddict:is_key(K, Aliases) end, ToAdd),
-  case orddict:size(Duplicates) of
-    0 -> ok;
-    _ -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function aliases: ~p", [Duplicates])
-  end,
-  Env#{function_aliases => orddict:merge(fun (_K, _V1, V2) -> V2 end, Aliases, ToAdd)}.
 
 reset_macro_context(Env) ->
   Env#{macro_context => new_macro_context()}.
@@ -161,7 +135,10 @@ add_var(Meta, #{scope := Scope} = Env, Var) ->
 %% EVAL HOOKS
 
 env_for_eval(Opts) ->
-  env_for_eval(new_env(), Opts).
+  env_for_eval((new_env())#{requires := kapok_dispatch:default_requires(),
+                            functions := kapok_dispatch:default_functions(),
+                            macros := kapok_dispatch:default_macros()},
+               Opts).
 
 env_for_eval(Env, Opts) ->
   Namespace = case lists:keyfind(namespace, 1, Opts) of
@@ -180,14 +157,13 @@ env_for_eval(Env, Opts) ->
          end,
 
   Requires = case lists:keyfind(requires, 1, Opts) of
-               {requires, RequiresOpt} when is_list(RequiresOpt) -> RequiresOpt;
+               {requires, RequiresOpt} when is_list(RequiresOpt) ->
+                 lists:map(fun ({_Alias, _Original} = E) -> E;
+                               (Require) when is_atom(Require) -> {Require, Require}
+                           end,
+                           RequiresOpt);
                false -> ?m(Env, requires)
              end,
-
-  ModuleAliases = case lists:keyfind(module_aliases, 1, Opts) of
-              {module_aliases, AliasesOpt} when is_list(AliasesOpt) -> AliasesOpt;
-              false -> ?m(Env, module_aliases)
-            end,
 
   Functions = case lists:keyfind(functions, 1, Opts) of
                 {functions, FunctionsOpt} when is_list(FunctionsOpt) -> FunctionsOpt;
@@ -204,7 +180,6 @@ env_for_eval(Env, Opts) ->
       file := File,
       line := Line,
       requires := Requires,
-      module_aliases := ModuleAliases,
       functions := Functions,
       macros := Macros
      }.

@@ -18,7 +18,9 @@ quote(Args) when is_list(Args) ->
 
 %% map
 quote(Arg) when is_map(Arg) ->
-  {map, [], maps:to_list(Arg)};
+  {map, [], lists:reverse(lists:foldl(fun ({K, V}, Acc) -> [quote(V), quote(K) | Acc] end,
+                                      [],
+                                      maps:to_list(Arg)))};
 
 %% atom
 

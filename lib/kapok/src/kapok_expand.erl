@@ -21,6 +21,7 @@ expand_1(Ast, Env) ->
 
 expand({'__block__', Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
+  %% TODO separate namespace definition into blocks that call `kapok_module:compile'
   {{'__block__', Meta, EArgs}, NewEnv, Expanded};
 
 %% macro special forms
@@ -126,15 +127,18 @@ expand({literal_list, Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
   {{literal_list, Meta, EArgs}, NewEnv, Expanded};
 
-expand({list, Meta, Args} = Ast, #{macro_context := Context} = Env) ->
-  case is_not_inside_quote(Context) andalso is_macro_call(Ast, Env) of
-    true ->
-      {Result, Env} = kapok_compiler:ast(Ast, kapok_env:reset_macro_context(Env)),
-      {Result, Env, true};
-    false ->
-      {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
-      {{list, Meta, EArgs}, NewEnv, Expanded}
+expand({list, Meta, [{identifier, _, Id} | Args]} = Ast, #{macro_context := Context} = Env) ->
+  case is_not_inside_quote(Context) of
+    true -> kapok_dispatch:dispatch_local(Meta, Id, Args, Env, fun () -> expand_list(Ast, Env) end);
+    false -> expand_ast_list(Ast, Env)
   end;
+expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context} = Env) ->
+  case is_not_inside_quote(Context) of
+    true -> kapok_dispatch:dispatch_remote(Meta, M, F, Args, Env, fun() -> expand_list(Ast, Env) end);
+    false -> expand_ast_list(Ast, Env)
+  end;
+expand({list, _, _} = Ast, Env) ->
+  expand_ast_list(Ast, Env);
 
 %% tuple
 expand({tuple, Meta, Args}, Env) ->
@@ -173,6 +177,10 @@ expand_list([H|T], Fun, Env, Expanded, Acc) ->
 expand_list([], _Fun, Env, Expanded, Acc) ->
   {lists:reverse(Acc), Env, Expanded}.
 
+expand_ast_list({list, Meta, Args}, Env) ->
+  {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
+  {{list, Meta, EArgs}, NewEnv, Expanded}.
+
 is_not_inside_quote(#{quote := Q, backquote_level := B} = _Context) ->
   (Q == false) orelse (B == 0).
 
@@ -184,50 +192,4 @@ is_list_ast(_) ->
 %% (quote (a b c)) -> (list (quote a) (quote b) (quote c))
 transform_quote_list(Meta, {list, _, List}, QuoteType) ->
   {list, Meta, lists:map(fun ({_, MetaElem, _} = Ast) -> {QuoteType, MetaElem, Ast} end, List)}.
-
-is_macro_call({list, Meta, [{identifier, _, Id} | Args]},
-                 #{export_macros := ExportMacros,
-                   macros := Macros,
-                   macro_aliases := MacroAliases} = Env) ->
-  FunArity = {Id, length(Args)},
-  %% check whether it's a local macro
-  case ordsets:is_element(FunArity, ExportMacros) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "cannot call macro defined in current module: ~p", [FunArity]);
-    false -> ok
-  end,
-  %% check whether it's a macro call
-  case orddict:find(FunArity, Macros) of
-    {ok, _} ->
-      true;
-    error ->
-      %% check whether it's a macro alias call.
-      case orddict:find(FunArity, MacroAliases) of
-        {ok, _} -> true;
-        error -> false
-      end
-  end;
-is_macro_call({list, Meta, [{dot, _, {M, F}} | _Args]},
-                 #{namespace := Namespace,
-                   requires := Requires,
-                   module_aliases := ModuleAliases} = Env) ->
-  %% check whether the specified module is required or aliased, and macro is imported.
-  case M of
-    Namespace ->
-      kapok_error:compile_error(Meta, ?m(Env, file), "cannot call macro defined in current module: ~p", [F]);
-    _ ->
-      %% check whether this module is required or aliased
-      case ordsets:is_element(M, Requires) of
-        true ->
-          true;
-        false ->
-          case orddict:find(M, ModuleAliases) of
-            {ok, _} ->
-              true;
-            error ->
-              false
-          end
-      end
-  end;
-is_macro_call(_Ast, _Env) ->
-  false.
 
