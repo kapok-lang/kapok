@@ -17,16 +17,6 @@ expand_all(Ast, Env) ->
 expand_1(Ast, Env) ->
   expand(Ast, Env).
 
-%% block
-
-expand({'__block__', Meta, Args}, Env) ->
-  {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
-  %% separate namespace definitions and expressions into blocks
-%%  io:format("---- after expand: ~p~n", [EArgs]),
-  Modules = separate_modules(EArgs),
-%%  io:format("---- blocks after expand: ~p~n", [Modules]),
-  {{'__block__', Meta, Modules}, NewEnv, Expanded};
-
 %% macro special forms
 
 expand({quote, Meta, Arg} = Ast, #{macro_context := Context} = Env) ->
@@ -223,23 +213,4 @@ is_list_ast(_) ->
 %% (quote (a b c)) -> (list (quote a) (quote b) (quote c))
 transform_quote_list(Meta, {list, _, List}, QuoteType) ->
   {list, Meta, lists:map(fun ({_, MetaElem, _} = Ast) -> {QuoteType, MetaElem, Ast} end, List)}.
-
-module_ast(Exprs) ->
-  {list, [], [{dot, [], {'kapok_module', 'compile'}} | Exprs]}.
-
-separate_modules(EArgs) ->
-  F = fun ({ns, _, _}, {Exprs, Acc}) -> case Exprs of
-                                          [] -> {[], Acc};
-                                          _ -> {[], [module_ast(Exprs) | Acc]}
-                                        end;
-          (E, {Exprs, Acc}) ->  {[E | Exprs], Acc}
-      end,
-  {LastExprs, Modules} = lists:foldl(F, {[], []}, EArgs),
-  %% collect the last block
-  AllModules = case LastExprs of
-             [] -> Modules;
-             _ -> [module_ast(LastExprs) | Modules]
-           end,
-  lists:reverse(AllModules).
-
 

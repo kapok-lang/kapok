@@ -78,26 +78,24 @@ file(File, Dest) ->
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, Opts),
   Env = kapok_env:env_for_eval([{line, 1}, {file, File} | Opts]),
-  kapok_namespace:compile_namespace(Ast, Env, Dest).
-  %% {Forms, TEnv} = ast_to_abstract_format(Ast, Env),
-  %% module(Forms, [], TEnv, fun (Module, Binary) ->
-  %%                             %% write compiled binary to dest file
-  %%                             case Dest of
-  %%                               nil -> ok;
-  %%                               _ ->
-  %%                                 ok = file:write_file(Dest, Binary)
-  %%                             end,
-  %%                             %% call the main() on script mode
-  %%                             case lists:keyfind(run_mode, 1, Opts) of
-  %%                               {run_mode, ["script"]} ->
-  %%                                 try
-  %%                                   Module:main()
-  %%                                 catch
-  %%                                   error:undef -> ok
-  %%                                 end;
-  %%                               _ -> ok
-  %%                             end
-  %%                         end).
+  kapok_namespace:compile(Ast, Env, fun (Module, Binary) ->
+                                        %% write compiled binary to dest file
+                                        case Dest of
+                                          nil -> ok;
+                                          _ ->
+                                            ok = file:write_file(Dest, Binary)
+                                        end,
+                                        %% call the main() on script mode
+                                        case lists:keyfind(run_mode, 1, Opts) of
+                                          {run_mode, ["script"]} ->
+                                            try
+                                              Module:main()
+                                            catch
+                                              error:undef -> ok
+                                            end;
+                                          _ -> ok
+                                        end
+                                    end).
 
 %%
 core() ->
@@ -156,6 +154,7 @@ get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
 %% executes the callback in case of success. This automatically
 %% handles errors and warnings. Used by this module.
 module(Forms, _Opts, #{file := File} = _Env, Callback) ->
+  io:format("module() forms: ~p~n~n", [Forms]),
   case compile:forms(Forms) of
     {ok, ModuleName, Binary} ->
       {module, Module} = code:load_binary(ModuleName, binary_to_list(File), Binary),

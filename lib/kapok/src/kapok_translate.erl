@@ -6,13 +6,6 @@
          to_abstract_format/1]).
 -include("kapok.hrl").
 
-%% block
-
-translate({'__block__', Meta, Args}, Env) ->
-  io:format("translate block~n~n"),
-  {TArgs, TEnv} = translate_block(Args, Env),
-  {{block, ?line(Meta), TArgs}, TEnv};
-
 %% literals
 
 %% number
@@ -211,15 +204,4 @@ translate_args(Args, Env) ->
   lists:mapfoldl(fun (X, Acc) -> translate_arg(X, Acc, Env) end,
                  Env,
                  Args).
-
-%% Translate blocks
-
-translate_block(Args, Env) ->
-  translate_block(Args, [], Env).
-translate_block([], Acc, Env) ->
-  {lists:reverse(Acc), Env};
-translate_block([H|T], Acc, Env) ->
-  {TH, TEnv} = translate(H, Env),
-  translate_block(T, [TH|Acc], TEnv).
-
 

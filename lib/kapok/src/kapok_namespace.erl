@@ -1,6 +1,6 @@
 %% namespace
 -module(kapok_namespace).
--export([compile_namespace/3,
+-export([compile/3,
          format_error/1
         ]).
 -include("kapok.hrl").
@@ -46,35 +46,33 @@ namespace_exports(Namespace) ->
   ets:lookup_element(kapok_namespaces, Namespace, 4).
 
 
-compile_namespace(Ast, Env, Dest) when is_list(Ast) ->
-  EEnv = lists:foldl(fun (A, E) ->
+compile(Ast, Env, Callback) when is_list(Ast) ->
+  io:format("----~n~n"),
+  TEnv = lists:foldl(fun (A, E) ->
+                         io:format("aoeuaoeu"),
                          {EA, EE} = kapok_expand:expand_all(A, E),
+                         io:format("expand ea: ~p~n~n", [EA]),
                          TE = handle_ast(EA, EE),
-                         {EA, TE}
+                         io:format("handled te: ~p~n~n~n", [TE]),
+                         TE
                      end,
                      Env,
                      Ast),
-  %% for A in Ast:
-  %%   {EA, EEnv} = expand_all(A),
-  %%   case EA of
-  %%     (ns) -> handle ns, only one ns statement is good
-  %%     def -> compile_def()
-  %%     Other -> unsupported other
-  %%
-  %% get def table of namespace, compile it
-  %% call namespace.main() if (there is main exported, and, in script mode)
-  %%
-  {}.
+  Namespace = ?m(TEnv,namespace),
+  Functions = namespace_functions(Namespace),
+  Exports = namespace_exports(Namespace),
+  build_module(Namespace, Functions, Exports, TEnv, Callback).
 
 handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {StringType, _, Doc} | Left]}, Env)
     when ?is_string_type(StringType) ->
   handle_ns(Meta, Id, Doc, Left, Env);
 handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id} | Left]}, Env) ->
+  io:format("^^^^^^~n~n~n"),
   handle_ns(Meta, Id, Left, Env);
-handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, _} = Args, {StringType, _, Doc} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType), ?is_string_type(StringType) ->
-  handle_def(Meta, Kind, Name, Args, Doc, Body, Env);
-handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, _} = Args | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType) ->
-  handle_def(Meta, Kind, Name, Args, Body, Env);
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, Args}, {StringType, _, Doc} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType), ?is_string_type(StringType) ->
+  handle_def(Meta, Id, Name, Args, Doc, Body, Env);
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, Args} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType) ->
+  handle_def(Meta, Id, Name, Args, Body, Env);
 
 handle_ast({_, Meta, _} = Ast, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_expression, {Ast}}).
@@ -88,21 +86,27 @@ handle_ns(Meta, Name, Clauses, _Doc, Env) ->
         nil -> Env#{namespace => Name};
         NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
       end,
-  lists:mapfoldl(fun handle_namespace_clause/2, E, Clauses).
+  case ets:info(kapok_namespaces) of
+    undefined -> init_namespace_table();
+    _ -> ok
+  end,
+  add_namespace(Name),
+  {_, TEnv} = lists:mapfoldl(fun handle_namespace_clause/2, E, Clauses),
+  TEnv.
 
 handle_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
-  {_Names, TEnv} = handle_require_clause(T, Env),
+  {Names, TEnv} = handle_require_clause(T, Env),
   #{requires := Requires} = TEnv,
   io:format("<<< after handle require, return >>>~n"),
   io:format("require: ~p~n", [Requires]),
-  TEnv;
+  {Names, TEnv};
 handle_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
-  {_Names, TEnv} = handle_use_clause(T, Env),
+  {Names, TEnv} = handle_use_clause(T, Env),
   #{requires := Requires,
     functions := Functions} = TEnv,
   io:format("<<< after handle ns, return >>>~n"),
   io:format("require: ~p~nfunctions: ~p~n", [Requires, Functions]),
-  TEnv.
+  {Names, TEnv}.
 
 %% require
 handle_require_clause(List, Env) when is_list(List) ->
@@ -190,7 +194,7 @@ handle_def(Meta, Kind, Name, Args, _Doc, Body, Env) ->
   %% TODO add vars from args to env.scope
   {TArgs, TEnv1} = kapok_translate:translate(Args, Env1),
   {TBody, TEnv2} = kapok_translate:translate(Body, TEnv1),
-  Arity = length(TArgs),
+  Arity = length(Args),
   Namespace = ?m(Env, namespace),
   case Kind of
     'defn' ->
@@ -204,6 +208,18 @@ handle_def(Meta, Kind, Name, Args, _Doc, Body, Env) ->
   end,
   kapok_env:pop_scope(TEnv2).
 
+%% module
+
+build_module(Module, Functions, Exports, Env, Callback) ->
+  Defs = orddict:fold(fun ({Fun, Arity}, Clauses, Acc) ->
+                          [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
+                      end,
+                      [],
+                      Functions),
+  AttrExport = {attribute,0,export,ordsets:to_list(Exports)},
+  AttrModule = {attribute,0,module,Module},
+  Erl = [AttrModule, AttrExport | Defs],
+  kapok_compiler:module(Erl, [], Env, Callback).
 
 %% Helpers
 
@@ -284,7 +300,6 @@ get_function_aliases(Meta, Args, Env) ->
                 end,
                 Args),
   ordsets:from_list(L).
-
 
 %% Error
 
