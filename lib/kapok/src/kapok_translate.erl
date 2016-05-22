@@ -9,6 +9,7 @@
 %% block
 
 translate({'__block__', Meta, Args}, Env) ->
+  io:format("translate block~n~n"),
   {TArgs, TEnv} = translate_block(Args, Env),
   {{block, ?line(Meta), TArgs}, TEnv};
 
@@ -71,9 +72,6 @@ translate({literal_list, _Meta, List}, Env) ->
 %% Local call
 
 %% special forms
-translate({list, Meta, [{identifier, _, 'ns'} | _] = Args}, Env) ->
-  kapok_namespace:translate(Meta, Args, Env);
-
 translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
     when Id == 'defn';
          Id == 'defn-';
@@ -107,20 +105,8 @@ translate({list, Meta, [{identifier, _, Id} | Args]}, #{functions := Functions} 
   end;
 
 %%  Remote call
-translate({list, Meta, [{dot, _, {Module, F}} | Args]},
-          #{namespace := Namespace, requires := Requires} = Env) ->
-  M = case Module of
-        Namespace ->
-          Namespace;
-        _ ->
-          %% check whether this module is required or aliased
-          case orddict:is_key(Module, Requires) of
-            true ->
-              Module;
-            false ->
-              kapok_error:compile_error(Meta, ?m(Env, file), "invalid module: ~p", [Module])
-          end
-      end,
+translate({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, Env) ->
+  io:format("to translate ~p~n", [Ast]),
   {TM, _} = translate(M, Env),
   {TF, _} = translate(F, Env),
   {TArgs, TEnv} = translate_args(Args, Env),
@@ -234,6 +220,6 @@ translate_block([], Acc, Env) ->
   {lists:reverse(Acc), Env};
 translate_block([H|T], Acc, Env) ->
   {TH, TEnv} = translate(H, Env),
-  {T, [TH|Acc], TEnv}.
+  translate_block(T, [TH|Acc], TEnv).
 
 

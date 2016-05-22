@@ -11,28 +11,20 @@
 -include("kapok.hrl").
 
 default_requires() ->
-  ['Kapok.Core'].
+  [].
 
 default_functions() ->
-  lists:map(fun ({Name, Arity}) -> {{Name, Arity}, {kapok_bootstrap, {Name, Arity}}} end,
-            kapok_bootstrap:'__info__'(functions)).
+  [].
 
 default_macros() ->
-  lists:map(fun ({Name, Arity}) ->
-                "MACRO-" ++ F = atom_to_list(Name),
-                {{F, Arity}, {kapok_bootstrap, {Name, Arity}}}
-            end,
-            kapok_bootstrap:'__info__'(macros)).
+  [].
 
 find_local(Meta, Name, Args, Env) ->
   FA = {Name, length(Args)},
   case find_dispatch(Meta, FA, Env) of
-    {function, Receiver} ->
-      Receiver;
-    {macro, Receiver} ->
-      Receiver;
-    _ ->
-      false
+    {function, R} -> R;
+    {macro, R} -> R;
+    _ -> false
   end.
 
 %% dispatch
@@ -40,8 +32,9 @@ find_local(Meta, Name, Args, Env) ->
 dispatch_local(Meta, Name, Args, Env, Callback) ->
   Arity = length(Args),
   case expand_local(Meta, {Name, Arity}, Args, Env) of
-    {ok, Receiver, Ast} ->
-      expand_ast(Meta, Receiver, Name, Arity, Ast, Env);
+    {ok, Receiver, {EAst, EEnv}} ->
+      io:format("before expand ast, env: ~p~n", [EEnv]),
+      expand_ast(Meta, Receiver, Name, Arity, EAst, EEnv);
     {ok, Receiver, NewName, NewArgs} ->
       kapok_expand:expand({list, Meta, [{dot, Meta, [Receiver, NewName]} | NewArgs]}, Env);
     error ->
@@ -58,12 +51,20 @@ dispatch_remote(Meta, Receiver, Name, Args, Env, Callback) ->
 %% expand
 
 expand_local(Meta, {Name, Arity} = FA, Args, Env) ->
-  case find_dispatch(Meta, FA, Env) of
-    {macro, Receiver} ->
-      {ok, Receiver, expand_macro_named(Meta, Receiver, Name, Arity, Args, Env)};
-    {function, Receiver} ->
-      {ok, Receiver, Name, Args};
-    error ->
+  Dispatch = find_dispatch(Meta, FA, Env),
+  Macro = macro_for(Name, Arity),
+  case Dispatch of
+    {macro, {Receiver, {NewName, NewArity, ParaType}}} ->
+      NewArgs = construct_new_args(Arity, NewArity, ParaType, Args),
+      {ok, Receiver, expand_macro_named(Meta, Receiver, NewName, NewArity, NewArgs, Env)};
+    {function, {Receiver, {NewName, NewArity, ParaType}}} ->
+      NewArgs = construct_new_args(Arity, NewArity, ParaType, Args),
+      {ok, Receiver, NewName, NewArgs};
+    _ when Macro /= nil ->
+      {Receiver, {NewName, NewArity, ParaType}} = Macro,
+      NewArgs = construct_new_args(Arity, NewArity, ParaType, Args),
+      {ok, Receiver, expand_macro_named(Meta, Receiver, NewName, NewArity, NewArgs, Env)};
+    _ ->
       error
   end.
 
@@ -88,7 +89,7 @@ expand_macro_fun(Meta, Fun, _Receiver, _Name, Args, Env) ->
   end.
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
-  ProperArity = Arity + 1,
+  ProperArity = Arity+1,
   Fun = fun Receiver:Name/ProperArity,
   expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env).
 
@@ -107,8 +108,8 @@ find_dispatch(Meta, FA, #{functions := Functions,
   FunMatch = find_dispatch(FA, Functions),
   MacroMatch = find_dispatch(FA, Macros),
   case {FunMatch, MacroMatch} of
-    {[], [Receiver]} -> {macro, Receiver};
-    {[Receiver], []} -> {function, Receiver};
+    {[], [E]} -> {macro, E};
+    {[E], []} -> {function, E};
     {[], []} -> false;
     _ ->
       {Name, Arity} = FA,
@@ -118,8 +119,59 @@ find_dispatch(Meta, FA, #{functions := Functions,
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
 
-find_dispatch(FA, List) when is_list(List) ->
-  [Receiver || {Receiver, Set} <- List, orddict:is_key(FA, Set)].
+find_dispatch({Fun, Arity} = FA, List) when is_list(List) ->
+  lists:foldl(fun ({Module, Imports}, Acc0) ->
+                  R = ordsets:fold(
+                          fun ({F, A} = E, Acc) when is_number(A) andalso E == FA -> [{F, A, normal} | Acc];
+                              ({Alias, {F, A}}, Acc) when {Alias, A} == FA -> [{F, A, normal} | Acc];
+                              ({F, A, normal} = E, Acc) when {F, A} == FA -> [E | Acc];
+                              ({F, A, rest} = E, Acc) when (Fun == F) andalso (Arity >= A) -> [E | Acc];
+                              (_, Acc) -> Acc
+                          end,
+                          [],
+                          Imports),
+                  case R of
+                    [] -> Acc0;
+                    _ -> orddict:store(Module, R, Acc0)
+                  end
+              end,
+              [],
+              List).
+
+construct_new_args(Arity, NewArity, ParaType, Args) ->
+  case (ParaType == rest) andalso (Arity >= NewArity) of
+    true ->
+      {NormalParas, RestPara} = lists:split(NewArity-1, Args),
+      NormalParas ++ [RestPara];
+    false ->
+      Args
+  end.
+
+macro_for(Name, Arity) ->
+  %% check for predifined macro
+  Fun = list_to_atom("MACRO-" ++ atom_to_list(Name)),
+  Macros = get_optional_macros(kapok_bootstrap),
+  Result = lists:filter(fun ({F, A, normal}) -> {Name, Arity} == {F, A};
+                            ({F, A, rest}) ->
+                            (Fun == F) andalso (Arity >= A)
+                        end,
+                        Macros),
+  case Result of
+    [] -> nil;
+    [E] -> {kapok_bootstrap, E}
+  end.
+
+get_optional_macros(Receiver) ->
+  case code:ensure_loaded(Receiver) of
+    {module, Receiver} ->
+      try
+        Receiver:'__info__'(macros)
+      catch
+        error:undef -> []
+      end;
+    {error, _} -> []
+  end.
+
 
 %% ERROR HANDLING
 

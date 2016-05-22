@@ -6,9 +6,9 @@
 -include("kapok.hrl").
 
 expand_all(Ast, Env) ->
-  io:format("^^^ to expand ~p~n", [Ast]),
+%%  io:format("^^^ to expand ~p~n", [Ast]),
   {EAst, NewEnv, Expanded} = expand(Ast, Env),
-  io:format("*** expand ~p to: ~p~n", [Expanded, EAst]),
+%%  io:format("*** expand ~p to: ~p~n", [Expanded, EAst]),
   case Expanded of
     true -> expand_all(EAst, NewEnv);
     _ -> {EAst, NewEnv}
@@ -21,8 +21,11 @@ expand_1(Ast, Env) ->
 
 expand({'__block__', Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
-  %% TODO separate namespace definition into blocks that call `kapok_module:compile'
-  {{'__block__', Meta, EArgs}, NewEnv, Expanded};
+  %% separate namespace definitions and expressions into blocks
+%%  io:format("---- after expand: ~p~n", [EArgs]),
+  Modules = separate_modules(EArgs),
+%%  io:format("---- blocks after expand: ~p~n", [Modules]),
+  {{'__block__', Meta, Modules}, NewEnv, Expanded};
 
 %% macro special forms
 
@@ -129,12 +132,17 @@ expand({literal_list, Meta, Args}, Env) ->
 
 expand({list, Meta, [{identifier, _, Id} | Args]} = Ast, #{macro_context := Context} = Env) ->
   case is_not_inside_quote(Context) of
-    true -> kapok_dispatch:dispatch_local(Meta, Id, Args, Env, fun () -> expand_list(Ast, Env) end);
+    true ->
+      R = kapok_dispatch:dispatch_local(Meta, Id, Args, Env, fun () -> expand_ast_list(Ast, Env) end),
+      {_, B, _} = R,
+      io:format("dispatch_local returns, env: ~p~n", [B]),
+      R;
     false -> expand_ast_list(Ast, Env)
   end;
 expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context} = Env) ->
   case is_not_inside_quote(Context) of
-    true -> kapok_dispatch:dispatch_remote(Meta, M, F, Args, Env, fun() -> expand_list(Ast, Env) end);
+    true -> kapok_dispatch:dispatch_remote(Meta, M, F, Args, Env,
+                                           fun(_Receiver, _Name, _Args) -> expand_ast_list(Ast, Env) end);
     false -> expand_ast_list(Ast, Env)
   end;
 expand({list, _, _} = Ast, Env) ->
@@ -192,4 +200,23 @@ is_list_ast(_) ->
 %% (quote (a b c)) -> (list (quote a) (quote b) (quote c))
 transform_quote_list(Meta, {list, _, List}, QuoteType) ->
   {list, Meta, lists:map(fun ({_, MetaElem, _} = Ast) -> {QuoteType, MetaElem, Ast} end, List)}.
+
+module_ast(Exprs) ->
+  {list, [], [{dot, [], {'kapok_module', 'compile'}} | Exprs]}.
+
+separate_modules(EArgs) ->
+  F = fun ({ns, _, _}, {Exprs, Acc}) -> case Exprs of
+                                          [] -> {[], Acc};
+                                          _ -> {[], [module_ast(Exprs) | Acc]}
+                                        end;
+          (E, {Exprs, Acc}) ->  {[E | Exprs], Acc}
+      end,
+  {LastExprs, Modules} = lists:foldl(F, {[], []}, EArgs),
+  %% collect the last block
+  AllModules = case LastExprs of
+             [] -> Modules;
+             _ -> [module_ast(LastExprs) | Modules]
+           end,
+  lists:reverse(AllModules).
+
 

@@ -4,7 +4,7 @@
          add_require/3,
          add_require/4,
          add_function/4,
-         add_functions/3,
+         add_macro/4,
          reset_macro_context/1,
          add_export_function/3,
          add_export_macro/3,
@@ -40,8 +40,8 @@ new_env() ->
     context => nil,                        %% can be match_vars, guards, or nil
     macro_context => new_macro_context(),  %%
     requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
-    functions => [],                       %% a dict of imported functions(and aliases) by 'name -> original'
-    macros => [],                          %% a dict of imported macros(aliases) by 'name -> original'
+    functions => [],                       %% a dict of imported functions(and aliases) by 'module -> [fun...]'
+    macros => [],                          %% a dict of imported macros(aliases) by 'module -> [macro...]'
     export_functions => [],                %% a set of function to export
     export_macros => [],                   %% a set of macros to export
     scope => new_scope()                   %% the current scope
@@ -58,23 +58,25 @@ add_require(Meta, #{requires := Requires} = Env, Alias, Original) when is_atom(A
   NewRequires = orddict:store(Alias, Original, Requires),
   Env#{requires => NewRequires}.
 
-add_function(Meta, #{functions := Functions} = Env, Function, Original) ->
-  %% check for duplicate
-  case orddict:is_key(Function, Functions) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function: ~p", [Function]);
-    false -> ok
-  end,
-  NewFunctions = orddict:store(Function, Original, Functions),
-  Env#{functions => NewFunctions}.
+add_function(_Meta, #{functions := Functions} = Env, Module, ToImports) ->
+  case orddict:find(Module, Functions) of
+    {ok, Imports} ->
+      NewImports = ordsets:union(Imports, ordsets:from_list(ToImports)),
+      Env#{functions => orddict:store(Module, NewImports, Functions)};
+    error ->
+      NewImports = ordsets:from_list(ToImports),
+      Env#{functions => orddict:store(Module, NewImports, Functions)}
+  end.
 
-add_functions(Meta, #{functions := Functions} = Env, ToAdd) when is_list(ToAdd) ->
-  %% check for duplicate
-  Duplicates = orddict:filter(fun (K, _V) -> orddict:is_key(K, Functions) end, ToAdd),
-  case orddict:size(Duplicates) of
-    0 -> ok;
-    _ -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate functions: ~p", [Duplicates])
-  end,
-  Env#{functions => orddict:merge(fun (_K, _V1, V2) -> V2 end, Functions, ToAdd)}.
+add_macro(_Meta, #{macros := Macros} = Env, Module, ToImports) ->
+  case orddict:find(Module, Macros) of
+    {ok, Imports} ->
+      NewImports = ordsets:union(Imports, ordsets:from_list(ToImports)),
+      Env#{macros => orddict:store(Module, NewImports, Macros)};
+    error ->
+      NewImports = ordsets:from_list(ToImports),
+      Env#{macros => orddict:store(Module, NewImports, Macros)}
+  end.
 
 reset_macro_context(Env) ->
   Env#{macro_context => new_macro_context()}.

@@ -40,9 +40,12 @@ string_to_ast(String, StartLine, File, Options)
 %% Converts AST to erlang abstract format
 
 ast_to_abstract_format(Ast, Env) ->
-  {Expanded, EEnv} = kapok_expand:expand_all(Ast, Env),
-  {Erl, TEnv} = kapok_translate:translate(Expanded, EEnv),
-  io:format("~nafter translate: ~p~n", [Erl]),
+  io:format("~nbefore expand: ~p~n", [Env]),
+  {EAst, EEnv} = kapok_expand:expand_all(Ast, Env),
+  io:format("~nafter expand_all: ~p~n", [EAst]),
+  io:format("~nbefore translate: ~p~n", [EEnv]),
+  {Erl, TEnv} = kapok_translate:translate(EAst, EEnv),
+  io:format("~nafter translate env: ~p~n", [TEnv]),
   {Erl, TEnv}.
 
 %% Compilation entry points.
@@ -74,26 +77,27 @@ file(File, Dest) ->
   {ok, Bin} = file:read_file(File),
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, Opts),
-  Env = kapok_env:env_for_eval([{line, 1}, {file, File} | Opts]),
-  {Forms, TEnv} = ast_to_abstract_format(Ast, Env),
-  module(Forms, [], TEnv, fun (Module, Binary) ->
-                              %% write compiled binary to dest file
-                              case Dest of
-                                nil -> ok;
-                                _ ->
-                                  ok = file:write_file(Dest, Binary)
-                              end,
-                              %% call the main() on script mode
-                              case lists:keyfind(run_mode, 1, Opts) of
-                                {run_mode, ["script"]} ->
-                                  try
-                                    Module:main()
-                                  catch
-                                    error:undef -> ok
-                                  end;
-                                _ -> ok
-                              end
-                          end).
+  Env = kapok_env:env_for_eval([{line, 1}, {file, File}, {dest, Dest} | Opts]),
+  ast(Ast, Env).
+  %% {Forms, TEnv} = ast_to_abstract_format(Ast, Env),
+  %% module(Forms, [], TEnv, fun (Module, Binary) ->
+  %%                             %% write compiled binary to dest file
+  %%                             case Dest of
+  %%                               nil -> ok;
+  %%                               _ ->
+  %%                                 ok = file:write_file(Dest, Binary)
+  %%                             end,
+  %%                             %% call the main() on script mode
+  %%                             case lists:keyfind(run_mode, 1, Opts) of
+  %%                               {run_mode, ["script"]} ->
+  %%                                 try
+  %%                                   Module:main()
+  %%                                 catch
+  %%                                   error:undef -> ok
+  %%                                 end;
+  %%                               _ -> ok
+  %%                             end
+  %%                         end).
 
 %%
 core() ->
