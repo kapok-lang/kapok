@@ -44,8 +44,9 @@
 -define(line(Opts), kapok_utils:get_line(Opts)).
 -define(m(M, K), maps:get(K, M)).
 
--define(is_list_type(T), (T == list orelse T == literal_list)).
--define(is_string_type(T), (T == list_string orelse T == binary_string)).
+-define(is_def(T), (T == 'defn' orelse T == 'defn-' orelse T == 'defmacro')).
+-define(is_list_type(T), (T == 'list' orelse T == 'literal_list')).
+-define(is_string_type(T), (T == 'list_string' orelse T == 'binary_string')).
 
 
 %% default source file suffix

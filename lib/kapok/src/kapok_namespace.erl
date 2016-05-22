@@ -1,60 +1,108 @@
-%% An Erlang module that behaves like an Kapok module used for bootstraping.
--module(kapok_bootstrap).
--export(['MACRO-ns'/3,
-         'MACRO-defn'/4,
-         'MACRO-defn-'/4,
-         'MACRO-defmacro'/4,
-         '__info__'/1]).
+%% namespace
+-module(kapok_namespace).
+-export([compile_namespace/3,
+         format_error/1
+        ]).
 -include("kapok.hrl").
 
-'MACRO-ns'({Line, Env}, Call, Exprs) ->
-  %% expand ns macro here.
-  {ECall, EEnv} = kapok_expand:expand_all(Call, Env),
-  {EExprs, EEnv1} = kapok_expand:expand_all(Exprs, EEnv),
-  {_, EEnv2} = handle_ns(Line, EEnv1, ECall, EExprs),
-  io:format("----- env: ~p~n", [EEnv2]),
-  {{ns, [{line, Line}], maps:get(namespace, EEnv2)}, EEnv2}.
+init_namespace_table() ->
+  _ = ets:new(kapok_namespaces, [set, protected, named_table, {read_concurrency, true}]).
 
-'MACRO-defn'(Caller, Name, Args, Exprs) ->
-  define(Caller, 'defn', Name, Args, Exprs).
+add_namespace(Namespace) ->
+  ets:insert(kapok_namespaces, {Namespace, [], [], []}).
 
-'MACRO-defn-'(Caller, Name, Args, Exprs) ->
-  define(Caller, 'defn-', Name, Args, Exprs).
+add_function_clause(Namespace, Fun, Arity, Clause) ->
+  add_clause(Namespace, 'fun', Fun, Arity, Clause).
 
-'MACRO-defmacro'(Caller, Name, Args, Exprs) ->
-  define(Caller, 'defmacro', Name, Args, Exprs).
-
-'__info__'(functions) ->
-  [];
-'__info__'(macros) ->
-  [{'MACRO-defn', 3, rest},
-   {'MACRO-defn-', 3, rest},
-   {'MACRO-defmacro', 3, rest},
-   {'MACRO-ns', 2, rest}].
-
-handle_ns(Line, Env, {identifier, _, Id}, Exprs) ->
-  E = case ?m(Env, namespace) of
-        nil -> Env#{namespace => Id};
-        _ -> kapok_env:env_for_eval([{file, ?m(Env, file)}, {namespace, Id}])
+add_clause(Namespace, Kind, Fun, Arity, Clause) ->
+  Index = case Kind of
+            'fun' -> 2;
+            'macro' -> 3
+          end,
+  Old = ets:lookup_element(kapok_namespaces, Namespace, Index),
+  C = case orddict:find({Fun, Arity}, Old) of
+        {ok, Clauses} -> [Clause|Clauses];
+        error -> [Clause]
       end,
-  handle_ns(Line, E, Exprs).
+  New = orddict:store({Fun, Arity}, C, Old),
+  ets:update_element(kapok_namespaces, Namespace, {Index, New}).
 
-handle_ns(_Line, Env, Clauses) when is_list(Clauses) ->
-  lists:mapfoldl(fun handle_namespace_clause/2, Env, Clauses).
+
+namespace_functions(Namespace) ->
+  ets:lookup_element(kapok_namespaces, Namespace, 2).
+
+add_macro_clause(Namespace, Fun, Arity, Clause) ->
+  add_clause(Namespace, 'macro', Fun, Arity, Clause).
+
+namespace_macros(Namespace) ->
+  ets:lookup_element(kapok_namespaces, Namespace, 3).
+
+add_export(Namespace, Fun, Arity) ->
+  OldExports = namespace_exports(Namespace),
+  NewExports = ordsets:add_element({Fun, Arity}, OldExports),
+  ets:update_element(kapok_namespaces, Namespace, {4, NewExports}).
+
+namespace_exports(Namespace) ->
+  ets:lookup_element(kapok_namespaces, Namespace, 4).
+
+
+compile_namespace(Ast, Env, Dest) when is_list(Ast) ->
+  EEnv = lists:foldl(fun (A, E) ->
+                         {EA, EE} = kapok_expand:expand_all(A, E),
+                         TE = handle_ast(EA, EE),
+                         {EA, TE}
+                     end,
+                     Env,
+                     Ast),
+  %% for A in Ast:
+  %%   {EA, EEnv} = expand_all(A),
+  %%   case EA of
+  %%     (ns) -> handle ns, only one ns statement is good
+  %%     def -> compile_def()
+  %%     Other -> unsupported other
+  %%
+  %% get def table of namespace, compile it
+  %% call namespace.main() if (there is main exported, and, in script mode)
+  %%
+  {}.
+
+handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {StringType, _, Doc} | Left]}, Env)
+    when ?is_string_type(StringType) ->
+  handle_ns(Meta, Id, Doc, Left, Env);
+handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id} | Left]}, Env) ->
+  handle_ns(Meta, Id, Left, Env);
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, _} = Args, {StringType, _, Doc} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType), ?is_string_type(StringType) ->
+  handle_def(Meta, Kind, Name, Args, Doc, Body, Env);
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, _} = Args | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType) ->
+  handle_def(Meta, Kind, Name, Args, Body, Env);
+
+handle_ast({_, Meta, _} = Ast, Env) ->
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_expression, {Ast}}).
+
+%% namespace
+
+handle_ns(Meta, Name, Clauses, Env) ->
+  handle_ns(Meta, Name, Clauses, <<"">>, Env).
+handle_ns(Meta, Name, Clauses, _Doc, Env) ->
+  E = case ?m(Env, namespace) of
+        nil -> Env#{namespace => Name};
+        NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
+      end,
+  lists:mapfoldl(fun handle_namespace_clause/2, E, Clauses).
 
 handle_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
-  {Names, TEnv} = handle_require_clause(T, Env),
+  {_Names, TEnv} = handle_require_clause(T, Env),
   #{requires := Requires} = TEnv,
   io:format("<<< after handle require, return >>>~n"),
   io:format("require: ~p~n", [Requires]),
-  {Names, TEnv};
+  TEnv;
 handle_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
-  {Names, TEnv} = handle_use_clause(T, Env),
+  {_Names, TEnv} = handle_use_clause(T, Env),
   #{requires := Requires,
     functions := Functions} = TEnv,
   io:format("<<< after handle ns, return >>>~n"),
   io:format("require: ~p~nfunctions: ~p~n", [Requires, Functions]),
-  {Names, TEnv}.
+  TEnv.
 
 %% require
 handle_require_clause(List, Env) when is_list(List) ->
@@ -132,6 +180,32 @@ handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'rename'}, {_, _, Ar
   Aliases = get_function_aliases(Meta, Args, Env),
   NewEnv = kapok_env:add_function(Meta, Env, Name, Aliases),
   handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv).
+
+%% definitions
+handle_def(Meta, Kind, Name, Args, Body, Env) ->
+  handle_def(Meta, Kind, Name, Args, <<"">>, Body, Env).
+handle_def(Meta, Kind, Name, Args, _Doc, Body, Env) ->
+  %% TODO add doc
+  Env1 = kapok_env:push_scope(Env),
+  %% TODO add vars from args to env.scope
+  {TArgs, TEnv1} = kapok_translate:translate(Args, Env1),
+  {TBody, TEnv2} = kapok_translate:translate(Body, TEnv1),
+  Arity = length(TArgs),
+  Namespace = ?m(Env, namespace),
+  case Kind of
+    'defn' ->
+      add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
+      add_export(Namespace, Name, Arity);
+    'defn-' ->
+      add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody});
+    'defmacro' ->
+      add_macro_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
+      add_export(Namespace, Name, Arity)
+  end,
+  kapok_env:pop_scope(TEnv2).
+
+
+%% Helpers
 
 group_arguments(Meta, Args, Env) ->
   group_arguments(Meta, Args, orddict:new(), Env).
@@ -211,11 +285,11 @@ get_function_aliases(Meta, Args, Env) ->
                 Args),
   ordsets:from_list(L).
 
-define({Line, Env}, Kind, Name, Args, Exprs) ->
-  QuotedName = kapok_macro:quote(Name),
-  QuotedArgs = kapok_macro:quote(Args),
-  QuotedExprs = kapok_macro:quote(Exprs),
-  QuotedEnv = kapok_macro:quote(Env),
-  ArgList = [{integer, [], Line}, {atom, [], Kind}, QuotedName, QuotedArgs, QuotedExprs, QuotedEnv],
-  {{list, [], [{dot, [], {'kapok_def', 'store_definition'}} | ArgList]}, Env}.
+
+%% Error
+
+format_error({invalid_expression, {Ast}}) ->
+  io_lib:format("invalid expression ~p", [Ast]);
+format_error({multiple_namespace, {Existing, New}}) ->
+  io_lib:format("multiple namespace in one file not supported: ~p, ~p", [Existing, New]).
 

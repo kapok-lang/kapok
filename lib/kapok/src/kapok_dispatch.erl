@@ -150,7 +150,7 @@ construct_new_args(Arity, NewArity, ParaType, Args) ->
 macro_for(Name, Arity) ->
   %% check for predifined macro
   Fun = list_to_atom("MACRO-" ++ atom_to_list(Name)),
-  Macros = get_optional_macros(kapok_bootstrap),
+  Macros = [],
   Result = lists:filter(fun ({F, A, normal}) -> {Name, Arity} == {F, A};
                             ({F, A, rest}) ->
                             (Fun == F) andalso (Arity >= A)
@@ -175,6 +175,8 @@ get_optional_macros(Receiver) ->
 
 %% ERROR HANDLING
 
+format_error({invalid_expression, {Ast}}) ->
+  io_lib:format("invalid expression ~p", [Ast]);
 format_error({ambiguous_call, {Mod1, Mod2, Name, Arity}}) ->
   io_lib:format("function ~ts/~B imported from both ~ts and ~ts, call in ambiguous",
                [Name, Arity, Mod1, Mod2]).

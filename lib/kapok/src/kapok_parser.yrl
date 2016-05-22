@@ -36,7 +36,7 @@ expression -> value : '$1'.
 expression_list -> expression : ['$1'].
 expression_list -> expression_list expression : ['$2' | '$1'].
 
-expressions -> expression_list : build_block(lists:reverse('$1')).
+expressions -> expression_list : lists:reverse('$1').
 
 %% Value
 
@@ -172,10 +172,6 @@ Erlang code.
 -include("kapok.hrl").
 
 %% Build token
-
-build_block(ExpressionList) ->
-  [Token | _T] = ExpressionList,
-  {'__block__', token_meta(Token), ExpressionList}.
 
 build_number(Token) ->
   {number, token_meta(Token), token_symbol(Token)}.

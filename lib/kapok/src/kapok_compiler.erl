@@ -77,8 +77,8 @@ file(File, Dest) ->
   {ok, Bin} = file:read_file(File),
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, Opts),
-  Env = kapok_env:env_for_eval([{line, 1}, {file, File}, {dest, Dest} | Opts]),
-  ast(Ast, Env).
+  Env = kapok_env:env_for_eval([{line, 1}, {file, File} | Opts]),
+  kapok_namespace:compile_namespace(Ast, Env, Dest).
   %% {Forms, TEnv} = ast_to_abstract_format(Ast, Env),
   %% module(Forms, [], TEnv, fun (Module, Binary) ->
   %%                             %% write compiled binary to dest file

@@ -6,9 +6,6 @@
          add_function/4,
          add_macro/4,
          reset_macro_context/1,
-         add_export_function/3,
-         add_export_macro/3,
-         get_exports/1,
          push_scope/1,
          pop_scope/1,
          add_var/3,
@@ -42,8 +39,6 @@ new_env() ->
     requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
     functions => [],                       %% a dict of imported functions(and aliases) by 'module -> [fun...]'
     macros => [],                          %% a dict of imported macros(aliases) by 'module -> [macro...]'
-    export_functions => [],                %% a set of function to export
-    export_macros => [],                   %% a set of macros to export
     scope => new_scope()                   %% the current scope
    }.
 
@@ -80,39 +75,6 @@ add_macro(_Meta, #{macros := Macros} = Env, Module, ToImports) ->
 
 reset_macro_context(Env) ->
   Env#{macro_context => new_macro_context()}.
-
-add_export_function(Meta, #{export_functions := ExportFunctions, export_macros := ExportMacros} = Env, Export) ->
-  %% check for duplicate function
-  case ordsets:is_element(Export, ExportFunctions) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate export function: ~p", [Export]);
-    false -> ok
-  end,
-  %% check for duplicate macro
-  case ordsets:is_element(Export, ExportMacros) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate macro for export function: ~p", [Export]);
-    false -> ok
-  end,
-  NewExportFunctions = ordsets:add_element(Export, ExportFunctions),
-  Env#{export_functions => NewExportFunctions}.
-
-add_export_macro(Meta, #{export_functions := ExportFunctions, export_macros := ExportMacros} = Env, Export) ->
-  %% check for duplicate macro
-  io:format("add export macro: ~p~n", [Export]),
-  case ordsets:is_element(Export, ExportMacros) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate export macro: ~p", [Export]);
-    false -> ok
-  end,
-  %% check for duplicate function
-  case ordsets:is_element(Export, ExportFunctions) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate function for export macro: ~p", [Export]);
-    false -> ok
-  end,
-  NewExportMacros = ordsets:add_element(Export, ExportMacros),
-  Env#{export_macros => NewExportMacros}.
-
-get_exports(#{export_functions := ExportFunctions, export_macros := ExportMacros}) ->
-  io:format("export functions and macros: ~p~n~p~n", [ExportFunctions, ExportMacros]),
-  ordsets:to_list(ordsets:union(ExportFunctions, ExportMacros)).
 
 push_scope(#{scope := Scope} = Env) ->
   NewScope = (new_scope())#{parent => Scope, vars => maps:get(vars, Scope)},
