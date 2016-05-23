@@ -70,6 +70,7 @@ translate({literal_list, _Meta, List}, Env) ->
 %% Local call
 
 %% special forms
+%% let
 translate({list, Meta, [{identifier, _, 'let'}, {ListType, _, Args} | Body]}, Env1)
     when ?is_list_type(ListType) ->
   {TArgs, TEnv1} = translate_let_args(Args, Env1),
@@ -78,6 +79,7 @@ translate({list, Meta, [{identifier, _, 'let'}, {ListType, _, Args} | Body]}, En
   io:format("after translate let body: ~p~n", [TBody]),
   {to_block(Meta, TArgs ++ TBody), TEnv2};
 
+%% match
 translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env1) ->
   {TArg1, TEnv1} = translate(Arg1, Env1),
   {TArg2, TEnv2} = translate(Arg2, TEnv1),
@@ -86,6 +88,11 @@ translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env1) ->
     [] -> {Result, TEnv2};
     _ -> translate_match(Meta, TArg2, Left, [Result], TEnv2)
   end;
+
+%% do
+translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Env) ->
+  {TExprs, TEnv} = translate(Exprs, Env),
+  {to_block(Meta, TExprs), TEnv};
 
 translate({list, Meta, [{Category, _, Id} | Args]}, #{functions := Functions} = Env)
     when Category == identifier; Category == atom ->
