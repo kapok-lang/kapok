@@ -9,7 +9,7 @@ Nonterminals
     bitstring_arg_list bitstring_args bitstring_container
     quote_expr backquote_expr unquote_expr unquote_splicing_expr
     value comma_value value_list values
-    open_paren close_paren open_bracket close_bracket list_container
+    open_paren close_paren open_bracket close_bracket list_container cons_list
     open_curly close_curly tuple_container
     paired_comma_values paired_value_list paired_values unpaired_values open_bang_curly map_container
     open_percent_curly set_container
@@ -68,6 +68,7 @@ value       -> list_string : '$1'.
 %% containers
 value       -> bitstring_container : '$1'.
 value       -> list_container : '$1'.
+value       -> cons_list: '$1'.
 value       -> tuple_container : '$1'.
 value       -> map_container : '$1'.
 value       -> set_container : '$1'.
@@ -133,6 +134,9 @@ list_container -> open_bracket close_bracket : build_literal_list('$1', []).
 list_container -> open_bracket values close_bracket : build_literal_list('$1', '$2').
 list_container -> open_paren close_paren : build_list('$1', []).
 list_container -> open_paren values close_paren: build_list('$1', '$2').
+
+cons_list -> open_bracket values rest value close_bracket : build_cons_list('$3', '$2', '$4').
+cons_list -> open_paren values rest value close_paren : build_cons_list('$3', '$2', '$4').
 
 %% Tuple
 open_curly   -> '{' : '$1'.
@@ -220,6 +224,10 @@ build_literal_list(Marker, Args) ->
 
 build_list(Marker, Args) ->
   {list, token_meta(Marker), Args}.
+
+build_cons_list(Marker, Head, Tail) ->
+  io:format("build cons list: ~p, Head: ~p, Tail: ~p~n", [Marker, Head, Tail]),
+  {cons_list, token_meta(Marker), {Head, Tail}}.
 
 build_tuple(Marker, Args) ->
   {tuple, token_meta(Marker), Args}.

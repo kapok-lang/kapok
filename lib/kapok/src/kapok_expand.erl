@@ -117,8 +117,15 @@ expand({bitstring, Meta, Args}, Env) ->
 %% list
 
 expand({literal_list, Meta, Args}, Env) ->
-  {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
+  {EArgs, NewEnv, Expanded} = expand(Args, Env),
   {{literal_list, Meta, EArgs}, NewEnv, Expanded};
+
+expand({cons_list, Meta, {Head, Tail}}, Env1) ->
+  io:format("to expand cons_list, head: ~p", [Head]),
+  {EHead, TEnv1, Expanded1} = expand(Head, Env1),
+  io:format("to expand cons_list, tail: ~p~n", [Tail]),
+  {ETail, TEnv2, Expanded2} = expand(Tail, TEnv1),
+  {{cons_list, Meta, {EHead, ETail}}, TEnv2, Expanded1 orelse Expanded2};
 
 expand({list, Meta, [{identifier, _, Id} | Args]} = Ast, #{macro_context := Context} = Env) ->
   case is_not_inside_quote(Context) of
@@ -140,19 +147,23 @@ expand({list, _, _} = Ast, Env) ->
 
 %% tuple
 expand({tuple, Meta, Args}, Env) ->
-  {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
+  {EArgs, NewEnv, Expanded} = expand(Args, Env),
   {{tuple, Meta, EArgs}, NewEnv, Expanded};
 
 %% map
 expand({map, Meta, Args}, Env) ->
-  {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
+  {EArgs, NewEnv, Expanded} = expand(Args, Env),
   {{map, Meta, EArgs}, NewEnv, Expanded};
 
 %% set
 
 expand({set, Meta, Args}, Env) ->
-  {EArgs, NewEnv, Expanded} = expand_list(Args, Env),
+  {EArgs, NewEnv, Expanded} = expand(Args, Env),
   {{set, Meta, EArgs}, NewEnv, Expanded};
+
+expand(List, Env) when is_list(List) ->
+  io:format("to expand list: ~p~n", [List]),
+  expand_list(List, Env);
 
 expand(Ast, Env) ->
   %% the default handler, which handles
@@ -166,13 +177,17 @@ expand_list(List, Env) ->
 expand_list(List, Fun, Env) ->
   expand_list(List, Fun, Env, false, []).
 expand_list([H|T], Fun, Env, Expanded, Acc) ->
+  io:format("to expand list head ~p~n", [H]),
   {EArg, NewEnv, IsExpanded} = Fun(H, Env),
+  io:format("after expand list head ~p~n", [H]),
   NewAcc = case EArg of
              {unquote_splicing, _, EList} -> lists:reverse(EList) ++ Acc;
              _ -> [EArg | Acc]
            end,
+  io:format("*** expand list tail ~p~n", [T]),
   expand_list(T, Fun, NewEnv, Expanded or IsExpanded, NewAcc);
 expand_list([], _Fun, Env, Expanded, Acc) ->
+  io:format("expand list return ~p~n", [Acc]),
   {lists:reverse(Acc), Env, Expanded}.
 
 expand_ast_list({list, Meta, Args}, Env) ->

@@ -67,6 +67,14 @@ translate({tuple, Meta, Arg}, Env) ->
 translate({literal_list, _Meta, List}, Env) ->
   translate_list(List, [], Env);
 
+translate({cons_list, Meta, {Head, Tail}}, Env1) ->
+  {THead, TEnv1} = case Head of
+                     [E] -> translate(E, Env1);
+                     _ -> translate(Head, Env1)
+                   end,
+  {TTail, TEnv2} = translate(Tail, TEnv1),
+  {{cons, ?line(Meta), THead, TTail}, TEnv2};
+
 %% Local call
 
 %% special forms
@@ -140,9 +148,7 @@ translate({list, _Meta, Args}, Env) ->
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun (X, E) -> translate(X, E) end,
-                 Env,
-                 List);
+  lists:mapfoldl(fun translate/2, Env, List);
 
 translate(Other, Env) ->
   {to_abstract_format(Other), Env}.
