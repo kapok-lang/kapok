@@ -1,7 +1,8 @@
 %% namespace
 -module(kapok_namespace).
 -export([compile/3,
-         format_error/1
+         format_error/1,
+         namespace_exports/1
         ]).
 -include("kapok.hrl").
 
@@ -49,7 +50,6 @@ namespace_exports(Namespace) ->
 compile(Ast, Env, Callback) when is_list(Ast) ->
   io:format("----~n~n"),
   TEnv = lists:foldl(fun (A, E) ->
-                         io:format("aoeuaoeu"),
                          {EA, EE} = kapok_expand:expand_all(A, E),
                          io:format("expand ea: ~p~n~n", [EA]),
                          TE = handle_ast(EA, EE),
@@ -283,7 +283,7 @@ filter_out_exports(Meta, Module, Args, Env) ->
   ordsets:subtract(Exports, ToFilterOut).
 
 get_functions(Meta, Args, Env) ->
-  L = lists:map(fun ({function_id, _, {{identifier, _, Id}, {integer, _, Integer}}}) ->
+  L = lists:map(fun ({function_id, _, {Id, Integer}}) ->
                     {Id, Integer};
                     (Other) ->
                     kapok_error:compile_error(Meta, ?m(Env, file), "invalid function id: ~p", [Other])
@@ -292,7 +292,7 @@ get_functions(Meta, Args, Env) ->
   ordsets:from_list(lists:reverse(L)).
 
 get_function_aliases(Meta, Args, Env) ->
-  L = lists:map(fun ({ListType, _, [{function_id, _, {{identifier, _, OriginalId}, {integer, _, Integer}}},
+  L = lists:map(fun ({ListType, _, [{function_id, _, {OriginalId, Integer}},
                                     {identifier, _, NewId}]}) when ?is_list_type(ListType) ->
                     {NewId, {OriginalId, Integer}};
                     (Other) ->

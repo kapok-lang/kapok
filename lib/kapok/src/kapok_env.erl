@@ -9,6 +9,7 @@
          push_scope/1,
          pop_scope/1,
          add_var/3,
+         check_var/3,
          env_for_eval/1,
          env_for_eval/2]).
 
@@ -88,12 +89,15 @@ pop_scope(#{scope := Scope} = Env) ->
 
 add_var(Meta, #{scope := Scope} = Env, Var) ->
   Vars = maps:get(vars, Scope),
-  case orddict:is_key(Var, Vars) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate var: ~p", [Var]);
-    false -> ok
-  end,
-  NewVars = orddict:store(Var, {var,0,Var}, Vars),
+  NewVars = orddict:store(Var, {var,?line(Meta),Var}, Vars),
   Env#{Scope => Scope#{vars => NewVars}}.
+
+check_var(Meta, #{scope := Scope} = Env, Var) ->
+  Vars = maps:get(vars, Scope),
+  case orddict:is_key(Var, Vars) of
+    true -> ok;
+    false -> kapok_error:compile_error(Meta, ?m(Env, file),"invalid var ~p", [Var])
+  end.
 
 
 %% EVAL HOOKS

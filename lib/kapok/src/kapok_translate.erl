@@ -3,7 +3,8 @@
 -export([translate/2,
          translate_arg/3,
          translate_args/2,
-         to_abstract_format/1]).
+         to_abstract_format/1,
+         format_error/1]).
 -include("kapok.hrl").
 
 %% literals
@@ -27,10 +28,13 @@ translate({atom, Meta, Value}, Env) ->
   {{atom, ?line(Meta), Value}, Env};
 
 %% Identifiers
-translate({identifier, Meta, Identifier}, Env) ->
+translate({identifier, Meta, Id}, #{context := Context} = Env) ->
   %% search env to check whether identifier is a variable
-  io:format("!!!!!!! translate ident: ~p~n", [Identifier]),
-  {{var, ?line(Meta), Identifier}, Env};
+  case Context of
+    match_vars -> kapok_env:add_var(Meta, Env, Id);
+    _ -> kapok_env:check_var(Meta, Env, Id)
+  end,
+  {{var, ?line(Meta), Id}, Env};
 
 %% binary string
 translate({binary_string, _Meta, Binary}, Env) ->
@@ -55,8 +59,9 @@ translate({set, Meta, Arg}, Env) ->
   kapok_set:translate(Meta, Arg, Env);
 
 %% tuple
-translate({tuple, Meta, Value}, Env) ->
-  {{tuple, ?line(Meta), Value}, Env};
+translate({tuple, Meta, Arg}, Env) ->
+  {TArg, TEnv} = translate(Arg, Env),
+  {{tuple, ?line(Meta), TArg}, TEnv};
 
 %% list
 translate({literal_list, _Meta, List}, Env) ->
@@ -65,35 +70,52 @@ translate({literal_list, _Meta, List}, Env) ->
 %% Local call
 
 %% special forms
-translate({list, Meta, [{identifier, _, Id} | _] = Args}, Env)
-    when Id == 'defn';
-         Id == 'defn-';
-         Id == 'defmacro' ->
-  kapok_def:translate(Meta, Args, Env);
+translate({list, Meta, [{identifier, _, 'let'}, {ListType, _, Args} | Body]}, Env1)
+    when ?is_list_type(ListType) ->
+  {TArgs, TEnv1} = translate_let_args(Args, Env1),
+  {TBody, TEnv2} = translate(Body, TEnv1),
+  io:format("after translate let args: ~p~n", [TArgs]),
+  io:format("after translate let body: ~p~n", [TBody]),
+  {to_block(Meta, TArgs ++ TBody), TEnv2};
 
-translate({list, Meta, [{identifier, _, Id} | Args]}, #{functions := Functions} = Env) ->
+translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env1) ->
+  {TArg1, TEnv1} = translate(Arg1, Env1),
+  {TArg2, TEnv2} = translate(Arg2, TEnv1),
+  Result = {match, ?line(Meta), TArg1, TArg2},
+  case Left of
+    [] -> {Result, TEnv2};
+    _ -> translate_match(Meta, TArg2, Left, [Result], TEnv2)
+  end;
+
+translate({list, Meta, [{Category, _, Id} | Args]}, #{functions := Functions} = Env)
+    when Category == identifier; Category == atom ->
   FunArity = {Id, length(Args)},
   %% check whether it's a local call
-  case ordsets:is_element(FunArity, kapok_env:get_exports(Env)) of
+  Namespace = ?m(Env, namespace),
+  case ordsets:is_element(FunArity, kapok_namespace:namespace_exports(Namespace)) of
     true ->
       {TF, TEnv} = translate(Id, Env),
       {TArgs, TEnv1} = translate_args(Args, TEnv),
       {{call, ?line(Meta), TF, TArgs}, TEnv1};
     false ->
       %% check whether it's in imported function list
-      case orddict:find(FunArity, Functions) of
-        {ok, {M, {F, _A}}} ->
+      D = orddict:fold(fun (Receiver, Imports, Acc) ->
+                           case [{F, A} || {F, A} <- Imports, {F, A} == FunArity] of
+                             [] -> Acc;
+                             L -> orddict:store(Receiver, L, Acc)
+                           end
+                       end,
+                       [],
+                       Functions),
+      case D of
+        [] -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id]);
+        [{M, [{F, _}]}] ->
           {TM, _} = translate(M, Env),
           {TF, _} = translate(F, Env),
           {TArgs, TEnv} = translate_args(Args, Env),
           Line = ?line(Meta),
           {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
-        {ok, {F, _A}} ->
-          {TF, TEnv} = translate(F, Env),
-          {TArgs, TEnv1} = translate_args(Args, TEnv),
-          {{call, ?line(Meta), TF, TArgs}, TEnv1};
-        error ->
-          kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
+        _ -> kapok_error:compile_error(Meta, ?m(Env, file), "too many match for identifier: ~s", [Id])
       end
   end;
 
@@ -188,6 +210,31 @@ build_list([H|T], Acc) ->
 build_list([], Acc) ->
   Acc.
 
+%% translate let
+translate_let_args(Args, Env) ->
+  translate_let_args(Args, [], Env#{context => match_vars}).
+translate_let_args([], Acc, Env) ->
+  {lists:reverse(Acc), Env};
+translate_let_args([P1, P2 | T], Acc, Env) ->
+  {TP1, TEnv} = translate(P1, Env),
+  {TP2, TEnv} = translate(P2, Env),
+  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], Env);
+translate_let_args([H], _Acc, Env) ->
+  Error = {let_odd_forms, {H}},
+  kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Env, file), ?MODULE, Error).
+
+to_block(Meta, Exprs) ->
+  {block, ?line(Meta), Exprs}.
+
+%% translate match
+
+translate_match(_Meta, _Last, [], Acc, Env) ->
+  {lists:reverse(Acc), Env};
+translate_match(Meta, Last, [H|T], Acc, Env) ->
+  {TH, TEnv} = translate(H, Env),
+  translate_match(Meta, TH, T, [{match, ?line(Meta), Last, TH} | Acc], TEnv).
+
+
 %% Translate args
 
 translate_arg(Arg, Acc, Env)
@@ -204,4 +251,9 @@ translate_args(Args, Env) ->
   lists:mapfoldl(fun (X, Acc) -> translate_arg(X, Acc, Env) end,
                  Env,
                  Args).
+
+%% Error
+
+format_error({let_odd_forms, {Form}}) ->
+  io_lib:format("let requires an even number of forms in binding, unpaired form: ~p~n", [Form]).
 

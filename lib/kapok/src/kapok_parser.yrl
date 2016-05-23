@@ -13,7 +13,7 @@ Nonterminals
     open_curly close_curly tuple_container
     paired_comma_values paired_value_list paired_values unpaired_values open_bang_curly map_container
     open_percent_curly set_container
-    dot_op dot_identifier function_identifier
+    dot_op dot_identifier dot_identifier_part function_identifier
     .
 
 Terminals
@@ -85,10 +85,13 @@ atom_expr      -> atom_unsafe : build_quoted_atom('$1', false).
 %% identifier
 dot_op         -> '.' : '$1'.
 
-dot_identifier -> identifier dot_op identifier : build_dot('$2', '$1', '$3').
-dot_identifier -> dot_identifier dot_op identifier : build_dot('$2', '$1', '$3').
+dot_identifier_part -> atom_expr : '$1'.
+dot_identifier_part -> identifier : '$1'.
+dot_identifier -> dot_identifier_part dot_op dot_identifier_part : build_dot('$2', '$1', '$3').
+dot_identifier -> dot_identifier dot_op dot_identifier_part : build_dot('$2', '$1', '$3').
 
 %% function_identifier
+function_identifier -> atom_expr '/' integer : build_function_identifier('$1', '$3').
 function_identifier -> identifier '/' integer : build_function_identifier('$1', '$3').
 
 %% Macro syntaxs
@@ -190,12 +193,12 @@ binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
 
 build_function_identifier(FunctionName, Arity) ->
-  {function_id, token_meta(FunctionName), {FunctionName, Arity}}.
+  {function_id, token_meta(FunctionName), {token_symbol(FunctionName), token_symbol(Arity)}}.
 
-build_dot(Dot, {identifier, _, Id}, Right) ->
+build_dot(Dot, {Category, _, Id}, Right) when Category == identifier; Category == atom ->
   {dot, token_meta(Dot), {Id, token_symbol(Right)}};
 build_dot(Dot, {dot, _, _} = Left, Right) ->
-  {dot, token_meta(Dot), {dot_fullname(Left), Right}}.
+  {dot, token_meta(Dot), {dot_fullname(Left), token_symbol(Right)}}.
 
 build_bitstring(Marker, Args) ->
   {bitstring, token_meta(Marker), Args}.
