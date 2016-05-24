@@ -6,9 +6,7 @@
 -include("kapok.hrl").
 
 expand_all(Ast, Env) ->
-%%  io:format("^^^ to expand ~p~n", [Ast]),
   {EAst, NewEnv, Expanded} = expand(Ast, Env),
-%%  io:format("*** expand ~p to: ~p~n", [Expanded, EAst]),
   case Expanded of
     true -> expand_all(EAst, NewEnv);
     _ -> {EAst, NewEnv}
@@ -60,7 +58,6 @@ expand({backquote, Meta, Arg}, #{macro_context := Context} = Env) ->
 expand({unquote, Meta, Arg}, #{macro_context := Context} = Env) ->
   #{backquote_level := B, unquote_level := U} = Context,
   CurrentU = U + 1,
-  io:format("----------- ~p~n", [CurrentU]),
   if
     CurrentU == B ->
       {EArg, NewEnv} = case is_list_ast(Arg) of
@@ -121,19 +118,13 @@ expand({literal_list, Meta, Args}, Env) ->
   {{literal_list, Meta, EArgs}, NewEnv, Expanded};
 
 expand({cons_list, Meta, {Head, Tail}}, Env1) ->
-  io:format("to expand cons_list, head: ~p", [Head]),
   {EHead, TEnv1, Expanded1} = expand(Head, Env1),
-  io:format("to expand cons_list, tail: ~p~n", [Tail]),
   {ETail, TEnv2, Expanded2} = expand(Tail, TEnv1),
   {{cons_list, Meta, {EHead, ETail}}, TEnv2, Expanded1 orelse Expanded2};
 
 expand({list, Meta, [{identifier, _, Id} | Args]} = Ast, #{macro_context := Context} = Env) ->
   case is_not_inside_quote(Context) of
-    true ->
-      R = kapok_dispatch:dispatch_local(Meta, Id, Args, Env, fun () -> expand_ast_list(Ast, Env) end),
-      {_, B, _} = R,
-      io:format("dispatch_local returns, env: ~p~n", [B]),
-      R;
+    true -> kapok_dispatch:dispatch_local(Meta, Id, Args, Env, fun () -> expand_ast_list(Ast, Env) end);
     false -> expand_ast_list(Ast, Env)
   end;
 expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context} = Env) ->
@@ -162,7 +153,6 @@ expand({set, Meta, Args}, Env) ->
   {{set, Meta, EArgs}, NewEnv, Expanded};
 
 expand(List, Env) when is_list(List) ->
-  io:format("to expand list: ~p~n", [List]),
   expand_list(List, Env);
 
 expand(Ast, Env) ->
@@ -177,17 +167,13 @@ expand_list(List, Env) ->
 expand_list(List, Fun, Env) ->
   expand_list(List, Fun, Env, false, []).
 expand_list([H|T], Fun, Env, Expanded, Acc) ->
-  io:format("to expand list head ~p~n", [H]),
   {EArg, NewEnv, IsExpanded} = Fun(H, Env),
-  io:format("after expand list head ~p~n", [H]),
   NewAcc = case EArg of
              {unquote_splicing, _, EList} -> lists:reverse(EList) ++ Acc;
              _ -> [EArg | Acc]
            end,
-  io:format("*** expand list tail ~p~n", [T]),
   expand_list(T, Fun, NewEnv, Expanded or IsExpanded, NewAcc);
 expand_list([], _Fun, Env, Expanded, Acc) ->
-  io:format("expand list return ~p~n", [Acc]),
   {lists:reverse(Acc), Env, Expanded}.
 
 expand_ast_list({list, Meta, Args}, Env) ->

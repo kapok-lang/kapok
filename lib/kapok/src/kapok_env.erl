@@ -90,15 +90,18 @@ pop_scope(#{scope := Scope} = Env) ->
 add_var(Meta, #{scope := Scope} = Env, Var) ->
   Vars = maps:get(vars, Scope),
   NewVars = orddict:store(Var, {var,?line(Meta),Var}, Vars),
-  Env#{Scope => Scope#{vars => NewVars}}.
+  Env#{scope => Scope#{vars => NewVars}}.
 
 check_var(Meta, #{scope := Scope} = Env, Var) ->
+  check_var(Meta, Env, Scope, Var).
+check_var(Meta, Env, nil, Var) ->
+  kapok_error:compile_error(Meta, ?m(Env, file),"invalid var ~p", [Var]);
+check_var(Meta, Env, Scope, Var) ->
   Vars = maps:get(vars, Scope),
   case orddict:is_key(Var, Vars) of
-    true -> ok;
-    false -> kapok_error:compile_error(Meta, ?m(Env, file),"invalid var ~p", [Var])
+    true -> Env;
+    false -> check_var(Meta, Env, maps:get(parent, Scope))
   end.
-
 
 %% EVAL HOOKS
 

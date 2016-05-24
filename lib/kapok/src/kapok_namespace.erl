@@ -48,13 +48,9 @@ namespace_exports(Namespace) ->
 
 
 compile(Ast, Env, Callback) when is_list(Ast) ->
-  io:format("----~n~n"),
   TEnv = lists:foldl(fun (A, E) ->
                          {EA, EE} = kapok_expand:expand_all(A, E),
-                         io:format("expand ea: ~p~n~n", [EA]),
-                         TE = handle_ast(EA, EE),
-                         io:format("handled te: ~p~n~n~n", [TE]),
-                         TE
+                         handle_ast(EA, EE)
                      end,
                      Env,
                      Ast),
@@ -67,7 +63,6 @@ handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {StringType, 
     when ?is_string_type(StringType) ->
   handle_ns(Meta, Id, Doc, Left, Env);
 handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id} | Left]}, Env) ->
-  io:format("^^^^^^~n~n~n"),
   handle_ns(Meta, Id, Left, Env);
 handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, Args}, {StringType, _, Doc} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType), ?is_string_type(StringType) ->
   handle_def(Meta, Id, Name, Args, Doc, Body, Env);
@@ -95,18 +90,9 @@ handle_ns(Meta, Name, Clauses, _Doc, Env) ->
   TEnv.
 
 handle_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
-  {Names, TEnv} = handle_require_clause(T, Env),
-  #{requires := Requires} = TEnv,
-  io:format("<<< after handle require, return >>>~n"),
-  io:format("require: ~p~n", [Requires]),
-  {Names, TEnv};
+  handle_require_clause(T, Env);
 handle_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
-  {Names, TEnv} = handle_use_clause(T, Env),
-  #{requires := Requires,
-    functions := Functions} = TEnv,
-  io:format("<<< after handle ns, return >>>~n"),
-  io:format("require: ~p~nfunctions: ~p~n", [Requires, Functions]),
-  {Names, TEnv}.
+  handle_use_clause(T, Env).
 
 %% require
 handle_require_clause(List, Env) when is_list(List) ->
@@ -192,7 +178,7 @@ handle_def(Meta, Kind, Name, Args, _Doc, Body, Env) ->
   %% TODO add doc
   Env1 = kapok_env:push_scope(Env),
   %% TODO add vars from args to env.scope
-  {TArgs, TEnv1} = kapok_translate:translate(Args, Env1),
+  {TArgs, TEnv1} = kapok_translate:translate_args(Args, Env1),
   {TBody, TEnv2} = kapok_translate:translate(Body, TEnv1),
   Arity = length(Args),
   Namespace = ?m(Env, namespace),

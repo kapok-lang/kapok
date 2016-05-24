@@ -1,7 +1,7 @@
 %% Translate Kapok AST to Erlang Abstract Format.
 -module(kapok_translate).
 -export([translate/2,
-         translate_arg/3,
+         translate_arg/2,
          translate_args/2,
          to_abstract_format/1,
          format_error/1]).
@@ -30,11 +30,11 @@ translate({atom, Meta, Value}, Env) ->
 %% Identifiers
 translate({identifier, Meta, Id}, #{context := Context} = Env) ->
   %% search env to check whether identifier is a variable
-  case Context of
-    match_vars -> kapok_env:add_var(Meta, Env, Id);
-    _ -> kapok_env:check_var(Meta, Env, Id)
-  end,
-  {{var, ?line(Meta), Id}, Env};
+  NewEnv = case Context of
+             match_vars -> kapok_env:add_var(Meta, Env, Id);
+             _ -> kapok_env:check_var(Meta, Env, Id)
+           end,
+  {{var, ?line(Meta), Id}, NewEnv};
 
 %% binary string
 translate({binary_string, _Meta, Binary}, Env) ->
@@ -79,17 +79,16 @@ translate({cons_list, Meta, {Head, Tail}}, Env1) ->
 
 %% special forms
 %% let
-translate({list, Meta, [{identifier, _, 'let'}, {ListType, _, Args} | Body]}, Env1)
+translate({list, Meta, [{identifier, _, 'let'}, {ListType, _, Args} | Body]}, Env)
     when ?is_list_type(ListType) ->
+  Env1 = kapok_env:push_scope(Env),
   {TArgs, TEnv1} = translate_let_args(Args, Env1),
   {TBody, TEnv2} = translate(Body, TEnv1),
-  io:format("after translate let args: ~p~n", [TArgs]),
-  io:format("after translate let body: ~p~n", [TBody]),
-  {to_block(Meta, TArgs ++ TBody), TEnv2};
+  {to_block(Meta, TArgs ++ TBody), kapok_env:pop_scope(TEnv2)};
 
 %% match
 translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env1) ->
-  {TArg1, TEnv1} = translate(Arg1, Env1),
+  {TArg1, TEnv1} = translate_match_pattern(Arg1, Env1),
   {TArg2, TEnv2} = translate(Arg2, TEnv1),
   Result = {match, ?line(Meta), TArg1, TArg2},
   case Left of
@@ -136,7 +135,6 @@ translate({list, Meta, [{Category, _, Id} | Args]}, #{functions := Functions} = 
 
 %%  Remote call
 translate({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, Env) ->
-  io:format("to translate ~p~n", [Ast]),
   {TM, _} = translate(M, Env),
   {TF, _} = translate(F, Env),
   {TArgs, TEnv} = translate_args(Args, Env),
@@ -227,11 +225,11 @@ build_list([], Acc) ->
 translate_let_args(Args, Env) ->
   translate_let_args(Args, [], Env#{context => match_vars}).
 translate_let_args([], Acc, Env) ->
-  {lists:reverse(Acc), Env};
-translate_let_args([P1, P2 | T], Acc, Env) ->
-  {TP1, TEnv} = translate(P1, Env),
-  {TP2, TEnv} = translate(P2, Env),
-  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], Env);
+  {lists:reverse(Acc), Env#{context => nil}};
+translate_let_args([P1, P2 | T], Acc, Env1) ->
+  {TP1, TEnv1} = translate(P1, Env1),
+  {TP2, TEnv2} = translate(P2, TEnv1),
+  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], TEnv2);
 translate_let_args([H], _Acc, Env) ->
   Error = {let_odd_forms, {H}},
   kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Env, file), ?MODULE, Error).
@@ -240,6 +238,10 @@ to_block(Meta, Exprs) ->
   {block, ?line(Meta), Exprs}.
 
 %% translate match
+
+translate_match_pattern(P, #{context := Context} = Env) ->
+  {TP, TEnv} = translate(P, Env#{context => match_vars}),
+  {TP, TEnv#{context => Context}}.
 
 translate_match(_Meta, _Last, [], Acc, Env) ->
   {lists:reverse(Acc), Env};
@@ -250,20 +252,16 @@ translate_match(Meta, Last, [H|T], Acc, Env) ->
 
 %% Translate args
 
-translate_arg(Arg, Acc, Env)
-    when is_number(Arg); is_atom(Arg); is_binary(Arg); is_pid(Arg); is_function(Arg) ->
-  {TArg, _} = translate(Arg, Env),
-  {TArg, Acc};
-translate_arg(Arg, Acc, _Env) ->
-  {TArg, TAcc} = translate(Arg, Acc),
-  {TArg, TAcc}.
+translate_arg(Arg, Env) ->
+  translate(Arg, Env).
 
-translate_args(Args, #{context := match} = Env) ->
-  lists:mapfoldl(fun translate/2, Env, Args);
 translate_args(Args, Env) ->
-  lists:mapfoldl(fun (X, Acc) -> translate_arg(X, Acc, Env) end,
-                 Env,
-                 Args).
+  translate_args(Args, [], Env#{context => match_vars}).
+translate_args([], Acc, Env) ->
+  {lists:reverse(Acc), Env#{context => nil}};
+translate_args([H|T], Acc, Env) ->
+  {TH, TEnv} = translate_arg(H, Env),
+  translate_args(T, [TH | Acc], TEnv).
 
 %% Error
 

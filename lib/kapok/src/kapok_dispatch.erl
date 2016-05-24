@@ -33,7 +33,6 @@ dispatch_local(Meta, Name, Args, Env, Callback) ->
   Arity = length(Args),
   case expand_local(Meta, {Name, Arity}, Args, Env) of
     {ok, Receiver, {EAst, EEnv}} ->
-      io:format("before expand ast, env: ~p~n", [EEnv]),
       expand_ast(Meta, Receiver, Name, Arity, EAst, EEnv);
     {ok, Receiver, NewName, NewArgs} ->
       kapok_expand:expand({list, Meta, [{dot, Meta, [Receiver, NewName]} | NewArgs]}, Env);

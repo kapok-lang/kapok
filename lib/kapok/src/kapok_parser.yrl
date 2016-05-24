@@ -226,7 +226,6 @@ build_list(Marker, Args) ->
   {list, token_meta(Marker), Args}.
 
 build_cons_list(Marker, Head, Tail) ->
-  io:format("build cons list: ~p, Head: ~p, Tail: ~p~n", [Marker, Head, Tail]),
   {cons_list, token_meta(Marker), {Head, Tail}}.
 
 build_tuple(Marker, Args) ->

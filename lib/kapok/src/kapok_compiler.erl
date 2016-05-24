@@ -40,12 +40,8 @@ string_to_ast(String, StartLine, File, Options)
 %% Converts AST to erlang abstract format
 
 ast_to_abstract_format(Ast, Env) ->
-  io:format("~nbefore expand: ~p~n", [Env]),
   {EAst, EEnv} = kapok_expand:expand_all(Ast, Env),
-  io:format("~nafter expand_all: ~p~n", [EAst]),
-  io:format("~nbefore translate: ~p~n", [EEnv]),
   {Erl, TEnv} = kapok_translate:translate(EAst, EEnv),
-  io:format("~nafter translate env: ~p~n", [TEnv]),
   {Erl, TEnv}.
 
 %% Compilation entry points.
@@ -55,7 +51,6 @@ ast(Ast, File) when is_binary(File) ->
   ast(Ast, Env);
 ast(Ast, Env) ->
   {Forms, TEnv} = ast_to_abstract_format(Ast, Env),
-  io:format("ast() to abf: ~p~n", [Forms]),
   eval_abstract_format(Forms, TEnv).
 
 string(Contents, File) when is_list(Contents), is_binary(File) ->
@@ -110,7 +105,6 @@ eval_abstract_format(Form, #{scope := Scope} = Env) ->
       {Atom, Env};
     _ ->
       Vars = maps:get(vars, Scope),
-      io:format("vars before eval: ~p~n", [Vars]),
       {value, Value, NewBindings} = erl_eval(Form, Vars, Env),
       {Value, Env#{scope => Scope#{vars => orddict:from_list(NewBindings)}}}
   end.
@@ -158,7 +152,6 @@ module(Forms, _Opts, #{file := File} = _Env, Callback) ->
   case compile:forms(Forms) of
     {ok, ModuleName, Binary} ->
       {module, Module} = code:load_binary(ModuleName, binary_to_list(File), Binary),
-      io:format("done compiling ~p~n", [ModuleName]),
       Callback(Module, Binary);
     {error, Errors, Warnings} ->
       io:format("~p~n", [Errors]),

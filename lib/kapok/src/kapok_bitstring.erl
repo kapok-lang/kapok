@@ -10,16 +10,8 @@
 translate(Meta, {StringType, Meta1, Arg}, Env) when ?is_string_type(StringType) ->
   {{bin, ?line(Meta), [{bin_element, ?line(Meta1), binary_to_list(Arg)}]}, Env};
 
-translate(Meta, Args, #{context := Context} = Env) when is_list(Args) ->
-  case Context of
-    match ->
-      build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env);
-    _ ->
-      build_bitstring(fun (X, Acc) -> kapok_translate:translate_arg(X, Acc, Env) end,
-                      Args,
-                      Meta,
-                      Env)
-  end.
+translate(Meta, Args, Env) when is_list(Args) ->
+  build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env).
 
 build_bitstring(Fun, Args, Meta, Env) ->
   {Result, TEnv} = build_bitstring_element(Fun, Args, Meta, Env, []),
