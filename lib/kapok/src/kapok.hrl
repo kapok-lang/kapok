@@ -45,8 +45,11 @@
 -define(m(M, K), maps:get(K, M)).
 
 -define(is_def(T), (T == 'defn' orelse T == 'defn-' orelse T == 'defmacro')).
--define(is_list_type(T), (T == 'list' orelse T == 'literal_list')).
--define(is_string_type(T), (T == 'list_string' orelse T == 'binary_string')).
+-define(is_callable(T), (T == identifier orelse T == atom)).
+-define(is_list(T), (T == 'list' orelse T == 'literal_list')).
+-define(is_cons_list(T), (T == 'cons_list')).
+-define(is_arg_list(T), (?is_list(T) orelse ?is_cons_list(T))).
+-define(is_string(T), (T == 'list_string' orelse T == 'binary_string')).
 
 
 %% default source file suffix

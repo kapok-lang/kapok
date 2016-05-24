@@ -1,9 +1,7 @@
 %% Translate Kapok AST to Erlang Abstract Format.
 -module(kapok_translate).
 -export([translate/2,
-         translate_arg/2,
          translate_args/2,
-         to_abstract_format/1,
          format_error/1]).
 -include("kapok.hrl").
 
@@ -79,12 +77,12 @@ translate({cons_list, Meta, {Head, Tail}}, Env1) ->
 
 %% special forms
 %% let
-translate({list, Meta, [{identifier, _, 'let'}, {ListType, _, Args} | Body]}, Env)
-    when ?is_list_type(ListType) ->
+translate({list, Meta, [{identifier, _, 'let'}, {C, _, Args} | Body]}, Env) when ?is_list(C) ->
   Env1 = kapok_env:push_scope(Env),
   {TArgs, TEnv1} = translate_let_args(Args, Env1),
   {TBody, TEnv2} = translate(Body, TEnv1),
-  {to_block(Meta, TArgs ++ TBody), kapok_env:pop_scope(TEnv2)};
+  BodyBlock = to_block(0, TBody),
+  {to_block(Meta, TArgs ++ [BodyBlock]), kapok_env:pop_scope(TEnv2)};
 
 %% match
 translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env1) ->
@@ -101,40 +99,35 @@ translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Env) ->
   {TExprs, TEnv} = translate(Exprs, Env),
   {to_block(Meta, TExprs), TEnv};
 
-translate({list, Meta, [{Category, _, Id} | Args]}, #{functions := Functions} = Env)
-    when Category == identifier; Category == atom ->
-  FunArity = {Id, length(Args)},
+translate({list, Meta, [{Category, _, Id} | Args]}, Env) when ?is_callable(Category) ->
+  Arity = length(Args),
+  FunArity = {Id, Arity},
   %% check whether it's a local call
   Namespace = ?m(Env, namespace),
-  case ordsets:is_element(FunArity, kapok_namespace:namespace_exports(Namespace)) of
-    true ->
-      {TF, TEnv} = translate(Id, Env),
-      {TArgs, TEnv1} = translate_args(Args, TEnv),
+  ExportFunctions = kapok_namespace:namespace_export_functions(Namespace),
+  case kapok_dispatch:find_fa(FunArity, ExportFunctions) of
+    [{F, A, P}] ->
+      {TF, TEnv} = translate(F, Env),
+      NewArgs = kapok_dispatch:construct_new_args_ast(Arity, A, P, Args),
+      {TArgs, TEnv1} = translate(NewArgs, TEnv),
       {{call, ?line(Meta), TF, TArgs}, TEnv1};
-    false ->
+    [] ->
       %% check whether it's in imported function list
-      D = orddict:fold(fun (Receiver, Imports, Acc) ->
-                           case [{F, A} || {F, A} <- Imports, {F, A} == FunArity] of
-                             [] -> Acc;
-                             L -> orddict:store(Receiver, L, Acc)
-                           end
-                       end,
-                       [],
-                       Functions),
-      case D of
-        [] -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id]);
-        [{M, [{F, _}]}] ->
+      case kapok_dispatch:find_dispatch(Meta, FunArity, Env) of
+        {function, {M, [{F, A, P}]}} ->
           {TM, _} = translate(M, Env),
           {TF, _} = translate(F, Env),
-          {TArgs, TEnv} = translate_args(Args, Env),
+          NewArgs = kapok_dispatch:construct_new_args_ast(Arity, A, P, Args),
+          {TArgs, TEnv} = translate_args(NewArgs, Env),
           Line = ?line(Meta),
           {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
-        _ -> kapok_error:compile_error(Meta, ?m(Env, file), "too many match for identifier: ~s", [Id])
+        _ ->
+          kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
       end
   end;
 
 %%  Remote call
-translate({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, Env) ->
+translate({list, Meta, [{dot, _, {M, F}} | Args]}, Env) ->
   {TM, _} = translate(M, Env),
   {TF, _} = translate(F, Env),
   {TArgs, TEnv} = translate_args(Args, Env),
@@ -234,8 +227,11 @@ translate_let_args([H], _Acc, Env) ->
   Error = {let_odd_forms, {H}},
   kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Env, file), ?MODULE, Error).
 
-to_block(Meta, Exprs) ->
-  {block, ?line(Meta), Exprs}.
+to_block(Meta, Exprs) when is_list(Meta) ->
+  to_block(?line(Meta), Exprs);
+to_block(Line, Exprs) when is_integer(Line) ->
+  {block, Line, Exprs}.
+
 
 %% translate match
 
@@ -255,10 +251,19 @@ translate_match(Meta, Last, [H|T], Acc, Env) ->
 translate_arg(Arg, Env) ->
   translate(Arg, Env).
 
-translate_args(Args, Env) ->
-  translate_args(Args, [], Env#{context => match_vars}).
+translate_args({Category, _, Args}, #{context := Context} = Env) when ?is_list(Category) ->
+  {TArgs, TEnv} = translate_args(Args, Env#{context => match_vars}),
+  %% reset Env.context for normal list args
+  {TArgs, TEnv#{context => Context}};
+translate_args({Category, _, {Head, Tail}}, #{context := Context} = Env1) when ?is_cons_list(Category) ->
+  {THead, TEnv1} = translate_args(Head, Env1#{context => match_vars}),
+  {TTail, TEnv2} = translate(Tail, TEnv1),
+  %% reset Env.context for cons list args
+  {THead ++ [TTail], TEnv2#{context => Context}};
+translate_args(Args, Env) when is_list(Args) ->
+  translate_args(Args, [], Env).
 translate_args([], Acc, Env) ->
-  {lists:reverse(Acc), Env#{context => nil}};
+  {lists:reverse(Acc), Env};
 translate_args([H|T], Acc, Env) ->
   {TH, TEnv} = translate_arg(H, Env),
   translate_args(T, [TH | Acc], TEnv).

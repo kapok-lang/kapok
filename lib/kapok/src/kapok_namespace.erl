@@ -2,7 +2,8 @@
 -module(kapok_namespace).
 -export([compile/3,
          format_error/1,
-         namespace_exports/1
+         namespace_export_functions/1,
+         namespace_export_macros/1
         ]).
 -include("kapok.hrl").
 
@@ -10,7 +11,7 @@ init_namespace_table() ->
   _ = ets:new(kapok_namespaces, [set, protected, named_table, {read_concurrency, true}]).
 
 add_namespace(Namespace) ->
-  ets:insert(kapok_namespaces, {Namespace, [], [], []}).
+  ets:insert(kapok_namespaces, {Namespace, [], [], [], []}).
 
 add_function_clause(Namespace, Fun, Arity, Clause) ->
   add_clause(Namespace, 'fun', Fun, Arity, Clause).
@@ -21,11 +22,12 @@ add_clause(Namespace, Kind, Fun, Arity, Clause) ->
             'macro' -> 3
           end,
   Old = ets:lookup_element(kapok_namespaces, Namespace, Index),
-  C = case orddict:find({Fun, Arity}, Old) of
+  Key = {Fun, Arity},
+  C = case orddict:find(Key, Old) of
         {ok, Clauses} -> [Clause|Clauses];
         error -> [Clause]
       end,
-  New = orddict:store({Fun, Arity}, C, Old),
+  New = orddict:store(Key, C, Old),
   ets:update_element(kapok_namespaces, Namespace, {Index, New}).
 
 
@@ -38,14 +40,46 @@ add_macro_clause(Namespace, Fun, Arity, Clause) ->
 namespace_macros(Namespace) ->
   ets:lookup_element(kapok_namespaces, Namespace, 3).
 
-add_export(Namespace, Fun, Arity) ->
-  OldExports = namespace_exports(Namespace),
-  NewExports = ordsets:add_element({Fun, Arity}, OldExports),
-  ets:update_element(kapok_namespaces, Namespace, {4, NewExports}).
+namespace_defs(Namespace) ->
+  Functions = namespace_functions(Namespace),
+  Macros = namespace_macros(Namespace),
+  %% TODO macro will shadow function if there is any overrides
+  orddict:merge(fun (_K, _V1, V2) -> V2 end, Functions, Macros).
 
-namespace_exports(Namespace) ->
+namespace_export_functions(Namespace) ->
   ets:lookup_element(kapok_namespaces, Namespace, 4).
 
+add_export_function(Namespace, Fun, Arity, ParameterType) ->
+  add_export(Namespace, 'fun', Fun, Arity, ParameterType).
+
+namespace_export_macros(Namespace) ->
+  ets:lookup_element(kapok_namespaces, Namespace, 5).
+
+add_export_macro(Namespace, Macro, Arity, ParameterType) ->
+  add_export(Namespace, 'macro', Macro, Arity, ParameterType).
+
+add_export(Namespace, Kind, F, A, ParameterType) ->
+  OldExports = case Kind of
+                 'fun' -> namespace_export_functions(Namespace);
+                 'macro' -> namespace_export_macros(Namespace)
+               end,
+  NewExports = ordsets:add_element({F, A, ParameterType}, OldExports),
+  Index = case Kind of
+            'fun' -> 4;
+            'macro' -> 5
+          end,
+  ets:update_element(kapok_namespaces, Namespace, {Index, NewExports}).
+
+namespace_exports(Namespace) ->
+  Functions = namespace_export_functions(Namespace),
+  Macros = namespace_export_macros(Namespace),
+  ExportFunctions = [{F, A} || {F, A, _P} <- Functions],
+  ExportMacros = [{F, A} || {F, A} <- Macros],
+  %% TODO macro will shadow function if there is any overrides
+  ordsets:union(ExportFunctions, ExportMacros).
+
+macro_name(Name) ->
+  atom_to_list("MACRO-" ++ atom_to_list(Name)).
 
 compile(Ast, Env, Callback) when is_list(Ast) ->
   TEnv = lists:foldl(fun (A, E) ->
@@ -55,18 +89,20 @@ compile(Ast, Env, Callback) when is_list(Ast) ->
                      Env,
                      Ast),
   Namespace = ?m(TEnv,namespace),
-  Functions = namespace_functions(Namespace),
+  Defs = namespace_defs(Namespace),
   Exports = namespace_exports(Namespace),
-  build_module(Namespace, Functions, Exports, TEnv, Callback).
+  build_module(Namespace, Defs, Exports, TEnv, Callback).
 
-handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {StringType, _, Doc} | Left]}, Env)
-    when ?is_string_type(StringType) ->
+handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {C, _, Doc} | Left]}, Env)
+    when ?is_string(C) ->
   handle_ns(Meta, Id, Doc, Left, Env);
 handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id} | Left]}, Env) ->
   handle_ns(Meta, Id, Left, Env);
-handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, Args}, {StringType, _, Doc} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType), ?is_string_type(StringType) ->
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args, {C2, _, _} = Doc | Body]}, Env)
+    when ?is_def(Id), ?is_arg_list(C1), ?is_string(C2) ->
   handle_def(Meta, Id, Name, Args, Doc, Body, Env);
-handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {ListType, _, Args} | Body]}, Env) when ?is_def(Id), ?is_list_type(ListType) ->
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {C, _, _} = Args | Body]}, Env)
+    when ?is_def(Id), ?is_arg_list(C) ->
   handle_def(Meta, Id, Name, Args, Body, Env);
 
 handle_ast({_, Meta, _} = Ast, Env) ->
@@ -105,7 +141,7 @@ handle_require_element({identifier, Meta, Id}, Env) ->
 handle_require_element({dot, Meta, _} = Dot, Env) ->
   Name = kapok_parser:dot_fullname(Dot),
   {Name, kapok_env:add_require(Meta, Env, Name)};
-handle_require_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
+handle_require_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
   case Args of
     [{atom, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
@@ -134,7 +170,7 @@ handle_use_element({dot, Meta, _} = Dot, Env) ->
   Name = kapok_parser:dot_fullname(Dot),
   NewEnv = add_module_exports(Meta, Name, Env),
   {Name, kapok_env:add_require(Meta, NewEnv, Name)};
-handle_use_element({ListType, Meta, Args}, Env) when ?is_list_type(ListType) ->
+handle_use_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
   case Args of
     [{atom, _, _} = Ast | T] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
@@ -174,23 +210,34 @@ handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'rename'}, {_, _, Ar
 %% definitions
 handle_def(Meta, Kind, Name, Args, Body, Env) ->
   handle_def(Meta, Kind, Name, Args, <<"">>, Body, Env).
-handle_def(Meta, Kind, Name, Args, _Doc, Body, Env) ->
+handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env1) ->
   %% TODO add doc
-  Env1 = kapok_env:push_scope(Env),
-  %% TODO add vars from args to env.scope
   {TArgs, TEnv1} = kapok_translate:translate_args(Args, Env1),
   {TBody, TEnv2} = kapok_translate:translate(Body, TEnv1),
-  Arity = length(Args),
-  Namespace = ?m(Env, namespace),
+  Arity = arg_length(Args),
+  Namespace = ?m(Env1, namespace),
+  ParameterType = case Category of
+                    C when ?is_list(C) -> 'normal';
+                    C when ?is_cons_list(C) -> 'rest'
+                  end,
   case Kind of
     'defn' ->
       add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
-      add_export(Namespace, Name, Arity);
+      add_export_function(Namespace, Name, Arity, ParameterType),
+      case ParameterType of
+        'rest' -> add_redirect_call(Meta, Kind, Namespace, Name, Arity, Args, Env1);
+        _ -> ok
+      end;
     'defn-' ->
       add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody});
     'defmacro' ->
-      add_macro_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
-      add_export(Namespace, Name, Arity)
+      MacroName = macro_name(Name),
+      add_macro_clause(Namespace, MacroName, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
+      add_export_macro(Namespace, MacroName, Arity, ParameterType),
+      case ParameterType of
+        'rest' -> add_redirect_call(Meta, Kind, Namespace, Name, Arity, Args, Env1);
+        _ -> ok
+      end
   end,
   kapok_env:pop_scope(TEnv2).
 
@@ -215,14 +262,11 @@ group_arguments(_Meta, [], Acc, _Env) ->
   lists:map(fun ({_, KV}) -> KV end, orddict:to_list(Acc));
 group_arguments(Meta, [{atom, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Env) ->
   group_arguments(Meta, T, orddict:store('as', {K, V}, Acc), Env);
-group_arguments(Meta, [{atom, _, 'only'} = K, {ListType, _, _} = V | T], Acc, Env)
-    when ?is_list_type(ListType) ->
+group_arguments(Meta, [{atom, _, 'only'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('only', {K, V}, Acc), Env);
-group_arguments(Meta, [{atom, _, 'exclude'} = K, {ListType, _, _} = V | T], Acc, Env)
-    when ?is_list_type(ListType) ->
+group_arguments(Meta, [{atom, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('exclude', {K, V}, Acc), Env);
-group_arguments(Meta, [{atom, _, 'rename'} = K, {ListType, _, _} = V | T], Acc, Env)
-    when ?is_list_type(ListType) ->
+group_arguments(Meta, [{atom, _, 'rename'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('rename', {K, V}, Acc), Env);
 group_arguments(Meta, Args, _Acc, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid use arguments: ~p~n", [Args]).
@@ -278,14 +322,36 @@ get_functions(Meta, Args, Env) ->
   ordsets:from_list(lists:reverse(L)).
 
 get_function_aliases(Meta, Args, Env) ->
-  L = lists:map(fun ({ListType, _, [{function_id, _, {OriginalId, Integer}},
-                                    {identifier, _, NewId}]}) when ?is_list_type(ListType) ->
+  L = lists:map(fun ({Category, _, [{function_id, _, {OriginalId, Integer}},
+                                    {identifier, _, NewId}]}) when ?is_list(Category) ->
                     {NewId, {OriginalId, Integer}};
                     (Other) ->
                     kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
                 end,
                 Args),
   ordsets:from_list(L).
+
+arg_length({Category, _, Args}) when ?is_list(Category) ->
+  length(Args);
+arg_length({Category, _, {Head, _}}) when ?is_cons_list(Category) ->
+  length(Head) + 1.
+
+normal_args({cons_list, Meta, {Head, _Tail}}) ->
+  {literal_list, Meta, Head}.
+
+add_redirect_call(Meta, Kind, Namespace, Name, Arity, Args, Env) ->
+  NormalArgs = normal_args(Args),
+  {TArgs, TEnv} = kapok_translate:translate_args(NormalArgs, Env),
+  {TF, _} = kapok_translate:translate(Name, TEnv),
+  {TRestArgs, _} = kapok_translate:translate({literal_list, ?line(Meta), []}, TEnv),
+  %% redirect normal call(without rest argument) to the clause with rest
+  Body = [{call, ?line(Meta), TF, TArgs++[TRestArgs]}],
+  add_function_clause(Namespace, Name, Arity-1, {clause, ?line(Meta), TArgs, [], Body}),
+  case Kind of
+    'defn' -> add_export_function(Namespace, Name, Arity-1, 'normal');
+    'defmacro' -> add_export_macro(Namespace, Name, Arity-1, 'normal')
+  end.
+
 
 %% Error
 

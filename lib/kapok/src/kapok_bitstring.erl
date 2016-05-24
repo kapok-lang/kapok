@@ -7,7 +7,7 @@
 
 %% Translate
 
-translate(Meta, {StringType, Meta1, Arg}, Env) when ?is_string_type(StringType) ->
+translate(Meta, {Category, Meta1, Arg}, Env) when ?is_string(Category) ->
   {{bin, ?line(Meta), [{bin_element, ?line(Meta1), binary_to_list(Arg)}]}, Env};
 
 translate(Meta, Args, Env) when is_list(Args) ->

@@ -100,7 +100,7 @@ check_var(Meta, Env, Scope, Var) ->
   Vars = maps:get(vars, Scope),
   case orddict:is_key(Var, Vars) of
     true -> Env;
-    false -> check_var(Meta, Env, maps:get(parent, Scope))
+    false -> check_var(Meta, Env, maps:get(parent, Scope), Var)
   end.
 
 %% EVAL HOOKS

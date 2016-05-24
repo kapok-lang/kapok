@@ -3,9 +3,12 @@
 -export([default_requires/0,
          default_functions/0,
          default_macros/0,
-         find_local/4,
+         find_dispatch/3,
+         find_dispatch/2,
+         find_fa/2,
          dispatch_local/5,
          dispatch_remote/6,
+         construct_new_args_ast/4,
          format_error/1
         ]).
 -include("kapok.hrl").
@@ -19,8 +22,7 @@ default_functions() ->
 default_macros() ->
   [].
 
-find_local(Meta, Name, Args, Env) ->
-  FA = {Name, length(Args)},
+find_local(Meta, FA, Env) ->
   case find_dispatch(Meta, FA, Env) of
     {function, R} -> R;
     {macro, R} -> R;
@@ -118,30 +120,41 @@ find_dispatch(Meta, FA, #{functions := Functions,
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
 
-find_dispatch({Fun, Arity} = FA, List) when is_list(List) ->
+find_dispatch(FA, List) when is_list(List) ->
   lists:foldl(fun ({Module, Imports}, Acc0) ->
-                  R = ordsets:fold(
-                          fun ({F, A} = E, Acc) when is_number(A) andalso E == FA -> [{F, A, normal} | Acc];
-                              ({Alias, {F, A}}, Acc) when {Alias, A} == FA -> [{F, A, normal} | Acc];
-                              ({F, A, normal} = E, Acc) when {F, A} == FA -> [E | Acc];
-                              ({F, A, rest} = E, Acc) when (Fun == F) andalso (Arity >= A) -> [E | Acc];
-                              (_, Acc) -> Acc
-                          end,
-                          [],
-                          Imports),
-                  case R of
+                  case find_fa(FA, Imports) of
                     [] -> Acc0;
-                    _ -> orddict:store(Module, R, Acc0)
+                    R -> orddict:store(Module, R, Acc0)
                   end
               end,
               [],
               List).
+
+find_fa({Fun, Arity} = FA, FAList) when is_list(FAList) ->
+  ordsets:fold(
+      fun ({F, A} = E, Acc) when is_number(A) andalso E == FA -> [{F, A, normal} | Acc];
+          ({Alias, {F, A}}, Acc) when {Alias, A} == FA -> [{F, A, normal} | Acc];
+          ({F, A, normal} = E, Acc) when {F, A} == FA -> [E | Acc];
+          ({F, A, rest} = E, Acc) when (Fun == F) andalso (Arity >= A) -> [E | Acc];
+          (_, Acc) -> Acc
+      end,
+      [],
+      FAList).
 
 construct_new_args(Arity, NewArity, ParaType, Args) ->
   case (ParaType == rest) andalso (Arity >= NewArity) of
     true ->
       {NormalParas, RestPara} = lists:split(NewArity-1, Args),
       NormalParas ++ [RestPara];
+    false ->
+      Args
+  end.
+
+construct_new_args_ast(Arity, NewArity, ParaType, Args) ->
+  case (ParaType == rest) andalso (Arity >= NewArity) of
+    true ->
+      {NormalParas, RestPara} = lists:split(NewArity-1, Args),
+      NormalParas ++ [{list, [], RestPara}];
     false ->
       Args
   end.
