@@ -8,7 +8,7 @@
 %% Translate
 
 translate(Meta, {Category, Meta1, Arg}, Env) when ?is_string(Category) ->
-  {{bin, ?line(Meta), [{bin_element, ?line(Meta1), binary_to_list(Arg)}]}, Env};
+  {{bin, ?line(Meta), [{bin_element, ?line(Meta1), {string, ?line(Meta1), binary_to_list(Arg)}, default, default}]}, Env};
 
 translate(Meta, Args, Env) when is_list(Args) ->
   build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env).

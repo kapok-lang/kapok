@@ -74,12 +74,12 @@ namespace_exports(Namespace) ->
   Functions = namespace_export_functions(Namespace),
   Macros = namespace_export_macros(Namespace),
   ExportFunctions = [{F, A} || {F, A, _P} <- Functions],
-  ExportMacros = [{F, A} || {F, A} <- Macros],
+  ExportMacros = [{F, A} || {F, A, _P} <- Macros],
   %% TODO macro will shadow function if there is any overrides
   ordsets:union(ExportFunctions, ExportMacros).
 
 macro_name(Name) ->
-  atom_to_list("MACRO-" ++ atom_to_list(Name)).
+  list_to_atom("MACRO-" ++ atom_to_list(Name)).
 
 compile(Ast, Env, Callback) when is_list(Ast) ->
   TEnv = lists:foldl(fun (A, E) ->
