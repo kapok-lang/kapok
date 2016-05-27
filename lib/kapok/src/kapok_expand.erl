@@ -1,7 +1,6 @@
 %%
 -module(kapok_expand).
 -export([expand_all/2,
-         expand_1/2,
          expand/2]).
 -include("kapok.hrl").
 
@@ -12,47 +11,41 @@ expand_all(Ast, Env) ->
     _ -> {EAst, NewEnv}
   end.
 
-expand_1(Ast, Env) ->
-  expand(Ast, Env).
-
 %% macro special forms
 
 expand({quote, Meta, Arg} = Ast, #{macro_context := Context} = Env) ->
-  case is_not_inside_quote(Context) of
+  case is_inside_backquote(Context) of
     true ->
+      {EArg, NewEnv, Expanded} = expand(Arg, Env),
+      {{quote, Meta, EArg}, NewEnv, Expanded};
+    false ->
       case is_list_ast(Arg) of
         true -> {transform_quote_list(Meta, Arg, 'quote'), Env, true};
-        false -> {Ast, Env, false}
-      end;
-    false ->
-      NewContext = Context#{quote => true},
-      {EArg, NewEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
-      {{quote, Meta, EArg}, NewEnv#{macro_context => Context}, Expanded}
+        false -> {quote(Ast), Env, false}
+      end
   end;
 
 expand({backquote, Meta, Arg}, #{macro_context := Context} = Env) ->
-  io:format("expand backquote arg: ~p~n", [Arg]),
-  case is_not_inside_quote(Context) of
+  case is_inside_backquote(Context) of
     true ->
+      #{backquote_level := B} = Context,
+      NewContext = Context#{backquote_level => B + 1},
+      {EArg, EEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
+      {{backquote, Meta, EArg}, EEnv#{macro_context => Context}, Expanded};
+    false ->
       case is_list_ast(Arg) of
         true ->
           {transform_quote_list(Meta, Arg, 'backquote'), Env, true};
         false ->
           #{backquote_level := B} = Context,
-          NewContext = Context#{backquote_level => B + 1, quote => true},
-          {EAst, NewEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
+          NewContext = Context#{backquote_level => B + 1},
+          {EAst, EEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
+          NewEnv = EEnv#{macro_context => Context},
           case Expanded of
-            true -> {EAst, NewEnv#{macro_context => Context}, true};
-            false -> {{quote, Meta, EAst}, NewEnv#{macro_context => Context}, false}
+            true -> {EAst, NewEnv, true};
+            false -> {quote(EAst), NewEnv, false}
           end
-      end;
-    false ->
-      #{backquote_level := B} = Context,
-      NewContext = Context#{backquote_level => B + 1, quote => true},
-      {EArg, NewEnv, _Expanded} = expand(Arg, Env#{macro_context => NewContext}),
-      Ast = {backquote, Meta, EArg},
-      io:format("expand backquote return: ~p~n", [Ast]),
-      {Ast, NewEnv#{macro_context => Context}, true}
+      end
   end;
 
 expand({unquote, Meta, Arg}, #{macro_context := Context} = Env) ->
@@ -60,10 +53,7 @@ expand({unquote, Meta, Arg}, #{macro_context := Context} = Env) ->
   CurrentU = U + 1,
   if
     CurrentU == B ->
-      {EArg, NewEnv} = case is_list_ast(Arg) of
-                         true -> kapok_compiler:ast(Arg, kapok_env:reset_macro_context(Env));
-                         false -> {Arg, Env}
-                       end,
+      {EArg, NewEnv} = eval_in_expand(Arg, Env),
       {EArg, NewEnv#{macro_context => Context}, true};
     CurrentU < B ->
       NewContext = Context#{unquote_level => CurrentU},
@@ -78,16 +68,12 @@ expand({unquote_splicing, Meta, Arg}, #{macro_context := Context} = Env) ->
   CurrentU = U + 1,
   if
     CurrentU == B ->
-      {EAst, NewEnv} = case is_list_ast(Arg) of
-                         true -> kapok_compiler:ast(Arg, kapok_env:reset_macro_context(Env));
-                         false -> {Arg, Env}
-                       end,
-      case EAst of
-        EList when is_list(EList) ->
-          {{unquote_splicing, Meta, EList}, NewEnv#{macro_context => Context}, true};
+      {EValue, NewEnv} = eval_in_expand(Arg, Env),
+      case EValue of
+        {Category, _, List} when ?is_list(Category) ->
+          {{unquote_splicing_value, Meta, List}, NewEnv#{macro_context => Context}, true};
         _ ->
-          #{file := File} = Env,
-          kapok_error:compile_error(Meta, File, "unquoie splice should take list")
+          kapok_error:compile_error(Meta, ?m(Env, file), "unquote splice take arg not list ~p", [EValue])
       end;
     CurrentU < B ->
       NewContext = Context#{unquote_level => CurrentU},
@@ -122,16 +108,22 @@ expand({cons_list, Meta, {Head, Tail}}, Env1) ->
   {ETail, TEnv2, Expanded2} = expand(Tail, TEnv1),
   {{cons_list, Meta, {EHead, ETail}}, TEnv2, Expanded1 orelse Expanded2};
 
-expand({list, Meta, [{identifier, _, Id} | Args]} = Ast, #{macro_context := Context} = Env) ->
-  case is_not_inside_quote(Context) of
-    true -> kapok_dispatch:dispatch_local(Meta, Id, Args, Env, fun () -> expand_ast_list(Ast, Env) end);
-    false -> expand_ast_list(Ast, Env)
+expand({list, Meta, [{Category, _, Id} | Args]} = Ast, #{macro_context := Context} = Env)
+    when ?is_callable(Category) ->
+  case is_inside_backquote(Context) of
+    true -> expand_ast_list(Ast, Env);
+    false -> kapok_dispatch:dispatch_local(Meta, Id, Args, Env,
+                                           fun () ->
+                                               expand_ast_list(Ast, Env)
+                                           end)
   end;
 expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context} = Env) ->
-  case is_not_inside_quote(Context) of
-    true -> kapok_dispatch:dispatch_remote(Meta, M, F, Args, Env,
-                                           fun(_Receiver, _Name, _Args) -> expand_ast_list(Ast, Env) end);
-    false -> expand_ast_list(Ast, Env)
+  case is_inside_backquote(Context) of
+    true -> expand_ast_list(Ast, Env);
+    false -> kapok_dispatch:dispatch_remote(Meta, M, F, Args, Env,
+                                            fun(_Receiver, _Name, _Args) ->
+                                                expand_ast_list(Ast, Env)
+                                            end)
   end;
 expand({list, _, _} = Ast, Env) ->
   expand_ast_list(Ast, Env);
@@ -169,7 +161,7 @@ expand_list(List, Fun, Env) ->
 expand_list([H|T], Fun, Env, Expanded, Acc) ->
   {EArg, NewEnv, IsExpanded} = Fun(H, Env),
   NewAcc = case EArg of
-             {unquote_splicing, _, EList} -> lists:reverse(EList) ++ Acc;
+             {unquote_splicing_value, _, List} -> lists:reverse(List) ++ Acc;
              _ -> [EArg | Acc]
            end,
   expand_list(T, Fun, NewEnv, Expanded or IsExpanded, NewAcc);
@@ -203,8 +195,19 @@ quote(Number) when is_number(Number) ->
 quote(Arg) when is_binary(Arg) ->
   {bitstring, [], {binary_string, [], Arg}}.
 
-is_not_inside_quote(#{quote := Q, backquote_level := B} = _Context) ->
-  (Q == false) orelse (B == 0).
+eval_in_expand(Arg, Env) ->
+  case is_list_ast(Arg) of
+    true ->
+      {ErlValue, NewEnv} = kapok_compiler:ast(Arg, kapok_env:reset_macro_context(Env)),
+      {quote(ErlValue), NewEnv};
+    false ->
+      {Arg, Env}
+  end.
+
+
+
+is_inside_backquote(#{backquote_level := B} = _Context) ->
+  B > 0.
 
 is_list_ast({list, _, _}) ->
   true;

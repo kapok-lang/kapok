@@ -17,7 +17,6 @@
 
 new_macro_context() ->
   #{'__struct__' => 'Kapok.MacroContext',
-    quote => false,                        %% whether in quote form
     backquote_level => 0,                  %% the level in backquote form (probably embedded)
     unquote_level => 0,                    %% the level in unquote form (probably embedded)
     form => nil                            %% the body of current macro
