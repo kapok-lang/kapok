@@ -109,21 +109,31 @@ expand({cons_list, Meta, {Head, Tail}}, Env1) ->
   {{cons_list, Meta, {EHead, ETail}}, TEnv2, Expanded1 orelse Expanded2};
 
 expand({list, Meta, [{Category, _, Id} | Args]} = Ast, #{macro_context := Context} = Env)
-    when ?is_callable(Category) ->
+    when ?is_id(Category) ->
   case is_inside_backquote(Context) of
     true -> expand_ast_list(Ast, Env);
-    false -> kapok_dispatch:dispatch_local(Meta, Id, Args, Env,
-                                           fun () ->
-                                               expand_ast_list(Ast, Env)
-                                           end)
+    false ->
+      Arity = length(Args),
+      case kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env) of
+        {M, F, A, P} ->
+          NewArgs = kapok_dispatch:construct_new_args('expand', Arity, A, P, Args),
+          kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env);
+        false ->
+          expand_ast_list(Ast, Env)
+      end
   end;
 expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context} = Env) ->
   case is_inside_backquote(Context) of
     true -> expand_ast_list(Ast, Env);
-    false -> kapok_dispatch:dispatch_remote(Meta, M, F, Args, Env,
-                                            fun(_Receiver, _Name, _Args) ->
-                                                expand_ast_list(Ast, Env)
-                                            end)
+    false ->
+      Arity = length(Args),
+      case kapok_dispatch:find_remote_macro(Meta, M, {F, Arity}, Env) of
+        {M, F, A, P} ->
+          NewArgs = kapok_dispatch:construct_new_args('expand', Arity, A, P, Args),
+          kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env);
+        false ->
+          expand_ast_list(Ast, Env)
+      end
   end;
 expand({list, _, _} = Ast, Env) ->
   expand_ast_list(Ast, Env);
@@ -182,7 +192,7 @@ quote(Args) when is_list(Args) ->
   {list, [], lists:map(fun quote/1, Args)};
 %% map
 quote(Arg) when is_map(Arg) ->
-  {map, [], lists:reverse(lists:foldl(fun ({K, V}, Acc) -> [quote(V), quote(K) | Acc] end,
+  {map, [], lists:reverse(lists:foldl(fun({K, V}, Acc) -> [quote(V), quote(K) | Acc] end,
                                       [],
                                       maps:to_list(Arg)))};
 %% atom
@@ -205,7 +215,6 @@ eval_in_expand(Arg, Env) ->
   end.
 
 
-
 is_inside_backquote(#{backquote_level := B} = _Context) ->
   B > 0.
 
@@ -216,5 +225,5 @@ is_list_ast(_) ->
 
 %% (quote (a b c)) -> (list (quote a) (quote b) (quote c))
 transform_quote_list(Meta, {list, _, List}, QuoteType) ->
-  {list, Meta, lists:map(fun ({_, MetaElem, _} = Ast) -> {QuoteType, MetaElem, Ast} end, List)}.
+  {list, Meta, lists:map(fun({_, MetaElem, _} = Ast) -> {QuoteType, MetaElem, Ast} end, List)}.
 

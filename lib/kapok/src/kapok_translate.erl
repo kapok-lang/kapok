@@ -99,40 +99,60 @@ translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Env) ->
   {TExprs, TEnv} = translate(Exprs, Env),
   {to_block(Meta, TExprs), TEnv};
 
-translate({list, Meta, [{Category, _, Id} | Args]}, Env) when ?is_callable(Category) ->
+translate({list, Meta, [{Category, _, Id} | Args]}, #{scope := Scope} = Env) when ?is_id(Category) ->
   Arity = length(Args),
   FunArity = {Id, Arity},
-  %% check whether it's a local call
-  Namespace = ?m(Env, namespace),
-  ExportFunctions = kapok_namespace:namespace_export_functions(Namespace),
-  case kapok_dispatch:find_fa(FunArity, ExportFunctions) of
-    [{F, A, P}] ->
-      {TF, TEnv} = translate(F, Env),
-      NewArgs = kapok_dispatch:construct_new_args_ast(Arity, A, P, Args),
-      {TArgs, TEnv1} = translate(NewArgs, TEnv),
-      {{call, ?line(Meta), TF, TArgs}, TEnv1};
-    [] ->
-      %% check whether it's in imported function list
-      case kapok_dispatch:find_dispatch(Meta, FunArity, Env) of
-        {function, {M, [{F, A, P}]}} ->
-          {TM, _} = translate(M, Env),
-          {TF, _} = translate(F, Env),
-          NewArgs = kapok_dispatch:construct_new_args_ast(Arity, A, P, Args),
-          {TArgs, TEnv} = translate_args(NewArgs, Env),
-          Line = ?line(Meta),
-          {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
-        _ ->
-          kapok_error:compile_error(Meta, ?m(Env, file), "invalid identifier: ~s", [Id])
+  Vars = maps:get(vars, Scope),
+  case orddict:find(Id, Vars) of
+    {ok, _Var} ->
+      %% local variable
+      {TF, _} = translate(Id, Env),
+      {TArgs, TEnv} = translate(Args, Env),
+      {{call, ?line(Meta), TF, TArgs}, TEnv};
+    error ->
+      Namespace = maps:get(namespace, Env),
+      Exports = kapok_namespace:namespace_exports(Namespace),
+      case kapok_dispatch:find_fa(FunArity, Exports) of
+        [{F, A, P}] ->
+          {TF, TEnv} = translate(F, Env),
+          NewArgs = kapok_dispatch:construct_new_args('translate', Arity, A, P, Args),
+          {TArgs, TEnv1} = translate(NewArgs, TEnv),
+          {{call, ?line(Meta), TF, TArgs}, TEnv1};
+        [] ->
+          %% check whether it's in imported functions/macros
+          case kapok_dispatch:find_local_function(Meta, FunArity, Env) of
+            {M, F, A, P} ->
+              {TM, _} = kapok_translate:translate(M, Env),
+              {TF, _} = kapok_translate:translate(F, Env),
+              Args1 = kapok_dispatch:construct_new_args('translate', Arity, A, P, Args),
+              {TArgs, TEnv} = kapok_translate:translate_args(Args1, Env),
+              Line = ?line(Meta),
+              {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
+            _ ->
+              kapok_error:compile_error(Meta, ?m(Env, file), "unknown local call: ~s", [Id])
+          end
       end
   end;
 
 %%  Remote call
-translate({list, Meta, [{dot, _, {M, F}} | Args]}, Env) ->
-  {TM, _} = translate(M, Env),
-  {TF, _} = translate(F, Env),
-  {TArgs, TEnv} = translate_args(Args, Env),
-  Line = ?line(Meta),
-  {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv};
+translate({list, Meta, [{dot, _, {Prefix, Suffix}} | Args]}, Env) ->
+  Arity = length(Args),
+  FunArity = {Suffix, Arity},
+  Namespace = ?m(Env, namespace),
+  case Prefix of
+    Namespace ->
+      %% call to local module
+      Exports = kapok_namespace:namespace_exports(Namespace),
+      case kapok_dispatch:find_fa(FunArity, Exports) of
+        [{F1, A1, P1}] -> translate_remote_call(Meta, Suffix, F1, A1, P1, Arity, Args, Env);
+        _ -> kapok_error:compile_error(Meta, ?m(Env, file), "unknown remote call: ~s:~s", [Prefix, Suffix])
+      end;
+    _ ->
+      case kapok_dispatch:find_remote_function(Meta, Prefix, FunArity, Env) of
+        {M2, F2, A2, P2} -> translate_remote_call(Meta, M2, F2, A2, P2, Arity, Args, Env);
+        _ -> translate_remote_call(Meta, Prefix, Suffix, Args, Env)
+      end
+  end;
 
 translate({list, _Meta, Args}, Env) ->
   translate_list(Args, [], Env);
@@ -245,6 +265,17 @@ translate_match(Meta, Last, [H|T], Acc, Env) ->
   {TH, TEnv} = translate(H, Env),
   translate_match(Meta, TH, T, [{match, ?line(Meta), Last, TH} | Acc], TEnv).
 
+%% remote call
+
+translate_remote_call(Meta, M, F, Args, Env) ->
+  {TM, _} = translate(M, Env),
+  {TF, _} = translate(F, Env),
+  {TArgs, TEnv} = translate_args(Args, Env),
+  Line = ?line(Meta),
+  {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv}.
+translate_remote_call(Meta, M, F, A, P, Arity, Args, Env) ->
+  Args1 = kapok_dispatch:construct_new_args('translate', Arity, A, P, Args),
+  translate_remote_call(Meta, M, F, Args1, Env).
 
 %% Translate args
 

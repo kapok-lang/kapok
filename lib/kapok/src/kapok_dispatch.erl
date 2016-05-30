@@ -3,12 +3,13 @@
 -export([default_requires/0,
          default_functions/0,
          default_macros/0,
-         find_dispatch/3,
-         find_dispatch/2,
+         find_local_macro/3,
+         find_remote_macro/4,
+         find_local_function/3,
+         find_remote_function/4,
          find_fa/2,
-         dispatch_local/5,
-         dispatch_remote/6,
-         construct_new_args_ast/4,
+         construct_new_args/5,
+         expand_macro_named/6,
          format_error/1
         ]).
 -include("kapok.hrl").
@@ -21,61 +22,6 @@ default_functions() ->
 
 default_macros() ->
   [].
-
-find_local(Meta, FA, Env) ->
-  case find_dispatch(Meta, FA, Env) of
-    {function, R} -> R;
-    {macro, R} -> R;
-    _ -> false
-  end.
-
-%% dispatch
-
-dispatch_local(Meta, Name, Args, Env, Callback) ->
-  Arity = length(Args),
-  case expand_local(Meta, {Name, Arity}, Args, Env) of
-    {ok, Receiver, {EAst, EEnv}} ->
-      expand_ast(Meta, Receiver, Name, Arity, EAst, EEnv);
-    {ok, Receiver, NewName, NewArgs} ->
-      kapok_expand:expand({list, Meta, [{dot, Meta, [Receiver, NewName]} | NewArgs]}, Env);
-    error ->
-      Callback()
-  end.
-
-dispatch_remote(Meta, Receiver, Name, Args, Env, Callback) ->
-  Arity = length(Args),
-  case expand_remote(Meta, Receiver, {Name, Arity}, Args, Env) of
-    {ok, Receiver, Ast} -> expand_ast(Meta, Receiver, Name, Arity, Ast, Env);
-    error -> Callback(Receiver, Name, Args)
-  end.
-
-%% expand
-
-expand_local(Meta, {Name, Arity} = FA, Args, Env) ->
-  Dispatch = find_dispatch(Meta, FA, Env),
-  Macro = macro_for(Name, Arity),
-  case Dispatch of
-    {macro, {Receiver, {NewName, NewArity, ParaType}}} ->
-      NewArgs = construct_new_args(Arity, NewArity, ParaType, Args),
-      {ok, Receiver, expand_macro_named(Meta, Receiver, NewName, NewArity, NewArgs, Env)};
-    {function, {Receiver, {NewName, NewArity, ParaType}}} ->
-      NewArgs = construct_new_args(Arity, NewArity, ParaType, Args),
-      {ok, Receiver, NewName, NewArgs};
-    _ when Macro /= nil ->
-      {Receiver, {NewName, NewArity, ParaType}} = Macro,
-      NewArgs = construct_new_args(Arity, NewArity, ParaType, Args),
-      {ok, Receiver, expand_macro_named(Meta, Receiver, NewName, NewArity, NewArgs, Env)};
-    _ ->
-      error
-  end.
-
-expand_remote(Meta, Receiver, {Name, Arity} = FA, Args, Env) ->
-  case find_dispatch(Meta, FA, Env) of
-    {macro, Receiver} ->
-      {ok, Receiver, expand_macro_named(Meta, Receiver, Name, Arity, Args, Env)};
-    _ ->
-      error
-  end.
 
 %% expand helpers
 
@@ -94,37 +40,181 @@ expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
   Fun = fun Receiver:Name/ProperArity,
   expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env).
 
-expand_ast(_Meta, _Receiver, _Name, _Arity, Ast, Env) ->
-  try
-    kapok_expand:expand(Ast, Env)
-  catch
-    Kind:Reason ->
-      erlang:raise(Kind, Reason, erlang:get_stacktrace())
-  end.
-
 %% Helpers
 
-find_dispatch(Meta, FA, #{functions := Functions,
-                          macros := Macros} = Env) ->
-  FunMatch = find_dispatch(FA, Functions),
-  MacroMatch = find_dispatch(FA, Macros),
+find_local_macro(Meta, FA, Env) ->
+  Retry = fun() ->
+              find_local_macro(Meta, FA, reload_uses(Env), nil)
+          end,
+  find_local_macro(Meta, FA, Env, Retry).
+find_local_macro(Meta, FA, Env, Retry) ->
+  case find_dispatch(Meta, FA, Env) of
+    {macro, {M, F, A, P}} ->
+      {M, kapok_utils:macro_name(F), A, P};
+    {function, _} ->
+      false;
+    false ->
+      case Retry of
+        nil -> false;
+        _ -> Retry()
+      end
+  end.
+
+find_remote_macro(Meta, M, FA, Env) ->
+  Requires = ?m(Env, requires),
+  Uses = ?m(Env, uses),
+  case orddict:find(M, Requires) of
+    {ok, M1} ->
+      case orddict:find(M, Uses) of
+        {ok, _} ->
+          Retry = fun() ->
+                      find_remote_macro(Meta, M, FA, reload_uses(Env), nil)
+                  end,
+          find_remote_macro(Meta, M, FA, Env, Retry);
+        error ->
+          case find_optional_dispatch(Meta, M1, FA, Env) of
+            {macro, {M, F, A, P}} -> {M, kapok_utils:macro_name(F), A, P};
+            {function, _} -> false;
+            false -> false
+          end
+      end;
+    error ->
+      false
+  end.
+find_remote_macro(Meta, M, FA, Env, Retry) ->
+  case find_dispatch(Meta, M, FA, Env) of
+    {macro, {M, F, A, P}} ->
+      {M, kapok_utils:macro_name(F), A, P};
+    {function, _} ->
+      false;
+    false ->
+      case Retry of
+        nil -> false;
+        _ -> Retry()
+      end
+  end.
+
+find_local_function(Meta, FA, Env) ->
+  Retry = fun() ->
+              find_local_function(Meta, FA, reload_uses(Env), nil)
+          end,
+  find_local_function(Meta, FA, Env, Retry).
+find_local_function(Meta, FA, Env, Retry) ->
+  case find_dispatch(Meta, FA, Env) of
+    {Tag, MFAP} when Tag == macro; Tag == function ->
+      MFAP;
+    false ->
+      case Retry of
+        nil -> false;
+        _ -> Retry()
+      end
+  end.
+
+find_remote_function(Meta, M, FA, #{requires := Requires} = Env) ->
+  Requires = ?m(Env, requires),
+  Uses = ?m(Env, uses),
+  case orddict:find(M, Requires) of
+    {ok, M1} ->
+      case orddict:find(M1, Uses) of
+        {ok, _} ->
+          Retry = fun() ->
+                      io:format("retry find remote function ~s:~p~n", [M, FA]),
+                      Env1 = reload_uses(Env),
+                      find_remote_function(Meta, M, FA, Env1, nil)
+                  end,
+          find_remote_function(Meta, M, FA, Env, Retry);
+        error ->
+          case find_optional_dispatch(Meta, M1, FA, Env) of
+            {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
+            false -> false
+          end
+        end;
+    error ->
+      false
+  end.
+
+find_remote_function(Meta, M, FA, Env, Retry) ->
+  case find_dispatch(Meta, M, FA, Env) of
+    {Tag, MFAP} when Tag == macro; Tag == function ->
+      MFAP;
+    false ->
+      case Retry of
+        nil -> false;
+        _ -> Retry()
+      end
+  end.
+
+find_optional_dispatch(Meta, M, {Fun, Arity} = FA, Env) ->
+  FunList = get_optional_functions(M),
+  MacroList = get_optional_macros(M),
+  FunMatch = find_fa(FA, FunList),
+  MacroMatch = find_fa(FA, MacroList),
   case {FunMatch, MacroMatch} of
-    {[], [E]} -> {macro, E};
-    {[E], []} -> {function, E};
-    {[], []} -> false;
+    {[], [Match]} ->
+      {F, A, P} = Match,
+      {macro, {M, F, A, P}};
+    {[Match], []} ->
+      {F, A, P} = Match,
+      {function, {M, F, A, P}};
+    {[], []} ->
+      false;
     _ ->
-      {Name, Arity} = FA,
-      [First | _] = FunMatch,
-      [Second | _] = MacroMatch,
-      Error = {ambiguous_call, {First, Second, Name, Arity}},
+      [First, Second | _T] = FunMatch ++ MacroMatch,
+      Error = {ambiguous_call, {M, Fun, Arity, First, Second}},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
+    end.
+
+find_dispatch(Meta, Module, {Fun, Arity} = FA, #{functions := Functions, macros := Macros} = Env) ->
+  io:format("find remote dispatch, Funs: ~p, Macros: ~p~n", [Functions, Macros]),
+  FunList = case orddict:find(Module, Functions) of
+              {ok, L1} -> L1;
+              error -> []
+            end,
+  MacroList = case orddict:find(Module, Macros) of
+                {ok, L2} -> L2;
+                error -> []
+              end,
+  FunMatch = find_fa(FA, FunList),
+  MacroMatch = find_fa(FA, MacroList),
+  case {FunMatch, MacroMatch} of
+    {[], [Match]} ->
+      {F, A, P} = Match,
+      {macro, {Module, F, A, P}};
+    {[Match], []} ->
+      {F, A, P} = Match,
+      {function, {Module, F, A, P}};
+    {[], []} ->
+      false;
+    _ ->
+      [First, Second | _T] = FunMatch ++ MacroMatch,
+      Error = {ambiguous_call, {Module, Fun, Arity, First, Second}},
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
 
-find_dispatch(FA, List) when is_list(List) ->
-  lists:foldl(fun ({Module, Imports}, Acc0) ->
+find_dispatch(Meta, {Fun, Arity} = FA, #{functions := Functions, macros := Macros} = Env) ->
+  FunMatch = find_mfa(FA, Functions),
+  MacroMatch = find_mfa(FA, Macros),
+  case {FunMatch, MacroMatch} of
+    {[], [Match]} ->
+      {M, [{F, A, P}]} = Match,
+      {macro, {M, F, A, P}};
+    {[Match], []} ->
+      {M, [{F, A, P}]} = Match,
+      {function, {M, F, A, P}};
+    {[], []} ->
+      false;
+    _ ->
+      [First, Second | _T] = FunMatch ++ MacroMatch,
+      Error = {ambiguous_call, {Fun, Arity, First, Second}},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
+  end.
+
+
+find_mfa(FA, List) when is_list(List) ->
+  lists:foldl(fun({Module, Imports}, Acc) ->
                   case find_fa(FA, Imports) of
-                    [] -> Acc0;
-                    R -> orddict:store(Module, R, Acc0)
+                    [] -> Acc;
+                    R -> orddict:store(Module, R, Acc)
                   end
               end,
               [],
@@ -132,65 +222,180 @@ find_dispatch(FA, List) when is_list(List) ->
 
 find_fa({Fun, Arity} = FA, FAList) when is_list(FAList) ->
   ordsets:fold(
-      fun ({F, A} = E, Acc) when is_number(A) andalso E == FA -> [{F, A, normal} | Acc];
-          ({Alias, {F, A}}, Acc) when {Alias, A} == FA -> [{F, A, normal} | Acc];
-          ({F, A, normal} = E, Acc) when {F, A} == FA -> [E | Acc];
-          ({F, A, rest} = E, Acc) when (Fun == F) andalso (Arity >= A) -> [E | Acc];
-          (_, Acc) -> Acc
+      fun({F, A} = E, Acc) when is_number(A) andalso E == FA -> [{F, A, 'normal'} | Acc];
+         ({Alias, {F, A}}, Acc) when {Alias, A} == FA -> [{F, A, 'normal'} | Acc];
+         ({F, A, 'normal'} = E, Acc) when {F, A} == FA -> [E | Acc];
+         ({F, A, 'rest'} = E, Acc) when (Fun == F) andalso (Arity >= A) -> [E | Acc];
+         (_, Acc) -> Acc
       end,
       [],
       FAList).
 
-construct_new_args(Arity, NewArity, ParaType, Args) ->
+construct_new_args(Context, Arity, NewArity, ParaType, Args) ->
   case (ParaType == rest) andalso (Arity >= NewArity) of
     true ->
       {NormalParas, RestPara} = lists:split(NewArity-1, Args),
-      NormalParas ++ [RestPara];
+      case Context of
+        'expand' -> NormalParas ++ [RestPara];
+        'translate' -> NormalParas ++ [{list, [], RestPara}]
+      end;
     false ->
       Args
   end.
 
-construct_new_args_ast(Arity, NewArity, ParaType, Args) ->
-  case (ParaType == rest) andalso (Arity >= NewArity) of
-    true ->
-      {NormalParas, RestPara} = lists:split(NewArity-1, Args),
-      NormalParas ++ [{list, [], RestPara}];
-    false ->
-      Args
+reload_uses(#{uses := Uses} = Env) ->
+  lists:foldl(fun({Module, Args}, E) ->
+                  {ok, Meta} = orddict:find(meta, Args),
+                  case module_is_imported(Module, E) of
+                    true -> E;
+                    false -> import_module(Meta, Module, Args, E)
+                  end
+              end,
+              Env,
+              Uses).
+
+module_is_imported(Module, #{functions := Functions, macros := Macros}) ->
+  orddict:is_key(Module, Functions) orelse orddict:is_key(Module, Macros).
+
+import_module(Meta, Module, Args, Env) ->
+  {Functions, Macros} = get_exports(Meta, Module, Args, Env),
+  Env1 = case Functions of
+           [] -> Env;
+           _ -> kapok_env:add_function(Meta, Env, Module, Functions)
+         end,
+  Env2 = case Macros of
+           [] -> Env1;
+           _ -> kapok_env:add_macro(Meta, Env1, Module, Macros)
+         end,
+  Env2.
+
+get_exports(Meta, Module, Args, Env) ->
+  Functions = get_functions(Meta, Module, Env),
+  Macros = get_macros(Meta, Module, Env),
+  {filter_exports(Functions, Args),
+   filter_exports(Macros, Args)}.
+
+ensure_loaded(Meta, Module, Env) ->
+  case code:ensure_loaded(Module) of
+    {module, Module} ->
+      ok;
+    {error, What} ->
+      kapok_error:compile_error(Meta, ?m(Env, file), "fail to load module: ~p due to load error: ~p", [Module, What])
   end.
 
-macro_for(Name, Arity) ->
-  %% check for predifined macro
-  Fun = list_to_atom("MACRO-" ++ atom_to_list(Name)),
-  Macros = [],
-  Result = lists:filter(fun ({F, A, normal}) -> {Name, Arity} == {F, A};
-                            ({F, A, rest}) ->
-                            (Fun == F) andalso (Arity >= A)
-                        end,
-                        Macros),
-  case Result of
-    [] -> nil;
-    [E] -> {kapok_bootstrap, E}
-  end.
-
-get_optional_macros(Receiver) ->
-  case code:ensure_loaded(Receiver) of
-    {module, Receiver} ->
+get_optional_functions(Module) ->
+  case code:ensure_loaded(Module) of
+    {module, Module} ->
       try
-        Receiver:'__info__'(macros)
+        L = Module:'__info__'(funs),
+        ordsets:from_list(L)
+      catch
+        error:undef ->
+          try
+            L1 = Module:module_info(exports),
+            ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
+          catch
+            error:undef -> []
+          end
+      end;
+    {error, _} -> []
+  end.
+
+get_functions(Meta, Module, Env) ->
+  ensure_loaded(Meta, Module, Env),
+  try
+    L = Module:'__info__'(funs),
+    ordsets:from_list(L)
+  catch
+    error:undef ->
+      try
+        L1 = Module:module_info(exports),
+        ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
+      catch
+        error:undef ->
+          kapok_error:compile_error(Meta, ?m(Env, file), "fail to get exports for unloaded module: ~p", [Module])
+      end
+  end.
+
+get_optional_macros(Module) ->
+  case code:ensure_loaded(Module) of
+    {module, Module} ->
+      try
+        L = Module:'__info__'(macros),
+        ordsets:from_list(L)
       catch
         error:undef -> []
       end;
     {error, _} -> []
   end.
 
+get_macros(Meta, Module, Env) ->
+  ensure_loaded(Meta, Module, Env),
+  try
+    L = Module:'__info__'(macros),
+    ordsets:from_list(L)
+  catch
+    error:undef -> []
+  end.
+
+filter_exports(Exports, Args) ->
+  lists:foldl(fun filter_exports_by/2, Exports, Args).
+filter_exports_by({'only', Includes}, Exports) ->
+  lists:filter(fun(FAP) ->
+                   Match = lists:filter(fun(E) -> match_fa(E, FAP) end, Includes),
+                   case Match of
+                     [] -> false;
+                     _ -> true
+                   end
+               end,
+               Exports);
+filter_exports_by({'exclude', Excludes}, Exports) ->
+  lists:filter(fun(FAP)  ->
+                   Match = lists:filter(fun(E) -> match_fa(E, FAP) end, Excludes),
+                   case Match of
+                     [] -> true;
+                     _ -> false
+                   end
+               end,
+               Exports);
+filter_exports_by({'renames', Renames}, Exports) ->
+  L = lists:foldl(fun({Fun, Arity, ParaType} = FAP, Acc) ->
+                      New = lists:foldl(fun({NF, {F, A}}, Acc0) ->
+                                            case (F == Fun) andalso (A == Arity) of
+                                              true -> [{NF, {Fun, Arity, ParaType}} | Acc0];
+                                              _ -> Acc0
+                                            end;
+                                           ({NF, F}, Acc0) ->
+                                            case (F == Fun) of
+                                              true -> [{NF, {Fun, Arity, ParaType}} | Acc0];
+                                              _ -> Acc0
+                                            end
+                                        end,
+                                        [],
+                                        Renames),
+                      case New of
+                        [] -> [FAP | Acc];
+                        _ -> New ++ Acc
+                      end
+                  end,
+                  [],
+                  Exports),
+  ordsets:from_list(L);
+filter_exports_by(_, Exports) ->
+  Exports.
+
+match_fa({F, A}, {Fun, Arity, _ParaType}) ->
+  (F == Fun) andalso (A == Arity);
+match_fa(Name, {Fun, _Arity, _ParaType}) when is_atom(Name) ->
+  Name == Fun.
 
 %% ERROR HANDLING
 
 format_error({invalid_expression, {Ast}}) ->
   io_lib:format("invalid expression ~p", [Ast]);
-format_error({ambiguous_call, {Mod1, Mod2, Name, Arity}}) ->
-  io_lib:format("function ~ts/~B imported from both ~ts and ~ts, call in ambiguous",
-               [Name, Arity, Mod1, Mod2]).
+format_error({ambiguous_call, {M, F, A, FAP1, FAP2}}) ->
+  io_lib:format("find function ~ts:~ts/~B duplicates in ~p and ~p", [M, F, A, FAP1, FAP2]);
+format_error({ambiguous_call, {F, A, FAP1, FAP2}}) ->
+  io_lib:format("function ~ts/~B imported from both ~ts and ~ts, call in ambiguous", [F, A, FAP1, FAP2]).
 
 

@@ -73,7 +73,7 @@ file(File, Dest) ->
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, Opts),
   Env = kapok_env:env_for_eval([{line, 1}, {file, File} | Opts]),
-  kapok_namespace:compile(Ast, Env, fun (Module, Binary) ->
+  kapok_namespace:compile(Ast, Env, fun(Module, Binary) ->
                                         %% write compiled binary to dest file
                                         case Dest of
                                           nil -> ok;
@@ -84,6 +84,7 @@ file(File, Dest) ->
                                         case lists:keyfind(run_mode, 1, Opts) of
                                           {run_mode, ["script"]} ->
                                             try
+                                              io:format("call main~n"),
                                               Module:main()
                                             catch
                                               error:undef -> ok

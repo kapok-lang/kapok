@@ -3,6 +3,8 @@
 -export([new_env/0,
          add_require/3,
          add_require/4,
+         add_use/3,
+         add_use/5,
          add_function/4,
          add_macro/4,
          reset_macro_context/1,
@@ -37,6 +39,7 @@ new_env() ->
     context => nil,                        %% can be match_vars, guards, or nil
     macro_context => new_macro_context(),  %%
     requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
+    uses => [],                            %% a dict of modules used in 'module -> use arguments'
     functions => [],                       %% a dict of imported functions(and aliases) by 'module -> [fun...]'
     macros => [],                          %% a dict of imported macros(aliases) by 'module -> [macro...]'
     scope => new_scope()                   %% the current scope
@@ -52,6 +55,19 @@ add_require(Meta, #{requires := Requires} = Env, Alias, Original) when is_atom(A
   end,
   NewRequires = orddict:store(Alias, Original, Requires),
   Env#{requires => NewRequires}.
+
+add_use(Meta, #{uses := Uses} = Env, Module) ->
+  Env#{uses => orddict:store(Module, [{meta, Meta}], Uses)}.
+
+add_use(_Meta, #{uses := Uses} = Env, Module, Key, Value) ->
+  case orddict:find(Module, Uses) of
+    {ok, Args} ->
+      NewArgs = orddict:store(Key, Value, Args),
+      Env#{uses => orddict:store(Module, NewArgs, Uses)};
+    error ->
+      NewArgs = [{Key, Value}],
+      Env#{uses => orddict:store(Module, NewArgs, Uses)}
+  end.
 
 add_function(_Meta, #{functions := Functions} = Env, Module, ToImports) ->
   case orddict:find(Module, Functions) of
@@ -94,7 +110,7 @@ add_var(Meta, #{scope := Scope} = Env, Var) ->
 check_var(Meta, #{scope := Scope} = Env, Var) ->
   check_var(Meta, Env, Scope, Var).
 check_var(Meta, Env, nil, Var) ->
-  kapok_error:compile_error(Meta, ?m(Env, file),"invalid var ~p", [Var]);
+  kapok_error:compile_error(Meta, ?m(Env, file),"unable to resolve symbol: ~p", [Var]);
 check_var(Meta, Env, Scope, Var) ->
   Vars = maps:get(vars, Scope),
   case orddict:is_key(Var, Vars) of
@@ -128,8 +144,8 @@ env_for_eval(Env, Opts) ->
 
   Requires = case lists:keyfind(requires, 1, Opts) of
                {requires, RequiresOpt} when is_list(RequiresOpt) ->
-                 lists:map(fun ({_Alias, _Original} = E) -> E;
-                               (Require) when is_atom(Require) -> {Require, Require}
+                 lists:map(fun({_Alias, _Original} = E) -> E;
+                              (Require) when is_atom(Require) -> {Require, Require}
                            end,
                            RequiresOpt);
                false -> ?m(Env, requires)
