@@ -84,7 +84,6 @@ file(File, Dest) ->
                                         case lists:keyfind(run_mode, 1, Opts) of
                                           {run_mode, ["script"]} ->
                                             try
-                                              io:format("call main~n"),
                                               Module:main()
                                             catch
                                               error:undef -> ok

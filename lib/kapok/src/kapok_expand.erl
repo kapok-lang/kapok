@@ -1,7 +1,8 @@
 %%
 -module(kapok_expand).
 -export([expand_all/2,
-         expand/2]).
+         expand/2,
+         quote/1]).
 -include("kapok.hrl").
 
 expand_all(Ast, Env) ->
@@ -114,12 +115,13 @@ expand({list, Meta, [{Category, _, Id} | Args]} = Ast, #{macro_context := Contex
     true -> expand_ast_list(Ast, Env);
     false ->
       Arity = length(Args),
-      case kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env) of
+      {R, Env1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env),
+      case R of
         {M, F, A, P} ->
           NewArgs = kapok_dispatch:construct_new_args('expand', Arity, A, P, Args),
-          kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env);
+          kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1);
         false ->
-          expand_ast_list(Ast, Env)
+          expand_ast_list(Ast, Env1)
       end
   end;
 expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context} = Env) ->
@@ -127,12 +129,13 @@ expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context
     true -> expand_ast_list(Ast, Env);
     false ->
       Arity = length(Args),
-      case kapok_dispatch:find_remote_macro(Meta, M, {F, Arity}, Env) of
+      {R, Env1} = kapok_dispatch:find_remote_macro(Meta, M, {F, Arity}, Env),
+      case R of
         {M, F, A, P} ->
           NewArgs = kapok_dispatch:construct_new_args('expand', Arity, A, P, Args),
-          kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env);
+          kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1);
         false ->
-          expand_ast_list(Ast, Env)
+          expand_ast_list(Ast, Env1)
       end
   end;
 expand({list, _, _} = Ast, Env) ->

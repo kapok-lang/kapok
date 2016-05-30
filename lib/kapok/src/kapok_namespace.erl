@@ -84,8 +84,8 @@ module_exports(Functions, Macros) ->
   ordsets:union(ExportFunctions, ExportMacros).
 
 info_fun(Functions, Macros, Env) ->
-  {FunctionList, _} = kapok_translate:translate(Functions, Env),
-  {MacroList, _} = kapok_translate:translate(Macros, Env),
+  {FunctionList, _} = kapok_translate:translate(kapok_expand:quote(Functions), Env),
+  {MacroList, _} = kapok_translate:translate(kapok_expand:quote(Macros), Env),
   {function, 0,'__info__',1,
    [{clause,0,[{atom,0,'functions'}],[],[FunctionList]},
     {clause,0,[{atom,0,'macros'}],[],[MacroList]}]}.
@@ -193,13 +193,11 @@ handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
 handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'as'}, {identifier, _, Id}} | T], Env) ->
   handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_require(Meta, Env, Id, Name));
-handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {Category, Meta2, Args}} | T], Env)
-    when ?is_list(Category) ->
+handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {_, Meta2, Args}} | T], Env) ->
   Functions = parse_functions(Meta2, Args, Env),
   Env1 = kapok_env:add_use(Meta1, Env, Name, 'exclude', Functions),
   handle_use_element_arguments(Meta, Name, Meta1, T, Env1);
-handle_use_element_arguments(Meta, Name, nil, [{{atom, Meta1, 'only'}, {Category, Meta2, Args}} | T], Env)
-    when ?is_list(Category) ->
+handle_use_element_arguments(Meta, Name, nil, [{{atom, Meta1, 'only'}, {_, Meta2, Args}} | T], Env) ->
   Functions = parse_functions(Meta2, Args, Env),
   Env1 = kapok_env:add_use(Meta1, Env, Name, 'only', Functions),
   handle_use_element_arguments(Meta, Name, nil, T, Env1);
@@ -294,7 +292,7 @@ parse_function_aliases(Meta, Args, Env) ->
               when ?is_list(Category) ->
             {NewId, {OriginalId, Integer}};
            ({Category, _, [{Category1, _, OldId}, {Category2, _, NewId}]})
-              when ?is_list(Category), ?is_list(Category1), ?is_list(Category2) ->
+              when ?is_list(Category), ?is_id(Category1), ?is_id(Category2) ->
             {NewId, OldId};
            (Other) ->
             kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
