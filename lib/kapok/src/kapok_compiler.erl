@@ -64,20 +64,21 @@ file(File, Dest) ->
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, []),
   Env = kapok_env:env_for_eval([{line, 1}, {file, File}]),
-  kapok_namespace:compile(Ast, Env, fun(Module, Binary) ->
-                                        %% write compiled binary to dest file
-                                        case Dest of
-                                          nil -> ok;
-                                          _ ->
-                                            ok = file:write_file(Dest, Binary)
-                                        end,
-                                        %% TODO add script mode
-                                        try
-                                          Module:main()
-                                        catch
-                                          error:undef -> ok
-                                        end
-                                    end).
+  AfterCompile = fun(Module, Binary) ->
+                     %% write compiled binary to dest file
+                     case Dest of
+                       nil ->
+                         %% TODO add script mode
+                         try
+                           Module:main()
+                         catch
+                           error:undef -> ok
+                         end;
+                       _ ->
+                         ok = file:write_file(Dest, Binary)
+                     end
+                 end,
+  kapok_namespace:compile(Ast, Env, AfterCompile).
 
 %%
 core() ->
