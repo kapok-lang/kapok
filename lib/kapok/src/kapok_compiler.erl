@@ -60,19 +60,10 @@ string(Contents, File) when is_list(Contents), is_binary(File) ->
 file(Relative) when is_binary(Relative) ->
   file(Relative, nil).
 file(File, Dest) ->
-  %% parse arguments
-  case init:get_argument(run_mode) of
-    {ok, [Mode]} ->
-      Opts = [{run_mode, Mode}];
-    _ ->
-      Opts = []
-  end,
-  io:format("Options: ~p~n", [Opts]),
-  %%
   {ok, Bin} = file:read_file(File),
   Contents = kapok_utils:characters_to_list(Bin),
-  Ast = 'string_to_ast!'(Contents, 1, File, Opts),
-  Env = kapok_env:env_for_eval([{line, 1}, {file, File} | Opts]),
+  Ast = 'string_to_ast!'(Contents, 1, File, []),
+  Env = kapok_env:env_for_eval([{line, 1}, {file, File}]),
   kapok_namespace:compile(Ast, Env, fun(Module, Binary) ->
                                         %% write compiled binary to dest file
                                         case Dest of
@@ -80,15 +71,11 @@ file(File, Dest) ->
                                           _ ->
                                             ok = file:write_file(Dest, Binary)
                                         end,
-                                        %% call the main() on script mode
-                                        case lists:keyfind(run_mode, 1, Opts) of
-                                          {run_mode, ["script"]} ->
-                                            try
-                                              Module:main()
-                                            catch
-                                              error:undef -> ok
-                                            end;
-                                          _ -> ok
+                                        %% TODO add script mode
+                                        try
+                                          Module:main()
+                                        catch
+                                          error:undef -> ok
                                         end
                                     end).
 

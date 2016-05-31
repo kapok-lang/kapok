@@ -78,7 +78,7 @@ namespace_exports(Namespace) ->
 
 module_exports(Functions, Macros) ->
   ExportFunctions = [{F, A} || {F, A, _P} <- Functions],
-  ExportMacros = [{F, A} || {F, A, _P} <- Macros],
+  ExportMacros = [{kapok_utils:macro_name(F), A} || {F, A, _P} <- Macros],
   io:format("export macros: ~p~n", [ExportMacros]),
   %% TODO macro will shadow function if there is any overrides
   ordsets:union(ExportFunctions, ExportMacros).
@@ -239,7 +239,7 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env1) ->
       add_macro_clause(Namespace, MacroName, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
       add_export_macro(Namespace, Name, Arity, ParameterType),
       case ParameterType of
-        'rest' -> add_redirect_call(Meta, Kind, Namespace, Name, Arity, Args, Env1);
+        'rest' -> add_redirect_call(Meta, Kind, Namespace, MacroName, Arity, Args, Env1);
         _ -> ok
       end
   end,
@@ -288,12 +288,10 @@ parse_functions(Meta, Args, Env) ->
 
 
 parse_function_aliases(Meta, Args, Env) ->
-  Fun = fun({Category, _, [{function_id, _, {OriginalId, Integer}}, {identifier, _, NewId}]})
-              when ?is_list(Category) ->
-            {NewId, {OriginalId, Integer}};
-           ({Category, _, [{Category1, _, OldId}, {Category2, _, NewId}]})
-              when ?is_list(Category), ?is_id(Category1), ?is_id(Category2) ->
-            {NewId, OldId};
+  Fun = fun({Category, _, [{function_id, _, {Id, Integer}}, {identifier, _, Alias}]}) when ?is_list(Category) ->
+            {Alias, {Id, Integer}};
+           ({Category, _, [{C1, _, Id}, {C2, _, Alias}]}) when ?is_list(Category), ?is_id(C1), ?is_id(C2) ->
+            {Alias, Id};
            (Other) ->
             kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
         end,

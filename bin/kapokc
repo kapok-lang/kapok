@@ -1,0 +1,33 @@
+#!/bin/sh
+# kapok compiler script
+
+usage() {
+  echo "Usage: `basename $0` [kapok options] [compiler options] [kapok files]
+
+  -o           The directory to output compiled files
+  -verbose     Print informationaal messages
+
+** Options given after -- are passed down to the execuded code
+** Options can be passed to the erlang runtime using KAPOK_ERL_OPTIONS
+** Options can be passed to the erlang compiler using ERL_COMPILER_OPTIONS" >&2
+}
+
+if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+  usage
+  exit 1
+fi
+
+readlink_f() {
+  cd "$(dirname "$1")" > /dev/null
+  filename="$(basename "$1")"
+  if [ -L "$filename" ]; then
+    readlink_f "$(readlink "$filename")"
+  else
+    echo "$(pwd -P)/$filename"
+  fi
+}
+
+PROGRAM=$(readlink_f "$0")
+PROGRAM_DIR=$(dirname "$PROGRAM")
+exec "$PROGRAM_DIR"/kapok +kapokc "$@"
+

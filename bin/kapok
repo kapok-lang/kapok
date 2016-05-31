@@ -1,7 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/sh
+# kapok compiling/executing script
 
 usage() {
-    echo "Usage: $(basename $0) [options] [.cb file]" >&2
+  echo "Usage: `basename $0` [options] [kapok file]
+
+  -v                  Prints version and exit
+  -pa \"path\"        Prepends the giiven path to Erlang code path (*)
+  -pz \"path\"        Appends the given path to Erlang code path (*)
+  --erl \"Options\"   Options to be passed down to erlang runtime
+
+** Options marked with (*) can be given more than once
+** Options given after the kapok file or -- are passed down to the execute code
+** Options can be passed to the erlang runtime using KAPOK_ERL_OPTIONS or --erl" >&2
 }
 
 if [ $# == 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -9,8 +19,38 @@ if [ $# == 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     exit 1
 fi
 
-ERL="erl"
-ERL_OPTIONS="-noshell -s kapok start_cli"
+readlink_f() {
+  cd "$(dirname "$1")" > /dev/null
+  filename="$(basename "$1")"
+  if [ -L "$filename" ]; then
+    readlink_f "$(readlink "$filename")"
+  else
+    echo "$(pwd -P)/$filename"
+  fi
+}
 
-exec "${ERL}" -pa "./ebin" -pa "$HOME/tmp/ws" -run_mode script ${ERL_OPTIONS} -extra "$@"
+MODE="kapok"
+ERL_EXEC="erl"
+ERL_OPTIONS=""
+I=1
+
+while [ $I -le $# ]; do
+  Step=1
+  eval "PEEK=\${$I}"
+  case "$PEEK" in
+    +kapokc)
+        MODE="kapokc"
+        ;;
+    -v)
+        ;;
+  esac
+  I=$(expr $I + $Step)
+done
+
+PROGRAM=$(readlink_f "$0")
+PROGRAM_DIR=$(dirname "$PROGRAM")
+
+ERL_OPTIONS="-noshell -s kapok start_cli $ERL_OPTIONS"
+
+exec "${ERL_EXEC}" -pa "$PROGRAM_DIR"/../lib/*/ebin ${KAPOK_ERL_OPTIONS} ${ERL_OPTIONS} -extra "$@"
 

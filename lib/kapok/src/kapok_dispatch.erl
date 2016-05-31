@@ -43,8 +43,9 @@ expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
 
 %% find local/remote macro/function
 
-find_local_macro(Meta, FA, Env) ->
-  {D, Env1} = find_dispatch(Meta, FA, Env),
+find_local_macro(Meta, FunArity, Env) ->
+  io:format("call find_local_macro() FunArity: ~p~n", [FunArity]),
+  {D, Env1} = find_dispatch(Meta, FunArity, Env),
   R = case D of
         {macro, {M, F, A, P}} -> {M, F, A, P};
         {function, _} -> false;
@@ -52,14 +53,14 @@ find_local_macro(Meta, FA, Env) ->
       end,
   {R, Env1}.
 
-find_remote_macro(Meta, M, FA, Env) ->
+find_remote_macro(Meta, Module, FunArity, Env) ->
   Requires = ?m(Env, requires),
   Uses = ?m(Env, uses),
-  case orddict:find(M, Requires) of
+  case orddict:find(Module, Requires) of
     {ok, M1} ->
-      case orddict:find(M, Uses) of
+      case orddict:find(Module, Uses) of
         {ok, _} ->
-          {D, Env} = find_dispatch(Meta, M, FA, Env),
+          {D, Env} = find_dispatch(Meta, Module, FunArity, Env),
           R = case D of
                 {macro, {M, F, A, P}} -> {M, F, A, P};
                 {function, _} -> false;
@@ -67,7 +68,7 @@ find_remote_macro(Meta, M, FA, Env) ->
               end,
           {R, Env};
         error ->
-          {D, Env} = find_optional_dispatch(Meta, M1, FA, Env),
+          {D, Env} = find_optional_dispatch(Meta, M1, FunArity, Env),
           R = case D of
                 {macro, {M, F, A, P}} -> {M, F, A, P};
                 {function, _} -> false;
@@ -87,29 +88,29 @@ find_export(FunArity, Env) ->
     [] -> false
   end.
 
-find_local_function(Meta, FA, Env) ->
-  {D, Env1} = find_dispatch(Meta, FA, Env),
+find_local_function(Meta, FunArity, Env) ->
+  {D, Env1} = find_dispatch(Meta, FunArity, Env),
   R = case D of
         {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
         false -> false
       end,
   {R, Env1}.
 
-find_remote_function(Meta, M, FA, #{requires := Requires} = Env) ->
+find_remote_function(Meta, Module, FunArity, #{requires := Requires} = Env) ->
   Requires = ?m(Env, requires),
   Uses = ?m(Env, uses),
-  case orddict:find(M, Requires) of
+  case orddict:find(Module, Requires) of
     {ok, M1} ->
       case orddict:find(M1, Uses) of
         {ok, _} ->
-          {D, Env1} = find_dispatch(Meta, M, FA, Env),
+          {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
           R = case D of
                 {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
                 false -> false
               end,
           {R, Env1};
         error ->
-          {D, Env1} = find_optional_dispatch(Meta, M1, FA, Env),
+          {D, Env1} = find_optional_dispatch(Meta, M1, FunArity, Env),
           R = case D of
                 {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
                 false -> false
@@ -155,10 +156,11 @@ find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env)
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
 
-find_dispatch(Meta, {Fun, Arity} = FA, Env) ->
+find_dispatch(Meta, {Fun, Arity} = FunArity, Env) ->
   Env1 = ensure_uses_imported(Env),
-  FunMatch = find_mfa(FA, ?m(Env1, functions)),
-  MacroMatch = find_mfa(FA, ?m(Env1, macros)),
+  FunMatch = find_mfa(FunArity, ?m(Env1, functions)),
+  MacroMatch = find_mfa(FunArity, ?m(Env1, macros)),
+  io:format("find FA: ~s, ~B, macros: ~p, macromatch: ~p~n", [Fun, Arity, ?m(Env1, macros), MacroMatch]),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
       {M, [{F, A, P}]} = Match,
@@ -175,9 +177,9 @@ find_dispatch(Meta, {Fun, Arity} = FA, Env) ->
   end.
 
 
-find_mfa(FA, List) when is_list(List) ->
+find_mfa(FunArity, List) when is_list(List) ->
   lists:foldl(fun({Module, Imports}, Acc) ->
-                  case find_fa(FA, Imports) of
+                  case find_fa(FunArity, Imports) of
                     [] -> Acc;
                     R -> orddict:store(Module, R, Acc)
                   end
@@ -233,6 +235,7 @@ import_module(Meta, Module, Args, Env) ->
            [] -> Env1;
            _ -> kapok_env:add_macro(Meta, Env1, Module, Macros)
          end,
+  io:format("after import module: ~p, Functions: ~p, Macros: ~p~n", [Module, ?m(Env2, functions), ?m(Env2, macros)]),
   Env2.
 
 get_exports(Meta, Module, Args, Env) ->
@@ -298,10 +301,12 @@ get_optional_macros(Module) ->
 get_macros(Meta, Module, Env) ->
   ensure_loaded(Meta, Module, Env),
   try
+    io:format("+++++++ to get_macros ~n"),
     L = Module:'__info__'(macros),
+    io:format("+++++++ get macros ~p~n", [L]),
     ordsets:from_list(L)
-  catch
-    error:undef -> []
+ catch
+   error:undef -> []
   end.
 
 filter_exports(Exports, Args) ->
@@ -326,14 +331,14 @@ filter_exports_by({'exclude', Excludes}, Exports) ->
                Exports);
 filter_exports_by({'rename', Renames}, Exports) ->
   lists:foldl(fun({Fun, Arity, ParaType} = FAP, Acc) ->
-                  New = lists:foldl(fun({NF, {F, A}}, Acc0) ->
+                  New = lists:foldl(fun({Alias, {F, A}}, Acc0) ->
                                         case (F == Fun) andalso (A == Arity) of
-                                          true -> [{NF, {Fun, Arity, ParaType}} | Acc0];
+                                          true -> [{Alias, {Fun, Arity, ParaType}} | Acc0];
                                           _ -> Acc0
                                         end;
-                                       ({NF, F}, Acc0) ->
+                                       ({Alias, F}, Acc0) ->
                                         case (F == Fun) of
-                                          true -> [{NF, {Fun, Arity, ParaType}} | Acc0];
+                                          true -> [{Alias, {Fun, Arity, ParaType}} | Acc0];
                                           _ -> Acc0
                                         end
                                     end,
