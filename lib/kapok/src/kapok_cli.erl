@@ -240,12 +240,5 @@ exec_file(File) ->
   kapok_compiler:file(list_to_binary(File)).
 
 compile_file(File, Outdir) ->
-  %% replace source file suffix with erlang compiler output file suffix
-  Stem = case lists:reverse(filename:basename(File)) of
-           [_, _, _, $. | Other] -> lists:reverse(Other);
-           All -> All
-         end,
-  Filename = Stem ++ ?BEAM_FILE_SUFFIX,
-  Dest = filename:join(Outdir, Filename),
-  kapok_compiler:file(list_to_binary(File), Dest).
+  kapok_compiler:file(list_to_binary(File), Outdir).
 

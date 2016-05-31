@@ -59,26 +59,26 @@ string(Contents, File) when is_list(Contents), is_binary(File) ->
 
 file(Relative) when is_binary(Relative) ->
   file(Relative, nil).
-file(File, Dest) ->
+file(File, Outdir) ->
   {ok, Bin} = file:read_file(File),
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, []),
   Env = kapok_env:env_for_eval([{line, 1}, {file, File}]),
-  AfterCompile = fun(Module, Binary) ->
-                     %% write compiled binary to dest file
-                     case Dest of
-                       nil ->
-                         %% TODO add script mode
-                         try
-                           Module:main()
-                         catch
-                           error:undef -> ok
-                         end;
-                       _ ->
-                         ok = file:write_file(Dest, Binary)
-                     end
-                 end,
-  kapok_namespace:compile(Ast, Env, AfterCompile).
+  AfterModuleCompiled = fun(Module, Binary) ->
+                            %% write compiled binary to dest file
+                            case Outdir of
+                              nil ->
+                                try
+                                  Module:main()
+                                catch
+                                  error:undef -> ok
+                                end;
+                              _ ->
+                                Outfile = filename:join(Outdir, atom_to_list(Module) ++ ?BEAM_FILE_SUFFIX),
+                                ok = file:write_file(Outfile, Binary)
+                            end
+                        end,
+  kapok_namespace:compile(Ast, Env, AfterModuleCompiled).
 
 %%
 core() ->
