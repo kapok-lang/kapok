@@ -23,7 +23,7 @@ main(Args) ->
           Errors = process_commands(Config),
           if
             Errors =/= [] ->
-              lists:map(fun(E) -> io:format(standard_error, "~p~n", [E]) end,
+              lists:map(fun(E) -> io:format(standard_error, "~s~n", [E]) end,
                         Errors);
             true -> ok
           end
@@ -84,13 +84,13 @@ at_exit(Res) ->
 %% Helpers
 
 print_error(Kind, Reason, Stacktrace) ->
-  io:format(standard_error, "~w~s~n~p~n",[Kind, Reason, Stacktrace]).
+  io:format(standard_error, "~w: ~p~n~p~n", [Kind, Reason, Stacktrace]).
 
 %% try to parse the shared option, if there is no mroe shared option then invoke Callback.
 shared_option(List, Config, Callback) ->
   case parse_shared_args(List, #{errors := Errors} = Config) of
-    {[H|T], _} when h == hd(List) ->
-      Error = io_lib:format("~p : Unknown option", [H]),
+    {[H|T], _} when H == hd(List) ->
+      Error = io_lib:format("Unknown option: ~p", [H]),
       Callback(T, Config#{errors => [Error | Errors]});
     {NewList, NewConfig} ->
       Callback(NewList, NewConfig)
@@ -141,7 +141,7 @@ expand_home("~" ++ User, Left) ->
   Home = filename:join(filename:dirname(os:getenv("HOME")), User),
   expand_home(Home, Left);
 expand_home(Home, Left) ->
-  finename:join([Home | Left]).
+  filename:join([Home | Left]).
 
 %% Parse init options
 parse_args(Args) ->
@@ -194,14 +194,17 @@ process_commands(Config) ->
   lists:reverse(?m(Config, errors)) ++ Errors.
 
 process_command({file, File}, _Config) ->
-  exec_file(File);
+  case is_regular(File) of
+    true -> exec_file(File);
+    false -> {error, io_lib:format("Invalid file: ~p", [File])}
+  end;
 process_command({compile, Patterns}, #{outdir := Outdir} = _Config) ->
   %% ensure all parent dirs exist or be created successfully
   _ = filelib:ensure_dir(Outdir),
 
   case filter_multiple_patterns(Patterns) of
     {ok, []} ->
-      {error, "No files matched provided patterns"};
+      {error, "No files matched provided pattern(s)"};
     {ok, Files} ->
       lists:map(fun(F) -> compile_file(F, Outdir) end, Files);
     {missing, Missing} ->

@@ -140,7 +140,7 @@ find_dispatch(Meta, Module, FunArity, Env) ->
 
 find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env) ->
   FunMatch = find_fa(FunArity, FunList),
-  MacroMatch = find_fa(FunArity, MacroList),
+  MacroMatch = find_fa({Fun, Arity+1}, MacroList),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
       {F, A, P} = Match,
@@ -159,7 +159,7 @@ find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env)
 find_dispatch(Meta, {Fun, Arity} = FunArity, Env) ->
   Env1 = ensure_uses_imported(Env),
   FunMatch = find_mfa(FunArity, ?m(Env1, functions)),
-  MacroMatch = find_mfa(FunArity, ?m(Env1, macros)),
+  MacroMatch = find_mfa({Fun, Arity+1}, ?m(Env1, macros)),
   io:format("find FA: ~s, ~B, macros: ~p, macromatch: ~p~n", [Fun, Arity, ?m(Env1, macros), MacroMatch]),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
@@ -256,7 +256,7 @@ get_optional_functions(Module) ->
   case code:ensure_loaded(Module) of
     {module, Module} ->
       try
-        L = Module:'__info__'(funs),
+        L = Module:'__info__'(functions),
         ordsets:from_list(L)
       catch
         error:undef ->
@@ -273,7 +273,7 @@ get_optional_functions(Module) ->
 get_functions(Meta, Module, Env) ->
   ensure_loaded(Meta, Module, Env),
   try
-    L = Module:'__info__'(funs),
+    L = Module:'__info__'(functions),
     ordsets:from_list(L)
   catch
     error:undef ->
