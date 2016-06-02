@@ -216,6 +216,7 @@ handle_def(Meta, Kind, Name, Args, Body, Env) ->
   handle_def(Meta, Kind, Name, Args, <<"">>, Body, Env).
 handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env) ->
   %% TODO add doc
+  Env1 = kapok_env:push_scope(Env),
   Arity = arg_length(Args),
   Namespace = ?m(Env, namespace),
   ParameterType = case Category of
@@ -224,22 +225,22 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env) ->
                   end,
   case Kind of
     'defmacro' ->
-      TEnv2 = handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env);
+      TEnv3 = handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env1);
     _ ->
-      {TF, TEnv} = kapok_translate:translate(Name, Env),
-      {TArgs, TEnv1} = kapok_translate:translate_args(Args, TEnv),
-      {TBody, TEnv2} = kapok_translate:translate(Body, TEnv1),
+      {TF, TEnv1} = kapok_translate:translate(Name, Env1),
+      {TArgs, TEnv2} = kapok_translate:translate_args(Args, TEnv1),
+      {TBody, TEnv3} = kapok_translate:translate(Body, TEnv2),
       add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
       case Kind of
         'defn' -> add_export_function(Namespace, Name, Arity, ParameterType);
         'defn-' -> ok
       end,
       case ParameterType of
-        'rest' -> add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, TBody, TEnv2);
+        'rest' -> add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, TBody, TEnv3);
         _ -> ok
       end
   end,
-  kapok_env:pop_scope(TEnv2).
+  kapok_env:pop_scope(TEnv3).
 
 %% module
 
@@ -298,40 +299,40 @@ arg_length({Category, _, Args}) when ?is_list(Category) ->
 arg_length({Category, _, {Head, _}}) when ?is_cons_list(Category) ->
   length(Head) + 1.
 
+
 handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) ->
   MacroName = kapok_utils:macro_name(Name),
   MacroArity = Arity + 1,
-  %%{TF, TEnv} = kapok_translate:translate(Name, Env),
+  {TF, TEnv} = kapok_translate:translate(Name, Env),
   PrefixArgs = {tuple, Meta, [{identifier, Meta, line}, {identifier, Meta, env}]},
-  TEnv1 = kapok_env:add_var(Meta, Env, line),
+  TEnv1 = kapok_env:add_var(Meta, TEnv, line),
   TEnv2 = kapok_env:add_var(Meta, TEnv1, env),
   {TPrefixArgs, TEnv3} = kapok_translate:translate(PrefixArgs, TEnv2),
-  TEnv4 = kapok_env:add_var(Meta, TEnv3, Name),
-  {TName, TEnv5} = kapok_translate:translate({identifier, Meta, Name}, TEnv4),
-  {TArgs, TEnv6} = kapok_translate:translate_args(Args, TEnv5),
+  {TArgs, TEnv4} = kapok_translate:translate_args(Args, TEnv3),
   MacroArgs = [TPrefixArgs | TArgs],
-  {TBody, TEnv7} = kapok_translate:translate(Body, TEnv6),
-  NamedFun = {named_fun, ?line(Meta), xxx, [{clause, ?line(Meta), TArgs, [], TBody}]},
-  FunDef = {match, ?line(Meta), TName, NamedFun},
-  MacroBody = [FunDef, {call, ?line(Meta), TName, TArgs}],
-  MacroClause = {clause, ?line(Meta), MacroArgs, [], MacroBody},
+  {TBody, TEnv5} = kapok_translate:translate(Body, TEnv4),
+  FunClause = {clause, ?line(Meta), TArgs, [], TBody},
+  MacroClause = {clause, ?line(Meta), MacroArgs, [], [{call, ?line(Meta), TF, TArgs}]},
+  add_function_clause(Namespace, Name, Arity, FunClause),
   add_macro_clause(Namespace, MacroName, MacroArity, MacroClause),
   add_export_macro(Namespace, Name, MacroArity, ParameterType),
   %% add rest call if necessary
   case ParameterType of
     'rest' ->
+      RestFunArity = Arity-1,
       RestMacroArity = Arity,
-      TNormalArgs = lists:sublist(TArgs, Arity-1),
+      TNormalArgs = lists:sublist(TArgs, RestFunArity),
       {TListArgs, _} = kapok_translate:translate({literal_list, Meta, []}, Env),
       TRestArgs = TNormalArgs++[TListArgs],
+      RestFunClause = {clause, ?line(Meta), TNormalArgs, [], [{call, ?line(Meta), TF, TRestArgs}]},
       RestMacroArgs = [TPrefixArgs | TRestArgs],
-      RestMacroBody = [FunDef, {call, ?line(Meta), TName, TRestArgs}],
-      RestMacroClause = {clause, ?line(Meta), RestMacroArgs, [], RestMacroBody},
+      RestMacroClause = {clause, ?line(Meta), RestMacroArgs, [], [{call, ?line(Meta), TF, TNormalArgs}]},
+      add_function_clause(Namespace, Name, RestFunArity, RestFunClause),
       add_macro_clause(Namespace, MacroName, RestMacroArity, RestMacroClause),
       add_export_macro(Namespace, Name, RestMacroArity, 'normal');
     _ -> ok
   end,
-  TEnv7.
+  TEnv5.
 
 add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, TBody, Env) ->
   RestArity = Arity-1,

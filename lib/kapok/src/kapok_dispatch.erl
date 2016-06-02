@@ -37,14 +37,16 @@ expand_macro_fun(Meta, Fun, _Receiver, _Name, Args, Env) ->
   end.
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
-  ProperArity = Arity+1,
-  Fun = fun Receiver:Name/ProperArity,
-  expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env).
+  MacroArgs = to_list(Args),
+  io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, MacroArgs]),
+  Fun = fun Receiver:Name/Arity,
+  MacroResult = expand_macro_fun(Meta, Fun, Receiver, Name, MacroArgs, Env),
+  io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, MacroResult]),
+  {to_ast(MacroResult), Env, true}.
 
 %% find local/remote macro/function
 
 find_local_macro(Meta, FunArity, Env) ->
-  io:format("call find_local_macro() FunArity: ~p~n", [FunArity]),
   {D, Env1} = find_dispatch(Meta, FunArity, Env),
   R = case D of
         {macro, {M, F, A, P}} -> {M, F, A, P};
@@ -60,21 +62,21 @@ find_remote_macro(Meta, Module, FunArity, Env) ->
     {ok, M1} ->
       case orddict:find(Module, Uses) of
         {ok, _} ->
-          {D, Env} = find_dispatch(Meta, Module, FunArity, Env),
+          {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
           R = case D of
                 {macro, {M, F, A, P}} -> {M, F, A, P};
                 {function, _} -> false;
                 false -> false
               end,
-          {R, Env};
+          {R, Env1};
         error ->
-          {D, Env} = find_optional_dispatch(Meta, M1, FunArity, Env),
+          {D, Env1} = find_optional_dispatch(Meta, M1, FunArity, Env),
           R = case D of
                 {macro, {M, F, A, P}} -> {M, F, A, P};
                 {function, _} -> false;
                 false -> false
               end,
-          {R, Env}
+          {R, Env1}
       end;
     error ->
       {false, Env}
@@ -118,7 +120,7 @@ find_remote_function(Meta, Module, FunArity, #{requires := Requires} = Env) ->
           {R, Env1}
         end;
     error ->
-      false
+      {false, Env}
   end.
 
 find_optional_dispatch(Meta, Module, FunArity, Env) ->
@@ -301,9 +303,7 @@ get_optional_macros(Module) ->
 get_macros(Meta, Module, Env) ->
   ensure_loaded(Meta, Module, Env),
   try
-    io:format("+++++++ to get_macros ~n"),
     L = Module:'__info__'(macros),
-    io:format("+++++++ get macros ~p~n", [L]),
     ordsets:from_list(L)
  catch
    error:undef -> []
@@ -358,6 +358,24 @@ match_fa({F, A}, {Fun, Arity, _ParaType}) ->
   (F == Fun) andalso (A == Arity);
 match_fa(Name, {Fun, _Arity, _ParaType}) when is_atom(Name) ->
   Name == Fun.
+
+%%
+to_list(List) when is_list(List) ->
+  lists:map(fun to_list/1, List);
+to_list({Category, _Meta, Symbol}) when Category == list ->
+  to_list(Symbol);
+to_list({Category, _Meta, {Head, Tail}}) when ?is_cons_list(Category) ->
+  THead = to_list(Head),
+  TTail = to_list(Tail),
+  [THead ++ [TTail]];
+to_list(Atom) ->
+  Atom.
+
+to_ast(List) when is_list(List) ->
+  L = lists:map(fun to_ast/1, List),
+  {list, [], L};
+to_ast(Atom) ->
+  Atom.
 
 %% ERROR HANDLING
 

@@ -65,13 +65,13 @@ translate({tuple, Meta, Arg}, Env) ->
 translate({literal_list, _Meta, List}, Env) ->
   translate_list(List, [], Env);
 
-translate({cons_list, Meta, {Head, Tail}}, Env1) ->
-  {THead, TEnv1} = case Head of
-                     [E] -> translate(E, Env1);
-                     _ -> translate(Head, Env1)
+translate({cons_list, Meta, {Head, Tail}}, Env) ->
+  {THead, TEnv} = case Head of
+                     [E] -> translate(E, Env);
+                     _ -> translate(Head, Env)
                    end,
-  {TTail, TEnv2} = translate(Tail, TEnv1),
-  {{cons, ?line(Meta), THead, TTail}, TEnv2};
+  {TTail, TEnv1} = translate(Tail, TEnv),
+  {{cons, ?line(Meta), THead, TTail}, TEnv1};
 
 %% special forms
 %% let
@@ -83,13 +83,13 @@ translate({list, Meta, [{identifier, _, 'let'}, {C, _, Args} | Body]}, Env) when
   {to_block(Meta, TArgs ++ [BodyBlock]), kapok_env:pop_scope(TEnv2)};
 
 %% match
-translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env1) ->
-  {TArg1, TEnv1} = translate_match_pattern(Arg1, Env1),
-  {TArg2, TEnv2} = translate(Arg2, TEnv1),
+translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env) ->
+  {TArg1, TEnv} = translate_match_pattern(Arg1, Env),
+  {TArg2, TEnv1} = translate(Arg2, TEnv),
   Result = {match, ?line(Meta), TArg1, TArg2},
   case Left of
-    [] -> {Result, TEnv2};
-    _ -> translate_match(Meta, TArg2, Left, [Result], TEnv2)
+    [] -> {Result, TEnv1};
+    _ -> translate_match(Meta, TArg2, Left, [Result], TEnv1)
   end;
 
 %% do
@@ -226,10 +226,10 @@ translate_let_args(Args, Env) ->
   translate_let_args(Args, [], Env#{context => match_vars}).
 translate_let_args([], Acc, Env) ->
   {lists:reverse(Acc), Env#{context => nil}};
-translate_let_args([P1, P2 | T], Acc, Env1) ->
-  {TP1, TEnv1} = translate(P1, Env1),
-  {TP2, TEnv2} = translate(P2, TEnv1),
-  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], TEnv2);
+translate_let_args([P1, P2 | T], Acc, Env) ->
+  {TP1, TEnv} = translate(P1, Env),
+  {TP2, TEnv1} = translate(P2, TEnv),
+  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], TEnv1);
 translate_let_args([H], _Acc, Env) ->
   Error = {let_odd_forms, {H}},
   kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Env, file), ?MODULE, Error).
@@ -273,25 +273,22 @@ translate_remote_call(Meta, M, F, Args, Env) ->
   {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv}.
 
 %% Translate args
-translate_arg(Arg, Env) ->
-  translate(Arg, Env).
+translate_arg(Arg, #{context := Context} = Env) ->
+  {TArg, TEnv} = translate(Arg, Env#{context => match_vars}),
+  {TArg, TEnv#{context => Context}}.
 
-translate_args({Category, _, Args}, #{context := Context} = Env) when ?is_list(Category) ->
-  {TArgs, TEnv} = translate_args(Args, Env#{context => match_vars}),
+translate_args({Category, _, Args}, Env) when ?is_list(Category) ->
+  {TArgs, TEnv} = translate_args(Args, Env),
   %% reset Env.context for normal list args
-  {TArgs, TEnv#{context => Context}};
-translate_args({Category, _, {Head, Tail}}, #{context := Context} = Env1) when ?is_cons_list(Category) ->
-  {THead, TEnv1} = translate_args(Head, Env1#{context => match_vars}),
-  {TTail, TEnv2} = translate(Tail, TEnv1),
+  {TArgs, TEnv};
+translate_args({Category, _, {Head, Tail}}, Env) when ?is_cons_list(Category) ->
+  {THead, TEnv} = translate_args(Head, Env),
+  {TTail, TEnv1} = translate_arg(Tail, TEnv),
   %% reset Env.context for cons list args
-  {THead ++ [TTail], TEnv2#{context => Context}};
+  {THead ++ [TTail], TEnv1};
 translate_args(Args, Env) when is_list(Args) ->
-  translate_args(Args, [], Env).
-translate_args([], Acc, Env) ->
-  {lists:reverse(Acc), Env};
-translate_args([H|T], Acc, Env) ->
-  {TH, TEnv} = translate_arg(H, Env),
-  translate_args(T, [TH | Acc], TEnv).
+  {TArgs, Env1} = lists:mapfoldl(fun translate_arg/2, Env, Args),
+  {TArgs, Env1}.
 
 %% Error
 

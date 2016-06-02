@@ -104,10 +104,10 @@ expand({literal_list, Meta, Args}, Env) ->
   {EArgs, NewEnv, Expanded} = expand(Args, Env),
   {{literal_list, Meta, EArgs}, NewEnv, Expanded};
 
-expand({cons_list, Meta, {Head, Tail}}, Env1) ->
-  {EHead, TEnv1, Expanded1} = expand(Head, Env1),
-  {ETail, TEnv2, Expanded2} = expand(Tail, TEnv1),
-  {{cons_list, Meta, {EHead, ETail}}, TEnv2, Expanded1 orelse Expanded2};
+expand({cons_list, Meta, {Head, Tail}}, Env) ->
+  {EHead, TEnv, ExpandedHead} = expand(Head, Env),
+  {ETail, TEnv1, ExpandedTail} = expand(Tail, TEnv),
+  {{cons_list, Meta, {EHead, ETail}}, TEnv1, ExpandedHead orelse ExpandedTail};
 
 expand({list, Meta, [{Category, _, Id} | Args]} = Ast, #{macro_context := Context} = Env)
     when ?is_id(Category) ->
