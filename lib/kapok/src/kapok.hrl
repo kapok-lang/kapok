@@ -44,12 +44,19 @@
 -define(line(Opts), kapok_utils:get_line(Opts)).
 -define(m(M, K), maps:get(K, M)).
 
+-define(is_op(T), (T == '+' orelse T == '-')).
+-define(is_number(T), (T == 'number')).
 -define(is_def(T), (T == 'defn' orelse T == 'defn-' orelse T == 'defmacro')).
 -define(is_id(T), (T == 'identifier' orelse T == 'atom')).
 -define(is_list(T), (T == 'list' orelse T == 'literal_list')).
 -define(is_cons_list(T), (T == 'cons_list')).
 -define(is_arg_list(T), (?is_list(T) orelse ?is_cons_list(T))).
 -define(is_string(T), (T == 'list_string' orelse T == 'binary_string')).
+
+-define(is_behaviour(T), (T == 'behavior' orelse T == 'behaviour')).
+-define(is_compile(T), (T == 'compile')).
+-define(is_file(T), (T == 'file')).
+-define(is_attribute(T), (T == 'attribute')).
 
 
 %% default source file suffix

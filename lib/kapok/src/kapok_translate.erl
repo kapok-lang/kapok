@@ -10,20 +10,20 @@
 %% number
 
 %% integer
-translate({number, Meta, Value}, Env) when is_integer(Value) ->
-  {{integer, ?line(Meta), Value}, Env};
+translate({number, Meta, Number}, Env) when is_integer(Number) ->
+  {{integer, ?line(Meta), Number}, Env};
 %% float
-translate({number, Meta, Value}, Env) when is_float(Value) ->
-  {{float, ?line(Meta), Value}, Env};
+translate({number, Meta, Number}, Env) when is_float(Number) ->
+  {{float, ?line(Meta), Number}, Env};
 
 %% Operators
-translate({Op, Meta, Number}, Env) when Op == '+', Op == '-' ->
+translate({Op, Meta, Number}, Env) when ?is_op(Op) ->
   {Erl, TEnv} = translate(Number, Env),
   {{op, ?line(Meta), Op, Erl}, TEnv};
 
 %% atom
-translate({atom, Meta, Value}, Env) ->
-  {{atom, ?line(Meta), Value}, Env};
+translate({atom, Meta, Atom}, Env) ->
+  {{atom, ?line(Meta), Atom}, Env};
 
 %% Identifiers
 translate({identifier, Meta, Id}, #{context := Context} = Env) ->
@@ -39,8 +39,8 @@ translate({binary_string, _Meta, Binary}, Env) ->
   translate(Binary, Env);
 
 %% list string
-translate({list_string, Meta, Arg}, Env) ->
-  {{string, ?line(Meta), binary_to_list(Arg)}, Env};
+translate({list_string, Meta, Binary}, Env) ->
+  {{string, ?line(Meta), binary_to_list(Binary)}, Env};
 
 %% Containers
 
@@ -96,6 +96,29 @@ translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env) ->
 translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Env) ->
   {TExprs, TEnv} = translate(Exprs, Env),
   {to_block(Meta, TExprs), TEnv};
+
+%% Erlang specified forms
+
+%% behaviour
+translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, Env)
+    when ?is_behaviour(Form), ?is_id(Category) ->
+  translate_attribute(Meta, Form, Id, Env);
+
+%% compile
+translate({list, Meta, [{identifier, _, Form}, {Category, _, _} = Options]}, Env)
+    when ?is_compile(Form), ?is_list(Category) ->
+  {TOptions, TEnv} = kapok_compiler:ast(Options, Env),
+  translate_attribute(Meta, Form, TOptions, TEnv);
+
+%% file
+translate({list, Meta, [{identifier, _, Form}, {C1, _, Binary}, {C2, _, Number}]}, Env)
+    when ?is_file(Form), ?is_string(C1), ?is_number(C2) ->
+  translate_attribute(Meta, Form, {Binary, Number}, Env);
+
+%% wild attribute
+translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value}]}, Env)
+    when ?is_attribute(Form), ?is_id(C1), ?is_id(C2) ->
+  translate_attribute(Meta, Attribute, Value, Env);
 
 %% Local call
 translate({list, Meta, [{Category, _, Id} | Args]}, #{scope := Scope} = Env) when ?is_id(Category) ->
@@ -251,6 +274,11 @@ translate_match(_Meta, _Last, [], Acc, Env) ->
 translate_match(Meta, Last, [H|T], Acc, Env) ->
   {TH, TEnv} = translate(H, Env),
   translate_match(Meta, TH, T, [{match, ?line(Meta), Last, TH} | Acc], TEnv).
+
+%% special forms
+
+translate_attribute(Meta, A, T, Env) ->
+  {{attribute,?line(Meta), A, T}, Env}.
 
 %% translate local call
 translate_local_call(Meta, F, A, P, Arity, Args, Env) ->

@@ -41,8 +41,8 @@ string_to_ast(String, StartLine, File, Options)
 
 ast_to_abstract_format(Ast, Env) ->
   {EAst, EEnv} = kapok_expand:expand_all(Ast, Env),
-  {Erl, TEnv} = kapok_translate:translate(EAst, EEnv),
-  {Erl, TEnv}.
+  {EAF, TEnv} = kapok_translate:translate(EAst, EEnv),
+  {EAF, TEnv}.
 
 %% Compilation entry points.
 
@@ -87,6 +87,8 @@ core() ->
 
 %% Evaluation
 
+eval_abstract_format(Forms, Env) when is_list(Forms) ->
+  list:mapfoldl(fun eval_abstract_format/2, Env, Forms);
 eval_abstract_format(Form, #{scope := Scope} = Env) ->
   case Form of
     {atom, _, Atom} ->
@@ -97,15 +99,15 @@ eval_abstract_format(Form, #{scope := Scope} = Env) ->
       {Value, Env#{scope => Scope#{vars => orddict:from_list(NewBindings)}}}
   end.
 
-erl_eval(Erl, Binding, Env) ->
-  case erl_eval:check_command([Erl], Binding) of
+erl_eval(Form, Binding, Env) ->
+  case erl_eval:check_command([Form], Binding) of
     ok -> ok;
     {error, Desc} -> kapok_error:handle_file_error(?m(Env, file), Desc)
   end,
 
   %% Below must be all one line for locations to be the same when the stacktrace
   %% needs to be extended to the full stacktrace.
-  try erl_eval:expr(Erl, Binding) catch Class:Exception -> erlang:raise(Class, Exception, get_stacktrace()) end.
+  try erl_eval:expr(Form, Binding) catch Class:Exception -> erlang:raise(Class, Exception, get_stacktrace()) end.
 
 get_stacktrace() ->
   Stacktrace = erlang:get_stacktrace(),
