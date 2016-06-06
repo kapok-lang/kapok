@@ -236,7 +236,7 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env) ->
         'defn-' -> ok
       end,
       case ParameterType of
-        'rest' -> add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, TBody, TEnv3);
+        'rest' -> add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, TEnv3);
         _ -> ok
       end
   end,
@@ -334,7 +334,7 @@ handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) -
   end,
   TEnv5.
 
-add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, TBody, Env) ->
+add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, Env) ->
   RestArity = Arity-1,
   TNormalArgs = lists:sublist(TArgs, RestArity),
   {TListArgs, _} = kapok_translate:translate({literal_list, 0, []}, Env),

@@ -97,6 +97,13 @@ translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Env) ->
   {TExprs, TEnv} = translate(Exprs, Env),
   {to_block(Meta, TExprs), TEnv};
 
+%% case
+translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Env) ->
+  {TExpr, TEnv} = translate(Expr, Env),
+  {TClause, TEnv1} = translate_case_clause(Clause, TEnv),
+  {TLeft, TEnv2} = lists:mapfoldl(fun translate_case_clause/2, TEnv1, Left),
+  {{'case', ?line(Meta), TExpr, [TClause | TLeft]}, TEnv2};
+
 %% Erlang specified forms
 
 %% behaviour
@@ -277,6 +284,82 @@ translate_match(Meta, Last, [H|T], Acc, Env) ->
 
 %% special forms
 
+translate_case_clause({list, Meta, []}, Env) ->
+  Error = {empty_case_clause},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+translate_case_clause({list, Meta, [P]}, Env) ->
+  Error = {missing_case_clause_body, {P}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+translate_case_clause({list, Meta, [P, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+  translate_case_clause(Meta, P, Guard, Body, Env);
+translate_case_clause({list, Meta, [P | B]}, Env) ->
+  translate_case_clause(Meta, P, [], B, Env);
+translate_case_clause({C, Meta, _} = Ast, Env) when C /= list ->
+  Error = {invalid_case_clause, {Ast}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
+
+translate_case_clause(Meta, Pattern, Guard, Body, Env) ->
+  {TPattern, TEnv} = translate_match_pattern(Pattern, Env),
+  {TGuard, TEnv1} = translate_guard(Guard, TEnv),
+  case Body of
+    [] ->
+      Error = {missing_case_clause_body},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+    _ ->
+      ok
+  end,
+  {TBody, TEnv2} = translate(Body, TEnv1),
+  {{clause, ?line(Meta), [TPattern], TGuard, TBody}, TEnv2}.
+
+translate_guard([], Env) ->
+  {[], Env};
+translate_guard({list, Meta, [{identifier, _, 'when'} | Body]}, Env) ->
+  case Body of
+    [] ->
+      Error = {missing_case_clause_guard},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+    [H] ->
+      translate_guard(H, nil, Env);
+    [H | T] ->
+      Error = {too_many_guards, {H, T}},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
+  end.
+translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, 'and', Env) ->
+  Error = {invalid_nested_and_or_in_guard, {'and', 'and', Left}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, Parent, Env) ->
+  case Left of
+    [E1, E2 | Tail] ->
+      {TE1, TEnv} = translate_guard(E1, 'and', Env),
+      {TE2, TEnv1} = translate_guard(E2, 'and', TEnv),
+      {TLeft, TEnv2} = lists:mapfoldl(fun (X, E) -> translate_guard(X, 'and', E) end,
+                                      TEnv1,
+                                      Tail),
+      L = [TE1, TE2 | TLeft],
+      case Parent of
+        nil -> {[L], TEnv2};
+        'or' -> {L, TEnv2}
+      end;
+    [Tail] ->
+      Error1 = {not_enough_operand_in_guard, {'and', Tail}},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error1)
+  end;
+translate_guard({list, _, [{identifier, _, 'or'} | Left]}, nil, Env) ->
+  lists:mapfoldl(fun (X, E) -> translate_guard(X, 'or', E) end, Env, Left);
+translate_guard({list, Meta, [{identifier, _, 'or'} | Left]}, Parent, Env) ->
+  Error = {invalid_nested_and_or_in_guard, {Parent, 'or', Left}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+translate_guard(Other, nil, Env) ->
+  {TOther, TEnv} = translate(Other, Env),
+  %% as only expression in 'or'
+  {[[TOther]], TEnv};
+translate_guard(Other, 'or', Env) ->
+  {TOther, TEnv} = translate(Other, Env),
+  %% actually one expression in 'or'
+  {[TOther], TEnv};
+translate_guard(Other, _Parent, Env) ->
+  translate(Other, Env).
+
 translate_attribute(Meta, A, T, Env) ->
   {{attribute,?line(Meta), A, T}, Env}.
 
@@ -321,5 +404,15 @@ translate_args(Args, Env) when is_list(Args) ->
 %% Error
 
 format_error({let_odd_forms, {Form}}) ->
-  io_lib:format("let requires an even number of forms in binding, unpaired form: ~p~n", [Form]).
+  io_lib:format("let requires an even number of forms in binding, unpaired form: ~p~n", [Form]);
+format_error({empty_case_clause}) ->
+  io_lib:format("case clause is empty");
+format_error({too_many_guards, {First, Left}}) ->
+  io_lib:format("too many arguments for when, please use and/or for guard tests or sequences: ~p, ~p", [First, Left]);
+format_error({missing_case_clause_guard}) ->
+  io_lib:format("missing case clause guard");
+format_error({invalid_nested_and_or_in_guard, {Parent, Id, Left}}) ->
+  io_lib:format("invalid nested and/or in guard, parent: ~p, current: ~p, args: ~p", [Parent, Id, Left]);
+format_error({not_enough_operand_in_guard, {Op, Operand}}) ->
+  io_lib:format("not enough operand for ~p, given: ~p", [Op, Operand]).
 
