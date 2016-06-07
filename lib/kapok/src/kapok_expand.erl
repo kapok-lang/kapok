@@ -192,7 +192,7 @@ quote(Arg) when is_tuple(Arg) ->
   {tuple, [], lists:map(fun quote/1, tuple_to_list(Arg))};
 %% list
 quote(Args) when is_list(Args) ->
-  {list, [], lists:map(fun quote/1, Args)};
+  {literal_list, [], lists:map(fun quote/1, Args)};
 %% map
 quote(Arg) when is_map(Arg) ->
   {map, [], lists:reverse(lists:foldl(fun({K, V}, Acc) -> [quote(V), quote(K) | Acc] end,

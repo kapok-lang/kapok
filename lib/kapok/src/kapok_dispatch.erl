@@ -207,7 +207,7 @@ construct_new_args(Context, Arity, NewArity, ParaType, Args) ->
       {NormalParas, RestPara} = lists:split(NewArity-1, Args),
       case Context of
         'expand' -> NormalParas ++ [RestPara];
-        'translate' -> NormalParas ++ [{list, [], RestPara}]
+        'translate' -> NormalParas ++ [{literal_list, [], RestPara}]
       end;
     false ->
       Args

@@ -104,6 +104,10 @@ translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Env) ->
   {TLeft, TEnv2} = lists:mapfoldl(fun translate_case_clause/2, TEnv1, Left),
   {{'case', ?line(Meta), TExpr, [TClause | TLeft]}, TEnv2};
 
+%% fn
+translate({list, Meta, [{identifier, _, 'fn'}, {C, _, _} = Args | Body]}, Env) when ?is_list(C) ->
+  translate_fn(Meta, Args, Body, Env);
+
 %% Erlang specified forms
 
 %% behaviour
@@ -171,6 +175,8 @@ translate({list, Meta, [{dot, _, {Prefix, Suffix}} | Args]}, Env) ->
       end
   end;
 
+translate({list, Meta, [F | Args]}, Env) ->
+  translate_local_call(Meta, F, Args, Env);
 translate({list, _Meta, Args}, Env) ->
   translate_list(Args, [], Env);
 
@@ -359,6 +365,19 @@ translate_guard(Other, 'or', Env) ->
   {[TOther], TEnv};
 translate_guard(Other, _Parent, Env) ->
   translate(Other, Env).
+
+%% translate fn
+
+translate_fn(Meta, Args, Body, Env) ->
+  Env1 = kapok_env:push_scope(Env),
+  {TArgs, TEnv1} = translate_args(Args, Env1),
+  {TBody, TEnv2} = translate(Body, TEnv1),
+  Clause = {clause, ?line(Meta), TArgs, [], TBody},
+  TEnv3 = kapok_env:pop_scope(TEnv2),
+  {{'fun', ?line(Meta), {clauses, [Clause]}}, TEnv3}.
+
+
+%% translate attribute
 
 translate_attribute(Meta, A, T, Env) ->
   {{attribute,?line(Meta), A, T}, Env}.
