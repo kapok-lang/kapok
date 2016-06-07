@@ -5,7 +5,7 @@
          default_macros/0,
          find_local_macro/3,
          find_remote_macro/4,
-         find_export/2,
+         find_local/2,
          find_local_function/3,
          find_remote_function/4,
          find_fa/2,
@@ -82,10 +82,10 @@ find_remote_macro(Meta, Module, FunArity, Env) ->
       {false, Env}
   end.
 
-find_export(FunArity, Env) ->
+find_local(FunArity, Env) ->
   Namespace = maps:get(namespace, Env),
-  Exports = kapok_namespace:namespace_exports(Namespace),
-  case find_fa(FunArity, Exports) of
+  Locals = kapok_namespace:namespace_locals(Namespace),
+  case find_fa(FunArity, Locals) of
     [{F, A, P}] -> {F, A, P};
     [] -> false
   end.

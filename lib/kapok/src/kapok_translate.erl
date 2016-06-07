@@ -141,7 +141,7 @@ translate({list, Meta, [{Category, _, Id} | Args]}, #{scope := Scope} = Env) whe
       %% local variable
       translate_local_call(Meta, Id, Args, Env);
     error ->
-      case kapok_dispatch:find_export(FunArity, Env) of
+      case kapok_dispatch:find_local(FunArity, Env) of
         {F, A, P} ->
           translate_local_call(Meta, F, A, P, Arity, Args, Env);
         false ->

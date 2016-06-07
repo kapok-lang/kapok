@@ -1,0 +1,20 @@
+(ns sieve-of-eratosthenes
+  (require lists)
+  (use (io :only (format)))
+  (use (erlang :only (:'/='/2 rem/2 :'+'/2))))
+
+(defn- sieve ([] primes)
+  primes)
+
+(defn- sieve ([h & t] primes)
+  (sieve (lists.filter (fn [x]
+                         (:'/=' (rem x h) 0))
+                       t)
+         (:'+' primes 1)))
+
+(defn sieve (v)
+  (sieve (lists.seq 2 v) 1))
+
+(defn main()
+  (let [v 10]
+    (format 'run sieve(~B) return: ~p~n' [v (sieve v)])))

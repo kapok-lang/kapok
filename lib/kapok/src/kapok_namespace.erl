@@ -3,6 +3,7 @@
 -export([compile/3,
          format_error/1,
          namespace_exports/1,
+         namespace_locals/1,
          namespace_export_functions/1,
          namespace_export_macros/1
         ]).
@@ -12,7 +13,7 @@ init_namespace_table() ->
   _ = ets:new(kapok_namespaces, [set, protected, named_table, {read_concurrency, true}]).
 
 add_namespace(Namespace) ->
-  ets:insert(kapok_namespaces, {Namespace, [], [], [], []}).
+  ets:insert(kapok_namespaces, {Namespace, [], [], [], [], []}).
 
 add_function_clause(Namespace, Fun, Arity, Clause) ->
   add_clause(Namespace, 'fun', Fun, Arity, Clause).
@@ -82,6 +83,14 @@ module_exports(Functions, Macros) ->
   io:format("export macros: ~p~n", [ExportMacros]),
   %% TODO macro will shadow function if there is any overrides
   ordsets:union(ExportFunctions, ExportMacros).
+
+namespace_locals(Namespace) ->
+  ets:lookup_element(kapok_namespaces, Namespace, 6).
+
+add_local(Namespace, Fun, Arity, ParameterType) ->
+  Locals = namespace_locals(Namespace),
+  NewLocals = ordsets:add_element({Fun, Arity, ParameterType}, Locals),
+  ets:update_element(kapok_namespaces, Namespace, {6, NewLocals}).
 
 info_fun(Functions, Macros, Env) ->
   {FunctionList, _} = kapok_translate:translate(kapok_expand:quote(Functions), Env),
@@ -231,6 +240,7 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env) ->
       {TArgs, TEnv2} = kapok_translate:translate_args(Args, TEnv1),
       {TBody, TEnv3} = kapok_translate:translate(Body, TEnv2),
       add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
+      add_local(Namespace, Name, Arity, ParameterType),
       case Kind of
         'defn' -> add_export_function(Namespace, Name, Arity, ParameterType);
         'defn-' -> ok
@@ -314,7 +324,9 @@ handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) -
   FunClause = {clause, ?line(Meta), TArgs, [], TBody},
   MacroClause = {clause, ?line(Meta), MacroArgs, [], [{call, ?line(Meta), TF, TArgs}]},
   add_function_clause(Namespace, Name, Arity, FunClause),
+  add_local(Namespace, Name, Arity, ParameterType),
   add_macro_clause(Namespace, MacroName, MacroArity, MacroClause),
+  add_local(Namespace, MacroName, MacroArity, ParameterType),
   add_export_macro(Namespace, Name, MacroArity, ParameterType),
   %% add rest call if necessary
   case ParameterType of
@@ -328,7 +340,9 @@ handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) -
       RestMacroArgs = [TPrefixArgs | TRestArgs],
       RestMacroClause = {clause, ?line(Meta), RestMacroArgs, [], [{call, ?line(Meta), TF, TNormalArgs}]},
       add_function_clause(Namespace, Name, RestFunArity, RestFunClause),
+      add_local(Namespace, Name, RestFunArity, 'normal'),
       add_macro_clause(Namespace, MacroName, RestMacroArity, RestMacroClause),
+      add_local(Namespace, MacroName, RestMacroArity, 'normal'),
       add_export_macro(Namespace, Name, RestMacroArity, 'normal');
     _ -> ok
   end,
@@ -342,6 +356,7 @@ add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, Env) ->
   TRestArgs = TNormalArgs++[TListArgs],
   TBody = [{call, ?line(Meta), TF, TRestArgs}],
   add_function_clause(Namespace, Name, RestArity, {clause, ?line(Meta), TNormalArgs, [], TBody}),
+  add_local(Namespace, Name, RestArity, 'normal'),
   case Kind of
     'defn' -> add_export_function(Namespace, Name, RestArity, 'normal');
     _ -> ok
