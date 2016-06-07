@@ -16,5 +16,5 @@
   (sieve (lists.seq 2 v) []))
 
 (defn main()
-  (let [v 10]
+  (let [v 1000]
     (format 'run sieve(~B) return: ~p~n' [v (sieve v)])))
