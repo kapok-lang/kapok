@@ -4,16 +4,16 @@
   (use (erlang :only (:'/='/2 rem/2 :'+'/2))))
 
 (defn- sieve ([] primes)
-  primes)
+  (lists.reverse primes))
 
 (defn- sieve ([h & t] primes)
   (sieve (lists.filter (fn [x]
                          (:'/=' (rem x h) 0))
                        t)
-         (:'+' primes 1)))
+         [h & primes]))
 
 (defn sieve (v)
-  (sieve (lists.seq 2 v) 1))
+  (sieve (lists.seq 2 v) []))
 
 (defn main()
   (let [v 10]

@@ -63,7 +63,7 @@ translate({tuple, Meta, Arg}, Env) ->
 
 %% list
 translate({literal_list, _Meta, List}, Env) ->
-  translate_list(List, [], Env);
+  translate_list(List, Env);
 
 translate({cons_list, Meta, {Head, Tail}}, Env) ->
   {THead, TEnv} = case Head of
@@ -245,7 +245,8 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 
 
 %% Helpers
-
+translate_list(L, Env) ->
+  translate_list(L, [], Env).
 translate_list([H|T], Acc, Env) ->
   {Erl, TEnv} = translate(H, Env),
   translate_list(T, [Erl|Acc], TEnv);
