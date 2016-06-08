@@ -11,5 +11,5 @@ Kapok is designed with goals as below:
 1. Provides a rich set of useful libraries, in terms of unicode string, file, network
 1. Shipped with powerful tools, e.g. project management tool, editor integration
 
-Currently kapok is under heavy development. It's not stable and incoming change is expectable. Please don't use it in production environment.
+Currently kapok is under heavy development. It's not stable and incoming changes are expectable. Please don't use it in production environment.
 
