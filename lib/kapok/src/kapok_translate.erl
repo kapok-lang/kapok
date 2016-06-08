@@ -105,8 +105,20 @@ translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Env) ->
   {{'case', ?line(Meta), TExpr, [TClause | TLeft]}, TEnv2};
 
 %% fn
-translate({list, Meta, [{identifier, _, 'fn'}, {C, _, _} = Args | Body]}, Env) when ?is_list(C) ->
+translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Env)
+    when ?is_id(C) ->
+  translate_fn(Meta, Id, Number, Env);
+translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {number, _, Number}]}, Env)
+    when ?is_id(C1), ?is_id(C2) ->
+  translate_fn(Meta, Id1, Id2, Number, Env);
+translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args | Body]}, Env) ->
+  translate_fn(Meta, Id, Args, Body, Env);
+translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id} | Exprs]}, Env) ->
+  translate_fn(Meta, Id, Exprs, Env);
+translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args | Body]}, Env) ->
   translate_fn(Meta, Args, Body, Env);
+translate({list, Meta, [{identifier, _, 'fn'} | Exprs]}, Env) ->
+  translate_fn(Meta, Exprs, Env);
 
 %% Erlang specified forms
 
@@ -132,14 +144,14 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value
   translate_attribute(Meta, Attribute, Value, Env);
 
 %% Local call
-translate({list, Meta, [{Category, _, Id} | Args]}, #{scope := Scope} = Env) when ?is_id(Category) ->
+translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = Env) ->
   Arity = length(Args),
   FunArity = {Id, Arity},
   Vars = maps:get(vars, Scope),
   case orddict:find(Id, Vars) of
     {ok, _Var} ->
       %% local variable
-      translate_local_call(Meta, Id, Args, Env);
+      translate_local_call(Meta, Name, Args, Env);
     error ->
       case kapok_dispatch:find_local(FunArity, Env) of
         {F, A, P} ->
@@ -369,14 +381,59 @@ translate_guard(Other, _Parent, Env) ->
 
 %% translate fn
 
-translate_fn(Meta, Args, Body, Env) ->
+translate_fn(Meta, Exprs, Env) when is_list(Exprs) ->
+  {Clauses, TEnv} = translate_fn_exprs(Exprs, Env),
+  {{'fun', ?line(Meta), {clauses, Clauses}}, TEnv}.
+
+translate_fn(Meta, Name, Arity, Env) when is_atom(Name), is_number(Arity) ->
+  {{'fun', ?line(Meta), {function, Name, Arity}}, Env};
+translate_fn(Meta, Name, Exprs, Env) when is_atom(Name), is_list(Exprs) ->
+  {Clauses, TEnv} = translate_fn_exprs(Exprs, Env),
+  {{'named_fun', ?line(Meta), Name, Clauses}, TEnv};
+translate_fn(Meta, Args, Body, Env) when is_tuple(Args), is_list(Body) ->
+  {Clause, TEnv} = translate_fn_clause(Meta, Args, Body, Env),
+  {{'fun', ?line(Meta), {clauses, [Clause]}}, TEnv}.
+
+translate_fn(Meta, Module, Name, Arity, Env) when is_atom(Module), is_atom(Name), is_number(Arity) ->
+  {TModule, TEnv} = translate(Module, Env),
+  {TName, TEnv1} = translate(Name, TEnv),
+  {TArity, TEnv2} = translate(Arity, TEnv1),
+  {{'fun', ?line(Meta), {function, TModule, TName, TArity}}, TEnv2};
+translate_fn(Meta, Name, Args, Body, Env) when is_atom(Name), is_tuple(Args), is_list(Body) ->
+  {Clause, TEnv} = translate_fn_clause(Meta, Args, Body, Env),
+  {{'named_fun', ?line(Meta), Name, [Clause]}, TEnv}.
+
+translate_fn_exprs(Exprs, Env) when is_list(Exprs) ->
+  check_fn_exprs(Exprs, Env),
+  lists:mapfoldl(fun translate_fn_expr/2, Env, Exprs).
+
+translate_fn_expr({list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
+  translate_fn_clause(Meta, Args, Body, Env);
+translate_fn_expr({_, Meta, _} = Ast, Env) ->
+  Error = {invalid_fn_expression, {Ast}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
+
+translate_fn_clause(Meta, Args, Body, Env) ->
   Env1 = kapok_env:push_scope(Env),
   {TArgs, TEnv1} = translate_args(Args, Env1),
   {TBody, TEnv2} = translate(Body, TEnv1),
   Clause = {clause, ?line(Meta), TArgs, [], TBody},
   TEnv3 = kapok_env:pop_scope(TEnv2),
-  {{'fun', ?line(Meta), {clauses, [Clause]}}, TEnv3}.
+  {Clause, TEnv3}.
 
+check_fn_exprs(Exprs, Env) when is_list(Exprs) ->
+  lists:foldl(fun check_fn_expr_arity/2, {0, Env}, Exprs).
+check_fn_expr_arity({list, Meta, [{literal_list, _, List} | _]}, {Last, Env}) ->
+  Arity = length(List),
+  case Last of
+    0 ->
+      {Arity, Env};
+    Arity ->
+      {Arity, Env};
+    _ ->
+      Error = {fn_clause_arity_mismatch, {Arity, Last}},
+      kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
+  end.
 
 %% translate attribute
 
@@ -434,5 +491,10 @@ format_error({missing_case_clause_guard}) ->
 format_error({invalid_nested_and_or_in_guard, {Parent, Id, Left}}) ->
   io_lib:format("invalid nested and/or in guard, parent: ~p, current: ~p, args: ~p", [Parent, Id, Left]);
 format_error({not_enough_operand_in_guard, {Op, Operand}}) ->
-  io_lib:format("not enough operand for ~p, given: ~p", [Op, Operand]).
+  io_lib:format("not enough operand for ~p, given: ~p", [Op, Operand]);
+format_error({invalid_fn_expression, {Expr}}) ->
+  io_lib:format("invalid fn expression ~p", [Expr]);
+format_error({fn_clause_arity_mismatch, {Arity, Last}}) ->
+  io_lib:format("fn clause arity ~B mismatch with last clause arity ~B~n", [Arity, Last]).
+
 
