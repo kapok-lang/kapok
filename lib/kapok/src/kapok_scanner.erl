@@ -292,8 +292,8 @@ scan([$,|T], Line, Column, Scope, Tokens) ->
 
 %% Others
 
-scan([H|T], Line, Column, Scope, Tokens) when ?is_identifier_special(H) ->
-  scan(T, Line, Column + 1, Scope, [{list_to_atom([H]), build_meta(Line, Column)}|Tokens]);
+scan([$.|T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 1, Scope, [{'.', build_meta(Line, Column)}|Tokens]);
 
 %% Integers and floats
 

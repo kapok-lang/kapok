@@ -13,14 +13,14 @@ Nonterminals
     open_curly close_curly tuple_container
     paired_comma_values paired_value_list paired_values unpaired_values open_bang_curly map_container
     open_percent_curly set_container
-    dot_op dot_identifier dot_identifier_part function_identifier
+    dot_op dot_identifier dot_identifier_part
     .
 
 Terminals
     hex_number octal_number n_base_number char_number integer float
     binary_string list_string atom atom_safe atom_unsafe identifier
     '(' ')' '[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
-    unquote_splicing backquote quote unquote rest '.' '/' '+' '-'
+    unquote_splicing backquote quote unquote rest '.' '+' '-'
     .
 
 Rootsymbol grammar.
@@ -56,7 +56,6 @@ value       -> atom_expr : '$1'.
 %% identifier
 value       -> identifier : '$1'.
 value       -> dot_identifier : '$1'.
-value       -> function_identifier: '$1'.
 %% macro syntax
 value       -> quote_expr : '$1'.
 value       -> backquote_expr : '$1'.
@@ -89,10 +88,6 @@ dot_identifier_part -> atom_expr : '$1'.
 dot_identifier_part -> identifier : '$1'.
 dot_identifier -> dot_identifier_part dot_op dot_identifier_part : build_dot('$2', '$1', '$3').
 dot_identifier -> dot_identifier dot_op dot_identifier_part : build_dot('$2', '$1', '$3').
-
-%% function_identifier
-function_identifier -> atom_expr '/' integer : build_function_identifier('$1', '$3').
-function_identifier -> identifier '/' integer : build_function_identifier('$1', '$3').
 
 %% Macro syntaxs
 quote_expr            -> quote value : build_quote('$1', '$2').
@@ -194,9 +189,6 @@ build_quoted_atom(Token, Safe) ->
 
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
-
-build_function_identifier(FunctionName, Arity) ->
-  {function_id, token_meta(FunctionName), {token_symbol(FunctionName), token_symbol(Arity)}}.
 
 build_dot(Dot, {Category, _, Id}, Right) when Category == identifier; Category == atom ->
   {dot, token_meta(Dot), {Id, token_symbol(Right)}};

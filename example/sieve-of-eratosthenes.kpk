@@ -1,10 +1,10 @@
 (ns sieve-of-eratosthenes
   (require lists)
   (use (io :only (format)))
-  (use (erlang :only (:'/='/2
+  (use (erlang :only (/=
                       rem
-                      +/2)
-               :rename ((:'/='/2 !=)))))
+                      (+ 2))
+               :rename (((/= 2) !=)))))
 
 (defn- sieve ([] primes)
   (lists.reverse primes))

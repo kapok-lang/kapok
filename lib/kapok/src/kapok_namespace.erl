@@ -287,7 +287,7 @@ group_arguments(Meta, Args, _Acc, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid use arguments: ~p~n", [Args]).
 
 parse_functions(Meta, Args, Env) ->
-  Fun = fun({function_id, _, {Id, Integer}}) -> {Id, Integer};
+  Fun = fun({list, _, [{identifier, _, Id}, {number, _, Integer}]}) when is_integer(Integer) -> {Id, Integer};
            ({Category, _, Id}) when ?is_id(Category) -> Id;
            (Other) -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid function: ~p", [Other])
         end,
@@ -295,7 +295,8 @@ parse_functions(Meta, Args, Env) ->
 
 
 parse_function_aliases(Meta, Args, Env) ->
-  Fun = fun({Category, _, [{function_id, _, {Id, Integer}}, {identifier, _, Alias}]}) when ?is_list(Category) ->
+  Fun = fun({Category, _, [{list, _, [{identifier, _, Id}, {number, _, Integer}]}, {identifier, _, Alias}]})
+              when ?is_list(Category), is_integer(Integer) ->
             {Alias, {Id, Integer}};
            ({Category, _, [{C1, _, Id}, {C2, _, Alias}]}) when ?is_list(Category), ?is_id(C1), ?is_id(C2) ->
             {Alias, Id};
