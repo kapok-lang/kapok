@@ -90,39 +90,34 @@ scan([], EndLine, Column,
 %% Base integers
 
 %% hex
+scan([S, $0, $x, H|T], Line, Column, Scope, Tokens) when ?is_sign(S), ?is_hex(H) ->
+  do_scan_hex({list_to_atom([S]), hex_number}, 3, [H|T], Line, Column, Scope, Tokens);
 scan([$0, $x, H|T], Line, Column, Scope, Tokens) when ?is_hex(H) ->
-  {Rest, Number, Length} = scan_hex([H|T], []),
-  scan(Rest, Line, Column + 2 + Length, Scope, [{hex_number, build_meta(Line, Column), Number}|Tokens]);
+  do_scan_hex(hex_number, 2, [H|T], Line, Column, Scope, Tokens);
+
 %% octal
+scan([S, $0, H|T], Line, Column, Scope, Tokens) when ?is_sign(S), ?is_octal(H) ->
+  do_scan_octal({list_to_atom([S]), octal_number}, 2, [H|T], Line, Column, Scope, Tokens);
 scan([$0, H|T], Line, Column, Scope, Tokens) when ?is_octal(H) ->
-  {Rest, Number, Length} = scan_octal([H|T], []),
-  scan(Rest, Line, Column + 1 + Length, Scope, [{octal_number, build_meta(Line, Column), Number}|Tokens]);
+  do_scan_octal(octal_number, 1, [H|T], Line, Column, Scope, Tokens);
 
 %% flexible N(2 - 36) numeral bases
+scan([S, B1, $r, H|T], Line, Column, Scope, Tokens) when ?is_sign(S), (B1 >= $2 andalso B1 =< $9) ->
+  N = B1 - $0,
+  do_scan_n_base({list_to_atom([S]), n_base_number}, 3, N, H, T, Line, Column, Scope, Tokens);
 scan([B1, $r, H|T], Line, Column, Scope, Tokens) when (B1 >= $2 andalso B1 =< $9) ->
   N = B1 - $0,
-  case ?is_n_base(H, N) of
-    true ->
-      {Rest, Number, Length} = scan_n_base([H|T], N, []),
-      scan(Rest, Line, Column + 2 + Length, Scope,
-           [{n_base_number, build_meta(Line, Column), Number}|Tokens]);
-    _ ->
-      {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
-       [], lists:reverse(Tokens)}
-  end;
+  do_scan_n_base(n_base_number, 2, N, H, T, Line, Column, Scope, Tokens);
+scan([S, B1, B2, $r, H|T], Line, Column, Scope, Tokens)
+    when ?is_sign(S), (B1 >= $1 andalso B1 =< $2), (B2 >= $0 andalso B2 =< $9);
+         (B1 == $3), (B2 >= $0 andalso B2 =< $6) ->
+  N = list_to_integer([B1, B2]),
+  do_scan_n_base({list_to_atom([S]), n_base_number}, 3, N, H, T, Line, Column, Scope, Tokens);
 scan([B1, B2, $r, H|T], Line, Column, Scope, Tokens)
     when (B1 >= $1 andalso B1 =< $2), (B2 >= $0 andalso B2 =< $9);
          (B1 == $3), (B2 >= $0 andalso B2 =< $6) ->
   N = list_to_integer([B1, B2]),
-  case ?is_n_base(H, N) of
-    true ->
-      {Rest, Number, Length} = scan_n_base([H|T], N, []),
-      scan(Rest, Line, Column + 3 + Length, Scope,
-           [{n_base_number, build_meta(Line, Column), Number}|Tokens]);
-    _ ->
-      {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
-       [], Tokens}
-  end;
+  do_scan_n_base(n_base_number, 3, N, H, T, Line, Column, Scope, Tokens);
 
 %% Comment
 
@@ -300,14 +295,12 @@ scan([$,|T], Line, Column, Scope, Tokens) ->
 scan([H|T], Line, Column, Scope, Tokens) when ?is_identifier_special(H) ->
   scan(T, Line, Column + 1, Scope, [{list_to_atom([H]), build_meta(Line, Column)}|Tokens]);
 
-scan([Op|T], Line, Column, Scope, Tokens) when ?is_sign(Op) ->
-  scan(T, Line, Column + 1, Scope, [{list_to_atom([Op]), build_meta(Line, Column)}|Tokens]);
-
 %% Integers and floats
 
+scan([S, H|T], Line, Column, Scope, Tokens) when ?is_sign(S), ?is_digit(H) ->
+  do_scan_number(list_to_atom([S]), 1, [H|T], Line, Column, Scope, Tokens);
 scan([H|_] = Original, Line, Column, Scope, Tokens) when ?is_digit(H) ->
-  {Rest, Category, Number, Length} = scan_number(Original, [], false),
-  scan(Rest, Line, Column + Length, Scope, [{Category, build_meta(Line, Column), Number}|Tokens]);
+  do_scan_number(nil, 0, Original, Line, Column, Scope, Tokens);
 
 %% Identifiers
 
@@ -336,6 +329,55 @@ until_eol([], Acc)          -> lists:reverse(Acc);
 until_eol([H|T], Acc)       -> until_eol(T, [H|Acc]).
 
 %% Integers and floats
+%% helpers
+
+do_scan_hex(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
+  {Rest, Number, Length} = scan_hex(String, []),
+  Token = case Flag of
+            {Sign, Category} when is_atom(Sign), is_atom(Category) ->
+              {Sign, build_meta(Line, Column), {Category, build_meta(Line, Column+1), Number}};
+            Category when is_atom(Category) ->
+              {Category, build_meta(Line, Column), Number}
+            end,
+  scan(Rest, Line, Column + PrefixLength + Length, Scope, [Token|Tokens]).
+
+do_scan_octal(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
+  {Rest, Number, Length} = scan_octal(String, []),
+  Token = case Flag of
+            {Sign, Category} when is_atom(Sign), is_atom(Category) ->
+              {Sign, build_meta(Line, Column), {Category, build_meta(Line, Column+1), Number}};
+            Category when is_atom(Category) ->
+              {Category, build_meta(Line, Column), Number}
+            end,
+  scan(Rest, Line, Column + PrefixLength + Length, Scope, [Token|Tokens]).
+
+do_scan_n_base(Flag, PrefixLength, N, H, T, Line, Column, Scope, Tokens) ->
+  case ?is_n_base(H, N) of
+    true ->
+      {Rest, Number, Length} = scan_n_base([H|T], N, []),
+      Token = case Flag of
+                {Sign, Category} when is_atom(Sign), is_atom(Category) ->
+                  {Sign, build_meta(Line, Column), {Category, build_meta(Line, Column+1), Number}};
+                Category when is_atom(Category) ->
+                  {Category, build_meta(Line, Column), Number}
+              end,
+      scan(Rest, Line, Column + PrefixLength + Length, Scope, [Token|Tokens]);
+    _ ->
+      {error, {{Line, Column}, ?MODULE, {invalid_n_base_char, H, N, Line}},
+       [], lists:reverse(Tokens)}
+  end.
+
+do_scan_number(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
+  {Rest, Category, Number, Length} = scan_number(String, [], false),
+  Token = case Flag of
+            nil ->
+              {Category, build_meta(Line, Column), Number};
+            Sign when is_atom(Sign) ->
+              {Sign, build_meta(Line, Column), {Category, build_meta(Line, Column+1), Number}}
+          end,
+  scan(Rest, Line, Column + PrefixLength + Length, Scope, [Token|Tokens]).
+
+
 %% At this point, we are at least sure the first digit is a number.
 
 %% Check if we have a point followed by a number;
