@@ -223,15 +223,15 @@ handle_use_element_arguments(_Meta, _Name, _, [{_, Meta1, _} = Ast | _T], Env) -
 %% definitions
 handle_def(Meta, Kind, Name, Args, Body, Env) ->
   handle_def(Meta, Kind, Name, Args, <<"">>, Body, Env).
-handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env) ->
+handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, #{function := Function} = Env) ->
   %% TODO add doc
-  Env1 = kapok_env:push_scope(Env),
   Arity = arg_length(Args),
-  Namespace = ?m(Env, namespace),
   ParameterType = case Category of
                     C when ?is_list(C) -> 'normal';
                     C when ?is_cons_list(C) -> 'rest'
                   end,
+  Env1 = kapok_env:push_scope(Env#{function => {Name, Arity, ParameterType}}),
+  Namespace = ?m(Env, namespace),
   case Kind of
     'defmacro' ->
       TEnv3 = handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env1);
@@ -250,7 +250,7 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, Env) ->
         _ -> ok
       end
   end,
-  kapok_env:pop_scope(TEnv3).
+  kapok_env:pop_scope(TEnv3#{function => Function}).
 
 %% module
 

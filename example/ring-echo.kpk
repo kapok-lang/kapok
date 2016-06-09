@@ -1,0 +1,62 @@
+(ns ring-echo
+  (use (erlang :only (+ spawn))
+       (io :only (format)))
+  )
+
+(defn repeatedly (n n f acc)
+  (lists.reverse [(f) & acc]))
+
+(defn repeatedly (i n f acc)
+  (repeatedly (+ 1 i) n f [(f) & acc]))
+
+(defn repeatedly (n f)
+  (repeatedly 1 n f []))
+
+(defn- do-times (n n f)
+  (f))
+
+(defn- do-times (i n f)
+  (f)
+  (do-times (+ 1 i) n f))
+
+(defn- do-times (n f)
+  (do-times 1 n f))
+
+(defn process (m main)
+  (receive
+    ({{first, left}, pidlist, c, message}
+     (case pidlist
+       ([h & t] (send h {{first left} t c message}))
+       ([] (case c
+             (m (send first {'exit' left}))
+             (_ (send first {{first, left}, left, (+ 1 c) message}))))))
+    ({'exit', pidlist}
+     (case pidlist
+       ([h & t] (send h {'exit', t}))
+       ([] 'ok'))
+     (format 'exit process.~n' [])
+     (send main 'ok')
+     (erlang.exit 'normal'))
+    (other
+     (format 'oh no, something goes wrong! receiving ~p~n' [other])))
+  (process m main))
+
+(defn main ()
+  (let [p 5
+        m 10
+        main (erlang.self)
+        ;; construct process list
+        pids (repeatedly p (fn []
+                             (spawn (fn [] (process m main)))))]
+    ;; start to echo in process ring
+    (case pids
+      ([first & left]
+       (send first {{first left} left 1 'here is the message'}))
+      ([]
+       (format 'error: no process to run')
+       (erlang.exit 'no process to run')))
+    ;; make sure all processes are exit
+    (do-times p (fn []
+                  (receive
+                    (_message 'ok'))))))
+

@@ -82,12 +82,19 @@ find_remote_macro(Meta, Module, FunArity, Env) ->
       {false, Env}
   end.
 
-find_local(FunArity, Env) ->
-  Namespace = maps:get(namespace, Env),
-  Locals = kapok_namespace:namespace_locals(Namespace),
-  case find_fa(FunArity, Locals) of
-    [{F, A, P}] -> {F, A, P};
-    [] -> false
+find_local(FunArity, #{function := Function} = Env) ->
+  case find_fa(FunArity, [Function]) of
+    [{F, A, P}] ->
+      %% match current function definition
+      {F, A, P};
+    [] ->
+      %% find in uses
+      Namespace = maps:get(namespace, Env),
+      Locals = kapok_namespace:namespace_locals(Namespace),
+      case find_fa(FunArity, Locals) of
+        [{F, A, P}] -> {F, A, P};
+        [] -> false
+      end
   end.
 
 find_local_function(Meta, FunArity, Env) ->
