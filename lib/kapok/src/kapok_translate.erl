@@ -120,6 +120,18 @@ translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args | Bod
 translate({list, Meta, [{identifier, _, 'fn'} | Exprs]}, Env) ->
   translate_fn(Meta, Exprs, Env);
 
+%% send
+translate({list, Meta, [{identifier, _, 'send'}, Pid, Message]}, Env) ->
+  {TPid, TEnv} = translate(Pid, Env),
+  {TMessage, TEnv1} = translate(Message, TEnv),
+  {{op, ?line(Meta), '!', TPid, TMessage}, TEnv1};
+
+%% receive
+translate({list, Meta, [{identifier, _, 'receive'}, Clause | Left]}, Env) ->
+  {TClause, TEnv} = translate_case_clause(Clause, Env),
+  {TLeft, TEnv1} = lists:mapfoldl(fun translate_case_clause/2, TEnv, Left),
+  {{'receive', ?line(Meta), [TClause | TLeft]}, TEnv1};
+
 %% Erlang specified forms
 
 %% behaviour
