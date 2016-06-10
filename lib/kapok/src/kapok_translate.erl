@@ -127,11 +127,8 @@ translate({list, Meta, [{identifier, _, 'send'}, Pid, Message]}, Env) ->
   {{op, ?line(Meta), '!', TPid, TMessage}, TEnv1};
 
 %% receive
-%%translate({list, Meta, [{identifier, _, 'receive'}, {list} | Clauses]}, Env) ->
-
 translate({list, Meta, [{identifier, _, 'receive'} | Clauses]}, Env) ->
-  {TClauses, TEnv1} = lists:mapfoldl(fun translate_case_clause/2, Env, Clauses),
-  {{'receive', ?line(Meta), TClauses}, TEnv1};
+  translate_receive(Meta, Clauses, Env);
 
 %% Erlang specified forms
 
@@ -448,6 +445,39 @@ check_fn_expr_arity({list, Meta, [{literal_list, _, List} | _]}, {Last, Env}) ->
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
 
+%% translate receive
+translate_receive(Meta, [], Env) ->
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {empty_receive_expr});
+translate_receive(Meta, Clauses, Env) ->
+  {Result, TEnv} = translate_receive(Meta, Clauses, [], Env),
+  case Result of
+    {TClauses, TExpr, TBody} when is_list(TClauses) ->
+      {{'receive', ?line(Meta), TClauses, TExpr, TBody}, TEnv};
+    TClauses when is_list(TClauses) ->
+      {{'receive', ?line(Meta), TClauses}, TEnv}
+  end.
+
+translate_receive(_Meta, [], Acc, Env) ->
+  {lists:reverse(Acc), Env};
+translate_receive(Meta, [H], Acc, Env) ->
+  case H of
+    {list, _, [{identifier, _, 'after'}, Expr | Body]} ->
+      {TExpr, TEnv} = translate(Expr, Env),
+      {TBody, TEnv1} = translate(Body, TEnv),
+      {{lists:reverse(Acc), TExpr, TBody}, TEnv1};
+    _ ->
+      {TClause, TEnv} = translate_case_clause(H, Env),
+      translate_receive(Meta, [], [TClause | Acc], TEnv)
+  end;
+translate_receive(Meta, [H|T], Acc, Env) ->
+  case H of
+    {list, Meta1, [{identifier, _, 'after'}, _Expr | _Body]} ->
+      kapok_error:form_error(Meta1, ?m(Env, file), ?MODULE, {after_clause_not_the_last});
+    _ ->
+      {TClause, TEnv} = translate_case_clause(H, Env),
+      translate_receive(Meta, T, [TClause | Acc], TEnv)
+  end.
+
 %% translate attribute
 
 translate_attribute(Meta, A, T, Env) ->
@@ -508,6 +538,10 @@ format_error({not_enough_operand_in_guard, {Op, Operand}}) ->
 format_error({invalid_fn_expression, {Expr}}) ->
   io_lib:format("invalid fn expression ~p", [Expr]);
 format_error({fn_clause_arity_mismatch, {Arity, Last}}) ->
-  io_lib:format("fn clause arity ~B mismatch with last clause arity ~B~n", [Arity, Last]).
+  io_lib:format("fn clause arity ~B mismatch with last clause arity ~B~n", [Arity, Last]);
+format_error({empty_receive_expr}) ->
+  io_lib:format("empty receive expression", []);
+format_error({after_clause_not_the_last}) ->
+  io_lib:format("after clause should be the last expression of receive", []).
 
 

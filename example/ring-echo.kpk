@@ -1,5 +1,5 @@
 (ns ring-echo
-  (use (erlang :only (+ spawn))
+  (use (erlang :only (+ spawn throw))
        (io :only (format)))
   )
 
@@ -38,7 +38,10 @@
      (format 'process exit.~n' [])
      (send main 'ok'))
     (other
-     (format 'oh no, something goes wrong! receiving ~p~n' [other])))
+     (format 'oh no, something goes wrong! receiving ~p~n' [other]))
+    (after 1000
+     (format 'unexpected timeout')
+     (throw :'unexpected timeout')))
   )
 
 (defn main ()
