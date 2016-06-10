@@ -29,17 +29,17 @@
        ([h & t] (send h {{first left} t c message}))
        ([] (case c
              (m (send first {'exit' left}))
-             (_ (send first {{first, left}, left, (+ 1 c) message}))))))
+             (_ (send first {{first, left}, left, (+ 1 c) message})))))
+     (process m main))
     ({'exit', pidlist}
      (case pidlist
        ([h & t] (send h {'exit', t}))
        ([] 'ok'))
-     (format 'exit process.~n' [])
-     (send main 'ok')
-     (erlang.exit 'normal'))
+     (format 'process exit.~n' [])
+     (send main 'ok'))
     (other
      (format 'oh no, something goes wrong! receiving ~p~n' [other])))
-  (process m main))
+  )
 
 (defn main ()
   (let [p 5

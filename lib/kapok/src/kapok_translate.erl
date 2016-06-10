@@ -127,10 +127,11 @@ translate({list, Meta, [{identifier, _, 'send'}, Pid, Message]}, Env) ->
   {{op, ?line(Meta), '!', TPid, TMessage}, TEnv1};
 
 %% receive
-translate({list, Meta, [{identifier, _, 'receive'}, Clause | Left]}, Env) ->
-  {TClause, TEnv} = translate_case_clause(Clause, Env),
-  {TLeft, TEnv1} = lists:mapfoldl(fun translate_case_clause/2, TEnv, Left),
-  {{'receive', ?line(Meta), [TClause | TLeft]}, TEnv1};
+%%translate({list, Meta, [{identifier, _, 'receive'}, {list} | Clauses]}, Env) ->
+
+translate({list, Meta, [{identifier, _, 'receive'} | Clauses]}, Env) ->
+  {TClauses, TEnv1} = lists:mapfoldl(fun translate_case_clause/2, Env, Clauses),
+  {{'receive', ?line(Meta), TClauses}, TEnv1};
 
 %% Erlang specified forms
 
