@@ -238,7 +238,7 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, #{function := 
     _ ->
       {TF, TEnv1} = kapok_translate:translate(Name, Env1),
       {TArgs, TEnv2} = kapok_translate:translate_args(Args, TEnv1),
-      {TBody, TEnv3} = kapok_translate:translate(Body, TEnv2),
+      {TBody, TEnv3} = kapok_translate:translate_body(Meta, Body, TEnv2),
       add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
       add_local(Namespace, Name, Arity, ParameterType),
       case Kind of
@@ -321,7 +321,7 @@ handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) -
   {TPrefixArgs, TEnv3} = kapok_translate:translate(PrefixArgs, TEnv2),
   {TArgs, TEnv4} = kapok_translate:translate_args(Args, TEnv3),
   MacroArgs = [TPrefixArgs | TArgs],
-  {TBody, TEnv5} = kapok_translate:translate(Body, TEnv4),
+  {TBody, TEnv5} = kapok_translate:translate_body(Meta, Body, TEnv4),
   FunClause = {clause, ?line(Meta), TArgs, [], TBody},
   MacroClause = {clause, ?line(Meta), MacroArgs, [], [{call, ?line(Meta), TF, TArgs}]},
   add_function_clause(Namespace, Name, Arity, FunClause),
