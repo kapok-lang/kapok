@@ -106,11 +106,7 @@ compile(Ast, Env, Callback) when is_list(Ast) ->
                      end,
                      Env,
                      Ast),
-  Namespace = ?m(TEnv,namespace),
-  Functions = namespace_export_functions(Namespace),
-  Macros = namespace_export_macros(Namespace),
-  Defs = namespace_defs(Namespace),
-  build_module(Namespace, Functions, Macros, Defs, TEnv, Callback).
+  build_namespace(?m(TEnv, namespace), TEnv, Callback).
 
 handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {C, _, Doc} | Left]}, Env)
     when ?is_string(C) ->
@@ -132,17 +128,17 @@ handle_ast({_, Meta, _} = Ast, Env) ->
 handle_ns(Meta, Name, Clauses, Env) ->
   handle_ns(Meta, Name, Clauses, <<"">>, Env).
 handle_ns(Meta, Name, Clauses, _Doc, Env) ->
-  E = case ?m(Env, namespace) of
-        nil -> Env#{namespace => Name};
-        NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
-      end,
+  Env1 = case ?m(Env, namespace) of
+           nil -> Env#{namespace => Name};
+           NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
+         end,
   case ets:info(kapok_namespaces) of
     undefined -> init_namespace_table();
     _ -> ok
   end,
   add_namespace(Name),
-  {_, TEnv} = lists:mapfoldl(fun handle_namespace_clause/2, E, Clauses),
-  TEnv.
+  {_, TEnv1} = lists:mapfoldl(fun handle_namespace_clause/2, Env1, Clauses),
+  TEnv1.
 
 handle_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
   handle_require_clause(T, Env);
@@ -251,6 +247,13 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, #{function := 
       end
   end,
   kapok_env:pop_scope(TEnv3#{function => Function}).
+
+%% namespace
+build_namespace(Namespace, Env, Callback) ->
+  Functions = namespace_export_functions(Namespace),
+  Macros = namespace_export_macros(Namespace),
+  Defs = namespace_defs(Namespace),
+  build_module(Namespace, Functions, Macros, Defs, Env, Callback).
 
 %% module
 
