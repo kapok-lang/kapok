@@ -108,11 +108,11 @@ compile(Ast, Env, Callback) when is_list(Ast) ->
                      Ast),
   build_namespace(?m(TEnv, namespace), TEnv, Callback).
 
-handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id}, {C, _, Doc} | Left]}, Env)
-    when ?is_string(C) ->
-  handle_ns(Meta, Id, Doc, Left, Env);
-handle_ast({list, Meta, [{identifier, _, ns}, {identifier, _, Id} | Left]}, Env) ->
-  handle_ns(Meta, Id, Left, Env);
+handle_ast({list, Meta, [{identifier, _, ns}, {C1, _, _} = Ast, {C2, _, Doc} | Left]}, Env)
+    when ?is_dot_id(C1), ?is_string(C2) ->
+  handle_ns(Meta, Ast, Doc, Left, Env);
+handle_ast({list, Meta, [{identifier, _, ns}, {C1, _, _} = Ast | Left]}, Env) when ?is_dot_id(C1) ->
+  handle_ns(Meta, Ast, Left, Env);
 handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args, {C2, _, _} = Doc | Body]}, Env)
     when ?is_def(Id), ?is_arg_list(C1), ?is_string(C2) ->
   handle_def(Meta, Id, Name, Args, Doc, Body, Env);
@@ -125,9 +125,13 @@ handle_ast({_, Meta, _} = Ast, Env) ->
 
 %% namespace
 
-handle_ns(Meta, Name, Clauses, Env) ->
-  handle_ns(Meta, Name, Clauses, <<"">>, Env).
-handle_ns(Meta, Name, Clauses, _Doc, Env) ->
+handle_ns(Meta, Ast, Clauses, Env) ->
+  handle_ns(Meta, Ast, <<"">>, Clauses,  Env).
+handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Env) ->
+  Name = case C of
+           'dot' -> kapok_parser:dot_fullname(Ast);
+           'identifier' -> Arg
+         end,
   Env1 = case ?m(Env, namespace) of
            nil -> Env#{namespace => Name};
            NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
@@ -149,14 +153,14 @@ handle_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
 handle_require_clause(List, Env) when is_list(List) ->
   lists:mapfoldl(fun handle_require_element/2, Env, List).
 
-handle_require_element({Category, Meta, Id}, Env) when ?is_id(Category) ->
+handle_require_element({Category, Meta, Id}, Env) when ?is_local_id(Category) ->
   {Id, kapok_env:add_require(Meta, Env, Id)};
 handle_require_element({dot, Meta, _} = Dot, Env) ->
   Name = kapok_parser:dot_fullname(Dot),
   {Name, kapok_env:add_require(Meta, Env, Name)};
 handle_require_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
   case Args of
-    [{Category, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] when ?is_id(Category) ->
+    [{Category, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] when ?is_local_id(Category) ->
       {Name, TEnv} = handle_require_element(Ast, Env),
       {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
     [{dot, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
@@ -170,7 +174,7 @@ handle_require_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
 handle_use_clause(List, Env) when is_list(List) ->
   lists:mapfoldl(fun handle_use_element/2, Env, List).
 
-handle_use_element({Category, Meta, Id}, Env) when ?is_id(Category) ->
+handle_use_element({Category, Meta, Id}, Env) when ?is_local_id(Category) ->
   Env1 = kapok_env:add_require(Meta, Env, Id),
   Env2 = kapok_env:add_use(Meta, Env1, Id),
   {Id, Env2};
@@ -181,7 +185,7 @@ handle_use_element({dot, Meta, _} = Dot, Env) ->
   {Name, Env2};
 handle_use_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
   case Args of
-    [{C, _, _} = Ast | T] when ?is_id(C) ->
+    [{C, _, _} = Ast | T] when ?is_local_id(C) ->
       {Name, Env1} = handle_use_element(Ast, Env),
       handle_use_element_arguments(Meta, Name, T, Env1);
     [{dot, _, _} = Ast | T] ->
@@ -291,7 +295,7 @@ group_arguments(Meta, Args, _Acc, Env) ->
 
 parse_functions(Meta, Args, Env) ->
   Fun = fun({list, _, [{identifier, _, Id}, {number, _, Integer}]}) when is_integer(Integer) -> {Id, Integer};
-           ({Category, _, Id}) when ?is_id(Category) -> Id;
+           ({Category, _, Id}) when ?is_local_id(Category) -> Id;
            (Other) -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid function: ~p", [Other])
         end,
   ordsets:from_list(lists:map(Fun, Args)).
@@ -301,7 +305,7 @@ parse_function_aliases(Meta, Args, Env) ->
   Fun = fun({Category, _, [{list, _, [{identifier, _, Id}, {number, _, Integer}]}, {identifier, _, Alias}]})
               when ?is_list(Category), is_integer(Integer) ->
             {Alias, {Id, Integer}};
-           ({Category, _, [{C1, _, Id}, {C2, _, Alias}]}) when ?is_list(Category), ?is_id(C1), ?is_id(C2) ->
+           ({Category, _, [{C1, _, Id}, {C2, _, Alias}]}) when ?is_list(Category), ?is_local_id(C1), ?is_local_id(C2) ->
             {Alias, Id};
            (Other) ->
             kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])

@@ -110,7 +110,7 @@ expand({cons_list, Meta, {Head, Tail}}, Env) ->
   {{cons_list, Meta, {EHead, ETail}}, TEnv1, ExpandedHead orelse ExpandedTail};
 
 expand({list, Meta, [{Category, _, Id} | Args]} = Ast, #{macro_context := Context} = Env)
-    when ?is_id(Category) ->
+    when ?is_local_id(Category) ->
   case is_inside_backquote(Context) of
     true -> expand_ast_list(Ast, Env);
     false ->

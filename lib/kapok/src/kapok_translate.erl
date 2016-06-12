@@ -108,10 +108,10 @@ translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Env) ->
 
 %% fn
 translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Env)
-    when ?is_id(C) ->
+    when ?is_local_id(C) ->
   translate_fn(Meta, Id, Number, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {number, _, Number}]}, Env)
-    when ?is_id(C1), ?is_id(C2) ->
+    when ?is_local_id(C1), ?is_local_id(C2) ->
   translate_fn(Meta, Id1, Id2, Number, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args | Body]}, Env) ->
   translate_fn(Meta, Id, Args, Body, Env);
@@ -140,7 +140,7 @@ translate({list, Meta, [{identifier, _, 'try'} | Exprs]}, Env) ->
 
 %% behaviour
 translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, Env)
-    when ?is_behaviour(Form), ?is_id(Category) ->
+    when ?is_behaviour(Form), ?is_local_id(Category) ->
   translate_attribute(Meta, Form, Id, Env);
 
 %% compile
@@ -156,7 +156,7 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Binary}, {C2, _, Number}]
 
 %% wild attribute
 translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value}]}, Env)
-    when ?is_attribute(Form), ?is_id(C1), ?is_id(C2) ->
+    when ?is_attribute(Form), ?is_local_id(C1), ?is_local_id(C2) ->
   translate_attribute(Meta, Attribute, Value, Env);
 
 %% Local call

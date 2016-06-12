@@ -649,7 +649,7 @@ terminator('<<') -> '>>'.
 %% Error
 
 format_error({missing_terminator, Close, Open, OpenLine}) ->
-  io_lib:format("missing terminator: ~ts (for \"~ts\" opening at line ~B)", [Close, Open, OpenLine]);
+  io_lib:format("missing terminator: ~ts (for ~ts opening at line ~B)", [Close, Open, OpenLine]);
 format_error({invalid_n_base_char, Char, Base, Line}) ->
   io_lib:format("invalid char: ~tc for ~B-base number at line ~B", [Char, Base, Line]);
 format_error({invalid_eof, escape}) ->
