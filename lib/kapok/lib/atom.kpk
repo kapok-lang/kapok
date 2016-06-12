@@ -5,7 +5,7 @@
   "Convenience functions for working with atoms."
   (require erlang))
 
-(defn to_string (atom)
+(defn to-string (atom)
   """Converts an atom to a string.
   Inlined by the compiler.
 
@@ -15,7 +15,7 @@
   """
   (erlang.atom_to_binary atom :utf8))
 
-(defn to_char_list (atom)
+(defn to-char-list (atom)
   """Converts an atom to a char list.
   Inlined by the compiler.
 
