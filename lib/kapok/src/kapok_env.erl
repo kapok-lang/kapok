@@ -10,7 +10,8 @@
          reset_macro_context/1,
          push_scope/1,
          pop_scope/1,
-         add_var/3,
+         add_var/2,
+         add_bindings/2,
          check_var/3,
          env_for_eval/1,
          env_for_eval/2]).
@@ -102,9 +103,15 @@ pop_scope(#{scope := Scope} = Env) ->
     ParentScope -> Env#{scope => ParentScope}
   end.
 
-add_var(Meta, #{scope := Scope} = Env, Var) ->
+add_var(#{scope := Scope} = Env, Var) ->
   Vars = maps:get(vars, Scope),
-  NewVars = orddict:store(Var, {var,?line(Meta),Var}, Vars),
+  NewVars = ordsets:add_element(Var, Vars),
+  Env#{scope => Scope#{vars => NewVars}}.
+
+add_bindings(#{scope := Scope} = Env, Bindings) ->
+  New = ordsets:from_list([K || {K, _} <- Bindings]),
+  Vars = maps:get(vars, Scope),
+  NewVars = ordsets:union(Vars, New),
   Env#{scope => Scope#{vars => NewVars}}.
 
 check_var(Meta, #{scope := Scope} = Env, Var) ->
@@ -113,7 +120,7 @@ check_var(Meta, Env, nil, Var) ->
   kapok_error:compile_error(Meta, ?m(Env, file),"unable to resolve symbol: ~p", [Var]);
 check_var(Meta, Env, Scope, Var) ->
   Vars = maps:get(vars, Scope),
-  case orddict:is_key(Var, Vars) of
+  case ordsets:is_element(Var, Vars) of
     true -> Env;
     false -> check_var(Meta, Env, maps:get(parent, Scope), Var)
   end.

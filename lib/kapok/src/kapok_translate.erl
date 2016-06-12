@@ -30,7 +30,7 @@ translate({atom, Meta, Atom}, Env) ->
 translate({identifier, Meta, Id}, #{context := Context} = Env) ->
   %% search env to check whether identifier is a variable
   NewEnv = case Context of
-             match_vars -> kapok_env:add_var(Meta, Env, Id);
+             match_vars -> kapok_env:add_var(Env, Id);
              _ -> kapok_env:check_var(Meta, Env, Id)
            end,
   {{var, ?line(Meta), Id}, NewEnv};
@@ -164,11 +164,11 @@ translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = 
   Arity = length(Args),
   FunArity = {Id, Arity},
   Vars = maps:get(vars, Scope),
-  case orddict:find(Id, Vars) of
-    {ok, _Var} ->
+  case ordsets:is_element(Id, Vars) of
+    true ->
       %% local variable
       translate_local_call(Meta, Name, Args, Env);
-    error ->
+    false ->
       case kapok_dispatch:find_local(FunArity, Env) of
         {F, A, P} ->
           translate_local_call(Meta, F, A, P, Arity, Args, Env);
