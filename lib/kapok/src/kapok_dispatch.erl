@@ -26,14 +26,17 @@ default_macros() ->
 
 %% expand helpers
 
-expand_macro_fun(Meta, Fun, _Receiver, _Name, Args, Env) ->
+expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
   Line = ?line(Meta),
   CallerArg = {Line, Env},
   try
     apply(Fun, [CallerArg | Args])
   catch
     Kind:Reason ->
-      erlang:raise(Kind, Reason, erlang:get_stacktrace())
+      Arity = length(Args),
+      MFA = {Receiver, Name, Arity+1},
+      Info = [{Receiver, Name, Arity, [{file, "expand macro"}]}, caller(Line, Env)],
+      erlang:raise(Kind, Reason, prune_stacktrace(erlang:get_stacktrace(), MFA, Info, nil))
   end.
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
@@ -383,6 +386,26 @@ to_ast(List) when is_list(List) ->
   {list, [], L};
 to_ast(Atom) ->
   Atom.
+
+%% Helpers
+
+caller(Line, #{namespace := Namespace, function := {F, A, _P}} = Env) ->
+  {Namespace, F, A, location(Line, Env)}.
+
+location(Line, Env) ->
+  [{file, kapok_utils:characters_to_list(?m(Env, file))},
+   {line, Line}].
+
+%% We've reached the invoked macro, skip it with the rest
+prune_stacktrace([{M, F, A, _} | _], {M, F, A}, Info, _Env) ->
+  Info;
+%% We've reached the expand/dispatch internals, skip it with the rest
+prune_stacktrace([{Mod, _, _, _} | _], _MFA, Info, _Env) when Mod == kapok_dispatch; Mod == kapok_expand ->
+  Info;
+prune_stacktrace([H|T], MFA, Info, Env) ->
+  [H|prune_stacktrace(T, MFA, Info, Env)];
+prune_stacktrace([], _MFA, Info, _Env) ->
+  Info.
 
 %% ERROR HANDLING
 
