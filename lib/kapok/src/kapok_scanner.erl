@@ -215,10 +215,17 @@ scan([$\\, H|T], Line, Column, Scope, Tokens) ->
 
 %% Strings
 
+%% heredoc
+scan("\"\"\"" ++ T, Line, Column, Scope, Tokens) ->
+  handle_string(T, Line, Column, [$", $", $"], Scope, Tokens);
+scan("'''" ++ T, Line, Column, Scope, Tokens) ->
+  handle_string(T, Line, Column, [$', $', $'], Scope, Tokens);
+
+%% string
 scan([$"|T], Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column + 1, $", Scope, Tokens);
+  handle_string(T, Line, Column + 1, [$"], Scope, Tokens);
 scan([$'|T], Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column + 1, $', Scope, Tokens);
+  handle_string(T, Line, Column + 1, [$'], Scope, Tokens);
 
 %% Atoms
 
@@ -438,19 +445,6 @@ escape_char(List) ->
   {ok, <<Char/utf8>>} = unescape_chars(list_to_binary(List)),
   Char.
 
-%% Unescape a series of tokens as returned by extract.
-unescape_tokens(Tokens) ->
-  unescape_tokens(Tokens, fun unescape_map/1, []).
-unescape_tokens([], _Map, Acc) ->
-  {ok, lists:reverse(Acc)};
-unescape_tokens([Token|T], Map, Acc) ->
-  case unescape_token(Token, Map) of
-    {ok, Unescape} ->
-      unescape_tokens(T, Map, [Unescape|Acc]);
-    {error, ErrorDescription} ->
-      {error, ErrorDescription}
-  end.
-
 unescape_token(Token) ->
   unescape_token(Token, fun unescape_map/1).
 unescape_token(Token, Map) when is_binary(Token) -> unescape_chars(Token, Map);
@@ -519,16 +513,15 @@ unescape_map($x) -> true;
 unescape_map(E)  -> E.
 
 %% Strings
-
 handle_string(T, Line, Column, Term, Scope, Tokens) ->
   case scan_string(Line, Column, T, Term) of
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
         {ok, Unescaped} ->
-          Token = {string_type(Term), build_meta(Line, Column-1), Unescaped},
+          Token = {string_type(Term), build_meta(Line, Column-length(Term)), Unescaped},
           scan(Rest, NewLine, NewColumn, Scope, [Token|Tokens]);
         {error, ErrorDescription} ->
-          {error, {{Line, Column}, ?MODULE, ErrorDescription}, [Term|T], lists:reverse(Tokens)}
+          {error, {{Line, Column}, ?MODULE, ErrorDescription}, Term ++ T, lists:reverse(Tokens)}
       end;
     {error, Location, _} ->
       {error, {Location, ?MODULE, {missing_terminator, Term, Term, Line}}, T, lists:reverse(Tokens)}
@@ -539,7 +532,12 @@ scan_string(Line, Column, T, Term) ->
 scan_string(Line, Column, [], _Term, Acc) ->
   {error, {Line, Column}, lists:reverse(Acc)};
 %% Terminators
-scan_string(Line, Column, [Term|Remaining], Term, Acc) ->
+%% multi-line string
+scan_string(Line, Column, [C, C, C|Remaining], [C, C, C], Acc) ->
+  String = unicode:characters_to_binary(lists:reverse(Acc)),
+  {ok, Line, Column+3, String, Remaining};
+%% string
+scan_string(Line, Column, [C|Remaining], [C], Acc) ->
   String = unicode:characters_to_binary(lists:reverse(Acc)),
   {ok, Line, Column+1, String, Remaining};
 %% Going through the string
@@ -550,9 +548,9 @@ scan_string(Line, _Column, [$\\, $\r, $\n|Rest], Term, Acc) ->
 scan_string(Line, _Column, [$\n|Rest], Term, Acc) ->
   scan_string(Line+1, 1, Rest, Term, [$\n|Acc]);
 scan_string(Line, _Column, [$\r, $\n|Rest], Term, Acc) ->
-  scan_string(Line+1, 1, Rest, Term, [$\n |Acc]);
-scan_string(Line, Column, [$\\, Term|Rest], Term, Acc) ->
-  scan_string(Line, Column+2, Rest, Term, [Term|Acc]);
+  scan_string(Line+1, 1, Rest, Term, [$\n|Acc]);
+scan_string(Line, Column, [$\\, C|Rest], [C] = Term, Acc) ->
+  scan_string(Line, Column+2, Rest, Term, [C|Acc]);
 scan_string(Line, Column, [$\\, Char|Rest], Term, Acc) ->
   scan_string(Line, Column+2, Rest, Term, [Char, $\\|Acc]);
 %% Catch all clause
@@ -637,6 +635,7 @@ check_terminator({C, {Line, Column}}, [])
 check_terminator(_, Terminators) ->
   Terminators.
 
+string_type([H|_T]) -> string_type(H);
 string_type($") -> binary_string;
 string_type($') -> list_string.
 
@@ -650,7 +649,7 @@ terminator('<<') -> '>>'.
 %% Error
 
 format_error({missing_terminator, Close, Open, OpenLine}) ->
-  io_lib:format("missing terminator: ~ts (for \"~ts\" opening at line ~B", [Close, Open, OpenLine]);
+  io_lib:format("missing terminator: ~ts (for \"~ts\" opening at line ~B)", [Close, Open, OpenLine]);
 format_error({invalid_n_base_char, Char, Base, Line}) ->
   io_lib:format("invalid char: ~tc for ~B-base number at line ~B", [Char, Base, Line]);
 format_error({invalid_eof, escape}) ->
