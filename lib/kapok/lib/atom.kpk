@@ -7,20 +7,26 @@
 
 (defn to-string (atom)
   """Converts an atom to a string.
+
   Inlined by the compiler.
 
   ;; Examples
-      kapok> (kapok.atom.to_string :foo)
+
+      kapok> (to-string :foo)
       "foo"
+
   """
   (erlang.atom_to_binary atom :utf8))
 
 (defn to-char-list (atom)
   """Converts an atom to a char list.
+
   Inlined by the compiler.
 
   ;; Examples
-      kapok> (kapok.atom.to_char_list :'An atom')
+
+      kapok> (to-char-list :'An atom')
       'An atom'
+
   """
   (erlang.to_char_list atom))
