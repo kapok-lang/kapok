@@ -6,7 +6,7 @@ Nonterminals
     grammar
     expression expression_list expressions
     number signed_number atom_expr
-    bitstring_arg_list bitstring_args bitstring_container
+    bitstring_arg commas_bitstring_arg bitstring_arg_list bitstring_args bitstring_container
     quote_expr backquote_expr unquote_expr unquote_splicing_expr
     value comma_value value_list values
     open_paren close_paren open_bracket close_bracket list_container cons_list
@@ -99,10 +99,14 @@ unquote_splicing_expr -> unquote_splicing list_container : build_unquote_splicin
 
 %% Bitstring
 
-bitstring_arg_list  -> bitstring_arg_list list_container : ['$2' | '$1'].
+bitstring_arg        -> number : build_bitstring_element('$1').
+bitstring_arg        -> list_container : '$1'.
+commas_bitstring_arg -> bitstring_arg  : '$1'.
+commas_bitstring_arg -> ',' bitstring_arg  : '$2'.
+bitstring_arg_list   -> bitstring_arg : ['$1'].
+bitstring_arg_list   -> bitstring_arg_list commas_bitstring_arg : ['$2' | '$1'].
 
 bitstring_args      -> bitstring_arg_list : lists:reverse('$1').
-bitstring_args      -> values : '$1'.
 
 bitstring_container -> '<<' '>>' : build_bitstring('$1', []).
 bitstring_container -> '<<' bitstring_args '>>' : build_bitstring('$1', '$2').
@@ -195,6 +199,14 @@ build_dot(Dot, {Category, _, Id}, Right) when Category == identifier; Category =
 build_dot(Dot, {dot, _, _} = Left, Right) ->
   {dot, token_meta(Dot), {dot_fullname(Left), token_symbol(Right)}}.
 
+build_bitstring_element(Token) ->
+  Symbol = token_symbol(Token),
+  E = case is_integer(Symbol) of
+        true -> Symbol;
+        false -> throw_invalid_bitstring_element(Token)
+      end,
+  {list, token_meta(Token), [E]}.
+
 build_bitstring(Marker, Args) ->
   {bitstring, token_meta(Marker), Args}.
 
@@ -239,3 +251,6 @@ throw(Line, Error, Token) ->
 
 throw_unpaired_map(Marker) ->
   throw(?line(token_meta(Marker)), "unpaired values in map", token_symbol(Marker)).
+
+throw_invalid_bitstring_element(Token) ->
+  throw(?line(token_meta(Token)), "invalid bitstring element", token_symbol(Token)).
