@@ -4,4 +4,105 @@
 ;; all functions here are imported for every ns by default.
 
 (ns kapok.core
+  (require erlang))
+
+
+(defn abs [number]
+  """Returns the arithmetical absolute value of `number`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (abs -3.33)
+      3.33
+      kapok> (abs -3)
+      3
+
+  """
+  (erlang.abs number))
+
+(defn apply [fun args]
+  """Invokes the given `fun` with the arugments `args`.
+  Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (apply (fn [x] (* 2 x)) [2])
+      4
+
+  """
+  (erlang.apply fun args))
+
+(defn apply [module function args]
+  """Invokes the given `fun` from `module` with the arguments `args`.
+
+  Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (apply lists reverse [1 2 3])
+      [3 2 1]
+
+  "
+  (erlang.apply module function args))
+
+(defn binary-part [binary start length]
+  """Extracts the part of thee binary starting at `start` with length `length`.
+  Binary are zero-indexed.
+
+  If `start` or `length` reference in any way outside the binary, an
+  `ArgumentError` exception is raised.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (binary-part "foo" 1 2)
+      "oo"
+
+  A negative `length` can be used to extract bytes that come *before* the byte
+  at `start`:
+
+      kapok> (binary-part "Hello" 5 -3)
+      "llo"
+
+  """
+  (erlang.binary_part binary start length))
+
+(defn bit-size [bitstring]
+  """Returns an integer which is the size in bits of `bitstring`.
+
+  Allowed in guard tests.  Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (bit-size <<(433 (:size 16)) (3 (:size 3))>>)
+      19
+
+      kapok> (bit-size <<1 2 3>>)
+      24
+
+  """
+  (erlang.bit_size bitstring))
+
+(defn byte-size [bitstring]
+  """Returns the number of bytes needed to contain `bitstring`.
+
+  That is, if the number of bits in `bitstring` is not divisible by 8, the
+  resulting number of bytes will be rounded up (by excess). This operation
+  happens in constant time.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (byte-size <<(433 (:size 16)) (3 (:size 3))>>)
+      3
+
+      kapok> (byte-size <<1 2 3>>)
+      3
+
+  """
   )
+
