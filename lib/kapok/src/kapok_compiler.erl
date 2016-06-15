@@ -142,20 +142,48 @@ get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
 %% Compile the module by forms based on the scope information
 %% executes the callback in case of success. This automatically
 %% handles errors and warnings. Used by this module.
-module(Forms, _Opts, #{file := File} = _Env, Callback) ->
+module(Forms, Options, #{file := File} = _Env, Callback) ->
+  Source = kapok_utils:characters_to_list(File),
   io:format("module() forms: ~p~n~n", [Forms]),
-  case compile:forms(Forms) of
-    {ok, ModuleName, Binary} ->
+  case compile:noenv_forms([no_auto_import() | Forms], [return, {source,Source} | Options]) of
+    {ok, ModuleName, Binary, Warning} ->
+      format_warnings(Warning),
       {module, Module} = code:load_binary(ModuleName, binary_to_list(File), Binary),
       Callback(Module, Binary);
     {error, Errors, Warnings} ->
-      io:format("~p~n", [Errors]),
-      io:format("~p~n", [Warnings])
+      format_warnings(Warnings),
+      format_errors(Errors)
   end.
+
+no_auto_import() ->
+  {attribute, 0, compile, no_auto_import}.
 
 %% CORE HANDLING
 
 core() ->
   %% TODO add impl
   ok.
+
+%% ERROR HANDLING
+format_errors([]) ->
+  exit({nocompile, "compilation failed but no error was raised"});
+format_errors(Errors) ->
+  lists:foreach(fun({File, Each}) ->
+                    BinFile = kapok_utils:characters_to_binary(File),
+                    lists:foreach(fun(Error) ->
+                                      kapok_error:handle_file_error(BinFile, Error)
+                                  end,
+                                  Each)
+                end,
+                Errors).
+
+format_warnings(Warnings) ->
+  lists:foreach(fun({File, Each}) ->
+                    BinFile =  kapok_utils:characters_to_binary(File),
+                    lists:foreach(fun(Warning) ->
+                                      kapok_error:handle_file_warning(BinFile, Warning)
+                                  end,
+                                  Each)
+                end,
+                Warnings).
 

@@ -6,7 +6,8 @@
          characters_to_binary/1,
          to_binary/1,
          macro_name/1,
-         read_file_type/1
+         read_file_type/1,
+         relative_to_cwd/1
         ]).
 -include_lib("kernel/include/file.hrl").
 
@@ -45,3 +46,6 @@ read_file_type(File) ->
     {error, _} = Error -> Error
   end.
 
+relative_to_cwd(Path) ->
+  %% TODO add external path library call
+  Path.

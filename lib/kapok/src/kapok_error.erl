@@ -5,9 +5,19 @@
          compile_error/3,
          compile_error/4,
          parse_error/4,
+         warn/2,
+         warn/3,
+         handle_file_warning/2,
          handle_file_error/2
          ]).
 -include("kapok.hrl").
+
+warn(Line, File, Warning) when is_integer(Line), is_binary(File) ->
+  warn(file_format(Line, File), Warning).
+
+warn(Caller, Warning) ->
+  io:put_chars(standard_error, [Caller, "warning: ", Warning, $\n]),
+  ok.
 
 %% General form error.
 
@@ -30,6 +40,12 @@ parse_error(Line, File, Module, ErrorDesc) ->
 
 %% Handle warnings and errors from Erlang land (called during module compilation)
 
+%% Default behaviour
+handle_file_warning(File, {Line, Module, Desc}) ->
+  Message = format_error(Module, Desc),
+  warn(Line, File, Message).
+
+
 handle_file_error(File, {Line, erl_lint, {unsafe_to_atom, Var, {In, _Where}}}) ->
   Translated = case In of
     'orelse'  -> 'or';
@@ -37,7 +53,13 @@ handle_file_error(File, {Line, erl_lint, {unsafe_to_atom, Var, {In, _Where}}}) -
     _ -> In
   end,
   Message = io_lib:format("cannot define variable ~ts inside ~ts", [Var, Translated]),
+  raise(Line, File, 'CompileError', kapok_utils:characters_to_binary(Message));
+
+%% Default behaviour
+handle_file_error(File, {Line, Module, Desc}) ->
+  Message = format_error(Module, Desc),
   raise(Line, File, 'CompileError', kapok_utils:characters_to_binary(Message)).
+
 
 %% Helpers
 
@@ -56,6 +78,14 @@ raise(Line, File, Kind, Message) when is_integer(Line), is_binary(File), is_bina
   Exception = {Kind, File, Line, Message},
   erlang:raise(error, Exception, tl(Stacktrace)).
 
+file_format(0, File) ->
+  io_lib:format("~ts: ", [kapok_utils:relative_to_cwd(File)]);
+file_format(Line, File) ->
+  io_lib:format("~ts:~w: ", [kapok_utils:relative_to_cwd(File), Line]).
+
+
+format_error([], Desc) ->
+  io_lib:format("~p", [Desc]);
 format_error(Module, ErrorDesc) ->
   Module:format_error(ErrorDesc).
 
