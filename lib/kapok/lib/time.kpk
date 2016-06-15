@@ -1,0 +1,16 @@
+(ns kapok.time
+  (require erlang))
+
+(defn date ()
+  """Returns the current date as {year, month, day}.
+
+  The time zone and Daylight Saving Time correction depend on the underlying OS.
+
+  ;; Examples
+
+      kapok> (date)
+      {1995, 2, 19}
+
+  """
+  (erlang.date))
+
