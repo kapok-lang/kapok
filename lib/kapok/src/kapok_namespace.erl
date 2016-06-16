@@ -113,11 +113,25 @@ handle_ast({list, Meta, [{identifier, _, ns}, {C1, _, _} = Ast, {C2, _, Doc} | L
   handle_ns(Meta, Ast, Doc, Left, Env);
 handle_ast({list, Meta, [{identifier, _, ns}, {C1, _, _} = Ast | Left]}, Env) when ?is_dot_id(C1) ->
   handle_ns(Meta, Ast, Left, Env);
-handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args, {C2, _, _} = Doc | Body]}, Env)
-    when ?is_def(Id), ?is_arg_list(C1), ?is_string(C2) ->
+handle_ast({list, Meta,
+            [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args,
+             {C2, _, [{identifier, _, 'when'} | _]} = Guard,
+             {C3, _, _} = Doc | Body]},
+           Env) when ?is_def(Id), ?is_arg_list(C1), ?is_list(C2), ?is_string(C3) ->
+  handle_def(Meta, Id, Name, Args, Guard, Doc, Body, Env);
+handle_ast({list, Meta,
+            [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args,
+             {C2, _, _} = Doc | Body]},
+           Env) when ?is_def(Id), ?is_arg_list(C1), ?is_string(C2) ->
   handle_def(Meta, Id, Name, Args, Doc, Body, Env);
-handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name}, {C, _, _} = Args | Body]}, Env)
-    when ?is_def(Id), ?is_arg_list(C) ->
+handle_ast({list, Meta,
+            [{identifier, _, Id}, {identifier, _, Name}, {C, _, _} = Args,
+             {C2, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+           Env) when ?is_def(Id), ?is_arg_list(C), ?is_list(C2) ->
+  handle_def(Meta, Id, Name, Args, Guard, Body, Env);
+handle_ast({list, Meta,
+            [{identifier, _, Id}, {identifier, _, Name}, {C, _, _} = Args | Body]},
+           Env) when ?is_def(Id), ?is_arg_list(C) ->
   handle_def(Meta, Id, Name, Args, Body, Env);
 
 handle_ast({_, Meta, _} = Ast, Env) ->
@@ -222,8 +236,12 @@ handle_use_element_arguments(_Meta, _Name, _, [{_, Meta1, _} = Ast | _T], Env) -
 
 %% definitions
 handle_def(Meta, Kind, Name, Args, Body, Env) ->
-  handle_def(Meta, Kind, Name, Args, <<"">>, Body, Env).
-handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, #{function := Function} = Env) ->
+  handle_def(Meta, Kind, Name, Args, [], {binary_string, [], <<"">>}, Body, Env).
+handle_def(Meta, Kind, Name, Args, {C, _, _} = Guard, Body, Env) when ?is_list(C) ->
+  handle_def(Meta, Kind, Name, Args, Guard, {binary_string, [], <<"">>}, Body, Env);
+handle_def(Meta, Kind, Name, Args, {C, _, _} = Doc, Body, Env) when ?is_string(C) ->
+  handle_def(Meta, Kind, Name, Args, [], Doc, Body, Env).
+handle_def(Meta, Kind, Name, {Category, _, _} = Args, Guard, _Doc, Body, #{function := Function} = Env) ->
   %% TODO add doc
   Arity = arg_length(Args),
   ParameterType = case Category of
@@ -234,12 +252,13 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, #{function := 
   Namespace = ?m(Env, namespace),
   case Kind of
     'defmacro' ->
-      TEnv3 = handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env1);
+      TEnv4 = handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Guard, Body, Env1);
     _ ->
       {TF, TEnv1} = kapok_translate:translate(Name, Env1),
       {TArgs, TEnv2} = kapok_translate:translate_args(Args, TEnv1),
-      {TBody, TEnv3} = kapok_translate:translate_body(Meta, Body, TEnv2),
-      add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, [], TBody}),
+      {TGuard, TEnv3} = kapok_translate:translate_guard(Guard, TEnv2),
+      {TBody, TEnv4} = kapok_translate:translate_body(Meta, Body, TEnv3),
+      add_function_clause(Namespace, Name, Arity, {clause, ?line(Meta), TArgs, TGuard, TBody}),
       add_local(Namespace, Name, Arity, ParameterType),
       case Kind of
         'defn' -> add_export_function(Namespace, Name, Arity, ParameterType);
@@ -250,7 +269,7 @@ handle_def(Meta, Kind, Name, {Category, _, _} = Args, _Doc, Body, #{function := 
         _ -> ok
       end
   end,
-  kapok_env:pop_scope(TEnv3#{function => Function}).
+  kapok_env:pop_scope(TEnv4#{function => Function}).
 
 %% namespace
 build_namespace(Namespace, Env, Callback) ->
@@ -318,7 +337,7 @@ arg_length({Category, _, {Head, _}}) when ?is_cons_list(Category) ->
   length(Head) + 1.
 
 
-handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) ->
+handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Guard, Body, Env) ->
   MacroName = kapok_utils:macro_name(Name),
   MacroArity = Arity + 1,
   {TF, TEnv} = kapok_translate:translate(Name, Env),
@@ -328,9 +347,10 @@ handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) -
   {TPrefixArgs, TEnv3} = kapok_translate:translate(PrefixArgs, TEnv2),
   {TArgs, TEnv4} = kapok_translate:translate_args(Args, TEnv3),
   MacroArgs = [TPrefixArgs | TArgs],
-  {TBody, TEnv5} = kapok_translate:translate_body(Meta, Body, TEnv4),
-  FunClause = {clause, ?line(Meta), TArgs, [], TBody},
-  MacroClause = {clause, ?line(Meta), MacroArgs, [], [{call, ?line(Meta), TF, TArgs}]},
+  {TGuard, TEnv5} = kapok_translate:translate_guard(Guard, TEnv4),
+  {TBody, TEnv6} = kapok_translate:translate_body(Meta, Body, TEnv5),
+  FunClause = {clause, ?line(Meta), TArgs, TGuard, TBody},
+  MacroClause = {clause, ?line(Meta), MacroArgs, TGuard, [{call, ?line(Meta), TF, TArgs}]},
   add_function_clause(Namespace, Name, Arity, FunClause),
   add_local(Namespace, Name, Arity, ParameterType),
   add_macro_clause(Namespace, MacroName, MacroArity, MacroClause),
@@ -354,7 +374,7 @@ handle_macro_def(Meta, Namespace, Name, Arity, ParameterType, Args, Body, Env) -
       add_export_macro(Namespace, Name, RestMacroArity, 'normal');
     _ -> ok
   end,
-  TEnv5.
+  TEnv6.
 
 add_rest_function_clause(Meta, Kind, Namespace, Name, Arity, TF, TArgs, Env) ->
   RestArity = Arity-1,

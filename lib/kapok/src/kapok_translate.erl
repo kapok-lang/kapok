@@ -2,6 +2,7 @@
 -module(kapok_translate).
 -export([translate/2,
          translate_args/2,
+         translate_guard/2,
          translate_body/3,
          format_error/1]).
 -include("kapok.hrl").
