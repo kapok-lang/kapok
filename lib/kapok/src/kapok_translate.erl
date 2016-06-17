@@ -193,15 +193,13 @@ translate({list, Meta, [{dot, _, {Prefix, Suffix}} | Args]}, Env) ->
     Namespace ->
       %% call to local module
       case kapok_dispatch:find_export(FunArity, Env) of
-        {F1, A1, P1} -> translate_remote_call(Meta, Suffix, F1, A1, P1, Arity, Args, Env);
+        {F, A, P} -> translate_remote_call(Meta, Suffix, F, A, P, Arity, Args, Env);
         _ -> kapok_error:compile_error(Meta, ?m(Env, file), "unknown remote call: ~s:~s", [Prefix, Suffix])
       end;
     _ ->
-      {R, Env1} = kapok_dispatch:find_remote_function(Meta, Prefix, FunArity, Env),
-      case R of
-        {M2, F2, A2, P2} -> translate_remote_call(Meta, M2, F2, A2, P2, Arity, Args, Env1);
-        _ -> translate_remote_call(Meta, Prefix, Suffix, Args, Env1)
-      end
+      {R, Env1} = kapok_dispatch:get_remote_function(Meta, Prefix, FunArity, Env),
+      {M, F, A, P} = R,
+      translate_remote_call(Meta, M, F, A, P, Arity, Args, Env1)
   end;
 
 translate({list, Meta, [F | Args]}, Env) ->

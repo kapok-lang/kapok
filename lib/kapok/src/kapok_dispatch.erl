@@ -7,6 +7,7 @@
          find_remote_macro/4,
          find_local/2,
          find_local_function/3,
+         get_remote_function/4,
          find_remote_function/4,
          find_fa/2,
          construct_new_args/5,
@@ -103,10 +104,21 @@ find_local(FunArity, #{function := Function} = Env) ->
 find_local_function(Meta, FunArity, Env) ->
   {D, Env1} = find_dispatch(Meta, FunArity, Env),
   R = case D of
-        {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
+        {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
         false -> false
       end,
   {R, Env1}.
+
+get_remote_function(Meta, Module, FunArity, Env) ->
+  {R, Env1} = find_remote_function(Meta, Module, FunArity, Env),
+  R1 = case R of
+         {_M, _F, _A, _P} ->
+           R;
+         false ->
+           {F, A} = FunArity,
+           remote_function(Module, F, A, 'normal')
+       end,
+  {R1, Env1}.
 
 find_remote_function(Meta, Module, FunArity, #{requires := Requires} = Env) ->
   Requires = ?m(Env, requires),
@@ -117,14 +129,14 @@ find_remote_function(Meta, Module, FunArity, #{requires := Requires} = Env) ->
         {ok, _} ->
           {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
           R = case D of
-                {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
+                {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
                 false -> false
               end,
           {R, Env1};
         error ->
           {D, Env1} = find_optional_dispatch(Meta, M1, FunArity, Env),
           R = case D of
-                {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
+                {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
                 false -> false
               end,
           {R, Env1}
@@ -368,6 +380,14 @@ match_fa({F, A}, {Fun, Arity, _ParaType}) ->
   (F == Fun) andalso (A == Arity);
 match_fa(Name, {Fun, _Arity, _ParaType}) when is_atom(Name) ->
   Name == Fun.
+
+remote_function({Module, Name, Arity, ParaType}) ->
+  remote_function(Module, Name, Arity, ParaType).
+remote_function(Module, Name, Arity, ParaType) ->
+  case kapok_rewrite:inline(Module, Name, Arity, ParaType) of
+    {M, F, A, P} -> {M, F, A, P};
+    false -> {Module, Name, Arity, ParaType}
+  end.
 
 %%
 to_list(List) when is_list(List) ->

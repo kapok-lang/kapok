@@ -355,6 +355,6 @@
     ([] {:registered_name, []})
     (other other)))
 
-(defn info [pid spec]
+(defn info [pid spec] (when (erlang.is_atom spec))
   (nillify (erlang.process_info pid spec)))
 

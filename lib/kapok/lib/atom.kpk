@@ -29,4 +29,4 @@
       'An atom'
 
   """
-  (erlang.to_char_list atom))
+  (erlang.atom_to_list atom))
