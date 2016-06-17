@@ -44,7 +44,7 @@
       kapok> (apply lists reverse [1 2 3])
       [3 2 1]
 
-  "
+  """
   (erlang.apply module function args))
 
 (defn binary-part [binary start length]
@@ -104,5 +104,188 @@
       3
 
   """
-  )
+  (erlang.byte_size bitstring))
+
+;; TODO
+;; (defn div []
+;;   )
+
+(defn exit [reason]
+  """Stops the execution of the calling process with the given reason.
+
+  Since evaluating this function casuses the process to terminate,
+  it has no return value.
+
+  Inlined by the compiler.
+  """
+  (erlang.exit reason))
+
+;; TODO
+
+(defn is-atom [term]
+  """Returns `true` if `term` is an atom; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_atom term))
+
+(defn is-binary [term]
+  """Returns `true` if `term` is a binary; otherwise `false`.
+
+  A binary always contains a complete number of bytes.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (is-binary "foo")
+      true
+      kapok> (is-binary <<(1 (:size 3))>>)
+      false
+  """
+  (erlang.is_binary term))
+
+(defn is-bitstring [term]
+  """Returns `true` if `term` is a bitstring (including a binary);
+  otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (is-bitstring "foo")
+      true
+      kapok> (is-bitstring <<(1 (:size 3))>>)
+      true
+
+  """
+  (erlang.is_bitstring term))
+
+(defn is-boolean [term]
+  """Returns `true` if `term` is either the atom `true` or the atom `false`
+  (i.e., a boolean); otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_boolean term))
+
+(defn is-builtin [module function arity]
+  """Returns `true` if `(module.function arity)` is a BIF implemented in C;
+  otherwise `false`.
+
+  This BIF is useful for builders of closs-reference tools.
+  """
+  (erlang.is_builtin module function arity))
+
+(defn is-float [term]
+  """Returns `true` if `term` is a floating point number;
+  otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_float term))
+
+(defn is-function [term]
+  """Returns `true` if `term` is a function; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_function term))
+
+(defn is-function [term, arity]
+  """Returns `true` if `term` is a function that can be applied with
+  `arity` number of arguments; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (is-function (fn [x] (* 2 x)) 1)
+      true
+      kapok> (is-function (fn [x] (* 2 x)) 2)
+      false
+
+  """
+  (erlang.is_function term arity))
+
+(defn is-integer [term]
+  """Returns `true` if `term` is an integer; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_integer term))
+
+(defn is-list [term]
+  """Returns `true` if `term` is a list with zero or more elements;
+  otherwist returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_list term))
+
+(defn is-map [term]
+  """Returns `true` if `term` is a map; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_map term))
+
+(defn is-number [term]
+  """Returns `true` if `term` is an integer or a floating point number;
+  otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_number term))
+
+(defn is-pid [term]
+  """Returns `true` if `term` is a pid (process identifier);
+  otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_pid term))
+
+(defn is-pmod [term]
+  """Returns `true` if `term` is an instance of a parameterized module;
+  otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_pmod term))
+
+(defn is-port [term]
+  """Returns `true` if `term` is a port identifier; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_port term))
+
+(defn is-reference [term]
+  """Returns `true` if `term` is a reference; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_reference term))
+
+(defn is-tuple [term]
+  """Returns `true` if `term` is a tuple; otherwise returns `false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.is_tuple term))
+
+;; TODO
+
+(defn send [dest message]
+  """Sends a message to the given `dest` and returns the message.
+
+  `dest` may be a remote or local pid, a (local) port, a locally
+  registered name, or a tuple `{registered_name, node}` for a registered
+  name at another node.
+
+  Inlined by the compiler.
+  """
+  (erlang.send dest message))
+
 
