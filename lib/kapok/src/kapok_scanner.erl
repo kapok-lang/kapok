@@ -215,17 +215,19 @@ scan([$\\, H|T], Line, Column, Scope, Tokens) ->
 
 %% Strings
 
-%% heredoc
+%% triple quote separators
 scan("\"\"\"" ++ T, Line, Column, Scope, Tokens) ->
   handle_string(T, Line, Column, [$", $", $"], Scope, Tokens);
 scan("'''" ++ T, Line, Column, Scope, Tokens) ->
   handle_string(T, Line, Column, [$', $', $'], Scope, Tokens);
 
-%% string
+%% single quote separators
+scan([$#, $"|T], Line, Column, Scope, Tokens) ->
+  handle_string(T, Line, Column + 1, [$#], Scope, Tokens);
+
 scan([$"|T], Line, Column, Scope, Tokens) ->
   handle_string(T, Line, Column + 1, [$"], Scope, Tokens);
-scan([$'|T], Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column + 1, [$'], Scope, Tokens);
+
 
 %% Keywords and Atoms
 
@@ -655,7 +657,7 @@ check_terminator(_, Terminators) ->
 
 string_type([H|_T]) -> string_type(H);
 string_type($") -> binary_string;
-string_type($') -> list_string.
+string_type($#) -> list_string.
 
 terminator('(') -> ')';
 terminator('[') -> ']';

@@ -25,8 +25,8 @@
 
 %% Identifiers
 -define(is_identifier_start(S),
-        (?is_upcase(S) orelse ?is_downcase(S) orelse (S == $!) orelse (S == $#) orelse (S == $$) orelse (S == $%) orelse (S == $*) orelse (S == $+) orelse (S == $-) orelse (S == $/) orelse (S == $<) orelse (S == $=) orelse (S == $>) orelse (S == $?) orelse (S == $@) orelse (S == $^) orelse (S == $_) orelse (S == $|))).
--define(is_identifier(S), (?is_identifier_start(S) orelse ?is_digit(S))).
+        (?is_upcase(S) orelse ?is_downcase(S) orelse (S == $!) orelse (S == $$) orelse (S == $%) orelse (S == $*) orelse (S == $+) orelse (S == $-) orelse (S == $/) orelse (S == $<) orelse (S == $=) orelse (S == $>) orelse (S == $?) orelse (S == $@) orelse (S == $_) orelse (S == $|))).
+-define(is_identifier(S), (?is_identifier_start(S) orelse ?is_digit(S) orelse (S == $~) orelse (S == $&) orelse (S == $#) orelse (S == $^))).
 
 %% Spaces
 -define(is_horizontal_space(S), (S == $\s orelse S == $\t)).
