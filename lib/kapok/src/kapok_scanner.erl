@@ -227,17 +227,22 @@ scan([$"|T], Line, Column, Scope, Tokens) ->
 scan([$'|T], Line, Column, Scope, Tokens) ->
   handle_string(T, Line, Column + 1, [$'], Scope, Tokens);
 
-%% Atoms
+%% Keywords and Atoms
 
-scan([$:, H|T] = Original, Line, Column, Scope, Tokens) when ?is_quote(H) ->
+scan([S, H|T] = Original, Line, Column, Scope, Tokens) when (S == $: orelse S == $^), ?is_quote(H) ->
   case scan_string(Line, Column + 2, T, H) of
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
         {ok, Unescaped} ->
-          Tag = case Scope#kapok_scanner_scope.existing_atoms_only of
-                  true -> atom_safe;
-                  false -> atom_unsafe
+          Type = case S of
+                   $: -> keyword;
+                   $^ -> atom
+                 end,
+          Suffix = case Scope#kapok_scanner_scope.existing_atoms_only of
+                  true -> safe;
+                  false -> unsafe
                 end,
+          Tag = list_to_atom(atom_to_list(Type) + "_" + atom_to_list(Suffix)),
           scan(Rest, NewLine, NewColumn, Scope,
                [{Tag, build_meta(Line, Column), Unescaped}|Tokens]);
         {error, ErrorDescription} ->
@@ -248,8 +253,12 @@ scan([$:, H|T] = Original, Line, Column, Scope, Tokens) when ?is_quote(H) ->
       {error, {Location, ?MODULE, {missing_terminator, H, H, Line}},
        Original, lists:reverse(Tokens)}
   end;
-scan([$:, H|T], Line, Column, Scope, Tokens) when ?is_identifier_start(H) ->
-  handle_atom([H|T], Line, Column, Scope, Tokens);
+scan([S, H|T], Line, Column, Scope, Tokens) when (S == $: orelse S == $^), ?is_identifier_start(H) ->
+  Type = case S of
+           $: -> keyword;
+           $^ -> atom
+         end,
+  handle_keyword_atom([H|T], Line, Column, Type, Scope, Tokens);
 
 %% Containers
 
@@ -291,8 +300,17 @@ scan([$'|T], Line, Column, Scope, Tokens) ->
 scan([$~|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{unquote, build_meta(Line, Column)}|Tokens]);
 
+scan([$&, $k, $e, $y | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 4, Scope, [{arg_key, build_meta(Line, Column)}|Tokens]);
+
+scan([$&, $o, $p, $t, $i, $o, $n, $a, $l | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 9, Scope, [{arg_optional, build_meta(Line, Column)}|Tokens]);
+
+scan([$&, $r, $e, $s, $t | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 5, Scope, [{arg_rest, build_meta(Line, Column)}|Tokens]);
+
 scan([$&|T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 1, Scope, [{rest, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 1, Scope, [{cons, build_meta(Line, Column)}|Tokens]);
 
 scan([$,|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{',', build_meta(Line, Column)}|Tokens]);
@@ -559,14 +577,14 @@ scan_string(Line, Column, [Char|Rest], Term, Acc) ->
 
 %% Identifiers
 
-handle_atom(T, Line, Column, Scope, Tokens) ->
+handle_keyword_atom(T, Line, Column, Type, Scope, Tokens) ->
   case scan_identifier(Line, Column, T) of
     {ok, NewLine, NewColumn, Identifier, Rest} ->
       Atom = case Scope#kapok_scanner_scope.existing_atoms_only of
                true -> list_to_existing_atom(Identifier);
                false -> list_to_atom(Identifier)
              end,
-      scan(Rest, NewLine, NewColumn, Scope, [{atom, build_meta(Line, Column), Atom}|Tokens]);
+      scan(Rest, NewLine, NewColumn, Scope, [{Type, build_meta(Line, Column), Atom}|Tokens]);
     {error, ErrorInfo} ->
       {error, ErrorInfo, [$: | T], Tokens}
   end.

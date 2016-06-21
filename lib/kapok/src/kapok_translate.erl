@@ -23,8 +23,8 @@ translate({Op, Meta, Number}, Env) when ?is_op(Op) ->
   {Erl, TEnv} = translate(Number, Env),
   {{op, ?line(Meta), Op, Erl}, TEnv};
 
-%% atom
-translate({atom, Meta, Atom}, Env) ->
+%% keyword and atom
+translate({Category, Meta, Atom}, Env) when Category == keyword; Category == atom ->
   {{atom, ?line(Meta), Atom}, Env};
 
 %% Identifiers
