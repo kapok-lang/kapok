@@ -537,7 +537,8 @@ translate_catch_clause(Meta, Exception, Guard, Body, Env) ->
   TEnv4 = kapok_env:pop_scope(TEnv3),
   {{clause, ?line(Meta), [TException], TGuard, TBody}, TEnv4}.
 
-translate_exception({list, Meta, [{atom, _, Atom} = Type, Pattern]}, Env) ->
+translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Env)
+    when Category == keyword; Category == atom ->
   case lists:any(fun(X) -> Atom == X end, ['throw', 'exit', 'error']) of
     false ->
       Error = {invalid_exception_type, {Atom}},
@@ -554,7 +555,7 @@ translate_exception({list, Meta, [{atom, _, Atom} = Type, Pattern]}, Env) ->
 translate_exception({_, Meta, _} = Pattern, Env) ->
   {TPattern, TEnv} = translate_match_pattern(Pattern, Env),
   Line = ?line(Meta),
-  {{tuple, Line, [{atom, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TEnv}.
+  {{tuple, Line, [{keyword, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TEnv}.
 
 %% translate attribute
 

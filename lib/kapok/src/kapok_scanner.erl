@@ -218,16 +218,19 @@ scan([$\\, H|T], Line, Column, Scope, Tokens) ->
 
 %% triple quote separators
 scan("\"\"\"" ++ T, Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column, [$", $", $"], Scope, Tokens);
+  Term = [$", $", $"],
+  handle_string(T, Line, Column + 3, Term, Term, Scope, Tokens);
 scan("'''" ++ T, Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column, [$', $', $'], Scope, Tokens);
+  Term = [$', $', $'],
+  handle_string(T, Line, Column + 3, Term, Term, Scope, Tokens);
 
 %% single quote separators
 scan([$#, $"|T], Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column + 1, [$#], Scope, Tokens);
+  handle_string(T, Line, Column + 2, [$#, $"], [$"], Scope, Tokens);
 
 scan([$"|T], Line, Column, Scope, Tokens) ->
-  handle_string(T, Line, Column + 1, [$"], Scope, Tokens);
+  Term = [$"],
+  handle_string(T, Line, Column + 1, Term, Term, Scope, Tokens);
 
 
 %% Keywords and Atoms
@@ -533,12 +536,12 @@ unescape_map($x) -> true;
 unescape_map(E)  -> E.
 
 %% Strings
-handle_string(T, Line, Column, Term, Scope, Tokens) ->
+handle_string(T, Line, Column, Start, Term, Scope, Tokens) ->
   case scan_string(Line, Column, T, Term) of
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
         {ok, Unescaped} ->
-          Token = {string_type(Term), build_meta(Line, Column-length(Term)), Unescaped},
+          Token = {string_type(Start), build_meta(Line, Column-length(Term)), Unescaped},
           scan(Rest, NewLine, NewColumn, Scope, [Token|Tokens]);
         {error, ErrorDescription} ->
           {error, {{Line, Column}, ?MODULE, ErrorDescription}, Term ++ T, lists:reverse(Tokens)}
@@ -655,9 +658,11 @@ check_terminator({C, {Line, Column}}, [])
 check_terminator(_, Terminators) ->
   Terminators.
 
-string_type([H|_T]) -> string_type(H);
+string_type([H]) -> string_type(H);
+string_type([$#, $"]) -> list_string;
+string_type([H, H, H]) -> string_type(H);
 string_type($") -> binary_string;
-string_type($#) -> list_string.
+string_type($') -> binary_string.
 
 terminator('(') -> ')';
 terminator('[') -> ']';

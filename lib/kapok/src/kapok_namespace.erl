@@ -164,10 +164,10 @@ handle_require_element({dot, Meta, _} = Dot, Env) ->
   {Name, kapok_env:add_require(Meta, Env, Name)};
 handle_require_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
   case Args of
-    [{Category, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] when ?is_local_id(Category) ->
+    [{Category, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] when ?is_local_id(Category) ->
       {Name, TEnv} = handle_require_element(Ast, Env),
       {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
-    [{dot, _, _} = Ast, {atom, _, 'as'}, {identifier, _, Id}] ->
+    [{dot, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
       {Name, TEnv} = handle_require_element(Ast, Env),
       {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
     _ ->
@@ -204,19 +204,19 @@ handle_use_element_arguments(Meta, Name, Args, Env) ->
   handle_use_element_arguments(Meta, Name, nil, GArgs, Env).
 handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
-handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'as'}, {identifier, _, Id}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'as'}, {identifier, _, Id}} | T], Env) ->
   handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_require(Meta, Env, Id, Name));
-handle_use_element_arguments(Meta, Name, _, [{{atom, Meta1, 'exclude'}, {_, Meta2, Args}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, _, [{{keyword, Meta1, 'exclude'}, {_, Meta2, Args}} | T], Env) ->
   Functions = parse_functions(Meta2, Args, Env),
   Env1 = kapok_env:add_use(Meta1, Env, Name, 'exclude', Functions),
   handle_use_element_arguments(Meta, Name, Meta1, T, Env1);
-handle_use_element_arguments(Meta, Name, nil, [{{atom, Meta1, 'only'}, {_, Meta2, Args}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, nil, [{{keyword, Meta1, 'only'}, {_, Meta2, Args}} | T], Env) ->
   Functions = parse_functions(Meta2, Args, Env),
   Env1 = kapok_env:add_use(Meta1, Env, Name, 'only', Functions),
   handle_use_element_arguments(Meta, Name, nil, T, Env1);
-handle_use_element_arguments(_Meta, _Name, Meta1, [{{atom, Meta2, 'only'}, {_, _, _}} | _T], Env) ->
+handle_use_element_arguments(_Meta, _Name, Meta1, [{{keyword, Meta2, 'only'}, {_, _, _}} | _T], Env) ->
   kapok_error:compile_error(Meta2, ?m(Env, file), "invalid usage of :only with :exclude present at line: ~p", [?line(Meta1)]);
-handle_use_element_arguments(Meta, Name, Meta1, [{{atom, _, 'rename'}, {_, _, Args}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'rename'}, {_, _, Args}} | T], Env) ->
   Aliases = parse_function_aliases(Meta, Args, Env),
   NewEnv = kapok_env:add_use(Meta, Env, Name, 'rename', Aliases),
   handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv);
@@ -240,10 +240,10 @@ handle_def(Meta, Kind, Name, Args, Guard, _Doc, Body, #{function := Function} = 
           end,
   {TF, TEnv} = kapok_translate:translate(Name1, Env),
   case parse_parameters(Args, TEnv) of
-    [{normal, _, Args}] ->
-      {TArgs, TEnv1} = kapok_translate:translate_args(Args, TEnv),
+    [{normal, _, NormalArgs}] ->
+      {TArgs, TEnv1} = kapok_translate:translate_args(NormalArgs, TEnv),
       ParameterType = 'normal',
-      Arity = length(Args),
+      Arity = length(TArgs),
       PrepareBody = [],
       Env5 = TEnv1;
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters}] ->
@@ -435,13 +435,13 @@ group_arguments(Meta, Args, Env) ->
   group_arguments(Meta, Args, orddict:new(), Env).
 group_arguments(_Meta, [], Acc, _Env) ->
   lists:map(fun({_, KV}) -> KV end, orddict:to_list(Acc));
-group_arguments(Meta, [{atom, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Env) ->
+group_arguments(Meta, [{keyword, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Env) ->
   group_arguments(Meta, T, orddict:store('as', {K, V}, Acc), Env);
-group_arguments(Meta, [{atom, _, 'only'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
+group_arguments(Meta, [{keyword, _, 'only'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('only', {K, V}, Acc), Env);
-group_arguments(Meta, [{atom, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
+group_arguments(Meta, [{keyword, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('exclude', {K, V}, Acc), Env);
-group_arguments(Meta, [{atom, _, 'rename'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
+group_arguments(Meta, [{keyword, _, 'rename'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('rename', {K, V}, Acc), Env);
 group_arguments(Meta, Args, _Acc, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid use arguments: ~p~n", [Args]).
