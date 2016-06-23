@@ -678,7 +678,12 @@ token_text({keyword_optional, _}) ->
 token_text({keyword_rest, _}) ->
   "&rest";
 token_text({keyword_key, _}) ->
-  "&key".
+  "&key";
+token_text({keyword, _, Atom}) ->
+  io_lib:format(":~s", [Atom]);
+token_text(Token) ->
+  io_lib:format("~p", [Token]).
+
 
 %% Error
 

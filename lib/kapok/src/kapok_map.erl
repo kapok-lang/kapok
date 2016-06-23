@@ -1,12 +1,20 @@
 %% map
 -module(kapok_map).
--export([translate/3]).
+-export([translate/3,
+         build_map/2]).
 -include("kapok.hrl").
 
 %% Translate
 
 translate(Meta, Args, Env) when is_list(Args) ->
   build_map(Meta, Args, Env).
+
+build_map(Meta, TranslatedPairs) ->
+  TFields = lists:map(fun({{_, Line, _} = K, V}) ->
+                         {map_field_assoc, Line, K, V}
+                     end,
+                     TranslatedPairs),
+  {map, ?line(Meta), TFields}.
 
 build_map(Meta, Args, #{context := Context} = Env) ->
   FieldType = case Context of

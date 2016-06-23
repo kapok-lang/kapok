@@ -10,7 +10,6 @@
          get_remote_function/4,
          find_remote_function/4,
          find_fa/2,
-         construct_new_args/5,
          expand_macro_named/6,
          format_error/1
         ]).
@@ -29,13 +28,12 @@ default_macros() ->
 
 expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
   Line = ?line(Meta),
-  CallerArg = {Line, Env},
   try
-    apply(Fun, [CallerArg | Args])
+    apply(Fun, Args)
   catch
     Kind:Reason ->
       Arity = length(Args),
-      MFA = {Receiver, Name, Arity+1},
+      MFA = {Receiver, Name, Arity},
       Info = [{Receiver, Name, Arity, [{file, "expand macro"}]}, caller(Line, Env)],
       erlang:raise(Kind, Reason, prune_stacktrace(erlang:get_stacktrace(), MFA, Info, nil))
   end.
@@ -214,26 +212,14 @@ find_mfa(FunArity, List) when is_list(List) ->
 find_fa({Fun, Arity} = FunArity, FAList) when is_list(FAList) ->
   ordsets:fold(
       fun({F, A} = FA, Acc) when is_number(A) andalso FA == FunArity -> [{F, A, 'normal'} | Acc];
-         ({Alias, {F, A, 'normal'}}, Acc) when {Alias, A} == FunArity -> [{F, A, 'normal'} | Acc];
+         ({Alias, {F, A, P}}, Acc) when (P == 'normal' orelse P == 'key'), {Alias, A} == FunArity -> [{F, A, P} | Acc];
          ({Alias, {F, A, 'rest'}}, Acc) when (Alias == Fun) andalso (A =< Arity) -> [{F, A, 'rest'} | Acc];
-         ({F, A, 'normal'} = FAP, Acc) when {F, A} == FunArity -> [FAP | Acc];
+         ({F, A, P} = FAP, Acc) when (P == 'normal' orelse P == 'key'), {F, A} == FunArity -> [FAP | Acc];
          ({F, A, 'rest'} = FAP, Acc) when (F == Fun) andalso (A =< Arity) -> [FAP | Acc];
          (_, Acc) -> Acc
       end,
       [],
       FAList).
-
-construct_new_args(Context, Arity, NewArity, ParaType, Args) ->
-  case (ParaType == rest) andalso (Arity >= NewArity) of
-    true ->
-      {NormalParas, RestPara} = lists:split(NewArity-1, Args),
-      case Context of
-        'expand' -> NormalParas ++ [RestPara];
-        'translate' -> NormalParas ++ [{literal_list, [], RestPara}]
-      end;
-    false ->
-      Args
-  end.
 
 ensure_uses_imported(#{uses := Uses} = Env) ->
   lists:foldl(fun({Module, Args}, E) ->

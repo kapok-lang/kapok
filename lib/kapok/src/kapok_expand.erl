@@ -118,7 +118,7 @@ expand({list, Meta, [{Category, _, Id} | Args]} = Ast, #{macro_context := Contex
       {R, Env1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env),
       case R of
         {M, F, A, P} ->
-          NewArgs = kapok_dispatch:construct_new_args('expand', Arity, A, P, Args),
+          NewArgs = kapok_translate:construct_new_args('expand', Arity, A, P, Args),
           kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1);
         false ->
           expand_ast_list(Ast, Env1)
@@ -132,7 +132,7 @@ expand({list, Meta, [{dot, _, {M, F}} | Args]} = Ast, #{macro_context := Context
       {R, Env1} = kapok_dispatch:find_remote_macro(Meta, M, {F, Arity}, Env),
       case R of
         {M, F, A, P} ->
-          NewArgs = kapok_dispatch:construct_new_args('expand', Arity, A, P, Args),
+          NewArgs = kapok_translate:construct_new_args('expand', Arity, A, P, Args),
           kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1);
         false ->
           expand_ast_list(Ast, Env1)

@@ -269,7 +269,7 @@ handle_def(Meta, Kind, Name, Args, Guard, _Doc, Body, #{function := Function} = 
       {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
       ParameterType = 'key',
       {TMapArg, TEnv3} = kapok_translate:translate_arg({identifier, Meta1, kapok_utils:gensym_with("M")}, TEnv2),
-      TArgs = TNormalArgs ++ TMapArg,
+      TArgs = TNormalArgs ++ [TMapArg],
       Arity = length(TArgs),
       %% retrieve and map all key values from map argument to variables
       {PrepareBody, TEnv4} = kapok_translate:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
@@ -304,14 +304,11 @@ parse_parameters(Args, Env) when is_list(Args) ->
   L = parse_parameters(Args, [], {normal, [], []}, Env),
   lists:reverse(L).
 
-parse_parameters([], Acc, {PreviousKeyword, Meta, Args}, _Env) ->
-  [{PreviousKeyword, Meta, lists:reverse(Args)} | Acc];
+parse_parameters([], Acc, {Previous, Meta, Args}, _Env) ->
+  [{Previous, Meta, lists:reverse(Args)} | Acc];
 
-parse_parameters([{keyword_optional, Meta} = Token], _Acc, {_PreviousKeyword, _Meta, _Args}, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), {dangling_parameter_keyword, {Token}});
-parse_parameters([{keyword_rest, Meta} = Token], _Acc, {_PreviousKeyword, _Meta, _Args}, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), {dangling_parameter_keyword, {Token}});
-parse_parameters([{keyword_key, Meta} = Token], _Acc, {_PreviousKeyword, _Meta, _Args}, Env) ->
+parse_parameters([{Category, Meta} = Token], _Acc, {_Previous, _Meta, _Args}, Env)
+    when ?is_parameter_keyword(Category) ->
   kapok_error:form_error(Meta, ?m(Env, file), {dangling_parameter_keyword, {Token}});
 
 parse_parameters([{keyword_optional, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
@@ -471,7 +468,7 @@ format_error({invalid_expression, {Ast}}) ->
 format_error({multiple_namespace, {Existing, New}}) ->
   io_lib:format("multiple namespace in one file not supported: ~p, ~p", [Existing, New]);
 format_error({dangling_parameter_keyword, {Token}}) ->
-  io_lib:format("dangling ~s without any argument", [token_text(Token)]);
+  io_lib:format("dangling ~s without argument", [token_text(Token)]);
 format_error({invalid_postion_of_parameter_keyword, {Token, Previous}}) ->
   io_lib:format("invalid ~s with ~s ahead at line ~B", [token_text(Token),
                                                         token_text(Previous),
