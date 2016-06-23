@@ -8,9 +8,12 @@
 translate(Meta, Args, Env) when is_list(Args) ->
   build_map(Meta, Args, Env).
 
-build_map(Meta, Args, Env) ->
-  %% treat all map fields as extract fields(first defined)
-  {TFields, TEnv} = build_map_field(Meta, map_field_exact, Args, Env),
+build_map(Meta, Args, #{context := Context} = Env) ->
+  FieldType = case Context of
+                match_vars -> map_field_exact;
+                _ -> map_field_assoc
+              end,
+  {TFields, TEnv} = build_map_field(Meta, FieldType, Args, Env),
   {{map, ?line(Meta), TFields}, TEnv}.
 
 build_map_field(Meta, FieldType, Args, Env) ->

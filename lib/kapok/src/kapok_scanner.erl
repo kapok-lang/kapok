@@ -3,6 +3,7 @@
 -export([token_category/1,
          token_meta/1,
          token_symbol/1,
+         token_text/1,
          scan/3,
          scan/4,
          format_error/1]).
@@ -303,13 +304,13 @@ scan([$~|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{unquote, build_meta(Line, Column)}|Tokens]);
 
 scan([$&, $k, $e, $y | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 4, Scope, [{arg_key, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 4, Scope, [{keyword_key, build_meta(Line, Column)}|Tokens]);
 
 scan([$&, $o, $p, $t, $i, $o, $n, $a, $l | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 9, Scope, [{arg_optional, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 9, Scope, [{keyword_optional, build_meta(Line, Column)}|Tokens]);
 
 scan([$&, $r, $e, $s, $t | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 5, Scope, [{arg_rest, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 5, Scope, [{keyword_rest, build_meta(Line, Column)}|Tokens]);
 
 scan([$&|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{cons, build_meta(Line, Column)}|Tokens]);
@@ -356,7 +357,6 @@ until_eol([], Acc)          -> lists:reverse(Acc);
 until_eol([H|T], Acc)       -> until_eol(T, [H|Acc]).
 
 %% Integers and floats
-%% helpers
 
 do_scan_hex(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
   {Rest, Number, Length} = scan_hex(String, []),
@@ -665,6 +665,15 @@ terminator('{') -> '}';
 terminator('%{') -> '}';
 terminator('#{') -> '}';
 terminator('<<') -> '>>'.
+
+%% helpers
+
+token_text({keyword_optional, _}) ->
+  "&optional";
+token_text({keyword_rest, _}) ->
+  "&rest";
+token_text({keyword_key, _}) ->
+  "&key".
 
 %% Error
 

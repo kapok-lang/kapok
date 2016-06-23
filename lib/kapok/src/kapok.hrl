@@ -47,7 +47,7 @@
 -define(is_local_id(T), (T == 'identifier' orelse T == 'atom')).
 -define(is_list(T), (T == 'list' orelse T == 'literal_list')).
 -define(is_cons_list(T), (T == 'cons_list')).
--define(is_arg_list(T), (?is_list(T) orelse ?is_cons_list(T))).
+-define(is_parameter_keyword(T), (T == 'keyword_optional' orelse T == 'keyword_rest' orelse T == 'keyword_key')).
 -define(is_string(T), (T == 'list_string' orelse T == 'binary_string')).
 
 -define(is_behaviour(T), (T == 'behavior' orelse T == 'behaviour')).

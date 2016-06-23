@@ -1,10 +1,13 @@
 %% Translate Kapok AST to Erlang Abstract Format.
 -module(kapok_translate).
 -export([translate/2,
+         translate_arg/2,
          translate_args/2,
          translate_guard/2,
+         map_vars/4,
          translate_body/3,
          format_error/1]).
+-import(kapok_scanner, [token_text/1]).
 -include("kapok.hrl").
 
 %% literals
@@ -206,6 +209,10 @@ translate({list, Meta, [F | Args]}, Env) ->
   translate_local_call(Meta, F, Args, Env);
 translate({list, _Meta, Args}, Env) ->
   translate_list(Args, [], Env);
+
+%% errors for function argument keywords
+translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
+  kapok_error:form_error(Meta, ?m(Env, file), {parameter_keyword_outside_fun_args, {Token}});
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
@@ -574,7 +581,24 @@ translate_remote_call(Meta, M, F, Args, Env) ->
   Line = ?line(Meta),
   {{call, Line, {remote, Line, TM, TF}, TArgs}, TEnv}.
 
-%% Translate args
+map_vars(Meta, TMapArg, TKeyParameters, Env) ->
+  {TM, _} = translate({atom, Meta, 'maps'}, Env),
+  {TF, _} = translate({atom, Meta, 'get'}, Env),
+  Line = ?line(Meta),
+  L = lists:foldl(fun({TId, TDefault}, Acc) ->
+                      Call = {call, Line, {remote, Line, TM, TF},
+                              [var_to_keyword(TId), TMapArg, TDefault]},
+                      C = {match, ?line(Meta), TId, Call},
+                      [C | Acc]
+                  end,
+                  [],
+                  TKeyParameters),
+  lists:reverse(L).
+
+var_to_keyword({var, Line, Id}) ->
+  {atom, Line, Id}.
+
+%% Translate arguments
 translate_arg(Arg, #{context := Context} = Env) ->
   {TArg, TEnv} = translate(Arg, Env#{context => match_vars}),
   {TArg, TEnv#{context => Context}}.
@@ -643,6 +667,8 @@ format_error({invalid_catch_clause, {Ast}}) ->
   io_lib:format("invalid catch clause: ~w", [Ast]);
 format_error({invalid_exception_type, {Type}}) ->
   io_lib:format("invalid exception type: ~p", [Type]);
+format_error({parameter_keyword_outside_fun_args, {Token}}) ->
+  io_lib:format("invalid ~s outside the arguments of a function definition", [token_text(Token)]);
 format_error({missing_body}) ->
   io_lib:format("body is missing", []).
 

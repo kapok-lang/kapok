@@ -17,11 +17,11 @@ Nonterminals
     .
 
 Terminals
-    hex_number octal_number n_base_number char_number integer float
-    binary_string list_string identifier
+    hex_number octal_number n_base_number char_number integer float '+' '-'
+    binary_string list_string identifier '.'
     keyword keyword_safe keyword_unsafe atom atom_safe atom_unsafe
     '(' ')' '[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
-    unquote_splicing backquote quote unquote arg_key arg_optional arg_rest cons '.' '+' '-'
+    unquote_splicing backquote quote unquote keyword_optional keyword_rest keyword_key cons
     .
 
 Rootsymbol grammar.
@@ -59,6 +59,10 @@ value       -> atom_expr : '$1'.
 %% identifier
 value       -> identifier : '$1'.
 value       -> dot_identifier : '$1'.
+%% function argument keywords
+value       -> keyword_optional : '$1'.
+value       -> keyword_rest : '$1'.
+value       -> keyword_key : '$1'.
 %% macro syntax
 value       -> quote_expr : '$1'.
 value       -> backquote_expr : '$1'.

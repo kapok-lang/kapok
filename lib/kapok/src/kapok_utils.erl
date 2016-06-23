@@ -7,7 +7,10 @@
          to_binary/1,
          macro_name/1,
          read_file_type/1,
-         relative_to_cwd/1
+         relative_to_cwd/1,
+         gensym_with/1,
+         gensym/0,
+         gensym/1
         ]).
 -include_lib("kernel/include/file.hrl").
 
@@ -49,3 +52,20 @@ read_file_type(File) ->
 relative_to_cwd(Path) ->
   %% TODO add external path library call
   Path.
+
+gensym_with(Flag) ->
+  gensym("#:~s~s", [Flag, gensym_random()]).
+
+gensym() ->
+  gensym("#:G~s", [gensym_random()]).
+
+gensym(Prefix) ->
+  gensym("#:|~s~s|", [Prefix, gensym_random()]).
+
+gensym(Format, Args) ->
+  erlang:list_to_atom(lists:flatten(io_lib:format(Format, Args))).
+
+gensym_random() ->
+  X = erlang:phash2({erlang:node(), erlang:timestamp(), crypto:rand_bytes(16)}),
+  lists:map(fun(E) -> io_lib:format("~.16B", [E]) end,
+            erlang:binary_to_list(binary:encode_unsigned(X))).

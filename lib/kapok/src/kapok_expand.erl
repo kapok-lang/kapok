@@ -162,7 +162,7 @@ expand(List, Env) when is_list(List) ->
 
 expand(Ast, Env) ->
   %% the default handler, which handles
-  %% number, atom, identifier, strings(binary string and list string)
+  %% number, keyword, atom, identifier, strings(binary string and list string)
   {Ast, Env, false}.
 
 %% Helpers
