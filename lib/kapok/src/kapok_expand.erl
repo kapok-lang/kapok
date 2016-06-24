@@ -6,11 +6,21 @@
 -include("kapok.hrl").
 
 expand_all(Ast, Env) ->
-  {EAst, NewEnv, Expanded} = expand(Ast, Env),
+  {EAst, EEnv, _} = do_expand_all(Ast, Env, false),
+  {EAst, EEnv}.
+
+do_expand_all(Ast, Env, PreviousExpanded) ->
+  {EAst, EEnv, Expanded} = expand(Ast, Env),
   case Expanded of
-    true -> expand_all(EAst, NewEnv);
-    _ -> {EAst, NewEnv}
+    true -> do_expand_all(EAst, EEnv, true);
+    false -> {EAst, EEnv, PreviousExpanded}
   end.
+
+macroexpand(Ast, Env) ->
+  todo.
+
+macroexpand_1(Ast, Env) ->
+  todo.
 
 %% macro special forms
 
@@ -20,33 +30,19 @@ expand({quote, Meta, Arg} = Ast, #{macro_context := Context} = Env) ->
       {EArg, NewEnv, Expanded} = expand(Arg, Env),
       {{quote, Meta, EArg}, NewEnv, Expanded};
     false ->
-      case is_list_ast(Arg) of
-        true -> {transform_quote_list(Meta, Arg, 'quote'), Env, true};
-        false -> {quote(Ast), Env, false}
-      end
+      {quote(Ast), Env, false}
   end;
 
 expand({backquote, Meta, Arg}, #{macro_context := Context} = Env) ->
+  #{backquote_level := B} = Context,
+  NewContext = Context#{backquote_level => B + 1},
+  {EArg, EEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
+  NewEnv = EEnv#{macro_context => Context},
   case is_inside_backquote(Context) of
     true ->
-      #{backquote_level := B} = Context,
-      NewContext = Context#{backquote_level => B + 1},
-      {EArg, EEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
-      {{backquote, Meta, EArg}, EEnv#{macro_context => Context}, Expanded};
+      {{backquote, Meta, EArg}, NewEnv, Expanded};
     false ->
-      case is_list_ast(Arg) of
-        true ->
-          {transform_quote_list(Meta, Arg, 'backquote'), Env, true};
-        false ->
-          #{backquote_level := B} = Context,
-          NewContext = Context#{backquote_level => B + 1},
-          {EAst, EEnv, Expanded} = expand(Arg, Env#{macro_context => NewContext}),
-          NewEnv = EEnv#{macro_context => Context},
-          case Expanded of
-            true -> {EAst, NewEnv, true};
-            false -> {quote(EAst), NewEnv, false}
-          end
-      end
+      {quote(EArg), NewEnv, Expanded}
   end;
 
 expand({unquote, Meta, Arg}, #{macro_context := Context} = Env) ->
@@ -74,7 +70,7 @@ expand({unquote_splicing, Meta, Arg}, #{macro_context := Context} = Env) ->
         {Category, _, List} when ?is_list(Category) ->
           {{unquote_splicing_value, Meta, List}, NewEnv#{macro_context => Context}, true};
         _ ->
-          kapok_error:compile_error(Meta, ?m(Env, file), "unquote splice take arg not list ~p", [EValue])
+          kapok_error:compile_error(Meta, ?m(Env, file), "invalid argument for unquote splice: ~p, it should be a list", [EValue])
       end;
     CurrentU < B ->
       NewContext = Context#{unquote_level => CurrentU},

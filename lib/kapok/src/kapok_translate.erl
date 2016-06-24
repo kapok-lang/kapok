@@ -208,9 +208,9 @@ translate({list, Meta, [{dot, _, {Prefix, Suffix}} | Args]}, Env) ->
   end;
 
 translate({list, Meta, [F | Args]}, Env) ->
-  translate_local_call(Meta, F, Args, Env);
-translate({list, _Meta, Args}, Env) ->
-  translate_list(Args, [], Env);
+  {TF, TEnv} = translate(F, Env),
+  {TArgs, TEnv1} = translate(Args, TEnv),
+  translate_local_call(Meta, TF, TArgs, TEnv1);
 
 %% errors for function argument keywords
 translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->

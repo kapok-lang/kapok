@@ -162,7 +162,7 @@ find_dispatch(Meta, Module, FunArity, Env) ->
 
 find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env) ->
   FunMatch = find_fa(FunArity, FunList),
-  MacroMatch = find_fa({Fun, Arity+1}, MacroList),
+  MacroMatch = find_fa({Fun, Arity}, MacroList),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
       {F, A, P} = Match,
@@ -181,7 +181,7 @@ find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env)
 find_dispatch(Meta, {Fun, Arity} = FunArity, Env) ->
   Env1 = ensure_uses_imported(Env),
   FunMatch = find_mfa(FunArity, ?m(Env1, functions)),
-  MacroMatch = find_mfa({Fun, Arity+1}, ?m(Env1, macros)),
+  MacroMatch = find_mfa({Fun, Arity}, ?m(Env1, macros)),
   io:format("find FA: ~s, ~B, macros: ~p, macromatch: ~p~n", [Fun, Arity, ?m(Env1, macros), MacroMatch]),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->

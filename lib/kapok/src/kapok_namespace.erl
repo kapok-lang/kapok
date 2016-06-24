@@ -68,9 +68,9 @@ namespace_exports(Namespace) ->
   ordsets:union(Functions, Macros).
 
 module_exports(Functions, Macros) ->
-  ExportFunctions = [{F, A} || {F, A, _P} <- Functions],
-  ExportMacros = [{kapok_utils:macro_name(F), A} || {F, A, _P} <- Macros],
-  io:format("export macros: ~p~n", [ExportMacros]),
+  GetExport = fun({F, A, _P}) -> {F, A} end,
+  ExportFunctions = ordsets:from_list(lists:map(GetExport, Functions)),
+  ExportMacros = ordsets:from_list(lists:map(GetExport, Macros)),
   %% TODO macro will shadow function if there is any overrides
   ordsets:union(ExportFunctions, ExportMacros).
 
@@ -92,6 +92,7 @@ info_fun(Functions, Macros, Env) ->
 compile(Ast, Env, Callback) when is_list(Ast) ->
   TEnv = lists:foldl(fun(A, E) ->
                          {EA, EE} = kapok_expand:expand_all(A, E),
+                         io:format("after expand: ~p~n", [EA]),
                          handle_ast(EA, EE)
                      end,
                      Env,
