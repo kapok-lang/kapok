@@ -164,27 +164,27 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value
   translate_attribute(Meta, Attribute, Value, Env);
 
 %% Local call
-translate({list, Meta, [{identifier, _, Id}| Args]}, #{scope := Scope} = Env) ->
-  {TF, TEnv} = translate(Id, Env),
-  {TArgs, TEnv1} = translate_args(Args, TEnv),
-  Arity = length(TArgs),
-  FunArity = {Id, Arity},
-  Vars = maps:get(vars, Scope),
-  case ordsets:is_element(Id, Vars) of
+translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = Env) ->
+  case ordsets:is_element(Id, maps:get(vars, Scope)) of
     true ->
       %% local variable
+      {TF, TEnv} = translate(Name, Env),
+      {TArgs, TEnv1} = translate_args(Args, TEnv),
       translate_local_call(Meta, TF, TArgs, TEnv1);
     false ->
-      case kapok_dispatch:find_local(FunArity, TEnv1) of
+      {TArgs, TEnv} = translate_args(Args, Env),
+      Arity = length(TArgs),
+      FunArity = {Id, Arity},
+      case kapok_dispatch:find_local(FunArity, TEnv) of
         {F, A, P} ->
-          translate_local_call(Meta, F, A, P, Arity, TArgs, TEnv1);
+          translate_local_call(Meta, F, A, P, Arity, TArgs, TEnv);
         false ->
           %% check whether it's in imported functions/macros
           io:format("to find local function ~p~n", [{Id, Args}]),
-          {R, Env2} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv1),
+          {R, Env1} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv),
           case R of
-            {M, F, A, P} -> translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env2);
-            _ -> kapok_error:compile_error(Meta, ?m(Env2, file), "unknown local call: ~s", [Id])
+            {M, F, A, P} -> translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env1);
+            _ -> kapok_error:compile_error(Meta, ?m(Env1, file), "unknown local call: ~s", [Id])
           end
       end
   end;
@@ -214,7 +214,8 @@ translate({list, Meta, [F | Args]}, Env) ->
 
 %% errors for function argument keywords
 translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
-  kapok_error:form_error(Meta, ?m(Env, file), {parameter_keyword_outside_fun_args, {Token}});
+  Error = {parameter_keyword_outside_fun_args, {Token}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
@@ -635,11 +636,11 @@ translate_args(Args, Env) when is_list(Args) ->
 translate_args([], {_Keys, Acc}, {Previous, Meta, Args}, Env) ->
   {[{Previous, Meta, lists:reverse(Args)} | Acc], Env};
 
-translate_args([{keyword, Meta, _}] = Token, _, {_Previous, _Meta, _Args}, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), {dangling_keyword, {Token}});
+translate_args([{keyword, Meta, _} = Token], _, {_Previous, _Meta, _Args}, Env) ->
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_keyword, {Token}});
 translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal, Meta1, Args}, Env) ->
   case ordsets:is_element(Atom, Keys) of
-    true -> kapok_error:form_error(Meta, ?m(Env, file), {duplicate_keyword, {Keyword}});
+    true -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {duplicate_keyword, {Keyword}});
     false -> ok
   end,
   {TKeyword, TEnv} = translate_arg(Keyword, Env),
@@ -649,7 +650,7 @@ translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal
   translate_args(T, {Keys1, Acc1}, {keyword, Meta, [{TKeyword, TExpr}]}, TEnv1);
 translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {keyword, Meta1, Args}, Env) ->
   case ordsets:is_element(Atom, Keys) of
-    true -> kapok_error:form_error(Meta, ?m(Env, file), {duplicate_keyword, {Keyword}});
+    true -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {duplicate_keyword, {Keyword}});
     false -> ok
   end,
   {TKeyword, TEnv} = translate_arg(Keyword, Env),
@@ -660,7 +661,7 @@ translate_args([H | T], Acc, {normal, Meta1, Args}, Env) ->
   {TH, TEnv} = translate_arg(H, Env),
   translate_args(T, Acc, {normal, Meta1, [TH | Args]}, TEnv);
 translate_args([{_, Meta, _} = H | _T], _, {keyword, _Meta1, _Args}, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), {missing_key_for_argument, {H}}).
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {missing_key_for_argument, {H}}).
 
 %% translate body
 translate_body(Meta, Body, Env) ->

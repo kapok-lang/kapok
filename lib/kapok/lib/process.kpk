@@ -5,18 +5,18 @@
   exposes and auto-imports some basic functionality related to precesses
   available through the functions:
 
-    * kapok.core.spawn
-    * kapok.core.spawn_link
-    * kapok.core.spawn_monitor
-    * kapok.core.self
-    * kapok.core.send
+    * `kapok.core.spawn`
+    * `kapok.core.spawn_link`
+    * `kapok.core.spawn_monitor`
+    * `kapok.core.self`
+    * `kapok.core.send`
 
   """
   (require erlang))
 
 (defn alive? [pid]
-  """Returns `true` if the precess exists and is alive, that is,
-  is not exiting and has not exited. Otherwise, returns `false`.
+  """Returns `^true` if the precess exists and is alive, that is,
+  is not exiting and has not exited. Otherwise, returns `^false`.
 
   `pid` must refer to a process at the local node.
   """
@@ -27,11 +27,11 @@
 
   ;; Examples
 
-      kapok> (put :key1 :merry)
-      kapok> (put :key2 :lambs)
-      kapok> (put :key3 {:are, :playing})
+      kapok> (put ^key1 ^merry)
+      kapok> (put ^key2 ^lambs)
+      kapok> (put ^key3 {^are, ^playing})
       kapok> (get)
-      [{:key1, :merry}, {:key2, :lambs}, {:key3, {:are, :playing}}]
+      [{^key1, ^merry}, {^key2, ^lambs}, {^key3, {^are, ^playing}}]
 
   """
   (erlang.get))
@@ -42,10 +42,10 @@
 
   ;; Examples
 
-       kapok> (put :key1 :merry)
-       kapok> (put :key2 :lambs)
-       kapok> (get :key1)
-       :merry
+       kapok> (put ^key1 ^merry)
+       kapok> (put ^key2 ^lambs)
+       kapok> (get ^key1)
+       ^merry
 
   """
   (erlang.get key))
@@ -55,11 +55,11 @@
 
   ;; Examples
 
-      kapok> (put :dog {:animal,1})
-      kapok> (put :cow {:animal,2})
-      kapok> (put :lamb {:animal,3})
+      kapok> (put ^dog {^animal,1})
+      kapok> (put ^cow {^animal,2})
+      kapok> (put ^lamb {^animal,3})
       kapok> (get_keys)
-      [:dog, :cow, :lamb]
+      [^dog, ^cow, ^lamb]
 
   """
   (erlang.get_keys))
@@ -69,20 +69,20 @@
 
   ;; Examples
 
-      kapok> (put :mary {1, 2})
-      kapok> (put :had {1, 2})
-      kapok> (put :a {1, 2})
-      kapok> (put :little {1, 2})
-      kapok> (put :dog {1, 3})
-      kapok> (put :lamb, {1, 2})
+      kapok> (put ^mary {1, 2})
+      kapok> (put ^had {1, 2})
+      kapok> (put ^a {1, 2})
+      kapok> (put ^little {1, 2})
+      kapok> (put ^dog {1, 3})
+      kapok> (put ^lamb, {1, 2})
       kapok> (get_keys {1, 2})
-      [:mary, :had, :a, :little, :lamb]
+      [^mary, ^had, ^a, ^little, ^lamb]
 
   """
   (erlang.get_keys value))
 
-(defn- nillify [:undefined]
-  :nil)
+(defn- nillify [^undefined]
+  ^nil)
 
 (defn- nillify [other]
   other)
@@ -90,7 +90,7 @@
 (defn put [key value]
   """Stores the given key-value in the process dictionary.
 
-  Returns :nil of `key` does not exist. If `key` exists, the old value
+  Returns ^nil of `key` does not exist. If `key` exists, the old value
   is replaced with `value` and this function returns the old value.
   """
   (nillify (erlang.put key value)))
@@ -102,10 +102,10 @@
 
   ;; Examples
 
-      kapok> (put :key1 {1 2 3})
-      kapok> (put :key2 [:a :b :c])
+      kapok> (put ^key1 {1 2 3})
+      kapok> (put ^key2 [^a ^b ^c])
       kapok> (delete)
-      [{:key1, {1, 2, 3}}, {:key2, {:a, :b, :c}}]
+      [{^key1, {1, 2, 3}}, {^key2, {^a, ^b, ^c}}]
 
   """
   (erlang.erase))
@@ -113,14 +113,14 @@
 (defn delete [key]
   """Delete the value associated with `key` from the process dictionary.
 
-  Returns {key, value} if the given `key` exists, or :nil if the given `key`
+  Returns {key, value} if the given `key` exists, or ^nil if the given `key`
   does not exist.
 
   ;; Examples
 
-      kapok> (put :key1 {:merry :lambs :are :playing})
-      kapok> (let [x (delete :key1)] {x, (delete :key1)})
-      {{:merry :lambs :are :playing}, :nil}
+      kapok> (put ^key1 {^merry ^lambs ^are ^playing})
+      kapok> (let [x (delete ^key1)] {x, (delete ^key1)})
+      {{^merry ^lambs ^are ^playing}, ^nil}
 
   """
   (erlang.delete key))
@@ -129,20 +129,20 @@
   """Sends an exit signal with the given `reason` to the `pid`.
 
   The following behavior applies if `reason` is any term except
-  `:normal` or `:kill`:
+  `^normal` or `^kill`:
 
     1. If `pid` in not trapping exits, `pid` will exit with the given `reason`.
     2. If `pid` is trapping exits, the exit signal is transformed into a message
-       `{:EXIT, from, reason}` ande deliveredd to the message queue of `pid`.
+       `{^EXIT, from, reason}` ande deliveredd to the message queue of `pid`.
 
-  If `reason` is the atom `:normal`, `pid` will not exit (unless it is the
-  calling process's pid, in which case it will exit with the reason `:normal`).
+  If `reason` is the atom `^normal`, `pid` will not exit (unless it is the
+  calling process's pid, in which case it will exit with the reason `^normal`).
   If it is trapping exits, the exit signal is transformed into a message
-  `{:EXIT, from, :normal}` and delivered to its message queue.
+  `{^EXIT, from, ^normal}` and delivered to its message queue.
 
-  If `reason` is the atom `:kill`, that is, if `(exit pid :kill)` called,
+  If `reason` is the atom `^kill`, that is, if `(exit pid ^kill)` called,
   an untrappablee exit signal is sent to `pid`, which will unconditcionally
-  exit with exit reason `:killed`.
+  exit with exit reason `^killed`.
 
   Inlined by the compiler.
   """
@@ -151,20 +151,20 @@
 (defn send [dest message options]
   """Sends a message to the given process.
 
-  If the option `:noconnect` is used and sending the message would require
+  If the option `^noconnect` is used and sending the message would require
   an auto-connection to another node, the messaage is not sent and
-  `:noconnect` is returned.
+  `^noconnect` is returned.
 
-  If the option `:nosuspend` is used and sending the message would cause
-  the sender to be suspended, the message is not sent and `:nosuspend` and
-  `:nosuspend` is returned.
+  If the option `^nosuspend` is used and sending the message would cause
+  the sender to be suspended, the message is not sent and `^nosuspend` and
+  `^nosuspend` is returned.
 
   Otherwise the message is sent and `:ok` is returned.
 
   ;; Examples
 
-      kapok> (send {:name, :node_deos_not_exist} :hi [:noconnect])
-      :noconnect
+      kapok> (send {^name, ^node_deos_not_exist} ^hi [^noconnect])
+      ^noconnect
   """
   (erlang.send dest message options))
 
@@ -177,7 +177,7 @@
   does not refer to a process.
 
   This function returns a timer reference, which can be read or canceled
-  with `:erlang.read_timer`, `:erlang.start_time` and `:erlang.cancel_timer`.
+  with `erlang.read_timer`, `erlang.start_time` and `erlang.cancel_timer`.
   Note `time` cannot be greater than `4294967295`.
 
   Finally. the timer will be automatically canceled if the given 'dest' is
@@ -192,7 +192,7 @@
   according to the given options.
 
   The result depends on the given options. In particular,
-  if `:monitor` is given as an option, it will return a tuple
+  if `^monitor` is given as an option, it will return a tuple
   containing the pid and the monitoring reference, otherwise
   just the spawned process pid.
 
@@ -208,7 +208,7 @@
   according to the given options.
 
   The result depends on the given options. In particular,
-  if `:monitor` is given as an option, it will return a tuple
+  if `^monitor` is given as an option, it will return a tuple
   containing the pid and the monitoring reference, otherwise
   just the spawned process pid.
 
@@ -227,7 +227,7 @@
 
   Inlined by the compiler.
   """
-  (erlang.monitor :process item))
+  (erlang.monitor ^process item))
 
 (defn demonitor [monitor-ref options]
   """If `monitor-ref` is a reference which the calling process
@@ -245,7 +245,7 @@
   currently existing on the local node.
 
   Note that a process that is exiting, exists but is not alive, that is,
-  `alive?` will return `false` for a process that is existing,
+  `alive?` will return `^false` for a process that is existing,
   but its process identifier will be part of the result returned.
 
   See http://www.erlang.org/doc/man/erlang.html#processes-0 for more info.
@@ -264,7 +264,7 @@
 
 (defn unlink [pid]
   """Removes the link, if there is one, between the calling process and
-  the process or port referred to by `pid`. Returns `true` and does not
+  the process or port referred to by `pid`. Returns `^true` and does not
   fail, even if there is no link or `pid` does not exist.
 
   See http://www.erlang.org/doc/man/erlang.html#unlink-1 for more info.
@@ -308,7 +308,7 @@
 (defn group-leader [pid leader]
   """Sets the group leader of `pid` to `leader`.
   Typically, this is used when a process started from a certain shell should
-  have a group leader other than `:init`.
+  have a group leader other than `^init`.
   """
   (erlang.group_leader leader pid))
 
@@ -343,16 +343,16 @@
   """
   (nillify (erlang.process_info pid)))
 
-(defn info [pid :registered_name]
+(defn info [pid ^registered_name]
   """Returns information about the process identified by `pid` or `nil`
   if the process is not alive.
   Use this only for debugging information.
 
   See http://www.erlang.org/doc/man/erlang.html#process_info-2 for more info.
   """
-  (case (erlang.process_info pid :registered_name)
-    (:undefined :nil)
-    ([] {:registered_name, []})
+  (case (erlang.process_info pid ^registered_name)
+    (^undefined ^nil)
+    ([] {^registered_name, []})
     (other other)))
 
 (defn info [pid spec] (when (erlang.is_atom spec))

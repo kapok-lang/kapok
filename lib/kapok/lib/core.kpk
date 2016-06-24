@@ -4,7 +4,7 @@
 ;; all functions here are imported for every ns by default.
 
 (ns kapok.core
-  (require erlang))
+  (require erlang lists))
 
 
 (defn abs [number]
@@ -123,14 +123,14 @@
 ;; TODO
 
 (defn is-atom [term]
-  """Returns `true` if `term` is an atom; otherwise returns `false`.
+  """Returns `^true` if `term` is an atom; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_atom term))
 
 (defn is-binary [term]
-  """Returns `true` if `term` is a binary; otherwise `false`.
+  """Returns `^true` if `term` is a binary; otherwise `^false`.
 
   A binary always contains a complete number of bytes.
 
@@ -139,137 +139,137 @@
   ;; Examples
 
       kapok> (is-binary "foo")
-      true
+      ^true
       kapok> (is-binary <<(1 (:size 3))>>)
-      false
+      ^false
   """
   (erlang.is_binary term))
 
 (defn is-bitstring [term]
-  """Returns `true` if `term` is a bitstring (including a binary);
-  otherwise returns `false`.
+  """Returns `^true` if `term` is a bitstring (including a binary);
+  otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
 
   ;; Examples
 
       kapok> (is-bitstring "foo")
-      true
+      ^true
       kapok> (is-bitstring <<(1 (:size 3))>>)
-      true
+      ^true
 
   """
   (erlang.is_bitstring term))
 
 (defn is-boolean [term]
-  """Returns `true` if `term` is either the atom `true` or the atom `false`
-  (i.e., a boolean); otherwise returns `false`.
+  """Returns `^true` if `term` is either the atom `^true` or the atom `^false`
+  (i.e., a boolean); otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_boolean term))
 
 (defn is-builtin [module function arity]
-  """Returns `true` if `(module.function arity)` is a BIF implemented in C;
-  otherwise `false`.
+  """Returns `^true` if `(module function arity)` is a BIF implemented in C;
+  otherwise `^false`.
 
   This BIF is useful for builders of closs-reference tools.
   """
   (erlang.is_builtin module function arity))
 
 (defn is-float [term]
-  """Returns `true` if `term` is a floating point number;
-  otherwise returns `false`.
+  """Returns `^true` if `term` is a floating point number;
+  otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_float term))
 
 (defn is-function [term]
-  """Returns `true` if `term` is a function; otherwise returns `false`.
+  """Returns `^true` if `term` is a function; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_function term))
 
 (defn is-function [term, arity]
-  """Returns `true` if `term` is a function that can be applied with
-  `arity` number of arguments; otherwise returns `false`.
+  """Returns `^true` if `term` is a function that can be applied with
+  `arity` number of arguments; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
 
   ;; Examples
 
       kapok> (is-function (fn [x] (* 2 x)) 1)
-      true
+      ^true
       kapok> (is-function (fn [x] (* 2 x)) 2)
-      false
+      ^false
 
   """
   (erlang.is_function term arity))
 
 (defn is-integer [term]
-  """Returns `true` if `term` is an integer; otherwise returns `false`.
+  """Returns `^true` if `term` is an integer; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_integer term))
 
 (defn is-list [term]
-  """Returns `true` if `term` is a list with zero or more elements;
-  otherwist returns `false`.
+  """Returns `^true` if `term` is a list with zero or more elements;
+  otherwist returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_list term))
 
 (defn is-map [term]
-  """Returns `true` if `term` is a map; otherwise returns `false`.
+  """Returns `^true` if `term` is a map; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_map term))
 
 (defn is-number [term]
-  """Returns `true` if `term` is an integer or a floating point number;
-  otherwise returns `false`.
+  """Returns `^true` if `term` is an integer or a floating point number;
+  otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_number term))
 
 (defn is-pid [term]
-  """Returns `true` if `term` is a pid (process identifier);
-  otherwise returns `false`.
+  """Returns `^true` if `term` is a pid (process identifier);
+  otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_pid term))
 
 (defn is-pmod [term]
-  """Returns `true` if `term` is an instance of a parameterized module;
-  otherwise returns `false`.
+  """Returns `^true` if `term` is an instance of a parameterized module;
+  otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_pmod term))
 
 (defn is-port [term]
-  """Returns `true` if `term` is a port identifier; otherwise returns `false`.
+  """Returns `^true` if `term` is a port identifier; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_port term))
 
 (defn is-reference [term]
-  """Returns `true` if `term` is a reference; otherwise returns `false`.
+  """Returns `^true` if `term` is a reference; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_reference term))
 
 (defn is-tuple [term]
-  """Returns `true` if `term` is a tuple; otherwise returns `false`.
+  """Returns `^true` if `term` is a tuple; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
@@ -288,4 +288,123 @@
   """
   (erlang.send dest message))
 
+;; Arithmetic Operators
+
+(defn + [&rest rest]
+  """Returns the sum of numbers. `(+)` return 0.
+
+  Allowed in guard tests. Inline by the compiler.
+
+  ;; Examples
+
+      kapok> (+)
+      0
+
+      kapok> (+ 1 2)
+      3
+
+  """
+  (lists.foldl (fn [x acc]
+                 (erlang.+ acc x))
+               0
+               rest))
+
+(defn - [n &rest rest]
+  """Subtracts all numbers in `rest` from `n` and returns th result.
+  If no number is supplied in `rest`, returns the negation of 'n'.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (- 2)
+      -2
+
+      kapok> (- 1 2)
+      -1
+
+  """
+  (case rest
+    ([] (erlang.- 0 n))
+    (_ (lists.foldl (fn [x acc]
+                      (erlang.- acc x))
+                    n
+                    rest))))
+
+(defn * [&rest rest]
+  """Returns the product of numbers. `(*)` returns 1.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (*)
+      0
+
+      kapok> (* 1 2)
+      2
+
+  """
+  (lists.foldl (fn [x acc]
+                 (erlang.* acc x))
+               0
+               rest))
+
+(defn / [n &rest rest]
+  """Returns numerator `n` divided by all of the denominatars in `rest`.
+  If no denominator is supplied in `rest`, returns 1/numerator.
+
+  The result is always a float. Use `div` and `rem` if you want
+  an integer division or the remainder.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (/ 2)
+      0.5
+
+      kapok> (/ 2 1)
+      2.0
+
+  """
+  (case rest
+    ([] (erlang./ 1 n))
+    (_ (lists.foldl (fn [x acc]
+                      (erlang./ acc x))
+                    n
+                    rest))))
+
+;; Comparators
+
+(defn- all [_predicate _get-acc _acc []]
+  ^true)
+(defn- all [predicate get-acc acc [h & t]]
+  (case (predicate h acc)
+    (^true (all predicate get-acc (get-acc h acc) t))
+    (^false ^false)))
+
+(defn < [n &rest rest]
+  """Returns `^true` if the given arguments are in monotonically increasing
+  order, otherwise `^false`.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ;; Examples
+
+      kapok> (< 1 2 3)
+      ^true
+
+      kapok> (< 1 2 2)
+      ^false
+
+  """
+  (case rest
+    ([] ^true)
+    (_ (all (fn [x acc] (erlang.< acc x))
+            (fn [x _acc] x)
+            n
+            rest))))
 

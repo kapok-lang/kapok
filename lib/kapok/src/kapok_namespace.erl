@@ -92,7 +92,6 @@ info_fun(Functions, Macros, Env) ->
 compile(Ast, Env, Callback) when is_list(Ast) ->
   TEnv = lists:foldl(fun(A, E) ->
                          {EA, EE} = kapok_expand:expand_all(A, E),
-                         io:format("after expand: ~p~n", [EA]),
                          handle_ast(EA, EE)
                      end,
                      Env,
@@ -310,13 +309,13 @@ parse_parameters([], Acc, {Previous, Meta, Args}, _Env) ->
 
 parse_parameters([{Category, Meta} = Token], _Acc, {_Previous, _Meta, _Args}, Env)
     when ?is_parameter_keyword(Category) ->
-  kapok_error:form_error(Meta, ?m(Env, file), {dangling_parameter_keyword, {Token}});
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_parameter_keyword, {Token}});
 
 parse_parameters([{keyword_optional, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_optional, Meta, []}, Env);
 parse_parameters([{keyword_optional, Meta} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), Error);
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 parse_parameters([{keyword_rest, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_rest, Meta, []}, Env);
@@ -325,13 +324,13 @@ parse_parameters([{keyword_rest, Meta} | T], Acc, {keyword_optional, Meta1, Args
   parse_parameters(T, [Last | Acc], {keyword_rest, Meta, []}, Env);
 parse_parameters([{keyword_rest, Meta} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), Error);
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 parse_parameters([{keyword_key, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_key, Meta, []}, Env);
 parse_parameters([{keyword_key, Meta} | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {keyword_key, {Previous, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), Error);
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 parse_parameters([H | T], Acc, {normal, Meta, Args}, Env) ->
   parse_parameters(T, Acc, {normal, Meta, [H | Args]}, Env);
@@ -342,11 +341,11 @@ parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_optional, Meta1
   parse_parameters(T, Acc, {keyword_optional, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Env);
 parse_parameters([{_, Meta, _} = H | _T], _Acc, {keyword_optional, Meta1, _Args}, Env) ->
   Error = {invalid_parameter, {H, {keyword_optional, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), Error);
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 parse_parameters([{_, Meta, _} = H | _T], _Acc, {keyword_rest, Meta1, Args}, Env) when Args /= [] ->
   Error = {too_many_parameters_for_keyword, {H, {keyword_rest, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), Error);
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 parse_parameters([{list, _Meta, [{identifier, _, _} = Expr, Default]} | T], Acc, {keyword_key, Meta1, Args}, Env) ->
   parse_parameters(T, Acc, {keyword_key, Meta1, [{Expr, Default} | Args]}, Env);
@@ -354,7 +353,7 @@ parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_key, Meta1, Arg
   parse_parameters(T, Acc, {keyword_key, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Env);
 parse_parameters([{_, Meta, _} = H | _T], _Acc, {keyword_key, Meta1, _Args}, Env) ->
   Error = {invalid_parameter, {H, {keyword_key, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), Error);
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 parse_parameters([H | T], Acc, {Previous, Meta1, Args}, Env) ->
   parse_parameters(T, Acc, {Previous, Meta1, [H | Args]}, Env).

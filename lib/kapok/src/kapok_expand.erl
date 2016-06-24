@@ -81,12 +81,6 @@ expand({unquote_splicing, Meta, Arg}, #{macro_context := Context} = Env) ->
   end;
 
 
-%% identifier
-expand({dot, Meta, [Left, Right]}, Env) ->
-  {ELeft, LEnv, LExpanded} = expand(Left, Env),
-  {ERight, REnv, RExpanded} = expand(Right, LEnv),
-  {{dot, Meta, [ELeft, ERight]}, REnv, LExpanded or RExpanded};
-
 %% Containers
 
 %% bitstring

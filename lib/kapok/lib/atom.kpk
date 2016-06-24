@@ -12,11 +12,11 @@
 
   ;; Examples
 
-      kapok> (to-string :foo)
+      kapok> (to-string ^foo)
       "foo"
 
   """
-  (erlang.atom_to_binary atom :utf8))
+  (erlang.atom_to_binary atom ^utf8))
 
 (defn to-char-list (atom)
   """Converts an atom to a char list.
@@ -25,7 +25,7 @@
 
   ;; Examples
 
-      kapok> (to-char-list :'An atom')
+      kapok> (to-char-list ^'An atom')
       'An atom'
 
   """

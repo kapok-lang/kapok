@@ -208,7 +208,7 @@ build_quoted_keyword_atom(Token, Safe) ->
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
 
-build_dot(Dot, {Category, _, Id}, Right) when Category == identifier; Category == atom ->
+build_dot(Dot, {Category, _, Id} = _Left, Right) when ?is_local_id(Category) ->
   {dot, token_meta(Dot), {Id, token_symbol(Right)}};
 build_dot(Dot, {dot, _, _} = Left, Right) ->
   {dot, token_meta(Dot), {dot_fullname(Left), token_symbol(Right)}}.
