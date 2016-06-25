@@ -12,10 +12,11 @@
 
   Allowed in guard tests. Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (abs -3.33)
       3.33
+
       kapok> (abs -3)
       3
 
@@ -26,7 +27,7 @@
   """Invokes the given `fun` with the arugments `args`.
   Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (apply (fn [x] (* 2 x)) [2])
       4
@@ -39,7 +40,7 @@
 
   Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (apply lists reverse [1 2 3])
       [3 2 1]
@@ -56,7 +57,7 @@
 
   Allowed in guard tests. Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (binary-part "foo" 1 2)
       "oo"
@@ -75,7 +76,7 @@
 
   Allowed in guard tests.  Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (bit-size <<(433 (:size 16)) (3 (:size 3))>>)
       19
@@ -95,7 +96,7 @@
 
   Allowed in guard tests. Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (byte-size <<(433 (:size 16)) (3 (:size 3))>>)
       3
@@ -136,10 +137,11 @@
 
   Allowed in guard tests. Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (is-binary "foo")
       ^true
+
       kapok> (is-binary <<(1 (:size 3))>>)
       ^false
   """
@@ -151,10 +153,11 @@
 
   Allowed in guard tests. Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (is-bitstring "foo")
       ^true
+
       kapok> (is-bitstring <<(1 (:size 3))>>)
       ^true
 
@@ -198,10 +201,11 @@
 
   Allowed in guard tests. Inlined by the compiler.
 
-  ;; Examples
+  ## Examples
 
       kapok> (is-function (fn [x] (* 2 x)) 1)
       ^true
+
       kapok> (is-function (fn [x] (* 2 x)) 2)
       ^false
 
@@ -290,12 +294,12 @@
 
 ;; Arithmetic Operators
 
-(defn + [&rest rest]
+(defn +
   """Returns the sum of numbers. `(+)` return 0.
 
-  Allowed in guard tests. Inline by the compiler.
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
 
-  ;; Examples
+  ## Examples
 
       kapok> (+)
       0
@@ -304,18 +308,22 @@
       3
 
   """
-  (lists.foldl (fn [x acc]
-                 (erlang.+ acc x))
-               0
-               rest))
+  ([&optional (x 0)]
+   x)
+  ([x y &rest rest]
+   (let [sum (erlang.+ x y)]
+     (lists.foldl (fn [n acc]
+                    (erlang.+ acc n))
+                  sum
+                  rest))))
 
 (defn - [n &rest rest]
   """Subtracts all numbers in `rest` from `n` and returns th result.
   If no number is supplied in `rest`, returns the negation of 'n'.
 
-  Allowed in guard tests. Inlined by the compiler.
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
 
-  ;; Examples
+  ## Examples
 
       kapok> (- 2)
       -2
@@ -334,9 +342,9 @@
 (defn * [&rest rest]
   """Returns the product of numbers. `(*)` returns 1.
 
-  Allowed in guard tests. Inlined by the compiler.
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
 
-  ;; Examples
+  ## Examples
 
       kapok> (*)
       0
@@ -357,9 +365,9 @@
   The result is always a float. Use `div` and `rem` if you want
   an integer division or the remainder.
 
-  Allowed in guard tests. Inlined by the compiler.
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
 
-  ;; Examples
+  ## Examples
 
       kapok> (/ 2)
       0.5
@@ -390,11 +398,11 @@
 
   All terms in Kapok can be compared with each other.
 
-  Allowed in guard tests. Inlined by the compiler.
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
 
-  ;; Examples
+  ## Examples
 
-      kapok> (< 1 2 3)
+      kapok> (< 1)
       ^true
 
       kapok> (< 1 2 2)
@@ -408,3 +416,106 @@
             n
             rest))))
 
+(defn > [n &rest rest]
+  """Returns `^true` if the given arguments are in monotonically decreasing
+  order, otherwise `^false`.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (> 1)
+      ^true
+
+      kapok> (> 3 2 2)
+      ^false
+
+  """
+  (case rest
+    ([] ^true)
+    (_ (all (fn [x acc] (erlang.> acc x))
+            (fn [_x acc] acc)
+            n
+            rest))))
+
+(defn <= [n &rest rest]
+  """Returns `^true` if the given arguments are in monotonically non-decreasing
+  order, otherwise `^false`.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (<= 1)
+      ^true
+
+      kapok> (<= 1 2 1)
+      ^false
+
+  """
+  (case rest
+    ([] ^true)
+    (_ (all (fn [x acc] (erlang.<= acc x))
+            (fn [x _acc] x)
+            n
+            rest))))
+
+(defn >= [n &rest rest]
+  """Returns `^true` if the given arguments are in monotonically non-increasing
+  order, othenwise `^false`.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (>= 1)
+      ^true
+
+      kapok> (>= 3 2 3)
+      ^false
+
+  """
+  (case rest
+    ([] ^true)
+    (_ (all (fn [x acc] (erlang.>= acc x))
+            (fn [_x acc] acc)
+            n
+            rest))))
+
+(defn == [n &rest rest]
+  """Returns `^true` if the given arguments all have the equivalent value
+  (type-independent), otherwise `^false`.
+
+  This operator considers 1 and 1.0 to be equal. For match semantics,
+  use '===' instead.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ;; Expamles
+
+      kapok> (== 1 2)
+      ^false
+
+      kapok> (== 1 1.0)
+      ^true
+
+  """
+  (case rest
+    ([] ^true)
+    (_ (all (fn [x acc] (erlang.== acc x))
+            (fn [_x acc] acc)
+            n
+            rest))))
+
+;; (defn != [n &rest]
+;;   """Returns `^true`
+;;   """
+;;   )

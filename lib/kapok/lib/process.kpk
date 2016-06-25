@@ -25,7 +25,7 @@
 (defn get []
   """Returns all key-values in the process dictionary as a list of {key, value}.
 
-  ;; Examples
+  ## Examples
 
       kapok> (put ^key1 ^merry)
       kapok> (put ^key2 ^lambs)
@@ -40,7 +40,7 @@
   """Returns the value for the given `key` in the process dictionary,
   or undefined if `key` does not exist.
 
-  ;; Examples
+  ## Examples
 
        kapok> (put ^key1 ^merry)
        kapok> (put ^key2 ^lambs)
@@ -53,7 +53,7 @@
 (defn get-keys []
   """Return all keys in the process dictionary as a list of key.
 
-  ;; Examples
+  ## Examples
 
       kapok> (put ^dog {^animal,1})
       kapok> (put ^cow {^animal,2})
@@ -67,7 +67,7 @@
 (defn get-keys [value]
   """Return all keys that have the given `value`.
 
-  ;; Examples
+  ## Examples
 
       kapok> (put ^mary {1, 2})
       kapok> (put ^had {1, 2})
@@ -100,7 +100,7 @@
 
   Returns all key-value in the process dictionary as a list of {key, value}.
 
-  ;; Examples
+  ## Examples
 
       kapok> (put ^key1 {1 2 3})
       kapok> (put ^key2 [^a ^b ^c])
@@ -116,7 +116,7 @@
   Returns {key, value} if the given `key` exists, or ^nil if the given `key`
   does not exist.
 
-  ;; Examples
+  ## Examples
 
       kapok> (put ^key1 {^merry ^lambs ^are ^playing})
       kapok> (let [x (delete ^key1)] {x, (delete ^key1)})
@@ -161,7 +161,7 @@
 
   Otherwise the message is sent and `:ok` is returned.
 
-  ;; Examples
+  ## Examples
 
       kapok> (send {^name, ^node_deos_not_exist} ^hi [^noconnect])
       ^noconnect

@@ -117,12 +117,18 @@ translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}
 translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {number, _, Number}]}, Env)
     when ?is_local_id(C1), ?is_local_id(C2) ->
   translate_fn(Meta, Id1, Id2, Number, Env);
+translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args,
+                        {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+  translate_fn(Meta, Id, Args, Guard, Body, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args | Body]}, Env) ->
-  translate_fn(Meta, Id, Args, Body, Env);
+  translate_fn(Meta, Id, Args, [], Body, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id} | Exprs]}, Env) ->
   translate_fn(Meta, Id, Exprs, Env);
+translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args,
+                        {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+  translate_fn(Meta, Args, Guard, Body, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args | Body]}, Env) ->
-  translate_fn(Meta, Args, Body, Env);
+  translate_fn(Meta, Args, [], Body, Env);
 translate({list, Meta, [{identifier, _, 'fn'} | Exprs]}, Env) ->
   translate_fn(Meta, Exprs, Env);
 
@@ -180,7 +186,6 @@ translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = 
           translate_local_call(Meta, F, A, P, Arity, TArgs, TEnv);
         false ->
           %% check whether it's in imported functions/macros
-          io:format("to find local function ~p~n", [{Id, Args}]),
           {R, Env1} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv),
           case R of
             {M, F, A, P} -> translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env1);
@@ -411,37 +416,43 @@ translate_fn(Meta, Name, Arity, Env) when is_atom(Name), is_number(Arity) ->
   {{'fun', ?line(Meta), {function, Name, Arity}}, Env};
 translate_fn(Meta, Name, Exprs, Env) when is_atom(Name), is_list(Exprs) ->
   {Clauses, TEnv} = translate_fn_exprs(Exprs, Env),
-  {{'named_fun', ?line(Meta), Name, Clauses}, TEnv};
-translate_fn(Meta, Args, Body, Env) when is_tuple(Args), is_list(Body) ->
-  {Clause, TEnv} = translate_fn_clause(Meta, Args, Body, Env),
-  {{'fun', ?line(Meta), {clauses, [Clause]}}, TEnv}.
+  {{'named_fun', ?line(Meta), Name, Clauses}, TEnv}.
 
-translate_fn(Meta, Module, Name, Arity, Env) when is_atom(Module), is_atom(Name), is_number(Arity) ->
+translate_fn(Meta, Module, Name, Arity, Env)
+    when is_atom(Module), is_atom(Name), is_number(Arity) ->
   {TModule, TEnv} = translate(Module, Env),
   {TName, TEnv1} = translate(Name, TEnv),
   {TArity, TEnv2} = translate(Arity, TEnv1),
   {{'fun', ?line(Meta), {function, TModule, TName, TArity}}, TEnv2};
-translate_fn(Meta, Name, Args, Body, Env) when is_atom(Name), is_tuple(Args), is_list(Body) ->
-  {Clause, TEnv} = translate_fn_clause(Meta, Args, Body, Env),
+translate_fn(Meta, Args, Guard, Body, Env)
+    when is_tuple(Args), (is_list(Guard) orelse is_tuple(Guard)), is_list(Body) ->
+  {Clause, TEnv} = translate_fn_clause(Meta, Args, Guard, Body, Env),
+  {{'fun', ?line(Meta), {clauses, [Clause]}}, TEnv}.
+translate_fn(Meta, Name, Args, Guard, Body, Env)
+    when is_atom(Name), is_tuple(Args), (is_list(Guard) andalso is_tuple(Guard)), is_list(Body) ->
+  {Clause, TEnv} = translate_fn_clause(Meta, Args, Guard, Body, Env),
   {{'named_fun', ?line(Meta), Name, [Clause]}, TEnv}.
 
 translate_fn_exprs(Exprs, Env) when is_list(Exprs) ->
   check_fn_exprs(Exprs, Env),
   lists:mapfoldl(fun translate_fn_expr/2, Env, Exprs).
 
+translate_fn_expr({list, Meta, [{literal_list, _, _} = Args, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+  translate_fn_clause(Meta, Args, Guard, Body, Env);
 translate_fn_expr({list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
-  translate_fn_clause(Meta, Args, Body, Env);
+  translate_fn_clause(Meta, Args, [], Body, Env);
 translate_fn_expr({_, Meta, _} = Ast, Env) ->
   Error = {invalid_fn_expression, {Ast}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
 
-translate_fn_clause(Meta, Args, Body, Env) ->
+translate_fn_clause(Meta, Args, Guard, Body, Env) ->
   Env1 = kapok_env:push_scope(Env),
   {TArgs, TEnv1} = translate_args(Args, Env1),
-  {TBody, TEnv2} = translate_body(Meta, Body, TEnv1),
-  Clause = {clause, ?line(Meta), TArgs, [], TBody},
-  TEnv3 = kapok_env:pop_scope(TEnv2),
-  {Clause, TEnv3}.
+  {TGuard, TEnv2} = translate_guard(Guard, TEnv1),
+  {TBody, TEnv3} = translate_body(Meta, Body, TEnv2),
+  Clause = {clause, ?line(Meta), TArgs, TGuard, TBody},
+  TEnv4 = kapok_env:pop_scope(TEnv3),
+  {Clause, TEnv4}.
 
 check_fn_exprs(Exprs, Env) when is_list(Exprs) ->
   lists:foldl(fun check_fn_expr_arity/2, {0, Env}, Exprs).
@@ -554,9 +565,7 @@ translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Env)
       ok
   end,
   {TType, TEnv} = translate(Type, Env),
-  io:format('before pattern: ~p~n', [?m(TEnv, scope)]),
   {TPattern, TEnv1} = translate_match_pattern(Pattern, TEnv),
-  io:format('after pattern: ~p~n', [?m(TEnv1, scope)]),
   Line = ?line(Meta),
   {{tuple, Line, [TType, TPattern, {var, Line, '_'}]}, TEnv1};
 translate_exception({_, Meta, _} = Pattern, Env) ->

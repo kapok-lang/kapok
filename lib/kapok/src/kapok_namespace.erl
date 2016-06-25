@@ -101,28 +101,11 @@ compile(Ast, Env, Callback) when is_list(Ast) ->
 handle_ast({list, Meta, [{identifier, _, ns}, {C1, _, _} = Ast, {C2, _, Doc} | Left]}, Env)
     when ?is_dot_id(C1), ?is_string(C2) ->
   handle_ns(Meta, Ast, Doc, Left, Env);
+
 handle_ast({list, Meta, [{identifier, _, ns}, {C1, _, _} = Ast | Left]}, Env) when ?is_dot_id(C1) ->
   handle_ns(Meta, Ast, Left, Env);
-handle_ast({list, Meta,
-            [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args,
-             {C2, _, [{identifier, _, 'when'} | _]} = Guard,
-             {C3, _, _} = Doc | Body]},
-           Env) when ?is_def(Id), ?is_list(C1), ?is_list(C2), ?is_string(C3) ->
-  handle_def(Meta, Id, Name, Args, Guard, Doc, Body, Env);
-handle_ast({list, Meta,
-            [{identifier, _, Id}, {identifier, _, Name}, {C1, _, _} = Args,
-             {C2, _, _} = Doc | Body]},
-           Env) when ?is_def(Id), ?is_list(C1), ?is_string(C2) ->
-  handle_def(Meta, Id, Name, Args, Doc, Body, Env);
-handle_ast({list, Meta,
-            [{identifier, _, Id}, {identifier, _, Name}, {C, _, _} = Args,
-             {C2, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
-           Env) when ?is_def(Id), ?is_list(C), ?is_list(C2) ->
-  handle_def(Meta, Id, Name, Args, Guard, Body, Env);
-handle_ast({list, Meta,
-            [{identifier, _, Id}, {identifier, _, Name}, {C, _, _} = Args | Body]},
-           Env) when ?is_def(Id), ?is_list(C) ->
-  handle_def(Meta, Id, Name, Args, Body, Env);
+handle_ast({list, Meta, [{identifier, _, Id}, {identifier, _, Name} | Left]}, Env) when ?is_def(Id) ->
+  handle_def(Meta, Id, Name, Left, Env);
 
 handle_ast({_, Meta, _} = Ast, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_expression, {Ast}}).
@@ -225,13 +208,42 @@ handle_use_element_arguments(_Meta, _Name, _, [{_, Meta1, _} = Ast | _T], Env) -
 
 
 %% definitions
-handle_def(Meta, Kind, Name, Args, Body, Env) ->
-  handle_def(Meta, Kind, Name, Args, [], {binary_string, [], <<"">>}, Body, Env).
-handle_def(Meta, Kind, Name, Args, {C, _, _} = Guard, Body, Env) when ?is_list(C) ->
-  handle_def(Meta, Kind, Name, Args, Guard, {binary_string, [], <<"">>}, Body, Env);
-handle_def(Meta, Kind, Name, Args, {C, _, _} = Doc, Body, Env) when ?is_string(C) ->
-  handle_def(Meta, Kind, Name, Args, [], Doc, Body, Env).
-handle_def(Meta, Kind, Name, Args, Guard, _Doc, Body, #{function := Function} = Env) ->
+handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Env) ->
+  handle_def_with_args(Meta, Kind, Name, Args, T, Env);
+handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Env) when ?is_string(C) ->
+  handle_def_with_doc(Meta, Kind, Name, Doc, T, Env);
+handle_def(Meta, Kind, Name, Exprs, Env) ->
+  handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Env).
+
+handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'} | _]} = Guard | Left], Env) ->
+  handle_def_with_args(Meta, Kind, Name, Args, Guard, Left, Env);
+handle_def_with_args(Meta, Kind, Name, Args, Left, Env) ->
+  handle_def_with_args(Meta, Kind, Name, Args, [], Left, Env).
+handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Env) when ?is_string(C) ->
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
+handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Env) ->
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env).
+
+handle_def_with_doc(Meta, Kind, Name, _Doc, Exprs, Env) ->
+  %% TODO add doc
+  handle_def_exprs(Meta, Kind, Name, Exprs, Env).
+
+empty_def_doc() ->
+  {bitstring, [], <<"">>}.
+
+
+handle_def_exprs(_Meta, Kind, Name, Exprs, Env) ->
+  lists:foldl(fun (Expr, E) -> handle_def_expr(Kind, Name, Expr, E) end, Env, Exprs).
+
+handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
+handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
+  handle_def_clause(Meta, Kind, Name, Args, [], Body, Env);
+handle_def_expr(Kind, _Name, {_, Meta, _} = Ast, Env) ->
+  Error = {invalid_def_expression, {Ast, Kind}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
+
+handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} = Env) ->
   %% TODO add doc
   Namespace = ?m(Env, namespace),
   Name1 = case Kind of
@@ -298,7 +310,7 @@ handle_def(Meta, Kind, Name, Args, Guard, _Doc, Body, #{function := Function} = 
   kapok_env:pop_scope(TEnv7#{function => Function}).
 
 %% parse parameters
-parse_parameters({Category, _, Args}, Env) when ?is_list(Category) ->
+parse_parameters({Category, _, Args}, Env) when Category == literal_list ->
   parse_parameters(Args, Env);
 parse_parameters(Args, Env) when is_list(Args) ->
   L = parse_parameters(Args, [], {normal, [], []}, Env),
@@ -469,6 +481,8 @@ format_error({multiple_namespace, {Existing, New}}) ->
   io_lib:format("multiple namespace in one file not supported: ~p, ~p", [Existing, New]);
 format_error({dangling_parameter_keyword, {Token}}) ->
   io_lib:format("dangling ~s without argument", [token_text(Token)]);
+format_error({invalid_def_expression, {Expr, Kind}}) ->
+  io_lib:format("invalid expression ~p for ~s", [Expr, Kind]);
 format_error({invalid_postion_of_parameter_keyword, {Token, Previous}}) ->
   io_lib:format("invalid ~s with ~s ahead at line ~B", [token_text(Token),
                                                         token_text(Previous),
