@@ -308,16 +308,13 @@
       3
 
   """
-  ([&optional (x 0)]
-   x)
-  ([x y &rest rest]
-   (let [sum (erlang.+ x y)]
-     (lists.foldl (fn [n acc]
-                    (erlang.+ acc n))
-                  sum
-                  rest))))
+  ([&optional (x 0)] x)
+  ([x y &rest more] (lists.foldl (fn [n acc]
+                                   (erlang.+ acc n))
+                                 (erlang.+ x y)
+                                 more)))
 
-(defn - [n &rest rest]
+(defn -
   """Subtracts all numbers in `rest` from `n` and returns th result.
   If no number is supplied in `rest`, returns the negation of 'n'.
 
@@ -332,14 +329,13 @@
       -1
 
   """
-  (case rest
-    ([] (erlang.- 0 n))
-    (_ (lists.foldl (fn [x acc]
-                      (erlang.- acc x))
-                    n
-                    rest))))
+  ([x] (erlang.- 0 x))
+  ([x y &rest more] (lists.foldl (fn [n acc]
+                                   (erlang.- acc n))
+                                 (erlang.- x y)
+                                 more)))
 
-(defn * [&rest rest]
+(defn *
   """Returns the product of numbers. `(*)` returns 1.
 
   Allowed in guard tests and inlined by the compiler only when arity is 2.
@@ -347,18 +343,20 @@
   ## Examples
 
       kapok> (*)
-      0
+      1
 
       kapok> (* 1 2)
       2
 
   """
-  (lists.foldl (fn [x acc]
-                 (erlang.* acc x))
-               0
-               rest))
+  ([] 1)
+  ([x] x)
+  ([x y &rest more] (lists.foldl (fn [n acc]
+                                   (erlang.* acc n))
+                                 (erlang.* x y)
+                                 more)))
 
-(defn / [n &rest rest]
+(defn /
   """Returns numerator `n` divided by all of the denominatars in `rest`.
   If no denominator is supplied in `rest`, returns 1/numerator.
 
@@ -376,23 +374,22 @@
       2.0
 
   """
-  (case rest
-    ([] (erlang./ 1 n))
-    (_ (lists.foldl (fn [x acc]
-                      (erlang./ acc x))
-                    n
-                    rest))))
+  ([x] (erlang./ 1 x))
+  ([x y &rest more] (lists.foldl (fn [n acc]
+                                   (erlang./ acc n))
+                                 (erlang./ x y)
+                                 more)))
 
 ;; Comparators
 
-(defn- all [_predicate _get-acc _acc []]
+(defn- all [_predicate _acc []]
   ^true)
-(defn- all [predicate get-acc acc [h & t]]
+(defn- all [predicate acc [h & t]]
   (case (predicate h acc)
-    (^true (all predicate get-acc (get-acc h acc) t))
+    (^true (all predicate h t))
     (^false ^false)))
 
-(defn < [n &rest rest]
+(defn <
   """Returns `^true` if the given arguments are in monotonically increasing
   order, otherwise `^false`.
 
@@ -409,14 +406,12 @@
       ^false
 
   """
-  (case rest
-    ([] ^true)
-    (_ (all (fn [x acc] (erlang.< acc x))
-            (fn [x _acc] x)
-            n
-            rest))))
+  ([_x] ^true)
+  ([x y &rest more] (all (fn [n acc] (erlang.< acc n))
+                         x
+                         [y & more])))
 
-(defn > [n &rest rest]
+(defn >
   """Returns `^true` if the given arguments are in monotonically decreasing
   order, otherwise `^false`.
 
@@ -433,14 +428,12 @@
       ^false
 
   """
-  (case rest
-    ([] ^true)
-    (_ (all (fn [x acc] (erlang.> acc x))
-            (fn [_x acc] acc)
-            n
-            rest))))
+  ([_x] ^true)
+  ([x y &rest more] (all (fn [n acc] (erlang.> acc n))
+                         x
+                         [y & more])))
 
-(defn <= [n &rest rest]
+(defn <=
   """Returns `^true` if the given arguments are in monotonically non-decreasing
   order, otherwise `^false`.
 
@@ -457,14 +450,12 @@
       ^false
 
   """
-  (case rest
-    ([] ^true)
-    (_ (all (fn [x acc] (erlang.<= acc x))
-            (fn [x _acc] x)
-            n
-            rest))))
+  ([_x] ^true)
+  ([x y &rest more] (all (fn [n acc] (erlang.<= acc n))
+                         x
+                         [y & more])))
 
-(defn >= [n &rest rest]
+(defn >=
   """Returns `^true` if the given arguments are in monotonically non-increasing
   order, othenwise `^false`.
 
@@ -481,14 +472,12 @@
       ^false
 
   """
-  (case rest
-    ([] ^true)
-    (_ (all (fn [x acc] (erlang.>= acc x))
-            (fn [_x acc] acc)
-            n
-            rest))))
+  ([_x] ^true)
+  ([x y &rest more] (all (fn [n acc] (erlang.>= acc n))
+                         x
+                         [y & more])))
 
-(defn == [n &rest rest]
+(defn ==
   """Returns `^true` if the given arguments all have the equivalent value
   (type-independent), otherwise `^false`.
 
@@ -499,7 +488,7 @@
 
   Allowed in guard tests and inlined by the compiler only when arity is 2.
 
-  ;; Expamles
+  ## Exapmles
 
       kapok> (== 1 2)
       ^false
@@ -508,14 +497,85 @@
       ^true
 
   """
-  (case rest
-    ([] ^true)
-    (_ (all (fn [x acc] (erlang.== acc x))
-            (fn [_x acc] acc)
-            n
-            rest))))
+  ([_x] ^true)
+  ([x y &rest more] (all (fn [n acc] (erlang.== acc n))
+                         x
+                         [y & more])))
 
-;; (defn != [n &rest]
-;;   """Returns `^true`
-;;   """
-;;   )
+(defn !=
+  """Returns `^true` if the given arguments all have the unequal value
+  (type-independent), otherwise `^false`.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (!= 1 1.0)
+      ^false
+
+      kapok> (!= 1 2)
+      ^true
+
+  """
+  ([_x] ^true)
+  ([x y &rest more]
+   (let [{total set} (lists.foldl
+                      (fn [n {count acc}]
+                        {(+ 1 count) (ordsets.add_element n acc)})
+                      {0 (ordsets.new)}
+                      [x y & more])]
+     (== total (ordsets.size set)))))
+
+(defn ===
+  """Returns `^true` if the given arguments do match (identical),
+  otherwise `^false`.
+
+  This operator gives the same semantics as the one existing in
+  pattern matching, i.e., `1` and `1.0` are equal, but they do not match
+  (not identical).
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (=== 1 2)
+      ^false
+
+      kapok> (=== 1 1.0)
+      ^false
+
+  """
+  ([_x] ^true)
+  ([x y &rest more] (all (fn [n acc] (erlang.=== acc n))
+                         x
+                         [y & more])))
+
+(defn !==
+  """Returns `^true` if the given arguments all do not match (not identical),
+  otherwise `^false`.
+
+  All terms in Kapok can be compared with each other.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (!== 1 2)
+      ^true
+
+      kapok> (!== 1 1.0)
+      ^false
+
+  """
+  ([_x] ^true)
+  ([x y &rest more]
+   (let [{total set} (lists.foldl
+                      (fn [n {count acc}]
+                        {(+ 1 count) (sets.add_element n acc)})
+                      {0 (sets.new)}
+                      [x y & more])]
+     (== total (sets.size set)))))

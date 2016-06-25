@@ -70,13 +70,8 @@ translate({tuple, Meta, Arg}, Env) ->
 translate({literal_list, _Meta, List}, Env) ->
   translate_list(List, Env);
 
-translate({cons_list, Meta, {Head, Tail}}, Env) ->
-  {THead, TEnv} = case Head of
-                     [E] -> translate(E, Env);
-                     _ -> translate(Head, Env)
-                   end,
-  {TTail, TEnv1} = translate(Tail, TEnv),
-  {{cons, ?line(Meta), THead, TTail}, TEnv1};
+translate({cons_list, _Meta, {Head, Tail}}, Env) ->
+  translate_cons_list(Head, Tail, Env);
 
 %% special forms
 %% let
@@ -287,6 +282,8 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 
 
 %% Helpers
+
+%% translate list
 translate_list(L, Env) ->
   translate_list(L, [], Env).
 translate_list([H|T], Acc, Env) ->
@@ -303,6 +300,23 @@ do_build_list([H|T], Acc) ->
   do_build_list(T, {cons, 0, H, Acc});
 do_build_list([], Acc) ->
   Acc.
+
+%% translate cons_list
+translate_cons_list(Head, Tail, Env) ->
+  translate_cons_list(Head, [], Tail, Env).
+
+translate_cons_list([], Acc, Tail, Env) ->
+  {TTail, TEnv} = translate(Tail, Env),
+  L = lists:foldl(fun(X, Acc1) ->
+                      Line = erlang:element(2, X),
+                      {cons, Line, X, Acc1}
+                  end,
+                  TTail,
+                  Acc),
+  {L, TEnv};
+translate_cons_list([H | T], Acc, Tail, Env) ->
+  {TH, TEnv} = translate(H, Env),
+  translate_cons_list(T, [TH | Acc], Tail, TEnv).
 
 %% translate let
 translate_let_args(Args, Env) ->
