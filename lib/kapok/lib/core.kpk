@@ -25,6 +25,7 @@
 
 (defn apply [fun args]
   """Invokes the given `fun` with the arugments `args`.
+
   Inlined by the compiler.
 
   ## Examples
@@ -106,10 +107,6 @@
 
   """
   (erlang.byte_size bitstring))
-
-;; TODO
-;; (defn div []
-;;   )
 
 (defn exit [reason]
   """Stops the execution of the calling process with the given reason.
@@ -297,7 +294,7 @@
 (defn +
   """Returns the sum of numbers. `(+)` return 0.
 
-  Allowed in guard tests and inlined by the compiler only when arity is 2.
+  Allowed in guard tests and inlined by the compiler only when arity is 1 or 2.
 
   ## Examples
 
@@ -311,14 +308,14 @@
   ([&optional (x 0)] x)
   ([x y &rest more] (lists.foldl (fn [n acc]
                                    (erlang.+ acc n))
-                                 (erlang.+ x y)
-                                 more)))
+                                 x
+                                 [y & more])))
 
 (defn -
   """Subtracts all numbers in `rest` from `n` and returns th result.
   If no number is supplied in `rest`, returns the negation of 'n'.
 
-  Allowed in guard tests and inlined by the compiler only when arity is 2.
+  Allowed in guard tests and inlined by the compiler only when arity is 1 or 2.
 
   ## Examples
 
@@ -332,8 +329,8 @@
   ([x] (erlang.- 0 x))
   ([x y &rest more] (lists.foldl (fn [n acc]
                                    (erlang.- acc n))
-                                 (erlang.- x y)
-                                 more)))
+                                 x
+                                 [y & more])))
 
 (defn *
   """Returns the product of numbers. `(*)` returns 1.
@@ -349,12 +346,11 @@
       2
 
   """
-  ([] 1)
-  ([x] x)
+  ([&optional (x 1)] x)
   ([x y &rest more] (lists.foldl (fn [n acc]
                                    (erlang.* acc n))
-                                 (erlang.* x y)
-                                 more)))
+                                 x
+                                 [y & more])))
 
 (defn /
   """Returns numerator `n` divided by all of the denominatars in `rest`.
@@ -377,8 +373,162 @@
   ([x] (erlang./ 1 x))
   ([x y &rest more] (lists.foldl (fn [n acc]
                                    (erlang./ acc n))
-                                 (erlang./ x y)
-                                 more)))
+                                 x
+                                 [y & more])))
+
+(defn div [x y]
+  """Performs in integer division.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (div 5 2)
+      2
+
+  """
+  (erlang.div x y))
+
+(defn rem [x y]
+  """Computes the remainder of an integer division.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (rem 5 2)
+      1
+
+  """
+  (erlang.rem x y))
+
+;; Bitwise Operators
+
+(defn bnot [x]
+  """Calculates the bitwise NOT of the given argument.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (bnot 2)
+      -3
+
+  """
+  (erlang.bnot x))
+
+(defalias bit-not bnot
+  """Alias to bnot.""")
+
+(defn band [x y &rest more]
+  """Calculates the bitwise AND of the given arguments.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (band 9 3)
+      1
+
+      kapok> (band 59 9 3)
+      1
+
+  """
+  (lists.foldl (fn [n acc]
+                 (erlang.band n acc))
+               x
+               [y & more]))
+
+(defalias bit-and band
+  """Alias to band.""")
+
+(defn bor [x y &rest more]
+  """Calculates the bitwise OR of the given arguments.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (bor 9 3)
+      11
+
+  """
+  (list.foldl (fn [n acc]
+                (erlang.bor n acc))
+              x
+              [y & more]))
+
+(defalias bit-or bor
+  """Alias to bor.""")
+
+(defn bxor [x y &rest more]
+  """Calculates the bitwise XOR of the given arguments.
+
+  Allowed in guard tests and inlined by the compiler only when arity is 2.
+
+  ## Examples
+
+      kapok> (bxor 9 3)
+      10
+
+  """
+  (list.foldl (fn [n acc]
+                (erlang.bxor n acc))
+              x
+              [y & more]))
+
+(defalias bit-xor bxor
+  """Alias to bxor.""")
+
+(defn bsl [x n]
+  """Calculates the result of an arithmetic left bitshift.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (bsl 1 2)
+      4
+
+      kapok> (bsl 1 -2)
+      0
+
+      kapok> (bsl -1 2)
+      -4
+
+      kapok> (bsl -1 -2)
+      -1
+
+  """
+  (erlang.bsl x n))
+
+(defalias bit-shift-left bsl
+  """Alias to bsl.""")
+
+(defn bsr [x n]
+  """Calculates the result of an arithmetic right bitshift.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (bsr 1 2)
+      0
+
+      kapok> (bsr 1 -2)
+      4
+
+      kapok> (bsr -1 2)
+      -1
+
+      kapok> (bsr -1 -2)
+      -4
+
+  """
+  (erlang.bsr x n))
+
+(defalias bit-shift-right bsr
+  """Alias to bsr.""")
 
 ;; Comparators
 

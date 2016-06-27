@@ -42,7 +42,8 @@
 
 -define(is_op(T), (T == '+' orelse T == '-')).
 -define(is_number(T), (T == 'number')).
--define(is_def(T), (T == 'defn' orelse T == 'defn-' orelse T == 'defmacro')).
+-define(is_def_alias(T), (T == 'defalias' orelse T == 'defalias-')).
+-define(is_def(T), (T == 'defn' orelse T == 'defn-' orelse T == 'defmacro' orelse ?is_def_alias(T))).
 -define(is_dot_id(T), (T == 'identifier' orelse T == 'dot')).
 -define(is_local_id(T), (T == 'identifier' orelse T == 'atom')).
 -define(is_list(T), (T == 'list' orelse T == 'literal_list')).

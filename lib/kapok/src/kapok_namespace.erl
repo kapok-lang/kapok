@@ -14,7 +14,7 @@ init_namespace_table() ->
   _ = ets:new(kapok_namespaces, [set, protected, named_table, {read_concurrency, true}]).
 
 add_namespace(Namespace) ->
-  ets:insert(kapok_namespaces, {Namespace, [], [], [], [], []}).
+  ets:insert(kapok_namespaces, {Namespace, [], [], [], [], [], []}).
 
 add_clause(Namespace, Kind, Fun, Arity, Clause) when Kind == 'defn' ->
   add_clause(Namespace, 2, Fun, Arity, Clause);
@@ -50,10 +50,10 @@ namespace_export_functions(Namespace) ->
 namespace_export_macros(Namespace) ->
   ets:lookup_element(kapok_namespaces, Namespace, 5).
 
-add_export(_Namespace, Kind, _F, _A, _ParameterType) when Kind == 'defn-' ->
+add_export(_Namespace, Kind, _F, _A, _ParameterType) when Kind == 'defn-'; Kind == 'defalias-' ->
   %% don't export for namespace private function definitions
   ok;
-add_export(Namespace, Kind, F, A, ParameterType) when Kind == 'defn' ->
+add_export(Namespace, Kind, F, A, ParameterType) when Kind == 'defn'; Kind == 'defalias' ->
   add_export(Namespace, 4, F, A, ParameterType);
 add_export(Namespace, Kind, F, A, ParameterType) when Kind == 'defmacro' ->
   add_export(Namespace, 5, F, A, ParameterType);
@@ -74,13 +74,47 @@ module_exports(Functions, Macros) ->
   %% TODO macro will shadow function if there is any overrides
   ordsets:union(ExportFunctions, ExportMacros).
 
-namespace_locals(Namespace) ->
+namespace_aliases(Namespace) ->
   ets:lookup_element(kapok_namespaces, Namespace, 6).
+
+namespace_aliases(Namespace, Defs) ->
+  Aliases = namespace_aliases(Namespace),
+  lists:foldl(fun({Alias, F, A}, Acc) ->
+                  {ok, Clauses} = orddict:find({F, A}, Defs),
+                  orddict:store({Alias, A}, Clauses, Acc);
+                 ({Alias, F}, Acc)->
+                  L = orddict:filter(fun({F1, _A1}, _Clauses) -> F == F1 end, Defs),
+                  orddict:fold(fun({_F, A}, Clauses, Acc1) ->
+                                   orddict:store({Alias, A}, Clauses, Acc1)
+                               end,
+                               Acc,
+                               L)
+              end,
+              orddict:new(),
+              Aliases).
+
+add_alias(Namespace, Alias, Original) ->
+  Aliases = namespace_aliases(Namespace),
+  NewAliases = case Original of
+                 {Fun, Arity} -> ordsets:add_element({Alias, Fun, Arity}, Aliases);
+                 Fun -> ordsets:add_element({Alias, Fun}, Aliases)
+               end,
+  ets:update_element(kapok_namespaces, Namespace, {6, NewAliases}).
+
+namespace_locals(Namespace) ->
+  ets:lookup_element(kapok_namespaces, Namespace, 7).
+
+get_local(Namespace, {Fun, Arity}) ->
+  ordsets:filter(fun({F, A, _P}) -> (F == Fun) andalso (A == Arity) end,
+                 namespace_locals(Namespace));
+get_local(Namespace, Fun) ->
+  ordsets:filter(fun({F, _A, _P}) -> F == Fun end,
+                 namespace_locals(Namespace)).
 
 add_local(Namespace, Fun, Arity, ParameterType) ->
   Locals = namespace_locals(Namespace),
   NewLocals = ordsets:add_element({Fun, Arity, ParameterType}, Locals),
-  ets:update_element(kapok_namespaces, Namespace, {6, NewLocals}).
+  ets:update_element(kapok_namespaces, Namespace, {7, NewLocals}).
 
 info_fun(Functions, Macros, Env) ->
   {FunctionList, _} = kapok_translate:translate(kapok_expand:quote(Functions), Env),
@@ -208,12 +242,45 @@ handle_use_element_arguments(_Meta, _Name, _, [{_, Meta1, _} = Ast | _T], Env) -
 
 
 %% definitions
+handle_def(Meta, Kind, Name, Ast, Env) when ?is_def_alias(Kind) ->
+  handle_def_alias(Meta, Kind, Name, Ast, Env);
 handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Env) ->
   handle_def_with_args(Meta, Kind, Name, Args, T, Env);
 handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Env) when ?is_string(C) ->
   handle_def_with_doc(Meta, Kind, Name, Doc, T, Env);
 handle_def(Meta, Kind, Name, Exprs, Env) ->
   handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Env).
+
+handle_def_alias(Meta, Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Env)
+    when ?is_string(C) ->
+  %% TODO add doc
+  do_handle_def_alias(Meta, Kind, Alias, {Fun, Arity}, Env);
+handle_def_alias(Meta, Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}], Env) ->
+  do_handle_def_alias(Meta, Kind, Alias, {Fun, Arity}, Env);
+handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Env) when ?is_string(C) ->
+  %% TODO add doc
+  do_handle_def_alias(Meta, Kind, Alias, Fun, Env);
+handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}], Env) ->
+  do_handle_def_alias(Meta, Kind, Alias, Fun, Env);
+handle_def_alias(Meta, _Kind, Alias, Ast, Env) ->
+  Error = {invalid_defalias_expression, {Alias, Ast}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
+
+do_handle_def_alias(Meta, Kind, Alias, Original, Env) ->
+  Namespace = ?m(Env, namespace),
+  case get_local(Namespace, Original) of
+    [] ->
+      Error = {nonexistent_original_for_alias, {Alias, Original}},
+      kapok_error:compile_error(Meta, ?m(Env, file), ?MODULE, Error);
+    L ->
+      add_alias(Namespace, Alias, Original),
+      lists:map(fun({_F, A, P}) ->
+                    add_local(Namespace, Alias, A, P),
+                    add_export(Namespace, Kind, Alias, A, P)
+                end,
+                L)
+  end,
+  Env.
 
 handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'} | _]} = Guard | Left], Env) ->
   handle_def_with_args(Meta, Kind, Name, Args, Guard, Left, Env);
@@ -230,7 +297,6 @@ handle_def_with_doc(Meta, Kind, Name, _Doc, Exprs, Env) ->
 
 empty_def_doc() ->
   {bitstring, [], <<"">>}.
-
 
 handle_def_exprs(_Meta, Kind, Name, Exprs, Env) ->
   lists:foldl(fun (Expr, E) -> handle_def_expr(Kind, Name, Expr, E) end, Env, Exprs).
@@ -419,22 +485,23 @@ build_namespace(Namespace, Env, Callback) ->
   Functions = namespace_export_functions(Namespace),
   Macros = namespace_export_macros(Namespace),
   Defs = namespace_defs(Namespace),
-  build_module(Namespace, Functions, Macros, Defs, Env, Callback).
+  Aliases = namespace_aliases(Namespace, Defs),
+  build_module(Namespace, Functions, Macros, Defs, Aliases, Env, Callback).
 
 %% module
 
-build_module(Module, Functions, Macros, Defs, Env, Callback) ->
+build_module(Module, Functions, Macros, Defs, Aliases, Env, Callback) ->
   Exports = module_exports(Functions, Macros),
   FunInfo = info_fun(Functions, Macros, Env),
-  Funs = orddict:fold(fun({Fun, Arity}, Clauses, Acc) ->
-                          [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
-                      end,
-                      [],
-                      Defs),
-  AttrModule = {attribute,0,module,Module},
-  AttrExport = {attribute,0,export,ordsets:to_list(Exports)},
-  AttrInfo = {attribute,0,export,[{'__info__', 1}]},
-
+  TranslateFun = fun({Fun, Arity}, Clauses, Acc) ->
+                     [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
+                 end,
+  FunDefs = orddict:fold(TranslateFun, [], Defs),
+  FunAlieses = orddict:fold(TranslateFun, [], Aliases),
+  Funs = FunDefs ++ FunAlieses,
+  AttrModule = {attribute, 0, module, Module},
+  AttrExport = {attribute, 0, export, ordsets:to_list(Exports)},
+  AttrInfo = {attribute, 0, export, [{'__info__', 1}]},
   Erl = [AttrModule, AttrExport, AttrInfo, FunInfo | Funs],
   kapok_compiler:module(Erl, [], Env, Callback).
 
@@ -475,6 +542,12 @@ parse_function_aliases(Meta, Args, Env) ->
   ordsets:from_list(lists:map(Fun, Args)).
 
 %% Error
+format_error({nonexistent_original_for_alias, {Alias, {Fun, Arity}}}) ->
+  io_lib:format("fail to define aliases ~s because original function (~s ~B) does not exist", [Alias, Fun, Arity]);
+format_error({nonexistent_original_for_alias, {Alias, Fun}}) ->
+  io_lib:format("fail to define aliases ~s because original function ~s does not exist", [Alias, Fun]);
+format_error({invalid_defalias_expression, {Alias, Ast}}) ->
+  io_lib:format("invalid expression ~p to define alias ~s", [Ast, Alias]);
 format_error({invalid_expression, {Ast}}) ->
   io_lib:format("invalid expression ~p", [Ast]);
 format_error({multiple_namespace, {Existing, New}}) ->
