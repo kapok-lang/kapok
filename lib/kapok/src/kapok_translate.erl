@@ -384,10 +384,10 @@ translate_guard({list, Meta, [{identifier, _, 'when'} | Body]}, Env) ->
       Error = {too_many_guards, {H, T}},
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
-translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, 'and', Env) ->
+translate_guard({list, Meta, [{keyword, _, 'and'} | Left]}, 'and', Env) ->
   Error = {invalid_nested_and_or_in_guard, {'and', 'and', Left}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
-translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, Parent, Env) ->
+translate_guard({list, Meta, [{keyword, _, 'and'} | Left]}, Parent, Env) ->
   case Left of
     [E1, E2 | Tail] ->
       {TE1, TEnv} = translate_guard(E1, 'and', Env),
@@ -404,9 +404,9 @@ translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, Parent, Env) ->
       Error1 = {not_enough_operand_in_guard, {'and', Tail}},
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error1)
   end;
-translate_guard({list, _, [{identifier, _, 'or'} | Left]}, nil, Env) ->
+translate_guard({list, _, [{keyword, _, 'or'} | Left]}, nil, Env) ->
   lists:mapfoldl(fun (X, E) -> translate_guard(X, 'or', E) end, Env, Left);
-translate_guard({list, Meta, [{identifier, _, 'or'} | Left]}, Parent, Env) ->
+translate_guard({list, Meta, [{keyword, _, 'or'} | Left]}, Parent, Env) ->
   Error = {invalid_nested_and_or_in_guard, {Parent, 'or', Left}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 translate_guard(Other, nil, Env) ->

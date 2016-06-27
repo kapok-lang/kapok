@@ -729,3 +729,114 @@
                       {0 (sets.new)}
                       [x y & more])]
      (== total (sets.size set)))))
+
+;; Boolean and Short-circuit Boolean Operators
+
+(defn not [x]
+  """Returns `^true` if `x` is logical false, otherwise `^false`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (not ^false)
+      ^true
+
+  """
+  (erlang.not x))
+
+(defn- all-but-last [_predicate _acc []]
+  ^true)
+(defn- all-but-last [_predicate _acc [h]]
+  h)
+(defn- all-but-last [predicate acc [h & t]]
+  (case (predicate h acc)
+    (^true (all predicate h t))
+    (^false ^false)))
+
+(defn- any-but-last [_predicate _acc []]
+  ^false)
+(defn- any-but-last [_predicate _acc [h]]
+  h)
+(defn- any-but-last [predicate acc [h & t]]
+  (case (predicate h acc)
+    (^false (all predicate h t))
+    (^true ^true)))
+
+;; TODO get a macro version
+(defn and
+  """Boolean and (short-circuit).
+
+  Evaluates the given arguments one at a time, from left to right.
+  If any one returns `^false`, returns that value and doesn't evaluate
+  the left arugments, otherwise it returns the value of the last argument.
+  (and) returns `^true`.
+
+  Requires all the arguments except the last to be a boolean since
+  it short-curcuits.
+
+  Allowed in guard tests and inlined by the compiler when arity is 2.
+
+  ## Examples
+
+      kapok> (and ^true ^false)
+      ^false
+
+      kapok> (and ^true "yay!")
+      "yay!"
+
+  """
+  ([&optional (x ^true)] x)
+  ([x y &rest more] (all-but-last (fn [n _acc] n)
+                                  x
+                                  [y & more])))
+
+;; TODO get a macro version
+(defn or
+  """Boolean or (short-circuit).
+
+  Evaluates the given arguments one at a time, from left to right.
+  If any one returns `^false`, returns that value and doesn't evaluate
+  the left arguments, otherwise it returns the value of the last argument.
+  (or) return `^false`.
+
+  Requires all the arguments except the last to be a boolean since
+  it short-circuits.
+
+  Allowed in guard tests and inlined by the compiler when arity is 2.
+
+  ## Examples
+
+      kapok> (or ^true ^false)
+      ^true
+
+      kapok> (or ^false 42)
+      42
+
+  """
+  ([&optional (x ^false)] x)
+  ([x y &rest more] (any-but-last (fn [n _acc] n)
+                                  x
+                                  [y & more])))
+
+;; TODO get a macro version
+(defn xor [x y]
+  """Boolean xor.
+
+  Returns `^true` if `x` and `y` are evaluated to different logical value
+  (`^true` or `^false`), otherwise returns `^false`.
+
+  Requires all the arguments to be a boolean.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (xor ^true ^false)
+      ^true
+
+      kapok> (xor ^true ^true)
+      ^false
+
+  """
+  (erlang.xor x y))
