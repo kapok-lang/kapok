@@ -118,6 +118,22 @@
   """
   (erlang.exit reason))
 
+(defn hd [list]
+  """Returns the head of a list, that is, the first element.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (hd [1 2 3 4])
+      1
+
+  """
+  (erlang.hd list))
+
+(defalias head hd
+  """Alias to hd.""")
+
 ;; TODO
 
 (defn is-atom [term]
@@ -276,6 +292,75 @@
   """
   (erlang.is_tuple term))
 
+(defn length [list]
+  """Returns the length of `list`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (length [1 2 3 4 5 6 7 8 9])
+      9
+
+  """
+  (erlang.length list))
+
+(defn node []
+  """Returns an atom representing the name of the local node.
+  If the node is not alive, `^nonode@nohost` is returned instead.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.node))
+
+(defn node [arg]
+  """Returns the node where the given argument `arg` originates.
+  The argument can be a pid, a reference, or a port.
+  If the local node is not alive, `^nonode@nohost` is returned.
+
+  Allowed in guard tests. Inlined by the compiler.
+  """
+  (erlang.node arg))
+
+(defn number-to-float [n]
+  """Convert the given arugment `x` from a number to a float.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (number-to-float 55)
+      55.0
+
+  """
+  (erlang.float n))
+
+(defn round [n]
+  """Rounds a number to the nearest integer.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (round 5.6)
+      6
+
+      kapok> (round 5.2)
+      5
+
+      kapok> (round -9.9)
+      -10
+
+  """
+  (erlang.round n))
+
+(defn self []
+  """Returns the pid (process identifier) of the calling process.
+
+  Allowed in guard tests. Inlined by thte compiler.
+  """
+  (erlang.self))
+
 ;; TODO
 
 (defn send [dest message]
@@ -286,8 +371,57 @@
   name at another node.
 
   Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (send (self) ^hello)
+      ^hello
+
   """
   (erlang.send dest message))
+
+(defn tl [list]
+  """Returns the tail of a list, that is, the list minus the first element.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (tl [1 2 3 ^go])
+      [2, 3, ^go]
+  """
+  (erlang.tl list))
+
+(defalias tail tl
+  """Alias to tl.""")
+
+(defn trunc [number]
+  """Returns an integer by truncating `number`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (trunc 5.5)
+      5
+
+  """
+  (erlang.trunc number))
+
+(defn tuple-size [tuple]
+  """Returns an integer which is the number of elements in `tuple`.
+
+  This operation happens in constant time.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (tuple-size {^a ^b ^c})
+      3
+
+  """
+  (erlang.tuple_size tuple))
 
 ;; Arithmetic Operators
 

@@ -36,7 +36,7 @@
   """
   (erlang.get))
 
-(defn get [key]
+(defn get [key &optional (default ^nil)]
   """Returns the value for the given `key` in the process dictionary,
   or undefined if `key` does not exist.
 
@@ -48,7 +48,9 @@
        ^merry
 
   """
-  (erlang.get key))
+  (case (erlang.get key)
+    ([^undefined] default)
+    (value value)))
 
 (defn get-keys []
   """Return all keys in the process dictionary as a list of key.
@@ -229,7 +231,7 @@
   """
   (erlang.monitor ^process item))
 
-(defn demonitor [monitor-ref options]
+(defn demonitor [monitor-ref &optional (options [])]
   """If `monitor-ref` is a reference which the calling process
   obtained by calling `monitor`, this monitoring is turned off.
   If the monitoring is already turned off, nothting happens.
