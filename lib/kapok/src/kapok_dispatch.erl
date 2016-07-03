@@ -44,7 +44,7 @@ expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
   Fun = fun Receiver:Name/Arity,
   MacroResult = expand_macro_fun(Meta, Fun, Receiver, Name, MacroArgs, Env),
   io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, MacroResult]),
-  {to_ast(MacroResult), Env, true}.
+  {to_ast(MacroResult), Env}.
 
 %% find local/remote macro/function
 
@@ -166,7 +166,7 @@ find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env)
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
       {F, A, P} = Match,
-      {{macro, {Module, kapok_utils:macro_name(F), A, P}}, Env};
+      {{macro, {Module, F, A, P}}, Env};
     {[Match], []} ->
       {F, A, P} = Match,
       {{function, {Module, F, A, P}}, Env};
@@ -186,7 +186,7 @@ find_dispatch(Meta, {Fun, Arity} = FunArity, Env) ->
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
       {M, [{F, A, P}]} = Match,
-      {{macro, {M, kapok_utils:macro_name(F), A, P}}, Env1};
+      {{macro, {M, F, A, P}}, Env1};
     {[Match], []} ->
       {M, [{F, A, P}]} = Match,
       {{function, {M, F, A, P}}, Env1};

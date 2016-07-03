@@ -36,7 +36,7 @@ file(File, Outdir) ->
                                 ok = file:write_file(Outfile, Binary)
                             end
                         end,
-  kapok_namespace:compile(Ast, Env, AfterModuleCompiled).
+  kapok_ast:compile(Ast, Env, AfterModuleCompiled).
 
 %% Convertion
 
@@ -66,7 +66,7 @@ string_to_ast(String, StartLine, File, Options) when is_integer(StartLine), is_b
 
 %% Converts AST to erlang abstract format
 ast_to_abstract_format(Ast, Env) ->
-  {EAst, EEnv} = kapok_expand:expand_all(Ast, Env),
+  {EAst, EEnv} = kapok_expand:expand(Ast, Env),
   {EAF, TEnv} = kapok_translate:translate(EAst, EEnv),
   {EAF, TEnv}.
 

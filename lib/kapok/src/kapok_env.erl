@@ -37,7 +37,7 @@ new_env() ->
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line
     function => nil,                       %% the current function
-    context => nil,                        %% can be match_vars, guards, or nil
+    context => nil,                        %% can be pattern, guards, or nil
     macro_context => new_macro_context(),  %%
     requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
     uses => [],                            %% a dict of modules used in 'module -> use arguments'

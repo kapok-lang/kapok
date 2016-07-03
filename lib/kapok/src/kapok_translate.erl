@@ -7,7 +7,7 @@
          map_vars/4,
          translate_body/3,
          format_error/1]).
--import(kapok_scanner, [token_text/1]).
+-import(kapok_scanner, [token_meta/1, token_text/1]).
 -include("kapok.hrl").
 
 %% literals
@@ -34,7 +34,7 @@ translate({Category, Meta, Atom}, Env) when Category == keyword; Category == ato
 translate({identifier, Meta, Id}, #{context := Context} = Env) ->
   %% search env to check whether identifier is a variable
   NewEnv = case Context of
-             match_vars -> kapok_env:add_var(Env, Id);
+             pattern -> kapok_env:add_var(Env, Id);
              _ -> kapok_env:check_var(Meta, Env, Id)
            end,
   {{var, ?line(Meta), Id}, NewEnv};
@@ -217,6 +217,10 @@ translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
   Error = {parameter_keyword_outside_fun_args, {Token}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
+%% translate quote
+translate({quote, _, Arg}, Env) ->
+  translate(kapok_expand:quote(Arg), Env);
+
 %% a list of ast
 translate(List, Env) when is_list(List) ->
   lists:mapfoldl(fun translate/2, Env, List);
@@ -320,7 +324,7 @@ translate_cons_list([H | T], Acc, Tail, Env) ->
 
 %% translate let
 translate_let_args(Args, Env) ->
-  translate_let_args(Args, [], Env#{context => match_vars}).
+  translate_let_args(Args, [], Env#{context => pattern}).
 translate_let_args([], Acc, Env) ->
   {lists:reverse(Acc), Env#{context => nil}};
 translate_let_args([P1, P2 | T], Acc, Env) ->
@@ -340,7 +344,7 @@ to_block(Line, Exprs) when is_integer(Line) ->
 %% translate match
 
 translate_match_pattern(P, #{context := Context} = Env) ->
-  {TP, TEnv} = translate(P, Env#{context => match_vars}),
+  {TP, TEnv} = translate(P, Env#{context => pattern}),
   {TP, TEnv#{context => Context}}.
 
 translate_match(_Meta, _Last, [], Acc, Env) ->
@@ -455,9 +459,9 @@ translate_fn_expr({list, Meta, [{literal_list, _, _} = Args, {list, _, [{identif
   translate_fn_clause(Meta, Args, Guard, Body, Env);
 translate_fn_expr({list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
   translate_fn_clause(Meta, Args, [], Body, Env);
-translate_fn_expr({_, Meta, _} = Ast, Env) ->
+translate_fn_expr(Ast, Env) ->
   Error = {invalid_fn_expression, {Ast}},
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
+  kapok_error:form_error(token_meta(Ast), ?m(Env, file), ?MODULE, Error).
 
 translate_fn_clause(Meta, Args, Guard, Body, Env) ->
   Env1 = kapok_env:push_scope(Env),
@@ -582,9 +586,9 @@ translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Env)
   {TPattern, TEnv1} = translate_match_pattern(Pattern, TEnv),
   Line = ?line(Meta),
   {{tuple, Line, [TType, TPattern, {var, Line, '_'}]}, TEnv1};
-translate_exception({_, Meta, _} = Pattern, Env) ->
+translate_exception(Pattern, Env) ->
   {TPattern, TEnv} = translate_match_pattern(Pattern, Env),
-  Line = ?line(Meta),
+  Line = ?line(token_meta(Pattern)),
   {{tuple, Line, [{keyword, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TEnv}.
 
 %% translate attribute
@@ -641,7 +645,7 @@ var_to_keyword({var, Line, Id}) ->
 
 %% Translate arguments
 translate_arg(Arg, #{context := Context} = Env) ->
-  {TArg, TEnv} = translate(Arg, Env#{context => match_vars}),
+  {TArg, TEnv} = translate(Arg, Env#{context => pattern}),
   {TArg, TEnv#{context => Context}}.
 
 translate_args({Category, _, Args}, Env) when ?is_list(Category) ->
@@ -683,8 +687,8 @@ translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {keywor
 translate_args([H | T], Acc, {normal, Meta1, Args}, Env) ->
   {TH, TEnv} = translate_arg(H, Env),
   translate_args(T, Acc, {normal, Meta1, [TH | Args]}, TEnv);
-translate_args([{_, Meta, _} = H | _T], _, {keyword, _Meta1, _Args}, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {missing_key_for_argument, {H}}).
+translate_args([H | _T], _, {keyword, _Meta1, _Args}, Env) ->
+  kapok_error:form_error(token_meta(H), ?m(Env, file), ?MODULE, {missing_key_for_argument, {H}}).
 
 %% translate body
 translate_body(Meta, Body, Env) ->

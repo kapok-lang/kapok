@@ -18,7 +18,7 @@ build_map(Meta, TranslatedPairs) ->
 
 build_map(Meta, Args, #{context := Context} = Env) ->
   FieldType = case Context of
-                match_vars -> map_field_exact;
+                pattern -> map_field_exact;
                 _ -> map_field_assoc
               end,
   {TFields, TEnv} = build_map_field(Meta, FieldType, Args, Env),

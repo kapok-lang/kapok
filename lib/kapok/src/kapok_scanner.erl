@@ -307,13 +307,13 @@ scan([$~|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{unquote, build_meta(Line, Column)}|Tokens]);
 
 scan([$&, $k, $e, $y | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 4, Scope, [{keyword_key, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 4, Scope, [{keyword_key, build_meta(Line, Column), '&key'}|Tokens]);
 
 scan([$&, $o, $p, $t, $i, $o, $n, $a, $l | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 9, Scope, [{keyword_optional, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 9, Scope, [{keyword_optional, build_meta(Line, Column), '&optional'}|Tokens]);
 
 scan([$&, $r, $e, $s, $t | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 5, Scope, [{keyword_rest, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 5, Scope, [{keyword_rest, build_meta(Line, Column), '&rest'}|Tokens]);
 
 scan([$&|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{cons, build_meta(Line, Column)}|Tokens]);
@@ -673,12 +673,8 @@ terminator('<<') -> '>>'.
 
 %% helpers
 
-token_text({keyword_optional, _}) ->
-  "&optional";
-token_text({keyword_rest, _}) ->
-  "&rest";
-token_text({keyword_key, _}) ->
-  "&key";
+token_text({C, _, Symbol}) when ?is_parameter_keyword(C) ->
+  atom_to_list(Symbol);
 token_text({keyword, _, Atom}) ->
   io_lib:format(":~s", [Atom]);
 token_text(Token) ->

@@ -106,6 +106,7 @@ quote_expr            -> quote value : build_quote('$1', '$2').
 backquote_expr        -> backquote value : build_backquote('$1', '$2').
 unquote_expr          -> unquote value : build_unquote('$1', '$2').
 unquote_splicing_expr -> unquote_splicing list_container : build_unquote_splicing('$1', '$2').
+unquote_splicing_expr -> unquote_splicing identifier : build_unquote_splicing('$1', '$2').
 
 %%% Containers
 
@@ -224,17 +225,17 @@ build_bitstring_element(Token) ->
 build_bitstring(Marker, Args) ->
   {bitstring, token_meta(Marker), Args}.
 
-build_quote(Marker, Args) ->
-  {quote, token_meta(Marker), Args}.
+build_quote(Marker, Arg) ->
+  {quote, token_meta(Marker), Arg}.
 
-build_backquote(Marker, Args) ->
-  {backquote, token_meta(Marker), Args}.
+build_backquote(Marker, Arg) ->
+  {backquote, token_meta(Marker), Arg}.
 
-build_unquote(Marker, Args) ->
-  {unquote, token_meta(Marker), Args}.
+build_unquote(Marker, Arg) ->
+  {unquote, token_meta(Marker), Arg}.
 
-build_unquote_splicing(Marker, Args) ->
-  {unquote_splicing, token_meta(Marker), Args}.
+build_unquote_splicing(Marker, Arg) ->
+  {unquote_splicing, token_meta(Marker), Arg}.
 
 build_literal_list(Marker, Args) ->
   {literal_list, token_meta(Marker), Args}.

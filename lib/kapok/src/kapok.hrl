@@ -40,25 +40,25 @@
 -define(line(Opts), kapok_utils:get_line(Opts)).
 -define(m(M, K), maps:get(K, M)).
 
--define(is_op(T), (T == '+' orelse T == '-')).
--define(is_number(T), (T == 'number')).
--define(is_def_alias(T), (T == 'defalias' orelse T == 'defalias-')).
--define(is_def(T), (T == 'defn' orelse T == 'defn-' orelse T == 'defmacro' orelse ?is_def_alias(T))).
--define(is_dot_id(T), (T == 'identifier' orelse T == 'dot')).
--define(is_local_id(T), (T == 'identifier' orelse T == 'atom')).
--define(is_list(T), (T == 'list' orelse T == 'literal_list')).
--define(is_cons_list(T), (T == 'cons_list')).
--define(is_parameter_keyword(T), (T == 'keyword_optional' orelse T == 'keyword_rest' orelse T == 'keyword_key')).
--define(is_string(T), (T == 'list_string' orelse T == 'binary_string')).
+-define(is_op(C), (C == '+' orelse C == '-')).
+-define(is_number(C), (C == 'number')).
+-define(is_dot_id(C), (C == 'identifier' orelse C == 'dot')).
+-define(is_local_id(C), (C == 'identifier' orelse C == 'atom')).
+-define(is_list(C), (C == 'list' orelse C == 'literal_list')).
+-define(is_cons_list(C), (C == 'cons_list')).
+-define(is_parameter_keyword(C), (C == 'keyword_optional' orelse C == 'keyword_rest' orelse C == 'keyword_key')).
+-define(is_string(C), (C == 'list_string' orelse C == 'binary_string')).
 
--define(is_behaviour(T), (T == 'behavior' orelse T == 'behaviour')).
--define(is_compile(T), (T == 'compile')).
--define(is_file(T), (T == 'file')).
--define(is_attribute(T), (T == 'attribute')).
-
+-define(is_def_alias(Id), (Id == 'defalias' orelse Id == 'defalias-')).
+-define(is_def(Id), (Id == 'defn' orelse Id == 'defn-' orelse Id == 'defmacro' orelse ?is_def_alias(Id))).
+-define(is_behaviour(Id), (Id == 'behavior' orelse Id == 'behaviour')).
+-define(is_compile(Id), (Id == 'compile')).
+-define(is_file(Id), (Id == 'file')).
+-define(is_attribute(Id), (Id == 'attribute')).
+-define(is_attr(Id), (?is_behaviour(Id) orelse ?is_compile(Id) orelse ?is_file(Id) orelse ?is_attribute(Id))).
+-define(is_special_form(Id), (Id == 'ns' orelse ?is_def(Id) orelse ?is_attr(Id))).
 
 %% default source file suffix
 -define(SOURCE_FILE_SUFFIX, ".kpk").
 -define(BEAM_FILE_SUFFIX, ".beam").
-
 
