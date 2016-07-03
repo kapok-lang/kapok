@@ -284,24 +284,24 @@ parse_parameters([{Category, Meta} = Token], _Acc, {_Previous, _Meta, _Args}, En
     when ?is_parameter_keyword(Category) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_parameter_keyword, {Token}});
 
-parse_parameters([{keyword_optional, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
+parse_parameters([{keyword_optional, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_optional, Meta, []}, Env);
-parse_parameters([{keyword_optional, Meta} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
+parse_parameters([{keyword_optional, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
-parse_parameters([{keyword_rest, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
+parse_parameters([{keyword_rest, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_rest, Meta, []}, Env);
-parse_parameters([{keyword_rest, Meta} | T], Acc, {keyword_optional, Meta1, Args}, Env) ->
+parse_parameters([{keyword_rest, Meta, _} | T], Acc, {keyword_optional, Meta1, Args}, Env) ->
   Last = {keyword_optional, Meta1, lists:reverse(Args)},
   parse_parameters(T, [Last | Acc], {keyword_rest, Meta, []}, Env);
-parse_parameters([{keyword_rest, Meta} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
+parse_parameters([{keyword_rest, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
-parse_parameters([{keyword_key, Meta} | T], Acc, {normal, Meta1, Args}, Env) ->
+parse_parameters([{keyword_key, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_key, Meta, []}, Env);
-parse_parameters([{keyword_key, Meta} | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
+parse_parameters([{keyword_key, Meta, _} | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {keyword_key, {Previous, Meta1}}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
