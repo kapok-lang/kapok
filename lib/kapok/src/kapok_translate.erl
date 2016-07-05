@@ -6,6 +6,7 @@
          translate_guard/2,
          map_vars/4,
          translate_body/3,
+         quote/2,
          format_error/1]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
 -include("kapok.hrl").
@@ -55,7 +56,7 @@ translate({bitstring, Meta, Arg}, Env) ->
 
 %% map
 translate({map, Meta, Arg}, Env) ->
-  kapok_map:translate(Meta, Arg, Env);
+  translate_map(Meta, Arg, Env);
 
 %% set
 translate({set, Meta, Arg}, Env) ->
@@ -166,60 +167,172 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value
 
 %% Local call
 translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = Env) ->
-  case ordsets:is_element(Id, maps:get(vars, Scope)) of
-    true ->
-      %% local variable
-      {TF, TEnv} = translate(Name, Env),
-      {TArgs, TEnv1} = translate_args(Args, TEnv),
-      translate_local_call(Meta, TF, TArgs, TEnv1);
+  %% if it's a macro, expand it
+  Arity = length(Args),
+  {R1, Env1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env),
+  case R1 of
+    {M, F, A, P} ->
+      NewArgs = construct_new_args('expand', Arity, A, P, Args),
+      {EAst, EEnv} = kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1),
+      translate(EAst, EEnv);
     false ->
-      {TArgs, TEnv} = translate_args(Args, Env),
-      Arity = length(TArgs),
-      FunArity = {Id, Arity},
-      case kapok_dispatch:find_local(FunArity, TEnv) of
-        {F, A, P} ->
-          translate_local_call(Meta, F, A, P, Arity, TArgs, TEnv);
+      {EArgs, Env2} = expand_list(Args, Env1),
+      %% translate ast to erlang abstract format
+      case ordsets:is_element(Id, maps:get(vars, Scope)) of
+        true ->
+          %% local variable
+          {TF, TEnv} = translate(Name, Env2),
+          {TArgs, TEnv1} = translate_args(EArgs, TEnv),
+          translate_local_call(Meta, TF, TArgs, TEnv1);
         false ->
-          %% check whether it's in imported functions/macros
-          {R, Env1} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv),
-          case R of
-            {M, F, A, P} -> translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env1);
-            _ -> kapok_error:compile_error(Meta, ?m(Env1, file), "unknown local call: ~s", [Id])
+          {TArgs, TEnv} = translate_args(EArgs, Env2),
+          Arity1 = length(TArgs),
+          FunArity = {Id, Arity1},
+          case kapok_dispatch:find_local(FunArity, TEnv) of
+            {F, A, P} ->
+              translate_local_call(Meta, F, A, P, Arity, TArgs, TEnv);
+            false ->
+              %% check whether it's in imported functions/macros
+              {R2, TEnv1} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv),
+              case R2 of
+                {M, F, A, P} -> translate_remote_call(Meta, M, F, A, P, Arity, TArgs, TEnv1);
+                _ -> kapok_error:compile_error(Meta, ?m(TEnv1, file), "unknown local call: ~s", [Id])
+              end
           end
       end
   end;
-
 %%  Remote call
-translate({list, Meta, [{dot, _, {Prefix, Suffix}} | Args]}, Env) ->
-  {TArgs, TEnv1} = translate_args(Args, Env),
-  Arity = length(TArgs),
-  FunArity = {Suffix, Arity},
-  Namespace = ?m(TEnv1, namespace),
-  case Prefix of
-    Namespace ->
-      %% call to local module
-      case kapok_dispatch:find_export(FunArity, TEnv1) of
-        {F, A, P} -> translate_remote_call(Meta, Suffix, F, A, P, Arity, TArgs, TEnv1);
-        _ -> kapok_error:compile_error(Meta, ?m(TEnv1, file), "unknown remote call: ~s:~s", [Prefix, Suffix])
-      end;
-    _ ->
-      {{M, F, A, P}, Env2} = kapok_dispatch:get_remote_function(Meta, Prefix, FunArity, TEnv1),
-      translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env2)
+translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Env) ->
+  Arity = length(Args),
+  {R1, Env1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, Env),
+  case R1 of
+    {M, F, A, P} ->
+      NewArgs = construct_new_args('expand', Arity, A, P, Args),
+      {EAst, EEnv} = kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1),
+      translate(EAst, EEnv);
+    false ->
+      {EArgs, Env2} = expand_list(Args, Env1),
+      {TArgs, TEnv2} = translate_args(EArgs, Env2),
+      Arity = length(TArgs),
+      FunArity = {Fun, Arity},
+      Namespace = ?m(TEnv2, namespace),
+      case Module of
+        Namespace ->
+          %% call to local module
+          case kapok_dispatch:find_export(FunArity, TEnv2) of
+            {F, A, P} -> translate_remote_call(Meta, Fun, F, A, P, Arity, TArgs, TEnv2);
+            _ -> kapok_error:compile_error(Meta, ?m(TEnv2, file), "unknown remote call: ~s:~s", [Module, Fun])
+          end;
+        _ ->
+          {{M, F, A, P}, Env3} = kapok_dispatch:get_remote_function(Meta, Module, FunArity, TEnv2),
+          translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env3)
+      end
   end;
-
-translate({list, Meta, [F | Args]}, Env) ->
-  {TF, TEnv} = translate(F, Env),
-  {TArgs, TEnv1} = translate(Args, TEnv),
-  translate_local_call(Meta, TF, TArgs, TEnv1);
-
+translate({list, Meta, [{list, _, _} = H | T]}, Env) ->
+  {EH, EEnv} = kapok_expand:macroexpand(H, Env),
+  {ET, EEnv1} = expand_list(T, EEnv),
+  {TH, TEnv1} = translate(EH, EEnv1),
+  {TT, TEnv2} = translate(ET, TEnv1),
+  translate_local_call(Meta, TH, TT, TEnv2);
+translate({list, Meta, [H | _]}, Env) ->
+  kapok_error:compile_error(Meta, ?m(Env, file), "unvalid function call ~s", [token_text(H)]);
+translate({list, _Meta, []}, Env) ->
+  translate_list([], Env);
 %% errors for function argument keywords
 translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
   Error = {parameter_keyword_outside_fun_args, {Token}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 %% translate quote
-translate({quote, _, Arg}, Env) ->
-  translate(kapok_expand:quote(Arg), Env);
+translate({quote, Meta, Arg}, Env) ->
+  %% TODO add unquote/unquote_splicing backquote pair checking
+  translate(quote(Meta, Arg), Env);
+%% embedded backquote
+translate({backquote, _, {quote, Meta, Arg}}, Env) ->
+  {TC, TEnv} = translate({atom, Meta, 'quote'}, Env),
+  {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
+  {TArg, TEnv2} = translate({backquote, Meta, Arg}, TEnv1),
+  {{tuple, ?line(Meta), [TC, TMeta, TArg]}, TEnv2};
+translate({backquote, _, {backquote, Meta, Arg}}, #{macro_context := Context} = Env) ->
+  B = ?m(Context, backquote_level),
+  NewContext = Context#{backquote_level => B + 1},
+  Env1 = Env#{macro_context => NewContext},
+  {TC, TEnv1} = translate({atom, Meta, 'backquote'}, Env1),
+  {TMeta, TEnv2} = translate(quote(Meta, Meta), TEnv1),
+  {TArg, TEnv3} = translate({backquote, Meta, Arg}, TEnv2),
+  TAst = {tuple, ?line(Meta), [TC, TMeta, TArg]},
+  {TAst, TEnv3#{macro_context => Context}};
+%% backquote unquote
+translate({backquote, _, {unquote, Meta, Arg}}, #{macro_context := Context} = Env) ->
+  B = ?m(Context, backquote_level),
+  U = ?m(Context, unquote_level),
+  if
+    U == B ->
+      {EArg, EEnv} = eval(Arg, Env),
+      translate(EArg, EEnv);
+    U < B ->
+      {TC, TEnv}= translate({atom, Meta, 'unquote'}, Env),
+      {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
+      Context1 = Context#{unquote_level => U + 1},
+      Env2 = TEnv1#{macro_context => Context1},
+      {TArg, TEnv2} = translate({backquote, Meta, Arg}, Env2),
+      TAst = {tuple, ?line(Meta), [TC, TMeta, TArg]},
+      {TAst, TEnv2#{macro_context => Context}};
+    U > B ->
+      kapok_error:compile_error(Meta, ?m(Env, file), "unquote doesn't match backquote")
+  end;
+translate({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := Context} = Env) ->
+  B = ?m(Context, backquote_level),
+  U = ?m(Context, unquote_level),
+  if
+    U == B ->
+      {EArg, EEnv} = eval(Arg, Env),
+      case EArg of
+        {Category, _, List} when ?is_list(Category), is_list(List) ->
+          {{evaluated_unquote_splicing, Meta, List}, EEnv#{macro_context => Context}};
+        _ ->
+          kapok_error:compile_error(Meta, ?m(Env, file), "invalid argument for unquote splice: ~s, it should eval to a list ast", [token_text(EArg)])
+      end;
+    U < B ->
+      {TC, TEnv} = translate({atom, Meta, 'unquote_splicing'}, Env),
+      {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
+      Context1 = Context#{unquote_level => U + 1},
+      Env2 = TEnv1#{macro_context => Context1},
+      {TArg, TEnv2} = translate({backquote, Meta, Arg}, Env2),
+      TAst = {tuple, ?line(Meta), [TC, TMeta, TArg]},
+      {TAst, TEnv2#{macro_context => Context}};
+    U > B ->
+      kapok_error:compile_error(Meta, ?m(Env, file), "unquote_splicing doesn't match backquote")
+  end;
+%% backquote a list
+translate({backquote, _, {Category, Meta, Args}}, Env) when ?is_list(Category) ->
+  {TC, TEnv} = translate({atom, Meta, Category}, Env),
+  {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
+  {TL, TEnv2} = translate_backquote_list(Args, TEnv1),
+  TAst = {tuple, ?line(Meta), [TC, TMeta, TL]},
+  {TAst, TEnv2};
+%% TODO backquote a cons list
+%% backquote a container but not list
+translate({backquote, _, {Category, Meta, Args}}, Env)
+    when Category == 'bitstring', is_list(Args);
+         Category == 'tuple';
+         Category == 'map';
+         Category == 'set' ->
+  {TC, TEnv} = translate({atom, Meta, Category}, Env),
+  {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
+  L = lists:map(fun(X) -> {backquote, token_meta(X), X} end, Args),
+  {TL, TEnv2} = translate(L, TEnv1),
+  TAst = {tuple, ?line(Meta), [TC, TMeta, TL]},
+  {TAst, TEnv2};
+%% backquote a atom
+translate({backquote, Meta, Arg}, Env) ->
+  translate({quote, Meta, Arg}, Env);
+
+%% standalone unquote and unquote_splicing
+translate({Category, Meta, _}, Env) when Category == unquote; Category == unquote_splicing ->
+  kapok_error:compile_error(Meta, ?m(Env, file), "~s outside backquote", [Category]);
+translate({evaluated_unquote_splicing, Meta, _}, Env) ->
+  kapok_error:compile_error(Meta, ?m(Env, file), "unquote_splicing outside a list");
 
 %% a list of ast
 translate(List, Env) when is_list(List) ->
@@ -287,6 +400,89 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 
 %% Helpers
 
+expand_list(List, Env) ->
+  expand_list(List, fun kapok_expand:macroexpand/2, Env).
+expand_list(List, Fun, Env) ->
+  expand_list(List, Fun, Env, []).
+expand_list([H|T], Fun, Env, Acc) ->
+  {EArg, EEnv} = Fun(H, Env),
+  expand_list(T, Fun, EEnv, [EArg | Acc]);
+expand_list([], _Fun, Env, Acc) ->
+  {lists:reverse(Acc), Env}.
+
+eval({list, _, _} = Ast, Env) ->
+  {Erl, EEnv} = kapok_compiler:ast(Ast, kapok_env:reset_macro_context(Env)),
+  {Erl, EEnv};
+eval(Ast, Env) ->
+  {Ast, Env}.
+
+%% Quotes an AST.
+quote({_Category, Meta, _Arg} = Ast) ->
+  {tuple, Meta, lists:map(fun(X) -> quote(Meta, X) end, tuple_to_list(Ast))}.
+
+%% atom
+quote(Meta, Atom) when is_atom(Atom) ->
+  {atom, Meta, Atom};
+%% number
+quote(Meta, Number) when is_number(Number) ->
+  {number, Meta, Number};
+%% list string and binary string
+quote(Meta, Binary) when is_binary(Binary) ->
+  {bitstring, Meta, {binary_string, Meta, Binary}};
+%% tuple
+quote(Meta, Tuple) when is_tuple(Tuple) ->
+  {tuple, Meta, lists:map(fun(X) -> quote(Meta, X) end, tuple_to_list(Tuple))};
+%% list
+quote(Meta, List) when is_list(List) ->
+  {literal_list, Meta, lists:map(fun(X) -> quote(Meta, X) end, List)};
+%% map
+quote(Meta, Map) when is_map(Map) ->
+  {map, Meta, lists:reverse(lists:foldl(fun({K, V}, Acc) -> [quote(Meta, V), quote(Meta, K) | Acc] end,
+                                        [],
+                                        maps:to_list(Map)))}.
+
+%% translate backquote list
+translate_backquote_list(List, Env) ->
+  {Acc, Env1} = lists:foldl(fun translate_backquote_list_element/2, {[], Env}, List),
+  {build_list_reversed(Acc), Env1}.
+
+translate_backquote_list_element(Ast, {Acc, Env}) ->
+  {TAst, TEnv} = translate({backquote, token_meta(Ast), Ast}, Env),
+  Acc1 = case TAst of
+           {evaluated_unquote_splicing, _, List} -> lists:reverse(List) ++ Acc;
+           _ -> [TAst | Acc]
+         end,
+  {Acc1, TEnv}.
+
+%% translate map
+build_map(Meta, TranslatedPairs) ->
+  TFields = lists:map(fun({{_, Line, _} = K, V}) ->
+                         {map_field_assoc, Line, K, V}
+                     end,
+                     TranslatedPairs),
+  {map, ?line(Meta), TFields}.
+
+translate_map(Meta, Args, #{context := Context} = Env) ->
+  FieldType = case Context of
+                pattern -> map_field_exact;
+                _ -> map_field_assoc
+              end,
+  {TFields, TEnv} = build_map_field(Meta, FieldType, Args, Env),
+  {{map, ?line(Meta), TFields}, TEnv}.
+
+build_map_field(Meta, FieldType, Args, Env) ->
+  build_map_field(Meta, FieldType, Args, [], Env).
+
+build_map_field(_Meta, _FieldType, [], Acc, Env) ->
+  {lists:reverse(Acc), Env};
+build_map_field(Meta, _FieldType, [H], _Acc, Env) ->
+  kapok_error:compile_error(Meta, ?m(Env, file), "unpaired values in map ~p", [H]);
+build_map_field(Meta, FieldType, [K, V | Left], Acc, Env) ->
+  {TK, TEnv} = kapok_translate:translate(K, Env),
+  {TV, TEnv1} = kapok_translate:translate(V, TEnv),
+  Field = {FieldType, ?line(kapok_scanner:token_meta(K)), TK, TV},
+  build_map_field(Meta, FieldType, Left, [Field | Acc], TEnv1).
+
 %% translate list
 translate_list(L, Env) ->
   translate_list(L, [], Env).
@@ -294,15 +490,15 @@ translate_list([H|T], Acc, Env) ->
   {Erl, TEnv} = translate(H, Env),
   translate_list(T, [Erl|Acc], TEnv);
 translate_list([], Acc, Env) ->
-  {do_build_list(Acc), Env}.
+  {build_list_reversed(Acc), Env}.
 
 build_list(L) ->
-  do_build_list(lists:reverse(L)).
-do_build_list(R) ->
-  do_build_list(R, {nil, 0}).
-do_build_list([H|T], Acc) ->
-  do_build_list(T, {cons, 0, H, Acc});
-do_build_list([], Acc) ->
+  build_list_reversed(lists:reverse(L)).
+build_list_reversed(R) ->
+  build_list_reversed(R, {nil, 0}).
+build_list_reversed([H|T], Acc) ->
+  build_list_reversed(T, {cons, 0, H, Acc});
+build_list_reversed([], Acc) ->
   Acc.
 
 %% translate cons_list
@@ -656,7 +852,7 @@ translate_args(Args, Env) when is_list(Args) ->
     [{normal, _, TNormalArgs}] ->
       {TNormalArgs, TEnv};
     [{normal, _, TNormalArgs}, {keyword, Meta, Pairs}] ->
-      MapArg = kapok_map:build_map(Meta, Pairs),
+      MapArg = build_map(Meta, Pairs),
       {TNormalArgs ++ [MapArg], TEnv}
   end.
 

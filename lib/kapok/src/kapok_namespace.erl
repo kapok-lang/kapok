@@ -134,8 +134,8 @@ add_form(Namespace, Form) ->
   ets:update_element(kapok_namespaces, Namespace, {8, NewForms}).
 
 info_fun(Functions, Macros, Env) ->
-  {FunctionList, _} = kapok_translate:translate(kapok_expand:quote(Functions), Env),
-  {MacroList, _} = kapok_translate:translate(kapok_expand:quote(Macros), Env),
+  {FunctionList, _} = kapok_translate:translate(kapok_translate:quote([], Functions), Env),
+  {MacroList, _} = kapok_translate:translate(kapok_translate:quote([], Macros), Env),
   {function, 0,'__info__',1,
    [{clause,0,[{atom,0,'functions'}],[],[FunctionList]},
     {clause,0,[{atom,0,'macros'}],[],[MacroList]}]}.
