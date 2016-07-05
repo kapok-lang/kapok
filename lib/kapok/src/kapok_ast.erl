@@ -10,7 +10,7 @@ compile(Ast, Env, Callback) when is_list(Ast) ->
   build_namespace(?m(TEnv, namespace), TEnv, Callback).
 
 compile(Ast, Env) ->
-  {EAst, EEnv} = kapok_expr:expand_macro(Ast, Env),
+  {EAst, EEnv} = kapok_expand:macroexpand(Ast, Env),
   handle(EAst, EEnv).
 
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Env) ->
@@ -136,7 +136,7 @@ handle_def(Meta, Kind, _T, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {Kind}}).
 
 handle_def(Meta, Kind, Name, T, Env) when ?is_def_alias(Kind) ->
-  {ET, EEnv} = kapok_expr:expand_macro(T, Env),
+  {ET, EEnv} = kapok_expand:macroexpand(T, Env),
   handle_def_alias(Meta, Kind, Name, ET, EEnv);
 handle_def(Meta, Kind, _Name, [], Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {Kind}});
@@ -260,9 +260,9 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       Env5 = TEnv3
   end,
   Env6 = kapok_env:push_scope(Env5#{function => {Name, Arity, ParameterType}}),
-  {EGuard, Env7} = kapok_expr:expand_macro(Guard, Env6),
+  {EGuard, Env7} = kapok_expand:macroexpand(Guard, Env6),
   {TGuard, TEnv7} = kapok_translate:translate_guard(EGuard, Env7),
-  {EBody, Env8} = kapok_expr:expand_macro(Body, TEnv7),
+  {EBody, Env8} = kapok_expand:macroexpand(Body, TEnv7),
   {TBody, TEnv8} = kapok_translate:translate_body(Meta, EBody, Env8),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
   kapok_namespace:add_clause(Namespace, Kind, Name, Arity, Clause),

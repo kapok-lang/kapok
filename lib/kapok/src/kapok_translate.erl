@@ -7,6 +7,7 @@
          map_vars/4,
          translate_body/3,
          quote/2,
+         eval/2,
          format_error/1]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
 -include("kapok.hrl").
@@ -238,10 +239,6 @@ translate({list, Meta, [H | _]}, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "unvalid function call ~s", [token_text(H)]);
 translate({list, _Meta, []}, Env) ->
   translate_list([], Env);
-%% errors for function argument keywords
-translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
-  Error = {parameter_keyword_outside_fun_args, {Token}},
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 %% translate quote
 translate({quote, Meta, Arg}, Env) ->
@@ -288,8 +285,8 @@ translate({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := Cont
     U == B ->
       {EArg, EEnv} = eval(Arg, Env),
       case EArg of
-        {Category, _, List} when ?is_list(Category), is_list(List) ->
-          {{evaluated_unquote_splicing, Meta, List}, EEnv#{macro_context => Context}};
+        {Category, Meta1, List} when ?is_list(Category), is_list(List) ->
+          {{evaluated_unquote_splicing, Meta1, List}, EEnv};
         _ ->
           kapok_error:compile_error(Meta, ?m(Env, file), "invalid argument for unquote splice: ~s, it should eval to a list ast", [token_text(EArg)])
       end;
@@ -308,8 +305,8 @@ translate({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := Cont
 translate({backquote, _, {Category, Meta, Args}}, Env) when ?is_list(Category) ->
   {TC, TEnv} = translate({atom, Meta, Category}, Env),
   {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
-  {TL, TEnv2} = translate_backquote_list(Args, TEnv1),
-  TAst = {tuple, ?line(Meta), [TC, TMeta, TL]},
+  {TArgs, TEnv2} = translate_backquote_list(Args, TEnv1),
+  TAst = {tuple, ?line(Meta), [TC, TMeta, TArgs]},
   {TAst, TEnv2};
 %% TODO backquote a cons list
 %% backquote a container but not list
@@ -321,8 +318,8 @@ translate({backquote, _, {Category, Meta, Args}}, Env)
   {TC, TEnv} = translate({atom, Meta, Category}, Env),
   {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
   L = lists:map(fun(X) -> {backquote, token_meta(X), X} end, Args),
-  {TL, TEnv2} = translate(L, TEnv1),
-  TAst = {tuple, ?line(Meta), [TC, TMeta, TL]},
+  {TArgs, TEnv2} = translate(L, TEnv1),
+  TAst = {tuple, ?line(Meta), [TC, TMeta, TArgs]},
   {TAst, TEnv2};
 %% backquote a atom
 translate({backquote, Meta, Arg}, Env) ->
@@ -337,6 +334,11 @@ translate({evaluated_unquote_splicing, Meta, _}, Env) ->
 %% a list of ast
 translate(List, Env) when is_list(List) ->
   lists:mapfoldl(fun translate/2, Env, List);
+
+%% errors for function argument keywords
+translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
+  Error = {parameter_keyword_outside_fun_args, {Token}},
+  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
 translate(Other, Env) ->
   {to_abstract_format(Other), Env}.
