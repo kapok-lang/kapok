@@ -204,7 +204,7 @@ build_quoted_keyword_atom(Token, Safe) ->
   Op = binary_to_atom_op(Safe),
   C = token_category(Token),
   [Type, _] = string:tokens(atom_to_list(C), "_"),
-  {atom_to_list(Type), token_meta(Token), erlang:Op(token_symbol(Token), utf8)}.
+  {list_to_atom(Type), token_meta(Token), erlang:Op(token_symbol(Token), utf8)}.
 
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.

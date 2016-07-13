@@ -6,22 +6,22 @@
 (defn- child []
   (receive
     ({pid message}
-     (io.format 'child receive ~p~n' [message])
-     (send pid 'child about to exit'))
+     (io.format "child receive ~p~n" [message])
+     (send pid #"child about to exit"))
     )
-  (io.format 'child exit~n')
+  (io.format "child exit~n")
   )
 
 (defn- parent []
   (let (pid (spawn (fn child 0)))
-    (send pid {(self) 'hi, i\'m parent'})
+    (send pid {(self) #"hi, i'm parent"})
     (receive
-      (m (io.format 'parent receive ~p~n' [m])))
-    (io.format 'parent exit~n')))
+      (m (io.format "parent receive ~p~n" [m])))
+    (io.format "parent exit~n")))
 
-(defn main ()
-  (format 'main start~n')
+(defn main []
+  (format "main start~n")
   (parent)
-  (format 'main exit~n')
+  (format "main exit~n")
   )
 

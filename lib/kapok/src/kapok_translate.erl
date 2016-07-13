@@ -654,7 +654,7 @@ translate_case_clause({C, Meta, _} = Ast, Env) when C /= list ->
 
 translate_case_clause(Meta, Pattern, Guard, Body, Env) ->
   Env1 = kapok_env:push_scope(Env),
-  {TPattern, TEnv1} = translate_match_pattern(Pattern, Env1),
+  {TPattern, TEnv1} = translate_def_arg(Pattern, Env1),
   {TGuard, TEnv2} = translate_guard(Guard, TEnv1),
   {TBody, TEnv3} = translate_body(Meta, Body, TEnv2),
   TEnv4 = kapok_env:pop_scope(TEnv3),
@@ -868,11 +868,11 @@ translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Env)
       ok
   end,
   {TType, TEnv} = translate(Type, Env),
-  {TPattern, TEnv1} = translate_match_pattern(Pattern, TEnv),
+  {TPattern, TEnv1} = translate_def_arg(Pattern, TEnv),
   Line = ?line(Meta),
   {{tuple, Line, [TType, TPattern, {var, Line, '_'}]}, TEnv1};
 translate_exception(Pattern, Env) ->
-  {TPattern, TEnv} = translate_match_pattern(Pattern, Env),
+  {TPattern, TEnv} = translate_def_arg(Pattern, Env),
   Line = ?line(token_meta(Pattern)),
   {{tuple, Line, [{keyword, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TEnv}.
 
@@ -934,6 +934,8 @@ translate_def_arg(Arg, #{context := Context} = Env) ->
   {TArg, TEnv} = translate(Arg, Env#{context => pattern}),
   {TArg, TEnv#{context => Context}}.
 
+translate_def_args({literal_list, _, Args}, Env) ->
+  lists:mapfoldl(fun translate_def_arg/2, Env, Args);
 translate_def_args(Args, Env) when is_list(Args) ->
   lists:mapfoldl(fun translate_def_arg/2, Env, Args).
 

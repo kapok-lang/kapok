@@ -236,7 +236,7 @@ scan([$"|T], Line, Column, Scope, Tokens) ->
 %% Keywords and Atoms
 
 scan([S, H|T] = Original, Line, Column, Scope, Tokens) when (S == $: orelse S == $^), ?is_quote(H) ->
-  case scan_string(Line, Column + 2, T, H) of
+  case scan_string(Line, Column + 2, T, [H]) of
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
         {ok, Unescaped} ->
@@ -248,7 +248,7 @@ scan([S, H|T] = Original, Line, Column, Scope, Tokens) when (S == $: orelse S ==
                   true -> safe;
                   false -> unsafe
                 end,
-          Tag = list_to_atom(atom_to_list(Type) + "_" + atom_to_list(Suffix)),
+          Tag = list_to_atom(atom_to_list(Type) ++ "_" ++ atom_to_list(Suffix)),
           scan(Rest, NewLine, NewColumn, Scope,
                [{Tag, build_meta(Line, Column), Unescaped}|Tokens]);
         {error, ErrorDescription} ->

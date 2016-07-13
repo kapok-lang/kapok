@@ -1,50 +1,49 @@
 (ns ring-echo
   (use (erlang :only (+ spawn throw))
-       (io :only (format)))
-  )
+       (io :only (format))))
 
-(defn repeatedly (n n f acc)
+(defn repeatedly [n n f acc]
   (lists.reverse [(f) & acc]))
 
-(defn repeatedly (i n f acc)
+(defn repeatedly [i n f acc]
   (repeatedly (+ 1 i) n f [(f) & acc]))
 
-(defn repeatedly (n f)
+(defn repeatedly [n f]
   (repeatedly 1 n f []))
 
-(defn- do-times (n n f)
+(defn- do-times [n n f]
   (f))
 
-(defn- do-times (i n f)
+(defn- do-times [i n f]
   (f)
   (do-times (+ 1 i) n f))
 
-(defn- do-times (n f)
+(defn- do-times [n f]
   (do-times 1 n f))
 
-(defn process (m main)
+(defn process [m main]
   (receive
     ({{first, left}, pidlist, c, message}
      (case pidlist
        ([h & t] (send h {{first left} t c message}))
        ([] (case c
-             (m (send first {'exit' left}))
+             (m (send first {^exit left}))
              (_ (send first {{first, left}, left, (+ 1 c) message})))))
      (process m main))
-    ({'exit', pidlist}
+    ({^exit, pidlist}
      (case pidlist
-       ([h & t] (send h {'exit', t}))
-       ([] 'ok'))
-     (format 'process exit.~n' [])
-     (send main 'ok'))
+       ([h & t] (send h {^exit, t}))
+       ([] ^ok))
+     (format #"process exit.~n" [])
+     (send main ^ok))
     (other
-     (format 'oh no, something goes wrong! receiving ~p~n' [other]))
+     (format #"oh no, something goes wrong! receiving ~p~n" [other]))
     (after 1000
-     (format 'unexpected timeout')
-     (throw :'unexpected timeout')))
+     (format #"unexpected timeout")
+     (throw ^'unexpected timeout')))
   )
 
-(defn main ()
+(defn main []
   (let [p 5
         m 10
         main (erlang.self)
@@ -54,12 +53,12 @@
     ;; start to echo in process ring
     (case pids
       ([first & left]
-       (send first {{first left} left 1 'here is the message'}))
+       (send first {{first left} left 1 #"here is the message"}))
       ([]
-       (format 'error: no process to run')
-       (erlang.exit 'no process to run')))
+       (format #"error: no process to run")
+       (erlang.exit #"no process to run")))
     ;; make sure all processes are exit
     (do-times p (fn []
                   (receive
-                    (_message 'ok'))))))
+                    (_message ^ok))))))
 

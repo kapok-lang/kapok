@@ -1,6 +1,6 @@
 (ns hello-world
   (require io))
 
-(defn main ()
-  (io.format 'Hello, ~s~n' ['World']))
+(defn main []
+  (io.format #"Hello, ~s~n" [#"World"]))
 

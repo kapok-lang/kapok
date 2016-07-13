@@ -183,7 +183,7 @@ handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'}
 handle_def_with_args(Meta, Kind, Name, Args, T, Env) ->
   handle_def_with_args(Meta, Kind, Name, Args, [], T, Env).
 handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Env) when ?is_string(C) ->
-  handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Env);
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
 handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Env) ->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env).
 

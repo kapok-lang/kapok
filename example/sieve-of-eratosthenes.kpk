@@ -6,18 +6,18 @@
                       (+ 2))
                :rename (((/= 2) !=)))))
 
-(defn- sieve ([] primes)
+(defn- sieve [[] primes]
   (lists.reverse primes))
 
-(defn- sieve ([h & t] primes)
+(defn- sieve [[h & t] primes]
   (sieve (lists.filter (fn [x]
                          (!= (rem x h) 0))
                        t)
          [h & primes]))
 
-(defn sieve (v)
+(defn sieve [v]
   (sieve (lists.seq 2 v) []))
 
-(defn main ()
+(defn main []
   (let [v 1000]
-    (format 'run sieve(~B) return: ~p~n' [v (sieve v)])))
+    (format #"run sieve(~B) return: ~p~n" [v (sieve v)])))
