@@ -6,6 +6,7 @@
          'string_to_ast!'/4,
          eval/2,
          eval/3,
+         eval_ast/2,
          eval_ast/3
         ]).
 -export([core/0,
@@ -86,7 +87,9 @@ eval_ast(Ast, Bindings, Options) when is_list(Options) ->
   eval_ast(Ast, Bindings, kapok_env:env_for_eval(Options));
 eval_ast(Ast, Bindings, Env) ->
   Env1 = kapok_env:add_bindings(Env, Bindings),
-  {Forms, TEnv1} = ast_to_abstract_format(Ast, Env1),
+  eval_ast(Ast, Env1).
+eval_ast(Ast, Env) ->
+  {Forms, TEnv1} = ast_to_abstract_format(Ast, Env),
   eval_abstract_format(Forms, TEnv1).
 
 %% Abstract Format Evaluation
@@ -103,6 +106,7 @@ eval_abstract_format(Form, #{scope := Scope} = Env) ->
   end.
 
 eval_erl(Form, Bindings, Env) ->
+  io:format("to eval erl: ~p~n", [Form]),
   case erl_eval:check_command([Form], Bindings) of
     ok -> ok;
     {error, Desc} -> kapok_error:handle_file_error(?m(Env, file), Desc)

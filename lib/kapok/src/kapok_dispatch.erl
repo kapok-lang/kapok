@@ -22,7 +22,7 @@ default_functions() ->
   [].
 
 default_macros() ->
-  [].
+  [{kapok_macro, [{append, 2, normal}, {'list*', 2, normal}]}].
 
 %% expand helpers
 
@@ -39,12 +39,14 @@ expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
   end.
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
-  MacroArgs = to_list(Args),
+  %%MacroArgs = to_list(Args),
+  MacroArgs = Args,
   io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, MacroArgs]),
   Fun = fun Receiver:Name/Arity,
   MacroResult = expand_macro_fun(Meta, Fun, Receiver, Name, MacroArgs, Env),
   io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, MacroResult]),
-  {to_ast(MacroResult), Env}.
+  %% {to_ast(MacroResult), Env}.
+  {MacroResult, Env}.
 
 %% find local/remote macro/function
 
@@ -58,30 +60,20 @@ find_local_macro(Meta, FunArity, Env) ->
   {R, Env1}.
 
 find_remote_macro(Meta, Module, FunArity, Env) ->
-  Requires = ?m(Env, requires),
-  Uses = ?m(Env, uses),
-  case orddict:find(Module, Requires) of
-    {ok, M1} ->
-      case orddict:find(Module, Uses) of
-        {ok, _} ->
-          {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
-          R = case D of
-                {macro, {M, F, A, P}} -> {M, F, A, P};
-                {function, _} -> false;
-                false -> false
-              end,
-          {R, Env1};
-        error ->
-          {D, Env1} = find_optional_dispatch(Meta, M1, FunArity, Env),
-          R = case D of
-                {macro, {M, F, A, P}} -> {M, F, A, P};
-                {function, _} -> false;
-                false -> false
-              end,
-          {R, Env1}
-      end;
-    error ->
-      {false, Env}
+  {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
+  case D of
+    {macro, {M, F, A, P}} ->
+      {{M, F, A, P}, Env1};
+    {function, _} ->
+      {false, Env1};
+    false ->
+      {D1, Env2} = find_optional_dispatch(Meta, Module, FunArity, Env1),
+      R = case D1 of
+            {macro, {M, F, A, P}} -> {M, F, A, P};
+            {function, _} -> false;
+            false -> false
+          end,
+      {R, Env2}
   end.
 
 find_local(FunArity, #{function := Function} = Env) ->
