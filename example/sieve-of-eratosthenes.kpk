@@ -3,8 +3,8 @@
   (use (io :only (format)))
   (use (erlang :only (/=
                       rem
-                      (+ 2))
-               :rename (((/= 2) !=)))))
+                      +)
+               :rename ((/= !=)))))
 
 (defn- sieve [[] primes]
   (lists.reverse primes))

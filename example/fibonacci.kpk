@@ -1,0 +1,17 @@
+(ns fibonacci
+  (use (erlang :only (> - +)))
+  (require io))
+
+(defn fibo [0]
+  0)
+
+(defn fibo [1]
+  1)
+
+(defn fibo [n] (when (> n 0))
+  (+ (fibo (- n 1))
+     (fibo (- n 2))))
+
+(defn main []
+  (let [n 4]
+    (io.format #"fibonacci(~B) => ~B~n" [n (fibo n)])))
