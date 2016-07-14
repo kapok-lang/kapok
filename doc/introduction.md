@@ -7,7 +7,7 @@ Kapok is a Lisp dialect designed to support general programming with functional 
 
 Let's take a look at some examples and see what it looks like, which is the very first thing that everyone would like to do when exploring a new language.
 
-#### Sieve of Eratosthenes
+### Sieve of Eratosthenes
 
 Here we see the Sieve of Eratosthens implemented as a namespace.
 
@@ -117,7 +117,7 @@ run sieve(1000) return: [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,
 ```
 
 
-#### Fibonacci
+### Fibonacci
 
 Here we see the Fibonacci implemented as a namespace
 
