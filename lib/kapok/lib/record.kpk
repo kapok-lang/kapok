@@ -1,0 +1,22 @@
+(ns kapok.record
+  """Namespace to work with records."""
+  (require (kapok.core :as core)
+           erlang))
+
+(defmacro is_record [data]
+  """Checks if the given `data` is a record.
+
+  ## Examples
+
+      kapok> (is_record {^user, "john", 27})
+      ^true
+
+      kapok> (is_record {})
+      ^false
+
+  """
+  `(core.and (core.is_tuple ~data)
+             (core.> (core.tuple-size ~data) 0)
+             (core.is_atom (erlang.element 1 ~data))))
+
+
