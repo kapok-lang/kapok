@@ -177,33 +177,33 @@ Keywords are used in these occasions.
 
 1. special forms and literal types
 
-Keywords are widely used in special forms and literal types, for example
+  Keywords are widely used in special forms and literal types, for example
 
-```clojure
-;; a ns special form
-(ns sample-ns
-  (use (io :only (format))))
+  ```clojure
+  ;; a ns special form
+  (ns sample-ns
+    (use (io :only (format))))
 
-<<(75 (:size 8) :big :unsigned :integer (:unit 1)) (97) (112 :native) (111) (75 (:unit 1))>>
-```
-
+  <<(75 (:size 8) :big :unsigned :integer (:unit 1)) (97) (112 :native) (111) (75 (:unit 1))>>
+  ```
+ 
 2. function arguments
 
-Keywords could be used in key-value arguments for function as in Common Lisp.
+  Keywords could be used in key-value arguments for function as in Common Lisp.
 
-```clojure
-(defn f [&key (key1 1) (key2 2)]
-  ...
-  )
+  ```clojure
+  (defn f [&key (key1 1) (key2 2)]
+    ...
+    )
 
-(f :key1 value1 :key2 value2)
-```
+  (f :key1 value1 :key2 value2)
+  ```
 
-Notice that Clojure and other Lisp dialects based on Erlang VM, such as LFE and Joxa don't support key-value arguments for function.
+  Notice that Clojure and other Lisp dialects based on Erlang VM, such as LFE and Joxa don't support key-value arguments for function.
 
 3. map accessors and constants
 
-Keywords are implemented as atoms in Erlang. So except for these usages above, keywords and atoms are identical and interchangeable in other occasions. For example, it's ok to using keywords or atoms as map keys, global contants, etc. Please follow the same convention to use one of them in the same occasion consistently. It's recommand that using keyword for map keys, and using atom for globla contants.
+  Keywords are implemented as atoms in Erlang. So except for these usages above, keywords and atoms are identical and interchangeable in other occasions. For example, it's ok to using keywords or atoms as map keys, global contants, etc. Please follow the same convention to use one of them in the same occasion consistently. It's recommand that using keyword for map keys, and using atom for globla contants.
 
 Notice that Clojure supports namespaced keywords, which gives the same keyword different meanings for different namespaces. In Kapok, keywords are global and used without namespace.
 
