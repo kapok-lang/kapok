@@ -13,3 +13,7 @@ Kapok is designed with goals as below:
 
 Currently kapok is under heavy development. It's not stable and incoming changes are expectable. Please don't use it in production environment.
 
+### Documentation
+
+* [Kapok Docs](doc/index.md)
+
