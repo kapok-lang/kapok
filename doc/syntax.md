@@ -214,7 +214,7 @@ Boolean type in Kapok is the same with Erlang. There is no distinct boolean type
 ```clojure
 ^true  ;=> evaluate to boolean true
 ^false ;=> boolean false
-;; or represent them in keyword
+;; or write them in keywords
 :true  ;=> boolean true
 :false ;=> boolean false
 ```
@@ -223,7 +223,32 @@ Please notice in most Lisp dialects, `nil` is logically false in conditionals. B
 
 #### Comment
 
+Single-line comments are indicated by prefixing the comment with a semicolon (;); all content following a semicolon is ignored entirely. These are equivalent to // in C and Java, and # in Ruby and Python.
+
+The form-level comment using the `#_` reader macro in Clojure is not supported currently.
+
 #### Space and Commas
+
+Most of the time, there is no commas between forms, parameters to function calls, elements in data structure literals, and so on:
+
+```clojure
+(defn some-function [x y]
+  (+ x y))
+```
+
+Because spaces are enough to separate them. If you feel like adding commas, you could have
+
+```clojure
+(defn some-function [x, y]
+  (+, x, y))
+```
+
+These commas are considered whitespace and striped after source code is parsed. Whether to use commas or not is entirely a quoestion of persoonal style and preference. They could be used when doing so will enhance the human readability of the code. It is most common in cases where pairs of values are listed, but more the one pair appears per line:
+
+```clojure
+;; a literal map constructed by two keyword-value pairs in one line
+#{:name new-username, :email email}
+```
 
 #### Containers
 
