@@ -98,7 +98,7 @@ Or, use the triple quote separators instead of single one.
 """This string need no escape, since a single " would not be mistaken for terminator.
 And it support multiline as well."""
 
-'''The three single-quotes act the same as three double-quotes as string terminator.'''
+'''The triple single-quotes act the same as triple double-quotes as string terminator.'''
 ```
 
 #### Symbol
@@ -111,7 +111,7 @@ Symbols must begin with a non-numeric character, and in addition to any alphanum
 ! $ % # + - / < = > ? @ _ | ~ & # ^
 ```
 
-Like other Lisp dialects, the valid characters for symbols is far more than non-Lisp language. For example, valid characters for identifiers in Python could only contain alphanumeric characters and underscore. Notice that the last a few characters are preserved for some other literal type, as listed below:
+Like other Lisp dialects, the valid characters for symbols is far more than non-Lisp language. For example, valid characters for identifiers in Python could only contain alphanumeric characters and underscore. Notice that the last a few characters are preserved for some other keywords or literal types, as listed below:
 
 ```clojure
 ~ ~@                    ;; is macro unquote, unquote splicing keyword
@@ -148,15 +148,80 @@ Multiple dot characters could occur in a single symbol, which is a way to suppor
 
 #### Atom
 
-Atoms are used to represent constant values in Erlang. They are global constant evaluated to themself.
+Atoms are used to represent constant values in Erlang. They are global constants evaluated to themself.
 
-TODO
+In Kapok, there are a few ways to write a literal atom:
 
-#### keyword
+```clojure
+^true
+^'this atom have space, so we have to use single-quotes as terminators'
+^"this atom uses double-quotes instead of single-quotes as terminators"
+```
 
-#### symbol
+Each of them starts with a ^ character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes or double-quotes as terminators. It is not recommanded that using a complex combination of non-printable characters or lots of non-printable characters for atoms, since that would be hard to read and write.
 
-#### comment
+#### Keyword
+
+Keywords are like atoms, they represent constant values and are evaluated to themself.
+Keywords have different prefix comparing to atoms, you could write keywords as below:
+
+```clojure
+:name
+:'this keyword have space, so we have to use single-quotes as terminators'
+:"this keyword uses double-quotes instead of single-quotes as terminators"
+```
+
+Each of them starts with a : character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes or double-quotes as terminators. That same recommandation for atoms applies to keyword as well. It is not good to use a complex combination of non-printable characters or lots of non-printable characters for keywords.
+
+Keywords are used in these occasions.
+
+1. special forms and literal types
+
+Keywords are widely used in special forms and literal types, for example
+
+```clojure
+;; a ns special form
+(ns sample-ns
+  (use (io :only (format))))
+
+<<(75 (:size 8) :big :unsigned :integer (:unit 1)) (97) (112 :native) (111) (75 (:unit 1))>>
+```
+
+2. function arguments
+
+Keywords could be used in key-value arguments for function as in Common Lisp.
+
+```clojure
+(defn f [&key (key1 1) (key2 2)]
+  ...
+  )
+
+(f :key1 value1 :key2 value2)
+```
+
+Notice that Clojure and other Lisp dialects based on Erlang VM, such as LFE and Joxa don't support key-value arguments for function.
+
+3. map accessors and constants
+
+Keywords are implemented as atoms in Erlang. So except for these usages above, keywords and atoms are identical and interchangeable in other occasions. For example, it's ok to using keywords or atoms as map keys, global contants, etc. Please follow the same convention to use one of them in the same occasion consistently. It's recommand that using keyword for map keys, and using atom for globla contants.
+
+Notice that Clojure supports namespaced keywords, which gives the same keyword different meanings for different namespaces. In Kapok, keywords are global and used without namespace.
+
+#### Boolean
+
+Boolean type in Kapok is the same with Erlang. There is no distinct boolean type; instead, the atoms true and false are given a special interpretation and are used to represent boolean literals.
+
+```clojure
+^true  ;=> evaluate to boolean true
+^false ;=> boolean false
+;; or represent them in keyword
+:true  ;=> boolean true
+:false ;=> boolean false
+```
+
+Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Kapok, there is no `nil` and the only logically false is atom false.
+
+#### Comment
 
 #### Space and Commas
 
