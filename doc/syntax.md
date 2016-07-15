@@ -1,9 +1,7 @@
 Syntax
 ==========
 
-## Types
-
-### primitive types
+### Primitive Types
 
 #### Integer
 
@@ -250,5 +248,29 @@ These commas are considered whitespace and striped after source code is parsed. 
 #{:name new-username, :email email}
 ```
 
-#### Containers
+### Containers
 
+#### Bitstring and Binary
+
+#### List and Literal List
+
+#### Tuple
+
+#### Map
+
+#### Set
+
+### Namespace
+
+### Binding and Pattern matching
+
+### block expression
+
+### Conditional
+
+### Exception
+
+### Function and Lambda Function
+#### Guard
+
+### Macro
