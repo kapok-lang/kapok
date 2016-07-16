@@ -264,7 +264,7 @@ These commas are considered whitespace and striped after source code is parsed. 
 
 ### Binding and Pattern matching
 
-### block expression
+### Block expression
 
 ### Conditional
 

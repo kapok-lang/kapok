@@ -134,7 +134,7 @@
 (defalias head hd
   """Alias to hd.""")
 
-;; TODO
+;; Guard predicates
 
 (defn is-atom [term]
   """Returns `^true` if `term` is an atom; otherwise returns `^false`.
@@ -305,6 +305,75 @@
   """
   (erlang.length list))
 
+(defn make-ref []
+  """Returns an almost unique reference among connected nodes.
+
+  The returned reference will re-occur after approximately 2^82 calls;
+  therefore it is unique enough for practical purposes.
+
+  Inlined by the compiler.
+  """
+  (erlang.make_ref))
+
+(defn map-size [map]
+  """Returns the size of a map.
+
+  The size of a map is the number of key-value pairs that the map contains.
+
+  This operation happens in constant time.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (map-size #{:a "foo" :b "bar"})
+      2
+
+  """
+  (erlang.map_size map))
+
+(defn max
+  """Returns the biggest of the given terms according to Erlang's term ordering.
+  If the terms compare equal, the first one is returned.
+
+  Inlined by the complier only when arity is 2.
+
+  ## Examples
+
+      kapok> (max 1 2)
+      2
+
+      kapok> (max ^a ^b)
+      ^b
+
+  """
+  ([x] x)
+  ([x y &rest more] (lists.foldl (fn [n acc]
+                                   (erlang.max acc n))
+                                 x
+                                 [y & more])))
+
+(defn min
+  """Returns the smallest of the given terms according to Erlang's term ordering.
+  If the terms compare equal, the first one is returned.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (min 1 2)
+      1
+
+      kapok> (min #"foo" #"bar")
+      #"bar"
+
+  """
+  ([x] x)
+  ([x y &rest more] (lists.foldl (fn [n acc]
+                                   (erlang.min acc n))
+                                 x
+                                 [y & more])))
+
 (defn node []
   """Returns an atom representing the name of the local node.
   If the node is not alive, `^nonode@nohost` is returned instead.
@@ -361,8 +430,6 @@
   """
   (erlang.self))
 
-;; TODO
-
 (defn send [dest message]
   """Sends a message to the given `dest` and returns the message.
 
@@ -379,6 +446,118 @@
 
   """
   (erlang.send dest message))
+
+(defn spawn [fun]
+  """Spawns the given function and returns its pid.
+
+  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  to handle processes, including spawning functions in nodes.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      (let [current (self)
+            child (spawn (fn []
+                           (send current {(self), (+ 1 2)})))]
+        (receive
+          ({child, 3} (io.format "Received 3 back"))))
+
+  """
+  (erlang.spawn fun))
+
+(defn spawn [module fun args]
+  """Spawns the given module and function passing the given args
+  and returns its pid.
+
+  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  to handle precesses, including spawning functions in nodes.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      (spawn some-module function [1 2 3])
+
+  """
+  (erlang.spawn module fun args))
+
+(defn spawn-link [fun]
+  """Spawns the given function, links it to the current process and returns
+  its pid.
+
+  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  to handle processes, including spawning functions in nodes.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      (let [current (self)
+            child (spawn_link (fn []
+                                (send current {(self), (+ 1 2)})))]
+        (receive
+          ({child, 3} (io.format "Received 3 back"))))
+
+  """
+  (erlang.spawn_link fun))
+
+(defn spawn-link [module fun args]
+  """Spawns the given module and function passing the given args,
+  links it to the current process and returns its pid.
+
+  Checks the `kapok.process` and `kapok.node` namespaces for other functions
+  to handle processes, including spawning functions in nodes.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      (spawn-link some-module function [1 2 3])
+
+  """
+  (erlang.spawn_link module fun args))
+
+(defn spawn-monitor [fun]
+  """Spawns the given module and function passing the given args,
+  monitors it and returns its pid and monitoring reference.
+
+  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  to handle processes, including spawning functions in nodes.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      (let [current (self)]
+        (spawn-monitor (fn []
+                         (send current {(self), (+ 1 2)}))))
+
+  """
+  (erlang.spawn_monitor fun))
+
+(defn spawn-monitor [module fun args]
+  """Spawns the given module and functions passing the given args,
+  monitors it and returns its pid and monitoring reference.
+
+  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  to handle processes, including spawning functions in nodes.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      (spawn-monitor some-module function [1 2 3])
+
+  """
+  (erlang.spawn_monitor module fun args))
+
+(defn throw [term]
+  """A non-local return from a function.
+
+  Inlined by the compiler.
+  """
+  (erlang.throw term))
 
 (defn tl [list]
   """Returns the tail of a list, that is, the list minus the first element.
@@ -866,6 +1045,7 @@
 
 ;; Boolean and Short-circuit Boolean Operators
 
+;; TODO get a macro version
 (defn not [x]
   """Returns `^true` if `x` is logical false, otherwise `^false`.
 
@@ -885,7 +1065,7 @@
   h)
 (defn- all-but-last [predicate acc [h & t]]
   (case (predicate h acc)
-    (^true (all predicate h t))
+    (^true (all-but-last predicate h t))
     (^false ^false)))
 
 (defn- any-but-last [_predicate _acc []]
@@ -894,7 +1074,7 @@
   h)
 (defn- any-but-last [predicate acc [h & t]]
   (case (predicate h acc)
-    (^false (all predicate h t))
+    (^false (any-but-last predicate h t))
     (^true ^true)))
 
 ;; TODO get a macro version
@@ -974,3 +1154,32 @@
 
   """
   (erlang.xor x y))
+
+;; Tuple Element Operators
+
+(defn elem [tuple index]
+  """Gets the element at the zero-based `index` in `tuple`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (elem {^foo ^bar 3} 1)
+      ^bar
+
+  """
+  (erlang.element (+ index 1) tuple))
+
+(defn set-elem [tuple index value]
+  """Sets `value` at the given zero-based `index` in `tuple`,
+  and returns that tuple.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (set-elem {^foo ^bar 3} 0 ^baz)
+      {^baz ^bar 3}
+
+  """
+  (erlang.setelement (+ index 1) tuple value))

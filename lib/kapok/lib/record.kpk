@@ -3,8 +3,10 @@
   (require (kapok.core :as core)
            erlang))
 
-(defmacro is_record [data]
+(defmacro is-record [data]
   """Checks if the given `data` is a record.
+
+  This is implemented as a mocro so it can be used in guard clauses.
 
   ## Examples
 
@@ -15,8 +17,22 @@
       ^false
 
   """
-  `(core.and (core.is_tuple ~data)
-             (core.> (core.tuple-size ~data) 0)
-             (core.is_atom (erlang.element 1 ~data))))
+  `(and (core.is_tuple ~data)
+        (core.> (core.tuple-size ~data) 0)
+        (core.is_atom (erlang.element 1 ~data))))
 
 
+(defmacro is-record [data kind]
+  """Checks if the given `data` is a record of `kind`.
+
+  This is implemented as a macro so it can be used in guard clauses.
+
+  ## Examples
+
+      kapok> (is_record {^user, "john", 27} ^user)
+      ^true
+
+  """
+  `(and (core.is_tuple ~data)
+        (core.> (core.tuple-size ~data) 0)
+        (core.== (erlang.element 1 ~data) ~kind)))
