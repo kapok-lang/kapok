@@ -1,4 +1,4 @@
-;;; Core module for kapok lang.
+;;; Core namespace for kapok lang.
 ;; -*- Kapok -*-
 
 ;; all functions here are imported for every ns by default.

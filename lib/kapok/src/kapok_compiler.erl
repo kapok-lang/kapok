@@ -33,8 +33,7 @@ file(File, Outdir) ->
                                   error:undef -> ok
                                 end;
                               _ ->
-                                Outfile = filename:join(Outdir, atom_to_list(Module) ++ ?BEAM_FILE_SUFFIX),
-                                ok = file:write_file(Outfile, Binary)
+                                binary_to_path({Module, Binary}, Outdir)
                             end
                         end,
   kapok_ast:compile(Ast, Env, AfterModuleCompiled).
@@ -163,8 +162,32 @@ no_auto_import() ->
 %% CORE HANDLING
 
 core() ->
-  %% TODO add impl
-  ok.
+  {ok, _} = application:ensure_all_started(kapok),
+  New = orddict:from_list([{docs, false}, {internal, true}]),
+  Merge = fun(_, _, Value) -> Value end,
+  Update = fun(Old) -> orddict:merge(Merge, Old, New) end,
+  _ = kapok_config:update(compiler_options, Update),
+  [load_core_libs(File) || File <- core_libs()].
+
+load_core_libs(File) ->
+  Dir = "lib/kapok/lib",
+  Dest = <<"lib/kapok/ebin">>,
+  F = list_to_binary(filename:join(Dir, binary_to_list(File))),
+  try
+    _Env = file(F, Dest)
+  catch
+    Kind:Reason ->
+      io:format("~p: ~p~nstacktrace: ~p~n", [Kind, Reason, erlang:get_stacktrace()]),
+      erlang:halt(1)
+  end.
+
+core_libs() ->
+  [<<"core.kpk">>].
+
+binary_to_path({ModuleName, Binary}, Outdir) ->
+  Path = filename:join(Outdir, atom_to_list(ModuleName) ++ ?BEAM_FILE_SUFFIX),
+  ok = file:write_file(Path, Binary),
+  Path.
 
 %% ERROR HANDLING
 format_errors([]) ->

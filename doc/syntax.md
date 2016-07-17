@@ -7,7 +7,7 @@ Syntax
 
 An integer could be represented in these ways:
 
-1. trandition notation
+1. tranditional notation
 
     It starts with optional + or - sign, a non-zero digit, and then other digits. E.g. -101, 987654321, +2016.
 
