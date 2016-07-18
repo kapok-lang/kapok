@@ -1,18 +1,27 @@
 %% Compiler for kapok
 -module(kapok_compiler).
--export([file/1,
+-export([get_opt/1,
+         file/1,
          file/2,
          string_to_ast/4,
          'string_to_ast!'/4,
          eval/2,
          eval/3,
          eval_ast/2,
-         eval_ast/3
-        ]).
+         eval_ast/3]).
 -export([core/0,
          module/4]).
 -import(kapok_utils, [to_binary/1]).
 -include("kapok.hrl").
+
+%% Public API
+
+get_opt(Key) ->
+  Options = kapok_config:get(compiler_options),
+  case lists:keyfind(Key, 1, Options) of
+    false -> false;
+    {Key, Value} -> Value
+  end.
 
 %% Compilation entry points.
 
@@ -105,7 +114,6 @@ eval_abstract_format(Form, #{scope := Scope} = Env) ->
   end.
 
 eval_erl(Form, Bindings, Env) ->
-  io:format("to eval erl: ~p~n", [Form]),
   case erl_eval:check_command([Form], Bindings) of
     ok -> ok;
     {error, Desc} -> kapok_error:handle_file_error(?m(Env, file), Desc)
@@ -142,11 +150,22 @@ get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
 
 %% Compile the module by forms based on the scope information
 %% executes the callback in case of success. This automatically
-%% handles errors and warnings. Used by this module.
-module(Forms, Options, #{file := File} = _Env, Callback) ->
+%% handles errors and warnings. Used by this module and kapok_ast.
+module(Forms, Options, Env, Callback) ->
+  Final = case (get_opt(debug_info) == true) orelse
+            lists:member(debug_info, Options) of
+            true -> [debug_info] ++ options();
+            false -> options()
+          end,
+  compile_module(Forms, Final, Env, Callback).
+
+compile_module(Forms, Options, #{file := File} = _Env, Callback) ->
   Source = kapok_utils:characters_to_list(File),
-  io:format("module() forms: ~p~n~n", [Forms]),
-  case compile:noenv_forms([no_auto_import() | Forms], [return, {source,Source} | Options]) of
+  case get_opt(debug) of
+    true -> io:format("--- compile_module ---~n~p~n------~n", [Forms]);
+    false -> ok
+  end,
+  case compile:noenv_forms([no_auto_import() | Forms], [return, {source, Source} | Options]) of
     {ok, ModuleName, Binary, Warning} ->
       format_warnings(Warning),
       {module, Module} = code:load_binary(ModuleName, binary_to_list(File), Binary),
@@ -159,14 +178,43 @@ module(Forms, Options, #{file := File} = _Env, Callback) ->
 no_auto_import() ->
   {attribute, 0, compile, no_auto_import}.
 
+options() ->
+  case kapok_config:get(erl_compiler_options) of
+    nil ->
+      kapok_config:update(erl_compiler_options, fun options/1);
+    Options ->
+      Options
+  end.
+
+options(nil) ->
+  Key = "ERL_COMPILER_OPTIONS",
+  case os:getenv(Key) of
+    false ->
+      [];
+    Str when is_list(Str) ->
+      case erl_scan:string(Str) of
+        {ok, Tokens, _} ->
+          case erl_parse:parse_term(Tokens ++ [{dot, 1}]) of
+            {ok, List} when is_list(List) -> List;
+            {ok, Term} -> [Term];
+            {error, _Reason} ->
+              io:format("Ignoring bad term in ~ts~n", [Key]),
+              []
+          end;
+        {error, _, _} ->
+          io:format("Ignoring bad term in ~ts~n", [Key]),
+          []
+      end
+  end;
+options(Options) ->
+  Options.
+
 %% CORE HANDLING
 
 core() ->
   {ok, _} = application:ensure_all_started(kapok),
-  New = orddict:from_list([{docs, false}, {internal, true}]),
-  Merge = fun(_, _, Value) -> Value end,
-  Update = fun(Old) -> orddict:merge(Merge, Old, New) end,
-  _ = kapok_config:update(compiler_options, Update),
+  Options = orddict:from_list([{docs, false}, {internal, true}]),
+  kapok_config:update_in(compiler_options, Options),
   [load_core_libs(File) || File <- core_libs()].
 
 load_core_libs(File) ->

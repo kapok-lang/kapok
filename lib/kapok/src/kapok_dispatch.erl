@@ -41,10 +41,16 @@ expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
   %%MacroArgs = to_list(Args),
   MacroArgs = Args,
-  io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, MacroArgs]),
+  case kapok_compiler:get_opt(debug) of
+    true -> io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, MacroArgs]);
+    false -> ok
+  end,
   Fun = fun Receiver:Name/Arity,
   MacroResult = expand_macro_fun(Meta, Fun, Receiver, Name, MacroArgs, Env),
-  io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, MacroResult]),
+  case kapok_compiler:get_opt(debug) of
+    true -> io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, MacroResult]);
+    false -> ok
+  end,
   %% {to_ast(MacroResult), Env}.
   {MacroResult, Env}.
 
@@ -174,7 +180,6 @@ find_dispatch(Meta, {Fun, Arity} = FunArity, Env) ->
   Env1 = ensure_uses_imported(Env),
   FunMatch = find_mfa(FunArity, ?m(Env1, functions)),
   MacroMatch = find_mfa({Fun, Arity}, ?m(Env1, macros)),
-  io:format("find FA: ~s, ~B, macros: ~p, macromatch: ~p~n", [Fun, Arity, ?m(Env1, macros), MacroMatch]),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
       {M, [{F, A, P}]} = Match,
@@ -237,7 +242,6 @@ import_module(Meta, Module, Args, Env) ->
            [] -> Env1;
            _ -> kapok_env:add_macro(Meta, Env1, Module, Macros)
          end,
-  io:format("after import module: ~p, Functions: ~p, Macros: ~p~n", [Module, ?m(Env2, functions), ?m(Env2, macros)]),
   Env2.
 
 get_exports(Meta, Module, Args, Env) ->

@@ -112,7 +112,6 @@ macroexpand_1({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := 
   end;
 %% backquote a list and literal_list
 macroexpand_1({backquote, _, {Category, _, _} = Ast}, Env) when ?is_list(Category) ->
-  io:format("backquote a list: ~p~n", [Ast]),
   macroexpand_backquote_list(Ast, Env);
 %% backquote a cons_list
 macroexpand_1({backquote, _, {cons_list, Meta, {Head, Tail}}}, Env) ->

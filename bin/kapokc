@@ -4,6 +4,7 @@
 usage() {
   echo "Usage: `basename $0` [kapok options] [compiler options] [kapok files]
 
+  -debug       Print debug messages
   -o           The directory to output compiled files
   -verbose     Print informationaal messages
 

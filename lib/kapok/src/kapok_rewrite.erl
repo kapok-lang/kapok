@@ -36,6 +36,7 @@ inline(?core, 'is-reference', 1, 'normal') -> {erlang, is_reference, 1, 'normal'
 inline(?core, 'is-tuple', 1, 'normal') -> {erlang, is_tuple, 1, 'normal'};
 
 inline(M, F, A, P) ->
+  %% TODO add impl
   io:format("****** call inline, M: ~p, F: ~p, A: ~p, P: ~p~n", [M, F, A, P]),
   false.
 

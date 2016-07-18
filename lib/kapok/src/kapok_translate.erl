@@ -217,11 +217,9 @@ translate({list, Meta, [{identifier, _, Id} = Name| Args]} = Ast, #{scope := Sco
   end;
 %%  Remote call
 translate({list, Meta, [{dot, _, {Module, Fun}} | Args]} = Ast, Env) ->
-  io:format("translate remote call: ~p~n", [Ast]),
   {Bool, Env1} = is_macro(Ast, Env),
   case Bool of
     true ->
-      io:format("translate remote call, is macro: ~p~n", [Ast]),
       {EAst, EEnv1} = kapok_expand:macroexpand(Ast, Env1),
       translate(EAst, EEnv1);
     false ->

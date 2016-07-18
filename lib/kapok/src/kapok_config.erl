@@ -1,6 +1,6 @@
 -module(kapok_config).
 -compile({no_auto_import, [get/1]}).
--export([new/1, delete/1, put/2, get/1, update/2, get_and_put/2]).
+-export([new/1, delete/1, put/2, get/1, update/2, update_in/2, get_and_put/2]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          code_change/3, terminate/2]).
 -behaviour(gen_server).
@@ -26,6 +26,11 @@ get(Key) ->
 
 update(Key, Fun) ->
   gen_server:call(?MODULE, {update, Key, Fun}).
+
+update_in(Key, Orddict) when is_list(Orddict) ->
+  Merge = fun(_, _, Value) -> Value end,
+  Update = fun(Old) -> orddict:merge(Merge, Old, Orddict) end,
+  kapok_config:update(Key, Update).
 
 get_and_put(Key, Value) ->
   get_server:call(?MODULE, {get_and_put, Key, Value}).

@@ -211,7 +211,6 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
   {TF, TEnv} = kapok_translate:translate(Name, Env),
   case parse_parameters(Args, TEnv) of
     [{normal, _, NormalArgs}] ->
-      io:format("normal args: ~p~n", [NormalArgs]),
       {TArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
       ParameterType = 'normal',
       Arity = length(TArgs),

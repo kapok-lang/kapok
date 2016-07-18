@@ -12,7 +12,6 @@ blank_config() ->
     outdir => ".",
     pa => [],
     pz => [],
-    verbose_compile => false,
     halt => true,
     errors => []}.
 
@@ -164,8 +163,10 @@ parse_compiler_args(["--" | T], Config) ->
   {Config, T};
 parse_compiler_args(["-o", Outdir | T], Config) ->
   parse_compiler_args(T, Config#{outdir => Outdir});
-parse_compiler_args(["--verbose" | T], Config) ->
-  parse_compiler_args(T, Config#{verbose_compile => true});
+parse_compiler_args(["--debug" | T], #{compiler_options := Options} = Config) ->
+  parse_compiler_args(T, Config#{compiler_options => [{debug, true} | Options]});
+parse_compiler_args(["--verbose" | T], #{compiler_options := Options} = Config) ->
+  parse_compiler_args(T, Config#{compiler_options => [{verbose, true} | Options]});
 parse_compiler_args([H|T] = List, #{compile := Compile} = Config) ->
   case H of
     "-" ++ _Rest ->
@@ -188,6 +189,8 @@ is_regular(Path) ->
 
 %% Process commands
 process_commands(Config) ->
+  Options = orddict:from_list(?m(Config, compiler_options)),
+  kapok_config:update_in(compiler_options, Options),
   Results = lists:map(fun(C) -> process_command(C, Config) end,
                       lists:reverse(?m(Config, commands))),
   Errors = [Msg || {error, Msg} <- Results],
