@@ -17,11 +17,11 @@
 
 inline(?atom, 'to-char-list', 1, 'normal') -> {erlang, atom_to_list, 1, 'normal'};
 
+%% guard predicates
 inline(?core, 'is-atom', 1, 'normal') -> {erlang, is_atom, 1, 'normal'};
 inline(?core, 'is-binary', 1, 'normal') -> {erlang, is_binary, 1, 'normal'};
 inline(?core, 'is_bitstring', 1, 'normal') -> {erlang, is_bitstring, 1, 'normal'};
 inline(?core, 'is-boolean', 1, 'normal') -> {erlang, is_boolean, 1, 'normal'};
-inline(?core, 'is-builtin', 3, 'normal') -> {erlang, is_builtin, 3, 'normal'};
 inline(?core, 'is-float', 1, 'normal') -> {erlang, is_float, 1, 'normal'};
 inline(?core, 'is-function', 1, 'normal') -> {erlang, is_function, 1, 'normal'};
 inline(?core, 'is-function', 2, 'normal') -> {erlang, is_function, 2, 'normal'};
@@ -35,8 +35,28 @@ inline(?core, 'is-port', 1, 'normal') -> {erlang, is_port, 1, 'normal'};
 inline(?core, 'is-reference', 1, 'normal') -> {erlang, is_reference, 1, 'normal'};
 inline(?core, 'is-tuple', 1, 'normal') -> {erlang, is_tuple, 1, 'normal'};
 
+%% guard built-in functions
+inline(?core, 'abs', 1, 'normal') -> {erlang, abs, 1, 'normal'};
+inline(?core, 'bit-size', 1, 'normal') -> {erlang, bit_size, 1, 'normal'};
+inline(?core, 'byte-size', 1, 'normal') -> {erlang, byte_size, 1, 'normal'};
+inline(?core, 'elem', 2, 'normal') -> {erlang, element, 2, 'normal'};
+inline(?core, 'number-to-float', 1, 'normal') -> {erlang, float, 1, 'normal'};
+inline(?core, 'hd', 1, 'normal') -> {erlang, hd, 1, 'normal'};
+inline(?core, 'head', 1, 'normal') -> {erlang, hd, 1, 'normal'};
+inline(?core, 'length', 1, 'normal') -> {erlang, length, 1, 'normal'};
+inline(?core, 'node', 0, 'normal') -> {erlang, node, 0, 'normal'};
+inline(?core, 'node', 1, 'normal') -> {erlang, node, 1, 'normal'};
+inline(?core, 'round', 1, 'normal') -> {erlang, round, 1, 'normal'};
+inline(?core, 'self', 0, 'normal') -> {erlang, self, 0, 'normal'};
+inline(?core, 'tail', 1, 'normal') -> {erlang, tl, 1, 'normal'};
+inline(?core, 'tl', 1, 'normal') -> {erlang, tl, 1, 'normal'};
+inline(?core, 'trunc', 1, 'normal') -> {erlang, trunc, 1, 'normal'};
+inline(?core, 'tuple-size', 1, 'normal') -> {erlang, tuple_size, 1, 'normal'};
+
 inline(M, F, A, P) ->
   %% TODO add impl
   io:format("****** call inline, M: ~p, F: ~p, A: ~p, P: ~p~n", [M, F, A, P]),
   false.
 
+
+%% rewrite core.set-elem/3, index + 1
