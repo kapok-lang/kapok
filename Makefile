@@ -82,6 +82,7 @@ endef
 # define the rules with specified prefix for the specified module
 # $(call gen-run-test-rule,prefix,module)
 define gen-run-test-rule
+.PHONY : $1$2
 $1$2:
 	$(QUIET) printf '--- Run test %s ---\n' $2
 	$(call eunit-test,$2)
@@ -130,6 +131,8 @@ define gen-build-rules
 
 ifeq "$(strip $1)" "kapok"
 
+.PHONY : $2$1 $2$1-compiler $2$1-libs
+
 $2$1: $2$1-compiler $2$1-libs
 
 $2$1-compiler: $($1_parser_src_file) $($1_beam_files)
@@ -146,13 +149,15 @@ $($1_beam_files): $($1_beam_output_dir)/%.beam: $($1_src_dir)/%.erl
 $($1_beam_files):
 	$(call echo-build,lib,$1)
 	$(QUIET) echo "--- build source file ---"
-	$(QUIET) cd $($1_lib_dir) && $(REBAR) compile
+	$(QUIET) cd $(lib_$1_dir) && $(REBAR) compile
 
 $2$1-libs: $($1_lib_beam_files)
 
 $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$(QUIET) printf "Compile '%s'\n" $$<
 	$$(call kapokc,$$<,$$(dir $$@))
+
+.PHONY :  $3$1 build-test-$1 run-test-$1
 
 $3$1: build-test-$1 run-test-$1
 

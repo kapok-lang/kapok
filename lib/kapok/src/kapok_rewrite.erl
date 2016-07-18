@@ -4,8 +4,11 @@
 
 %% Convenience variables
 
+-define(inline_nfun(M, F, A), inline(M, F, A, 'normal')).
+-define(nfun(M, F, A), {M, F, A, 'normal'}).
 -define(atom, 'kapok.atom').
 -define(core, 'kapok.core').
+
 
 %% Inline
 
@@ -15,85 +18,84 @@
 %% 1. Efficiency. To avoid another function call.
 %% 2. Syntax Limit. Only a limited predicates and built-in functions are allowed in guards.
 
-inline(?atom, 'to-char-list', 1, 'normal') -> {erlang, atom_to_list, 1, 'normal'};
+?inline_nfun(?atom, 'to-char-list', 1) -> ?nfun(erlang, atom_to_list, 1);
 
 %% guard predicates
-inline(?core, 'is-atom', 1, 'normal') -> {erlang, is_atom, 1, 'normal'};
-inline(?core, 'is-binary', 1, 'normal') -> {erlang, is_binary, 1, 'normal'};
-inline(?core, 'is_bitstring', 1, 'normal') -> {erlang, is_bitstring, 1, 'normal'};
-inline(?core, 'is-boolean', 1, 'normal') -> {erlang, is_boolean, 1, 'normal'};
-inline(?core, 'is-float', 1, 'normal') -> {erlang, is_float, 1, 'normal'};
-inline(?core, 'is-function', 1, 'normal') -> {erlang, is_function, 1, 'normal'};
-inline(?core, 'is-function', 2, 'normal') -> {erlang, is_function, 2, 'normal'};
-inline(?core, 'is-integer', 1, 'normal') -> {erlang, is_integer, 1, 'normal'};
-inline(?core, 'is-list', 1, 'normal') -> {erlang, is_list, 1, 'normal'};
-inline(?core, 'is-map', 1, 'normal') -> {erlang, is_map, 1, 'normal'};
-inline(?core, 'is-number', 1, 'normal') -> {erlang, is_number, 1, 'normal'};
-inline(?core, 'is-pid', 1, 'normal') -> {erlang, is_pid, 1, 'normal'};
-inline(?core, 'is-pmod', 1, 'normal') -> {erlang, is_pmod, 1, 'normal'};
-inline(?core, 'is-port', 1, 'normal') -> {erlang, is_port, 1, 'normal'};
-inline(?core, 'is-reference', 1, 'normal') -> {erlang, is_reference, 1, 'normal'};
-inline(?core, 'is-tuple', 1, 'normal') -> {erlang, is_tuple, 1, 'normal'};
+?inline_nfun(?core, 'is-atom', 1) -> ?nfun(erlang, is_atom, 1);
+?inline_nfun(?core, 'is-binary', 1) -> ?nfun(erlang, is_binary, 1);
+?inline_nfun(?core, 'is_bitstring', 1) -> ?nfun(erlang, is_bitstring, 1);
+?inline_nfun(?core, 'is-boolean', 1) -> ?nfun(erlang, is_boolean, 1);
+?inline_nfun(?core, 'is-float', 1) -> ?nfun(erlang, is_float, 1);
+?inline_nfun(?core, 'is-function', 1) -> ?nfun(erlang, is_function, 1);
+?inline_nfun(?core, 'is-function', 2) -> ?nfun(erlang, is_function, 2);
+?inline_nfun(?core, 'is-integer', 1) -> ?nfun(erlang, is_integer, 1);
+?inline_nfun(?core, 'is-list', 1) -> ?nfun(erlang, is_list, 1);
+?inline_nfun(?core, 'is-map', 1) -> ?nfun(erlang, is_map, 1);
+?inline_nfun(?core, 'is-number', 1) -> ?nfun(erlang, is_number, 1);
+?inline_nfun(?core, 'is-pid', 1) -> ?nfun(erlang, is_pid, 1);
+?inline_nfun(?core, 'is-pmod', 1) -> ?nfun(erlang, is_pmod, 1);
+?inline_nfun(?core, 'is-port', 1) -> ?nfun(erlang, is_port, 1);
+?inline_nfun(?core, 'is-reference', 1) -> ?nfun(erlang, is_reference, 1);
+?inline_nfun(?core, 'is-tuple', 1) -> ?nfun(erlang, is_tuple, 1);
 
 %% guard built-in functions
-inline(?core, 'abs', 1, 'normal') -> {erlang, abs, 1, 'normal'};
-inline(?core, 'bit-size', 1, 'normal') -> {erlang, bit_size, 1, 'normal'};
-inline(?core, 'byte-size', 1, 'normal') -> {erlang, byte_size, 1, 'normal'};
-inline(?core, 'elem', 2, 'normal') -> {erlang, element, 2, 'normal'};
-inline(?core, 'number-to-float', 1, 'normal') -> {erlang, float, 1, 'normal'};
-inline(?core, 'hd', 1, 'normal') -> {erlang, hd, 1, 'normal'};
-inline(?core, 'head', 1, 'normal') -> {erlang, hd, 1, 'normal'};
-inline(?core, 'length', 1, 'normal') -> {erlang, length, 1, 'normal'};
-inline(?core, 'node', 0, 'normal') -> {erlang, node, 0, 'normal'};
-inline(?core, 'node', 1, 'normal') -> {erlang, node, 1, 'normal'};
-inline(?core, 'round', 1, 'normal') -> {erlang, round, 1, 'normal'};
-inline(?core, 'self', 0, 'normal') -> {erlang, self, 0, 'normal'};
-inline(?core, 'tail', 1, 'normal') -> {erlang, tl, 1, 'normal'};
-inline(?core, 'tl', 1, 'normal') -> {erlang, tl, 1, 'normal'};
-inline(?core, 'trunc', 1, 'normal') -> {erlang, trunc, 1, 'normal'};
-inline(?core, 'tuple-size', 1, 'normal') -> {erlang, tuple_size, 1, 'normal'};
+?inline_nfun(?core, 'abs', 1) -> ?nfun(erlang, abs, 1);
+?inline_nfun(?core, 'bit-size', 1) -> ?nfun(erlang, bit_size, 1);
+?inline_nfun(?core, 'byte-size', 1) -> ?nfun(erlang, byte_size, 1);
+?inline_nfun(?core, 'elem', 2) -> ?nfun(erlang, element, 2);
+?inline_nfun(?core, 'number-to-float', 1) -> ?nfun(erlang, float, 1);
+?inline_nfun(?core, 'hd', 1) -> ?nfun(erlang, hd, 1);
+?inline_nfun(?core, 'head', 1) -> ?nfun(erlang, hd, 1);
+?inline_nfun(?core, 'length', 1) -> ?nfun(erlang, length, 1);
+?inline_nfun(?core, 'node', 0) -> ?nfun(erlang, node, 0);
+?inline_nfun(?core, 'node', 1) -> ?nfun(erlang, node, 1);
+?inline_nfun(?core, 'round', 1) -> ?nfun(erlang, round, 1);
+?inline_nfun(?core, 'self', 0) -> ?nfun(erlang, self, 0);
+?inline_nfun(?core, 'tail', 1) -> ?nfun(erlang, tl, 1);
+?inline_nfun(?core, 'tl', 1) -> ?nfun(erlang, tl, 1);
+?inline_nfun(?core, 'trunc', 1) -> ?nfun(erlang, trunc, 1);
+?inline_nfun(?core, 'tuple-size', 1) -> ?nfun(erlang, tuple_size, 1);
 
 %% term comparators
-inline(?core, '<', 2, 'normal') -> {erlang, '<', 2, 'normal'};
-inline(?core, '>', 2, 'normal') -> {erlang, '>', 2, 'normal'};
-inline(?core, '<=', 2, 'normal') -> {erlang, '<=', 2, 'normal'};
-inline(?core, '>=', 2, 'normal') -> {erlang, '>=', 2, 'normal'};
-inline(?core, '==', 2, 'normal') -> {erlang, '==', 2, 'normal'};
-inline(?core, '!=', 2, 'normal') -> {erlang, '/=', 2, 'normal'};
-inline(?core, '===', 2, 'normal') -> {erlang, '=:=', 2, 'normal'};
-inline(?core, '!==', 2, 'normal') -> {erlang, '=/=', 2, 'normal'};
+?inline_nfun(?core, '<', 2) -> ?nfun(erlang, '<', 2);
+?inline_nfun(?core, '>', 2) -> ?nfun(erlang, '>', 2);
+?inline_nfun(?core, '<=', 2) -> ?nfun(erlang, '<=', 2);
+?inline_nfun(?core, '>=', 2) -> ?nfun(erlang, '>=', 2);
+?inline_nfun(?core, '==', 2) -> ?nfun(erlang, '==', 2);
+?inline_nfun(?core, '!=', 2) -> ?nfun(erlang, '/=', 2);
+?inline_nfun(?core, '===', 2) -> ?nfun(erlang, '=:=', 2);
+?inline_nfun(?core, '!==', 2) -> ?nfun(erlang, '=/=', 2);
 
 %% arithmetic operators
 %% unary +/- is handled by the parser, we just handle binary +/- here.
-inline(?core, '+', 2, 'normal') -> {erlang, '+', 2, 'normal'};
-inline(?core, '-', 2, 'normal') -> {erlang, '-', 2, 'normal'};
-inline(?core, '*', 2, 'normal') -> {erlang, '*', 2, 'normal'};
-inline(?core, '/', 2, 'normal') -> {erlang, '/', 2, 'normal'};
-inline(?core, 'div', 2, 'normal') -> {erlang, 'div', 2, 'normal'};
-inline(?core, 'rem', 2, 'normal') -> {erlang, 'rem', 2, 'normal'};
-inline(?core, 'bit-not', 1, 'normal') -> {erlang, 'bnot', 1, 'normal'};
-inline(?core, 'bnot', 1, 'normal') -> {erlang, 'bnot', 1, 'normal'};
-inline(?core, 'bit-and', 2, 'normal') -> {erlang, 'band', 2, 'normal'};
-inline(?core, 'band', 2, 'normal') -> {erlang, 'band', 2, 'normal'};
-inline(?core, 'bit-or', 2, 'normal') -> {erlang, 'bor', 2, 'normal'};
-inline(?core, 'bor', 2, 'normal') -> {erlang, 'bor', 2, 'normal'};
-inline(?core, 'bit-xor', 2, 'normal') -> {erlang, 'bxor', 2, 'normal'};
-inline(?core, 'bxor', 2, 'normal') -> {erlang, 'bxor', 2, 'normal'};
-inline(?core, 'bit-shift-left', 2, 'normal') -> {erlang, 'bsl', 2, 'normal'};
-inline(?core, 'bsl', 2, 'normal') -> {erlang, 'bsl', 2, 'normal'};
-inline(?core, 'bit-shift-right', 2, 'normal') -> {erlang, 'bsr', 2, 'normal'};
-inline(?core, 'bsr', 2, 'normal') -> {erlang, 'bsr', 2, 'normal'};
+?inline_nfun(?core, '+', 2) -> ?nfun(erlang, '+', 2);
+?inline_nfun(?core, '-', 2) -> ?nfun(erlang, '-', 2);
+?inline_nfun(?core, '*', 2) -> ?nfun(erlang, '*', 2);
+?inline_nfun(?core, '/', 2) -> ?nfun(erlang, '/', 2);
+?inline_nfun(?core, 'div', 2) -> ?nfun(erlang, 'div', 2);
+?inline_nfun(?core, 'rem', 2) -> ?nfun(erlang, 'rem', 2);
+?inline_nfun(?core, 'bit-not', 1) -> ?nfun(erlang, 'bnot', 1);
+?inline_nfun(?core, 'bnot', 1) -> ?nfun(erlang, 'bnot', 1);
+?inline_nfun(?core, 'bit-and', 2) -> ?nfun(erlang, 'band', 2);
+?inline_nfun(?core, 'band', 2) -> ?nfun(erlang, 'band', 2);
+?inline_nfun(?core, 'bit-or', 2) -> ?nfun(erlang, 'bor', 2);
+?inline_nfun(?core, 'bor', 2) -> ?nfun(erlang, 'bor', 2);
+?inline_nfun(?core, 'bit-xor', 2) -> ?nfun(erlang, 'bxor', 2);
+?inline_nfun(?core, 'bxor', 2) -> ?nfun(erlang, 'bxor', 2);
+?inline_nfun(?core, 'bit-shift-left', 2) -> ?nfun(erlang, 'bsl', 2);
+?inline_nfun(?core, 'bsl', 2) -> ?nfun(erlang, 'bsl', 2);
+?inline_nfun(?core, 'bit-shift-right', 2) -> ?nfun(erlang, 'bsr', 2);
+?inline_nfun(?core, 'bsr', 2) -> ?nfun(erlang, 'bsr', 2);
 
 %% boolean operators
 %% TODO change them to the macro versions, and remove them from the inlines
-inline(?core, 'not', 1, 'normal') -> {erlang, 'not', 1, 'normal'};
-inline(?core, 'and', 2, 'normal') -> {erlang, 'andalso', 2, 'normal'};
-inline(?core, 'or', 2, 'normal') -> {erlang, 'orelse', 2, 'normal'};
-inline(?core, 'xor', 2, 'normal') -> {erlang, 'xor', 2, 'normal'};
+?inline_nfun(?core, 'not', 1) -> ?nfun(erlang, 'not', 1);
+?inline_nfun(?core, 'and', 2) -> ?nfun(erlang, 'andalso', 2);
+?inline_nfun(?core, 'or', 2) -> ?nfun(erlang, 'orelse', 2);
+?inline_nfun(?core, 'xor', 2) -> ?nfun(erlang, 'xor', 2);
 
-inline(M, F, A, P) ->
+inline(_M, _F, _A, _P) ->
   %% TODO add impl
-  io:format("****** call inline, M: ~p, F: ~p, A: ~p, P: ~p~n", [M, F, A, P]),
   false.
 
 
