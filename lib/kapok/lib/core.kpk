@@ -1013,7 +1013,7 @@
 
   """
   ([_x] ^true)
-  ([x y &rest more] (all (fn [n acc] (erlang.=== acc n))
+  ([x y &rest more] (all (fn [n acc] (erlang.^'=:=' acc n))
                          x
                          [y & more])))
 

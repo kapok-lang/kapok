@@ -53,6 +53,44 @@ inline(?core, 'tl', 1, 'normal') -> {erlang, tl, 1, 'normal'};
 inline(?core, 'trunc', 1, 'normal') -> {erlang, trunc, 1, 'normal'};
 inline(?core, 'tuple-size', 1, 'normal') -> {erlang, tuple_size, 1, 'normal'};
 
+%% term comparators
+inline(?core, '<', 2, 'normal') -> {erlang, '<', 2, 'normal'};
+inline(?core, '>', 2, 'normal') -> {erlang, '>', 2, 'normal'};
+inline(?core, '<=', 2, 'normal') -> {erlang, '<=', 2, 'normal'};
+inline(?core, '>=', 2, 'normal') -> {erlang, '>=', 2, 'normal'};
+inline(?core, '==', 2, 'normal') -> {erlang, '==', 2, 'normal'};
+inline(?core, '!=', 2, 'normal') -> {erlang, '/=', 2, 'normal'};
+inline(?core, '===', 2, 'normal') -> {erlang, '=:=', 2, 'normal'};
+inline(?core, '!==', 2, 'normal') -> {erlang, '=/=', 2, 'normal'};
+
+%% arithmetic operators
+%% unary +/- is handled by the parser, we just handle binary +/- here.
+inline(?core, '+', 2, 'normal') -> {erlang, '+', 2, 'normal'};
+inline(?core, '-', 2, 'normal') -> {erlang, '-', 2, 'normal'};
+inline(?core, '*', 2, 'normal') -> {erlang, '*', 2, 'normal'};
+inline(?core, '/', 2, 'normal') -> {erlang, '/', 2, 'normal'};
+inline(?core, 'div', 2, 'normal') -> {erlang, 'div', 2, 'normal'};
+inline(?core, 'rem', 2, 'normal') -> {erlang, 'rem', 2, 'normal'};
+inline(?core, 'bit-not', 1, 'normal') -> {erlang, 'bnot', 1, 'normal'};
+inline(?core, 'bnot', 1, 'normal') -> {erlang, 'bnot', 1, 'normal'};
+inline(?core, 'bit-and', 2, 'normal') -> {erlang, 'band', 2, 'normal'};
+inline(?core, 'band', 2, 'normal') -> {erlang, 'band', 2, 'normal'};
+inline(?core, 'bit-or', 2, 'normal') -> {erlang, 'bor', 2, 'normal'};
+inline(?core, 'bor', 2, 'normal') -> {erlang, 'bor', 2, 'normal'};
+inline(?core, 'bit-xor', 2, 'normal') -> {erlang, 'bxor', 2, 'normal'};
+inline(?core, 'bxor', 2, 'normal') -> {erlang, 'bxor', 2, 'normal'};
+inline(?core, 'bit-shift-left', 2, 'normal') -> {erlang, 'bsl', 2, 'normal'};
+inline(?core, 'bsl', 2, 'normal') -> {erlang, 'bsl', 2, 'normal'};
+inline(?core, 'bit-shift-right', 2, 'normal') -> {erlang, 'bsr', 2, 'normal'};
+inline(?core, 'bsr', 2, 'normal') -> {erlang, 'bsr', 2, 'normal'};
+
+%% boolean operators
+%% TODO change them to the macro versions, and remove them from the inlines
+inline(?core, 'not', 1, 'normal') -> {erlang, 'not', 1, 'normal'};
+inline(?core, 'and', 2, 'normal') -> {erlang, 'andalso', 2, 'normal'};
+inline(?core, 'or', 2, 'normal') -> {erlang, 'orelse', 2, 'normal'};
+inline(?core, 'xor', 2, 'normal') -> {erlang, 'xor', 2, 'normal'};
+
 inline(M, F, A, P) ->
   %% TODO add impl
   io:format("****** call inline, M: ~p, F: ~p, A: ~p, P: ~p~n", [M, F, A, P]),
