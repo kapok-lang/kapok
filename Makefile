@@ -9,6 +9,7 @@ REBAR    := rebar
 ERL      := erl
 ERLC     := erlc
 ESCRIPT  := escript
+KAPOKC   := kapokc
 
 
 QUIET    := @
@@ -16,10 +17,10 @@ QUIET    := @
 lib_dir                := $(CURDIR)/lib
 lib_names              := $(patsubst $(lib_dir)/%,%,$(wildcard $(lib_dir)/*))
 
-# get erlang modules in specified directory
-# $(call get-modules-in-dir,dir-name)
-define get-modules-in-dir
-  $(patsubst %.erl,%,$(notdir $(wildcard $1/*.erl)))
+# get files with specified suffix in specified directory
+# $(call get-files-in-dir,dir-name,suffix)
+define get-files-in-dir
+  $(patsubst %.$2,%,$(notdir $(wildcard $1/*.$2)))
 endef
 
 # calculate beam file from module
@@ -58,6 +59,14 @@ define erlc
   $(QUIET) $(ERLC) $(ERLC_OPTIONS) -o "$2" "$1"
 endef
 
+KAPOKC_OPTIONS    := $(ERLC_OPTIONS)
+
+# call kapokc command line
+# $(call kapokc,file,outdir)
+define kapokc
+  $(QUIET) $(KAPOKC) $(KAPOKC_OPTIONS) -o "$2" "$1"
+endef
+
 # call eunit test on specified module, using the auto-exported `test` function
 # $(call eunit-test,module)
 define eunit-test
@@ -90,19 +99,21 @@ define gen-build-vars
 
 ifeq "$(strip $1)" "kapok"
 
-$1_lib_dir             := $(lib_dir)/$1
-$1_deps_dir            := $$($1_lib_dir)/deps
-$1_src_dir             := $$($1_lib_dir)/src
-$1_test_dir            := $$($1_lib_dir)/test
-$1_beam_output_dir     := $$($1_lib_dir)/ebin
-$1_test_output_dir     := $$($1_beam_output_dir)
+lib_$1_dir             := $(lib_dir)/$1
+$1_deps_dir            := $$(lib_$1_dir)/deps
+$1_src_dir             := $$(lib_$1_dir)/src
+$1_lib_dir             := $$(lib_$1_dir)/lib
+$1_test_dir            := $$(lib_$1_dir)/test
+$1_beam_output_dir     := $$(lib_$1_dir)/ebin
 
-$1_modules             := $$(call get-modules-in-dir,$$($1_src_dir))
+$1_modules             := $$(call get-files-in-dir,$$($1_src_dir),erl)
+$1_lib_files           := $$(call get-files-in-dir,$$($1_lib_dir),kpk)
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
-$1_test_modules        := $$(call get-modules-in-dir,$$($1_test_dir))
-$1_test_beam_files     := $$(call modules-to-beams,$$($1_test_output_dir),$$($1_test_modules))
+$1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_files))
+$1_test_modules        := $$(call get-files-in-dir,$$($1_test_dir),erl)
+$1_test_beam_files     := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_test_modules))
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
-$1_other_files         := $$($1_lib_dir)/erl_crash.dump
+$1_other_files         := $$(lib_$1_dir)/erl_crash.dump
 
 else
 
@@ -119,14 +130,16 @@ define gen-build-rules
 
 ifeq "$(strip $1)" "kapok"
 
-$2$1: $($1_parser_src_file) $($1_beam_files)
+$2$1: $2$1-compiler $2$1-libs
+
+$2$1-compiler: $($1_parser_src_file) $($1_beam_files)
 
 $($1_parser_src_file): $($1_src_dir)/%.erl:  $($1_src_dir)/%.yrl
 
 $($1_parser_src_file):
 	$(call echo-build,lib,$1)
 	$(QUIET) echo "--- generate parser and build source files ---"
-	$(QUIET) cd $($1_lib_dir) && $(REBAR) compile
+	$(QUIET) cd $(lib_$1_dir) && $(REBAR) compile
 
 $($1_beam_files): $($1_beam_output_dir)/%.beam: $($1_src_dir)/%.erl
 
@@ -135,14 +148,20 @@ $($1_beam_files):
 	$(QUIET) echo "--- build source file ---"
 	$(QUIET) cd $($1_lib_dir) && $(REBAR) compile
 
+$2$1-libs: $($1_lib_beam_files)
+
+$($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
+	$(QUIET) printf "Compile '%s'\n" $$<
+	$$(call kapokc,$$<,$$(dir $$@))
+
 $3$1: build-test-$1 run-test-$1
 
-build-test-$1: $($1_test_beam_files)
+build-test-$1: $2$1 $($1_test_beam_files)
 
 $($1_test_beam_files): $($1_beam_files)
-$($1_test_output_dir)/%.beam: $($1_test_dir)/%.erl
+$($1_test_beam_files): $($1_beam_output_dir)/%.beam: $($1_test_dir)/%.erl
 	$$(call ensure-dir,$$(dir $$@))
-	$$(QUIET) printf "Compile '%s' to beam\n" $$<
+	$(QUIET) printf "Compile '%s'\n" $$<
 	$$(call erlc,$$<,$$(dir $$@))
 
 run-test-$1: $($1_test_beam_files)
