@@ -39,20 +39,17 @@ expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
   end.
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
-  %%MacroArgs = to_list(Args),
-  MacroArgs = Args,
   case kapok_compiler:get_opt(debug) of
-    true -> io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, MacroArgs]);
+    true -> io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, Args]);
     false -> ok
   end,
   Fun = fun Receiver:Name/Arity,
-  MacroResult = expand_macro_fun(Meta, Fun, Receiver, Name, MacroArgs, Env),
+  Result = expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env),
   case kapok_compiler:get_opt(debug) of
-    true -> io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, MacroResult]);
+    true -> io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, Result]);
     false -> ok
   end,
-  %% {to_ast(MacroResult), Env}.
-  {MacroResult, Env}.
+  {Result, Env}.
 
 %% find local/remote macro/function
 
@@ -370,24 +367,6 @@ remote_function(Module, Name, Arity, ParaType) ->
     {M, F, A, P} -> {M, F, A, P};
     false -> {Module, Name, Arity, ParaType}
   end.
-
-%%
-to_list(List) when is_list(List) ->
-  lists:map(fun to_list/1, List);
-to_list({Category, _Meta, Symbol}) when Category == list ->
-  to_list(Symbol);
-to_list({Category, _Meta, {Head, Tail}}) when ?is_cons_list(Category) ->
-  THead = to_list(Head),
-  TTail = to_list(Tail),
-  [THead ++ [TTail]];
-to_list(Atom) ->
-  Atom.
-
-to_ast(List) when is_list(List) ->
-  L = lists:map(fun to_ast/1, List),
-  {list, [], L};
-to_ast(Atom) ->
-  Atom.
 
 %% Helpers
 

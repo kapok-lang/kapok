@@ -154,7 +154,7 @@ $($1_beam_files):
 	$(QUIET) echo "--- build source file ---"
 	$(QUIET) cd $(lib_$1_dir) && $(REBAR) compile
 
-$2$1-libs: $($1_lib_beam_files)
+$2$1-libs: $2$1-compiler $($1_lib_beam_files)
 
 $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$(QUIET) printf "Compile '%s'\n" $$<
@@ -166,7 +166,6 @@ $3$1: build-test-$1 run-test-$1
 
 build-test-$1: $2$1 $($1_test_beam_files)
 
-$($1_test_beam_files): $($1_beam_files)
 $($1_test_beam_files): $($1_beam_output_dir)/%.beam: $($1_test_dir)/%.erl
 	$$(call ensure-dir,$$(dir $$@))
 	$(QUIET) printf "Compile '%s'\n" $$<
