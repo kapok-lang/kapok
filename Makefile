@@ -13,9 +13,13 @@ KAPOKC   := kapokc
 
 
 QUIET    := @
+# add local bin into PATH
+export PATH := $(CURDIR)/bin:$(PATH)
 
 lib_dir                := $(CURDIR)/lib
 lib_names              := $(patsubst $(lib_dir)/%,%,$(wildcard $(lib_dir)/*))
+other_files            := $(CURDIR)/erl_crash.dump
+
 
 # get files with specified suffix in specified directory
 # $(call get-files-in-dir,dir-name,suffix)
@@ -114,7 +118,6 @@ $1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_
 $1_test_modules        := $$(call get-files-in-dir,$$($1_test_dir),erl)
 $1_test_beam_files     := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_test_modules))
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
-$1_other_files         := $$(lib_$1_dir)/erl_crash.dump
 
 else
 
@@ -175,7 +178,7 @@ $(foreach m,$($1_test_modules), \
    $(eval $(call gen-run-test-rule,run-test-,$m)))
 
 $4$1:
-	$(RM) $($1_parser_src_file) $($1_beam_files) $($1_test_beam_files) $($1_other_files)
+	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) $($1_test_beam_files)
 
 else
 
@@ -198,6 +201,7 @@ all: build
 build: $(foreach l,$(lib_names),$(call gen-target,build-,$l))
 test:  $(foreach l,$(lib_names),$(call gen-target,test-,$l))
 clean: $(foreach l,$(lib_names),$(call gen-target,clean-,$l))
+	$(QUIET) $(RM) $(other_files)
 
 $(foreach l,$(lib_names),$(call gen-build-for,$l,build-,test-,clean-))
 
