@@ -6,6 +6,33 @@
 (ns kapok.core
   (require erlang lists))
 
+;; special forms
+
+(defmacro if [test then &optional else]
+  """Evaluates test. If logical true, evaluates and yields then, otherwise, evaluates and yields else.
+  If else is not supplied it defaults to nil.
+  """
+  `(case ~test
+     (^true ~then)
+     (^false ~else)))
+
+(defmacro when [test &rest body]
+  """Evaluates test. If logical true, evaluates body in an implicit do."""
+  `(case ~test
+     (^true ~@body)
+     (^false ^ok)))
+
+;; TODO unless
+(defmacro when-not [test &rest body]
+  """Evaluates test. If logical false, evaluates body in an implicit do."""
+  `(case ~test
+     (^true ^ok)
+     (^false ~@body)))
+
+(defalias unless when-not
+  """Alias to `when-not`.""")
+
+;; functions and operators
 
 (defn abs [number]
   """Returns the arithmetical absolute value of `number`.
@@ -132,7 +159,7 @@
   (erlang.hd list))
 
 (defalias head hd
-  """Alias to hd.""")
+  """Alias to `hd`.""")
 
 ;; Guard predicates
 
@@ -572,7 +599,7 @@
   (erlang.tl list))
 
 (defalias tail tl
-  """Alias to tl.""")
+  """Alias to `tl`.""")
 
 (defn trunc [number]
   """Returns an integer by truncating `number`.
@@ -715,6 +742,14 @@
   """
   (erlang.rem x y))
 
+(defn dec [n]
+  """Returns a number one less than the argument `n`."""
+  (- n 1))
+
+(defn inc [n]
+  """Returns a number one greater than the argument `n`."""
+  (+ n 1))
+
 ;; Bitwise Operators
 
 (defn bnot [x]
@@ -731,7 +766,7 @@
   (erlang.bnot x))
 
 (defalias bit-not bnot
-  """Alias to bnot.""")
+  """Alias to `bnot`.""")
 
 (defn band [x y &rest more]
   """Calculates the bitwise AND of the given arguments.
@@ -753,7 +788,7 @@
                [y & more]))
 
 (defalias bit-and band
-  """Alias to band.""")
+  """Alias to `band`.""")
 
 (defn bor [x y &rest more]
   """Calculates the bitwise OR of the given arguments.
@@ -772,7 +807,7 @@
               [y & more]))
 
 (defalias bit-or bor
-  """Alias to bor.""")
+  """Alias to `bor`.""")
 
 (defn bxor [x y &rest more]
   """Calculates the bitwise XOR of the given arguments.
@@ -791,7 +826,7 @@
               [y & more]))
 
 (defalias bit-xor bxor
-  """Alias to bxor.""")
+  """Alias to `bxor`.""")
 
 (defn bsl [x n]
   """Calculates the result of an arithmetic left bitshift.
@@ -816,7 +851,7 @@
   (erlang.bsl x n))
 
 (defalias bit-shift-left bsl
-  """Alias to bsl.""")
+  """Alias to `bsl`.""")
 
 (defn bsr [x n]
   """Calculates the result of an arithmetic right bitshift.
@@ -841,7 +876,7 @@
   (erlang.bsr x n))
 
 (defalias bit-shift-right bsr
-  """Alias to bsr.""")
+  """Alias to `bsr`.""")
 
 ;; Comparators
 
