@@ -4,9 +4,17 @@
 ;; all functions here are imported for every ns by default.
 
 (ns kapok.core
-  (require erlang lists))
+  (require erlang lists kapok-utils))
 
 ;; special forms
+
+(defmacro define [name value]
+  """Defines a macro with name `name` and return `value`."""
+  `(defmacro ~name [] (when ^true)
+     ""
+     ~value))
+
+;; the conditionals
 
 (defmacro if [test then &optional else]
   """Evaluates test. If logical true, evaluates and yields then, otherwise, evaluates and yields else.
@@ -22,7 +30,6 @@
      (^true ~@body)
      (^false ^ok)))
 
-;; TODO unless
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
   `(case ~test
@@ -31,6 +38,17 @@
 
 (defalias unless when-not
   """Alias to `when-not`.""")
+
+;; macro
+
+(defn gensym
+  """Returns a new symbol with a unique name.
+  If no prefix is supplied, the name is #:G%, where % is some unique number.
+  If a prefix string is supplied, the name is #:|prefix%|,
+  where % is some unique number.
+  """
+  ([] (kapok-utils.gensym))
+  ([prefix] (kapok-utils.gensym prefix)))
 
 ;; functions and operators
 
