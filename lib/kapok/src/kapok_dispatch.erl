@@ -16,13 +16,13 @@
 -include("kapok.hrl").
 
 default_requires() ->
-  [].
+  [{kapok_macro, kapok_macro}].
 
 default_functions() ->
   [].
 
 default_macros() ->
-  [{kapok_macro, [{append, 2, normal}, {'list*', 2, normal}]}].
+  [].
 
 %% expand helpers
 
@@ -63,20 +63,30 @@ find_local_macro(Meta, FunArity, Env) ->
   {R, Env1}.
 
 find_remote_macro(Meta, Module, FunArity, Env) ->
-  {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
-  case D of
-    {macro, {M, F, A, P}} ->
-      {{M, F, A, P}, Env1};
-    {function, _} ->
-      {false, Env1};
-    false ->
-      {D1, Env2} = find_optional_dispatch(Meta, Module, FunArity, Env1),
-      R = case D1 of
-            {macro, {M, F, A, P}} -> {M, F, A, P};
-            {function, _} -> false;
-            false -> false
-          end,
-      {R, Env2}
+  Requires = ?m(Env, requires),
+  Uses = ?m(Env, uses),
+  case orddict:find(Module, Requires) of
+    {ok, M1} ->
+      case orddict:find(M1, Uses) of
+        {ok, _} ->
+          {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
+          R = case D of
+                {macro, MFAP} -> MFAP;
+                {function, _} -> false;
+                false -> false
+              end,
+          {R, Env1};
+        error ->
+          {D, Env1} = find_optional_dispatch(Meta, Module, FunArity, Env),
+          R = case D of
+                {macro, MFAP} -> MFAP;
+                {function, _} -> false;
+                false -> false
+              end,
+          {R, Env1}
+      end;
+    error ->
+      {false, Env}
   end.
 
 find_local(FunArity, #{function := Function} = Env) ->
@@ -85,7 +95,7 @@ find_local(FunArity, #{function := Function} = Env) ->
       %% match current function definition
       {F, A, P};
     [] ->
-      %% find in uses
+      %% find in macros/functions of current namespace
       Namespace = maps:get(namespace, Env),
       Locals = kapok_namespace:namespace_locals(Namespace),
       case find_fa(FunArity, Locals) of
@@ -113,7 +123,7 @@ get_remote_function(Meta, Module, FunArity, Env) ->
        end,
   {R1, Env1}.
 
-find_remote_function(Meta, Module, FunArity, #{requires := Requires} = Env) ->
+find_remote_function(Meta, Module, FunArity, Env) ->
   Requires = ?m(Env, requires),
   Uses = ?m(Env, uses),
   case orddict:find(Module, Requires) of

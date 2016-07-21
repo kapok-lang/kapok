@@ -1,8 +1,15 @@
 -module(kapok_macro).
--export([append/2,
+-export(['__info__'/1,
+         append/2,
          'list*'/2]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
 -include("kapok.hrl").
+
+'__info__'(functions) ->
+  [];
+'__info__'(macros) ->
+  [{append, 2, 'normal'},
+   {'list*', 2, 'normal'}].
 
 append(Ast1, Ast2) ->
   case kapok_compiler:get_opt(debug) of

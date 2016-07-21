@@ -6,6 +6,59 @@
 (ns kapok.core
   (require erlang lists kapok-utils))
 
+;; list operators
+
+(defn hd [list]
+  """Returns the head of a list, that is, the first element.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (hd [1 2 3 4])
+      1
+
+  """
+  (erlang.hd list))
+
+(defalias head hd
+  """Alias to `hd`.""")
+
+(defn tl [list]
+  """Returns the tail of a list, that is, the list minus the first element.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (tl [1 2 3 ^go])
+      [2, 3, ^go]
+  """
+  (erlang.tl list))
+
+(defalias tail tl
+  """Alias to `tl`.""")
+
+;; move all these functions to protocol `seq`
+(defn- first [list]
+  (erlang.hd list))
+
+(defn- second [list]
+  (first (erlang.tl list)))
+
+(defn- next
+  ([[]] ^nil)
+  ([[_]] ^nil)
+  ([[_ & t]] t)
+  ([_] ^nil))
+
+(defn- rest
+  ([^nil] [])
+  ([[]] [])
+  ([[_]] [])
+  ([[_ & t]] t))
+
+
 ;; special forms
 
 (defmacro define [name value]
@@ -17,7 +70,8 @@
 ;; the conditionals
 
 (defmacro if [test then &optional else]
-  """Evaluates test. If logical true, evaluates and yields then, otherwise, evaluates and yields else.
+  """Evaluates test. If logical true, evaluates and yields then, otherwise,
+  evaluates and yields else.
   If else is not supplied it defaults to nil.
   """
   `(case ~test
@@ -38,6 +92,25 @@
 
 (defalias unless when-not
   """Alias to `when-not`.""")
+
+(defmacro cond
+  """Takes a set of test/expr pairs. It evaluates each test one at a time.
+  If a test returns logical true, cond evaluates and returns the value of
+  the corresponding expr and doesn't evaluate any of the other tests or exprs.
+  (cond) returns `^ok`.
+  """
+  ([&rest clauses]
+   (case clauses
+     ([] ^ok)
+     (_
+      `(if ~(first clauses)
+           ~(case (next clauses)
+              (^false
+               ;; TODO support in module delay dispatching and replace `erlang.throw` with `throw`
+               (erlang.throw "cond requires an even number of forms"))
+              (_
+               (second clauses)))
+         (cond ~@(rest (rest clauses))))))))
 
 ;; macro
 
@@ -162,22 +235,6 @@
   Inlined by the compiler.
   """
   (erlang.exit reason))
-
-(defn hd [list]
-  """Returns the head of a list, that is, the first element.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (hd [1 2 3 4])
-      1
-
-  """
-  (erlang.hd list))
-
-(defalias head hd
-  """Alias to `hd`.""")
 
 ;; Guard predicates
 
@@ -603,21 +660,6 @@
   Inlined by the compiler.
   """
   (erlang.throw term))
-
-(defn tl [list]
-  """Returns the tail of a list, that is, the list minus the first element.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (tl [1 2 3 ^go])
-      [2, 3, ^go]
-  """
-  (erlang.tl list))
-
-(defalias tail tl
-  """Alias to `tl`.""")
 
 (defn trunc [number]
   """Returns an integer by truncating `number`.
