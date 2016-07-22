@@ -39,26 +39,6 @@
 (defalias tail tl
   """Alias to `tl`.""")
 
-;; move all these functions to protocol `seq`
-(defn- first [list]
-  (erlang.hd list))
-
-(defn- second [list]
-  (first (erlang.tl list)))
-
-(defn- next
-  ([[]] ^nil)
-  ([[_]] ^nil)
-  ([[_ & t]] t)
-  ([_] ^nil))
-
-(defn- rest
-  ([^nil] [])
-  ([[]] [])
-  ([[_]] [])
-  ([[_ & t]] t))
-
-
 ;; special forms
 
 (defmacro define [name value]
@@ -69,48 +49,81 @@
 
 ;; the conditionals
 
+(defn nil?
+  """Returns `^true` if `x` is nil, `^false` otherwise."""
+  ([^nil] ^true)
+  ([[]] ^true)
+  ([^false] ^true)
+  ([_] ^false))
+
+(defn true? [x]
+  """Returns `^true` if `x` is the value true, `^false` otherwise."""
+  (erlang.not (nil? x)))
+
 (defmacro if [test then &optional else]
   """Evaluates test. If logical true, evaluates and yields then, otherwise,
   evaluates and yields else.
   If else is not supplied it defaults to nil.
   """
-  `(case ~test
+  `(case (kapok.core.true? ~test)
      (^true ~then)
      (^false ~else)))
 
 (defmacro when [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
-  `(case ~test
+  `(case (kapok.core.true? ~test)
      (^true ~@body)
      (^false ^ok)))
 
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
-  `(case ~test
+  `(case (kapok.core.true? ~test)
      (^true ^ok)
      (^false ~@body)))
 
 (defalias unless when-not
   """Alias to `when-not`.""")
 
-(defmacro cond
+;; TODO move all these functions to protocol `seq`
+(defn first [list]
+  (case (nil? list)
+    (^true ^nil)
+    (^false (head list))))
+
+(defn second [list]
+  (first (tail list)))
+
+(defn next
+  ([[]] ^nil)
+  ([[_]] ^nil)
+  ([[_ & t]] t)
+  ([_] ^nil))
+
+(defn rest
+  ([^nil] [])
+  ([[]] [])
+  ([[_]] [])
+  ([[_ & t]] t))
+
+
+(defmacro cond-1 [clauses]
   """Takes a set of test/expr pairs. It evaluates each test one at a time.
   If a test returns logical true, cond evaluates and returns the value of
   the corresponding expr and doesn't evaluate any of the other tests or exprs.
   (cond) returns `^ok`.
   """
-  ([&rest clauses]
-   (case clauses
-     ([] ^ok)
-     (_
-      `(if ~(first clauses)
-           ~(case (next clauses)
-              (^false
-               ;; TODO support in module delay dispatching and replace `erlang.throw` with `throw`
-               (erlang.throw "cond requires an even number of forms"))
-              (_
-               (second clauses)))
-         (cond ~@(rest (rest clauses))))))))
+  (kapok.core.when clauses
+    `(kapok.core.if ~(first clauses)
+              ~(case (next clauses)
+                 (^false
+                  ;; TODO support in module delay dispatching and replace `erlang.throw` with `throw`
+                  (erlang.throw "cond requires an even number of forms"))
+                 (_
+                  (second clauses)))
+       (kapok.core.cond-1 ~(rest (rest clauses))))))
+
+(defmacro cond [&rest clauses]
+  (cond-1 clauses))
 
 ;; macro
 

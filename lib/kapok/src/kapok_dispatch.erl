@@ -22,7 +22,7 @@ default_functions() ->
   [].
 
 default_macros() ->
-  [].
+  [{kapok_macro, get_optional_macros(kapok_macro)}].
 
 %% expand helpers
 
@@ -40,13 +40,13 @@ expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
   case kapok_compiler:get_opt(debug) of
-    true -> io:format("macro ~s:~s/~B args: ~p~n", [Receiver, Name, Arity, Args]);
+    true -> io:format("macro ~s:~s/~B args:~n~p~n", [Receiver, Name, Arity, Args]);
     false -> ok
   end,
   Fun = fun Receiver:Name/Arity,
   Result = expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env),
   case kapok_compiler:get_opt(debug) of
-    true -> io:format("macro ~s:~s/~B result: ~p~n", [Receiver, Name, Arity, Result]);
+    true -> io:format("macro ~s:~s/~B result:~n~p~n", [Receiver, Name, Arity, Result]);
     false -> ok
   end,
   {Result, Env}.
@@ -65,28 +65,27 @@ find_local_macro(Meta, FunArity, Env) ->
 find_remote_macro(Meta, Module, FunArity, Env) ->
   Requires = ?m(Env, requires),
   Uses = ?m(Env, uses),
-  case orddict:find(Module, Requires) of
-    {ok, M1} ->
-      case orddict:find(M1, Uses) of
-        {ok, _} ->
-          {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
-          R = case D of
-                {macro, MFAP} -> MFAP;
-                {function, _} -> false;
-                false -> false
-              end,
-          {R, Env1};
-        error ->
-          {D, Env1} = find_optional_dispatch(Meta, Module, FunArity, Env),
-          R = case D of
-                {macro, MFAP} -> MFAP;
-                {function, _} -> false;
-                false -> false
-              end,
-          {R, Env1}
-      end;
+  Module1 = case orddict:find(Module, Requires) of
+              {ok, M1} -> M1;
+              error -> Module
+            end,
+  case orddict:find(Module1, Uses) of
+    {ok, _} ->
+      {D, Env1} = find_dispatch(Meta, Module1, FunArity, Env),
+      R = case D of
+            {macro, {M, F, A, P}} -> {M, F, A, P};
+            {function, _} -> false;
+            false -> false
+          end,
+      {R, Env1};
     error ->
-      {false, Env}
+      {D, Env1} = find_optional_dispatch(Meta, Module1, FunArity, Env),
+      R = case D of
+            {macro, {M, F, A, P}} -> {M, F, A, P};
+            {function, _} -> false;
+            false -> false
+          end,
+      {R, Env1}
   end.
 
 find_local(FunArity, #{function := Function} = Env) ->
@@ -126,26 +125,25 @@ get_remote_function(Meta, Module, FunArity, Env) ->
 find_remote_function(Meta, Module, FunArity, Env) ->
   Requires = ?m(Env, requires),
   Uses = ?m(Env, uses),
-  case orddict:find(Module, Requires) of
-    {ok, M1} ->
-      case orddict:find(M1, Uses) of
-        {ok, _} ->
-          {D, Env1} = find_dispatch(Meta, Module, FunArity, Env),
-          R = case D of
-                {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
-                false -> false
-              end,
-          {R, Env1};
-        error ->
-          {D, Env1} = find_optional_dispatch(Meta, M1, FunArity, Env),
-          R = case D of
-                {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
-                false -> false
-              end,
-          {R, Env1}
-        end;
+  Module1 = case orddict:find(Module, Requires) of
+              {ok, M1} -> M1;
+              error -> Module
+            end,
+  case orddict:find(Module1, Uses) of
+    {ok, _} ->
+      {D, Env1} = find_dispatch(Meta, Module1, FunArity, Env),
+      R = case D of
+            {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
+            false -> false
+          end,
+      {R, Env1};
     error ->
-      {false, Env}
+      {D, Env1} = find_optional_dispatch(Meta, Module1, FunArity, Env),
+      R = case D of
+            {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
+            false -> false
+          end,
+      {R, Env1}
   end.
 
 find_optional_dispatch(Meta, Module, FunArity, Env) ->
