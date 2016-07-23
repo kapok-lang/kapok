@@ -1,5 +1,24 @@
 (ns kapok.record
-  """Namespace to work with records."""
+  """Namespace to work, define and import records.
+
+  Records are simply tuples where the first element is an atom:
+
+      kapok> (is_record {^user, "john", 27})
+      true
+
+  This namespace provides conveniences for working with records at
+  compilation time, where compile-time field names are used to
+  manipulate the tuples, providing fast operations on top of
+  the tuples compact structure.
+
+  In Kapok, records are used mostly in two situations:
+
+    1. to work with short, internal data
+    2. to interface with Erlang records
+
+  The macros `defrecord` and `defrecord-` can be used to create records
+  while `extract` can be used to extract records from Erlang files.
+  """
   (require (kapok.core :as core)
            erlang))
 
