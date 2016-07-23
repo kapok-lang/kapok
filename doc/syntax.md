@@ -349,7 +349,34 @@ The default valueu of `Unit` is 1 for `:integer`, `:float`, and `:bitstring` and
 
 The total size of the segement is `Size` * `Unit` bits long. A segment of type `:binary` must have a size that is evenly divisible by 8.
 
+Although there is a literal type binary string, which is implemented as binary. It's remcommended that use always use the right syntax for the corresponding type, e.g. don't use the binary syntax when a string is needed. It helps to clarify the source code.
+
 #### List and Literal List
+
+List is the essential to every Lisp dialect: the language syntax is mainly composed of lists. There are two kinds of list in Kapok, the general list and the literal list, the later is usually called list for short.
+
+```clojure
+;; a general list
+(a b c 1 2 3)
+;; a literal list
+[a b c 1 2 3]
+```
+
+Lists in Lisps are often called s-expression or sexprs -- short for symbolic expressions. The rules for the evaluation of Lisp code is simple:
+
+1. Lists (denoted by parentheses) are calls, where the first value in the list is the operator and the rest of the values are parameters.
+2. Symbols evaluate to the named value in the current scope, which can be a named local value, a function, a macro or a special form.
+3. All other expressions evaluate to the literal values they describe.
+
+The literal list means to represent the list type for data. So a literal list is treated as a literal data, just as a tuple or a map. It will not be evaluated as calls.
+
+There are a few reasons to separate the syntax of literal list from general list:
+
+1. List in Erlang has the syntax of square brackets. And we would like to keep the syntax of data list type compactible with Erlang.
+2. Square brackets are used for literal vector type in Clojure. And vector is used often in Clojure code. For instance, the parameters are put inside a vector in a function definition. We need to support defining multiple clauses for a function name, it's samilar to define function with multiple arities in Clojure, so the spuare brackets are needed for the syntax.
+3. Adding a new syntax for data list would help to clarity the code, although it would add complexity as well.
+
+So we combine the syntax of list in Erlang and the syntax of vector in Clojure, and add a literal list type to use this syntax.
 
 #### Tuple
 
