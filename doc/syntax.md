@@ -217,7 +217,24 @@ Boolean type in Kapok is the same with Erlang. There is no distinct boolean type
 :false ;=> boolean false
 ```
 
-Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Kapok, there is no `nil` and the only logically false is atom false.
+Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library function
+
+```clojure
+;; use `nil?`
+(nil? ^nil)       ;=> ^true
+(nil? [])         ;=> ^true
+(nil? ^false)     ;=> ^true
+(nil? ^abc)       ;=> ^false
+;; `true?` reverses the result of calling `nil?` 
+(true? ^nil)      ;=> ^false
+```
+
+Please notice in these occasions only the Erlang strict version booleans are allowed:
+
+```text
+guards (function, case)
+inter-operations with Erlang function which expects booleans
+```
 
 #### Comment
 
@@ -251,6 +268,86 @@ These commas are considered whitespace and striped after source code is parsed. 
 ### Containers
 
 #### Bitstring and Binary
+
+Bitstring and binary in Kapok are samilir to what in Erlang. A bitstring is a sequence of bits, and a binary is a sequence of bytes. Both bitstring and binary represent a pack of bits except the number of bits in bitstring is not exactly divisible by 8. And they share the same syntax as below:
+
+```clojure
+;; in list string
+<<#"hello">>
+;; in binary string
+<<"hello">>
+;; in integer lists
+<<(5), (10), (20)>>
+;; in bit syntax
+;; with default type specifier list
+<<(2 (:size 5)) (61 (:size 6)) (20 (:size 5))>>
+;; with specified type specifier list
+<<(2 (:size 5) :little :unsigned :integer (:unit 1))
+  (61 (:size 6) :little :unsigned :integer (:unit 1))
+  (20 (:size 5) :little :unsigned :integer (:unit 1))>>
+```
+
+The bit syntax in Kapok is similar to what it is in Erlang. It could be taken as a parenthesized version of bit syntax in Erlang.
+
+Bit syntax expressions are used to constructed binaries and bitstrings. They have the following form:
+
+```clojure
+<<>>
+<<E1, E2, ..., En>>
+```
+
+Each element Ei specifies a single segment of the binary or bitstring. Each element Ei can have one of four possible forms.
+
+```text
+Ei = (Value) |
+     (Value (:size Size)) |
+     (Value <TypeSpecifierList>) |
+     (Value (:size Size) <TypeSpecifierList>)
+```
+
+If the total number of bits in the expression is evenly divisible by 8, then this will construct a binary; otherwise, it will construct a bitstring.
+
+when you construct a binary, `Value` must be a bound variable, a literal string, or an expression that evaluates to an integer, a float, or a binary. When used in a pattern matching operation, `Value` can be a bound or unbound varibale, integer, literal string, float, or binary.
+
+`Size` must be an expression that evaluates to an integer. In pattern matching, `Size` must be an intger or a bound variable whose value is an integer. `Size` must be a bound variable, at the point in the pattern where the value is needed. The value of the `Size` can be obtained from earlier pattern matches in the binary. For example, the following:
+
+```clojure
+<<(Size (:size 4)) (Data (:size Size) :binary) ...>>
+```
+
+is a legal pattern, since the value of `Size` is unpacked from the first four bits of the binary and then used to denote the size of the next segment in the binary.
+
+The value of `Size` specifies the size of the segement. The default value depends on the type. For an integer it is 8, for a float it is 64, and for a binary it is the size of the binary. In pattern matching, this default value is valid only for the very last element. If the size of segement is not specified, a default value will be assumed.
+
+`<TypeSpecifierList>` is a list of items `End Sign Type Unit`. Any of the items can be omitted, and the items can occur in any order. If an item is omitted, then a default value for the item is used.
+
+The items in the specifer list can have the following values:
+
+```text
+End = :big | :little | :native
+```
+
+This specifies the endianess of the machine. `:native` means that the endianess will be determined at runtime to be either big-endian or little-endian, depending upon the CPU which the Erlang VM is run on. The default is `:big`, which is also known as nekwork byte order. 
+
+```text
+Sign = :signed | :unsigned
+```
+
+This parameter is used only in pattern matching. The default is unsigned.
+
+```text
+Type = :integer | :float | :binary | :bytes | :bitstring | :bits | :utf8 | :utf16 | :utf32
+```
+
+The default is `integer`. The default type does not depends on the value, even if the value is a literal. For instance, the default type in the only segment of `<<(3.14)>>` is `:integer` not `:float`.
+
+```text
+Unit = (:unit 1|2|...256)
+```
+
+The default valueu of `Unit` is 1 for `:integer`, `:float`, and `:bitstring` and is 8 for `:binary`. No value is required for types `:utf8`, `:utf16`, `:utf32`.
+
+The total size of the segement is `Size` * `Unit` bits long. A segment of type `:binary` must have a size that is evenly divisible by 8.
 
 #### List and Literal List
 
