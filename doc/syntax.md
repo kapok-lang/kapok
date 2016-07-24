@@ -380,9 +380,51 @@ So we combine the syntax of list in Erlang and the syntax of vector in Clojure, 
 
 #### Tuple
 
+A tuple in Kapok are just a tuple in Erlang, which is a single entity to group a fixed number of items. It works like anonymous struct in C and is usually used as a short, internal data. The syntax for literal tuple in Kapok is the same with Erlang as well.
+
+```clojure
+{10, 45}
+{"foo", "bar", "foobar"}
+```
+
+Please notice that curly braces are used for literal map in Clojure. We use them for tuple in Kapok.
+
+#### Record
+
+**TODO** impl record and write docs for it
+
 #### Map
 
+Maps in Kapok are just maps in Erlang, which are associative collections of key-value pairs. They are like maps(or dictionaries) in other programming languages. The syntax for literal map in Kapok is a combination of Erlang and Clojure.
+
+```erlang
+%% a map in Erlang
+#{a => 1, b => 2}
+```
+
+```clojure
+;; a map in Clojure
+{a 1 b 2}
+```
+
+```clojure
+;; a map in Kapok
+#{^a 1 ^b 2}
+```
+
+The surrounding `#{}` comes from Erlang. And the key-value pairs are matched by their positions, which is like Clojure. Also notice that `#{}` are used for literal set in Clojure.
+
+**TODO** add extract syntax for pattern matching
+
 #### Set
+
+Sets are collections of elements with no duplicate elements. In Kapok sets are implemented as `gb_sets` in Erlang. They are like sets in other programming languages. The syntax for literal map is
+
+```lisp
+%{1 2 3}
+```
+
+**TODO** add operators
 
 ### Namespace
 
