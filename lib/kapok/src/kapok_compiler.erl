@@ -94,7 +94,7 @@ eval(String, Bindings, #{line := Line, file := File} = Env)
 eval_ast(Ast, Bindings, Options) when is_list(Options) ->
   eval_ast(Ast, Bindings, kapok_env:env_for_eval(Options));
 eval_ast(Ast, Bindings, Env) ->
-  Env1 = kapok_env:add_bindings(Env, Bindings),
+  {_, Env1} = kapok_env:add_bindings(Env, Bindings),
   eval_ast(Ast, Env1).
 eval_ast(Ast, Env) ->
   {Forms, TEnv1} = ast_to_abstract_format(Ast, Env),

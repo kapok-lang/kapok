@@ -40,11 +40,18 @@ translate({Category, Meta, Atom}, Env) when Category == keyword; Category == ato
 translate({identifier, Meta, Id}, #{context := Context} = Env) ->
   %% TODO if Id is a function name
   %% search env to check whether identifier is a variable
-  NewEnv = case Context of
-             pattern -> kapok_env:add_var(Env, Id);
-             _ -> kapok_env:check_var(Meta, Env, Id)
-           end,
-  {{var, ?line(Meta), Id}, NewEnv};
+  {Name1, Env1} = case Context of
+                   pattern ->
+                     kapok_env:add_var(Meta, Env, Id);
+                   let_pattern ->
+                     kapok_env:add_let_var(Meta, Env, Id);
+                   _ ->
+                     case kapok_env:get_var(Meta, Env, Id) of
+                       {ok, Name} -> {Name, Env};
+                       error -> kapok_error:compile_error(Meta, ?m(Env, file),"unable to resolve var: ~p", [Id])
+                     end
+                 end,
+  {{var, ?line(Meta), Name1}, Env1};
 
 %% binary string
 translate({binary_string, _Meta, Binary}, Env) ->
@@ -83,14 +90,6 @@ translate({cons_list, _Meta, {Head, Tail}}, Env) ->
 
 %% special forms
 %% let
-%% TODO there is a issue when mapping `let' directly to `begin ... end' in erlang,
-%% the variable bindings are leaking into the environment of `begin ... end'.
-%% For example, this example below will fail:
-%% (let [x 1]
-%%    ......  )
-%% (let [x 2]
-%%    ......  )
-%% To fix this, we need to gensym the variable name.
 translate({list, Meta, [{identifier, _, 'let'}, {C, _, Args} | Body]}, Env) when ?is_list(C) ->
   Env1 = kapok_env:push_scope(Env),
   {TArgs, TEnv1} = translate_let_args(Args, Env1),
@@ -182,7 +181,7 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value
   translate_attribute(Meta, Attribute, Value, Env);
 
 %% Local call
-translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = Env) ->
+translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Env) ->
   %% if it's a macro, expand it
   Arity = length(Args),
   {R1, Env1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env),
@@ -195,13 +194,13 @@ translate({list, Meta, [{identifier, _, Id} = Name| Args]}, #{scope := Scope} = 
     false ->
       {EArgs, Env2} = expand_list(Args, Env1),
       %% translate ast to erlang abstract format
-      case ordsets:is_element(Id, ?m(Scope, vars)) of
-        true ->
+      case kapok_env:get_var(Meta, Env2, Id) of
+        {ok, Name} ->
           %% local variable
-          {TF, TEnv2} = translate(Name, Env2),
+          {TF, TEnv2} = translate({identifier, Meta1, Name}, Env2),
           {TArgs, TEnv3} = translate_args(EArgs, TEnv2),
           translate_local_call(Meta, TF, TArgs, TEnv3);
-        false ->
+        error ->
           {TArgs, TEnv2} = translate_args(EArgs, Env2),
           Arity1 = length(TArgs),
           FunArity = {Id, Arity1},
@@ -586,17 +585,22 @@ translate_cons_list([H | T], Acc, Tail, Env) ->
   translate_cons_list(T, [TH | Acc], Tail, TEnv).
 
 %% translate let
+
+translate_let_pattern(Arg, #{context := Context} = Env) ->
+  {TArg, TEnv} = translate(Arg, Env#{context => let_pattern}),
+  {TArg, TEnv#{context => Context}}.
+
 translate_let_args(Args, Env) ->
-  translate_let_args(Args, [], Env#{context => pattern}).
+  translate_let_args(Args, [], Env).
 translate_let_args([], Acc, Env) ->
   {lists:reverse(Acc), Env#{context => nil}};
-translate_let_args([P1, P2 | T], Acc, Env) ->
-  {TP1, TEnv} = translate(P1, Env),
-  {TP2, TEnv1} = translate(P2, TEnv),
-  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], TEnv1);
 translate_let_args([H], _Acc, Env) ->
   Error = {let_odd_forms, {H}},
-  kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Env, file), ?MODULE, Error).
+  kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Env, file), ?MODULE, Error);
+translate_let_args([P1, P2 | T], Acc, Env) ->
+  {TP1, TEnv} = translate_let_pattern(P1, Env),
+  {TP2, TEnv1} = translate(P2, TEnv),
+  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], TEnv1).
 
 to_block(Meta, Exprs) when is_list(Meta) ->
   to_block(?line(Meta), Exprs);

@@ -208,7 +208,7 @@ handle_def_expr(Kind, _Name, Ast, Env) ->
 handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} = Env) ->
   %% TODO add doc
   Namespace = ?m(Env, namespace),
-  {TF, TEnv} = kapok_translate:translate(Name, Env),
+  {TF, TEnv} = kapok_translate:translate(Name, kapok_env:push_scope(Env)),
   case parse_parameters(Args, TEnv) of
     [{normal, _, NormalArgs}] ->
       {TArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
@@ -238,7 +238,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
       {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
       ParameterType = 'key',
-      {TMapArg, TEnv3} = kapok_translate:translate_def_arg({identifier, Meta1, kapok_utils:gensym_with("M")}, TEnv2),
+      {TMapArg, TEnv3} = kapok_translate:translate_def_arg({identifier, Meta1, kapok_utils:gensym_with("KV")}, TEnv2),
       TArgs = TNormalArgs ++ [TMapArg],
       Arity = length(TArgs),
       %% retrieve and map all key values from map argument to variables
@@ -258,7 +258,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, TEnv3),
       Env5 = TEnv3
   end,
-  Env6 = kapok_env:push_scope(Env5#{function => {Name, Arity, ParameterType}}),
+  Env6 = Env5#{function => {Name, Arity, ParameterType}},
   {TGuard, TEnv7} = kapok_translate:translate_guard(Guard, Env6),
   {TBody, TEnv8} = kapok_translate:translate_body(Meta, Body, TEnv7),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},

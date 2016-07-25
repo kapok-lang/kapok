@@ -62,6 +62,6 @@ gensym(Format, Args) ->
   erlang:list_to_atom(lists:flatten(io_lib:format(Format, Args))).
 
 gensym_random() ->
-  X = erlang:phash2({erlang:node(), erlang:timestamp(), crypto:rand_bytes(16)}),
+  X = erlang:phash2({erlang:node(), erlang:timestamp(), crypto:strong_rand_bytes(16)}),
   lists:map(fun(E) -> io_lib:format("~.16B", [E]) end,
             erlang:binary_to_list(binary:encode_unsigned(X))).
