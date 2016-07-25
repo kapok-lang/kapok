@@ -98,17 +98,6 @@ translate({list, Meta, [{identifier, _, 'let'}, {C, _, Args} | Body]}, Env) when
   TEnv3 = kapok_env:pop_scope(TEnv2),
   {to_block(Meta, TArgs ++ [BodyBlock]), TEnv3};
 
-%% match
-%% TODO redefine `=' as a macro in core
-translate({list, Meta, [{identifier, _, '='}, Arg1, Arg2 | Left]}, Env) ->
-  {TArg1, TEnv} = translate_match_pattern(Arg1, Env),
-  {TArg2, TEnv1} = translate(Arg2, TEnv),
-  Result = {match, ?line(Meta), TArg1, TArg2},
-  case Left of
-    [] -> {Result, TEnv1};
-    _ -> translate_match(Meta, TArg2, Left, [Result], TEnv1)
-  end;
-
 %% do
 translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Env) ->
   {TExprs, TEnv} = translate(Exprs, Env),
@@ -606,20 +595,6 @@ to_block(Meta, Exprs) when is_list(Meta) ->
   to_block(?line(Meta), Exprs);
 to_block(Line, Exprs) when is_integer(Line) ->
   {block, Line, Exprs}.
-
-
-%% translate match
-
-translate_match_pattern(P, Env) ->
-  %% new variables are not allowed in match pattern
-  %% since `let' is the only form for defining new bindings
-  translate(P, Env).
-
-translate_match(Meta, _Last, [], Acc, Env) ->
-  {to_block(Meta, lists:reverse(Acc)), Env};
-translate_match(Meta, Last, [H|T], Acc, Env) ->
-  {TH, TEnv} = translate(H, Env),
-  translate_match(Meta, TH, T, [{match, ?line(Meta), Last, TH} | Acc], TEnv).
 
 %% special forms
 
