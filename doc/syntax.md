@@ -496,6 +496,23 @@ The `ns` special form could have `require` and `use` clauses. The `require` clau
 
 ### Binding and Pattern matching
 
+Like Clojure, the special form to define local bindings in Kapok is `let`.
+
+
+TODO add examples for local bindings
+
+And `let` supports destructing like Clojure. In Erlang, there is a similar concept of destructing, called pattern matching. There are two kinds of destructing
+
+1. Sequential destructing
+
+  Sequential destructing works with the below types: lists, tuples, bitstring, binary, binary string.
+
+2. Map destructing
+
+  Map destructing is conceptully identical to sequential destructing, except that it works only for maps.
+
+TODO add more details for destructing.
+
 ### Block expression
 
 ### Conditional
