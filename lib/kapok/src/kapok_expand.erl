@@ -1,6 +1,7 @@
 %%
 -module(kapok_expand).
 -export([macroexpand/2,
+         macroexpand_n/3,
          macroexpand_1/2]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
 -include("kapok.hrl").
@@ -8,9 +9,15 @@
 macroexpand(List, Env) when is_list(List) ->
   lists:mapfoldl(fun macroexpand/2, Env, List);
 macroexpand(Ast, Env) ->
+  {EAst, EEnv, _} = macroexpand_1(Ast, Env),
+  {EAst, EEnv}.
+
+macroexpand_n(Ast, Env, N) when N == 0 ->
+  {Ast, Env};
+macroexpand_n(Ast, Env, N) when N > 0 ->
   {EAst, EEnv, Expanded} = macroexpand_1(Ast, Env),
   case Expanded of
-    true -> macroexpand(EAst, EEnv);
+    true -> macroexpand_n(EAst, EEnv, N-1);
     false -> {EAst, EEnv}
   end.
 
@@ -33,9 +40,9 @@ macroexpand_1({list, Meta, [{identifier, _, Id} | T]} = Ast, Env) ->
     false ->
       macroexpand_list(Ast, Env)
   end;
-macroexpand_1({list, Meta, [{dot, _, {M, F}} | T]} = Ast, Env) ->
+macroexpand_1({list, Meta, [{dot, _, {Module, Fun}} | T]} = Ast, Env) ->
   Arity = length(T),
-  {R, Env1} = kapok_dispatch:find_remote_macro(Meta, M, {F, Arity}, Env),
+  {R, Env1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, Env),
   case R of
     {M, F, A, P} ->
       NewArgs = kapok_translate:construct_new_args('expand', Arity, A, P, T),
@@ -102,7 +109,7 @@ macroexpand_1({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := 
   if
     U == B ->
       {EArg, EEnv} = kapok_translate:eval(Arg, Env),
-      {{evaluated_unquote_splicing, Meta, EArg}, EEnv};
+      {{evaluated_unquote_splicing, Meta, EArg}, EEnv, true};
     U < B ->
       Context1 = Context#{unquote_level => U + 1},
       {EArg, EEnv1, Expanded} = macroexpand_1({backquote, Meta, Arg}, Env#{macro_context => Context1}),
@@ -150,7 +157,7 @@ macroexpand_list(List, Env, Transform) when is_list(List) ->
                                          List),
   {L, EEnv, Expanded}.
 
-macroexpand_quote_list(List, Env) ->
+macroexpand_quote_list(List, Env) when is_list(List) ->
   macroexpand_list(List, Env, fun(Ast) -> {quote, token_meta(Ast), Ast} end).
 
 macroexpand_backquote_list({Category, Meta, List}, Env) ->
@@ -164,13 +171,13 @@ macroexpand_backquote_list({Category, Meta, List}, Env) ->
   {Ast, Env2, Expanded}.
 
 macroexpand_backquote_list(Category, Meta, [], Atoms, Acc) ->
-  {list, Meta, [{dot, Meta, ['kapok_macro', 'list*']}, {Category, Meta, Atoms}, {Category, Meta, Acc}]};
+  {list, Meta, [{dot, Meta, {'kapok_macro', 'list*'}}, {Category, Meta, Atoms}, {Category, Meta, Acc}]};
 macroexpand_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], [], Acc) ->
-  Acc1 = [{list, Meta1, [{dot, Meta1, ['kapok_macro', 'append']}, Arg | {Category, Meta1, Acc}]}],
+  Acc1 = [{list, Meta1, [{dot, Meta1, {'kapok_macro', 'append'}}, Arg, {Category, Meta1, Acc}]}],
   macroexpand_backquote_list(Category, Meta, T, [], Acc1);
 macroexpand_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms, Acc) ->
-  Acc1 = {list, Meta1, [{dot, Meta1, ['kapok_macro', 'list*']}, {Category, Meta1, Atoms}, {Category, Meta1, Acc}]},
-  Acc2 = [{list, Meta1, [{dot, Meta1, ['kapok_macro', 'append']}, Arg | {Category, Meta1, Acc1}]}],
+  Acc1 = {list, Meta1, [{dot, Meta1, {'kapok_macro', 'list*'}}, {Category, Meta1, Atoms}, {Category, Meta1, Acc}]},
+  Acc2 = [{list, Meta1, [{dot, Meta1, {'kapok_macro', 'append'}}, Arg, {Category, Meta1, Acc1}]}],
   macroexpand_backquote_list(Category, Meta, T, [], Acc2);
 macroexpand_backquote_list(Category, Meta, [Ast|T], Atoms, Acc) ->
   macroexpand_backquote_list(Category, Meta, T, [Ast | Atoms], Acc).
