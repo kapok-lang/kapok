@@ -31,7 +31,15 @@ init([]) ->
                  2000,                         % Shutdown = brutal_kill | int() >= 0 | infinity
                  worker,                       % Type     = worker | supervisor
                  [kapok_config]                % Modules  = [Module] | dynamic
+             },
+             {
+                 kapok_symbol_table,
+                 {kapok_symbol_table, start_link, []},
+
+                 permanent,
+                 2000,
+                 worker,
+                 [kapok_symbol_table]
              }
             ],
   {ok, {{one_for_one, 5, 10}, Workers}}.
-

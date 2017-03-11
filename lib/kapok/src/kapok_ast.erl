@@ -45,11 +45,7 @@ handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Env) ->
            nil -> Env#{namespace => Name};
            NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
          end,
-  case ets:info(kapok_namespaces) of
-    undefined -> kapok_namespace:init_namespace_table();
-    _ -> ok
-  end,
-  kapok_namespace:add_namespace(Name),
+  kapok_symbol_table:add_namespace(Name),
   {_, TEnv1} = lists:mapfoldl(fun handle_namespace_clause/2, Env1, Clauses),
   TEnv1.
 
@@ -164,15 +160,15 @@ handle_def_alias(Meta, _Kind, Alias, Ast, Env) ->
 
 do_handle_def_alias(Meta, Kind, Alias, Original, Env) ->
   Namespace = ?m(Env, namespace),
-  case kapok_namespace:get_local(Namespace, Original) of
+  case kapok_symbol_table:get_local(Namespace, Original) of
     [] ->
       Error = {nonexistent_original_for_alias, {Alias, Original}},
       kapok_error:compile_error(Meta, ?m(Env, file), ?MODULE, Error);
     L ->
-      kapok_namespace:add_alias(Namespace, Alias, Original),
+      kapok_symbol_table:add_alias(Namespace, Alias, Original),
       lists:map(fun({_F, A, P}) ->
-                    kapok_namespace:add_local(Namespace, Alias, A, P),
-                    kapok_namespace:add_export(Namespace, Kind, Alias, A, P)
+                    kapok_symbol_table:add_local(Namespace, Alias, A, P),
+                    kapok_symbol_table:add_export(Namespace, Kind, Alias, A, P)
                 end,
                 L)
   end,
@@ -262,9 +258,9 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
   {TGuard, TEnv7} = kapok_translate:translate_guard(Guard, Env6),
   {TBody, TEnv8} = kapok_translate:translate_body(Meta, Body, TEnv7),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
-  kapok_namespace:add_clause(Namespace, Kind, Name, Arity, Clause),
-  kapok_namespace:add_export(Namespace, Kind, Name, Arity, ParameterType),
-  kapok_namespace:add_local(Namespace, Name, Arity, ParameterType),
+  kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity, Clause),
+  kapok_symbol_table:add_export(Namespace, Kind, Name, Arity, ParameterType),
+  kapok_symbol_table:add_local(Namespace, Name, Arity, ParameterType),
   kapok_env:pop_scope(TEnv8#{function => Function}).
 
 %% parse parameters
@@ -367,34 +363,31 @@ add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, E
   %% redirect normal call(without &rest/&key argument) to the clause with extra argument
   TArgs = TNormalArgs ++ [Extra],
   TBody = [{call, ?line(Meta), TF, TArgs}],
-  kapok_namespace:add_clause(Namespace, Kind, Name, Arity, {clause, ?line(Meta), TNormalArgs, [], TBody}),
-  kapok_namespace:add_export(Namespace, Kind, Name, Arity, 'normal'),
-  kapok_namespace:add_local(Namespace, Name, Arity, 'normal').
+  kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity, {clause, ?line(Meta), TNormalArgs, [], TBody}),
+  kapok_symbol_table:add_export(Namespace, Kind, Name, Arity, 'normal'),
+  kapok_symbol_table:add_local(Namespace, Name, Arity, 'normal').
 
 
 %% namespace
 build_namespace(Namespace, Env, Callback) ->
-  Functions = kapok_namespace:namespace_export_functions(Namespace),
-  Macros = kapok_namespace:namespace_export_macros(Namespace),
-  Defs = kapok_namespace:namespace_defs(Namespace),
-  Aliases = kapok_namespace:namespace_aliases(Namespace, Defs),
-  build_module(Namespace, Functions, Macros, Defs, Aliases, Env, Callback).
+  kapok_symbol_table:add_info_fun(Namespace, Env),
+  Exports = kapok_symbol_table:namespace_exports(Namespace),
+  Defs = kapok_symbol_table:namespace_defs(Namespace),
+  AliasesDefs = kapok_symbol_table:namespace_aliases_defs(Namespace, Defs),
+  build_module(Namespace, Exports, Defs, AliasesDefs, Env, Callback).
 
 %% module
 
-build_module(Module, Functions, Macros, Defs, Aliases, Env, Callback) ->
-  Exports = kapok_namespace:module_exports(Functions, Macros),
-  FunInfo = kapok_namespace:info_fun(Functions, Macros, Env),
+build_module(Module, Exports, Defs, AliasesDefs, Env, Callback) ->
   TranslateFun = fun({Fun, Arity}, Clauses, Acc) ->
                      [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
                  end,
   FunDefs = orddict:fold(TranslateFun, [], Defs),
-  FunAlieses = orddict:fold(TranslateFun, [], Aliases),
+  FunAlieses = orddict:fold(TranslateFun, [], AliasesDefs),
   Funs = FunDefs ++ FunAlieses,
   AttrModule = {attribute, 0, module, Module},
-  AttrExport = {attribute, 0, export, ordsets:to_list(Exports)},
-  AttrInfo = {attribute, 0, export, [{'__info__', 1}]},
-  Erl = [AttrModule, AttrExport, AttrInfo, FunInfo | Funs],
+  AttrExport = {attribute, 0, export, Exports},
+  Erl = [AttrModule, AttrExport | Funs],
   kapok_compiler:module(Erl, [], Env, Callback).
 
 %% Helpers
@@ -458,4 +451,3 @@ format_error({invalid_parameter, {P, Token}}) ->
   io_lib:format("invalid parameter ~p for ~s at line ~B", [P, token_text(Token), ?line(token_meta(Token))]);
 format_error({too_many_parameters_for_keyword, {P, Token}}) ->
   io_lib:format("too many parameters ~p for ~s", [P, token_text(Token)]).
-

@@ -96,7 +96,7 @@ find_local(FunArity, #{function := Function} = Env) ->
     [] ->
       %% find in macros/functions of current namespace
       Namespace = maps:get(namespace, Env),
-      Locals = kapok_namespace:namespace_locals(Namespace),
+      Locals = kapok_symbol_table:namespace_locals(Namespace),
       case find_fa(FunArity, Locals) of
         [{F, A, P}] -> {F, A, P};
         [] -> false
@@ -404,5 +404,3 @@ format_error({ambiguous_call, {M, F, A, FAP1, FAP2}}) ->
   io_lib:format("find function ~ts:~ts/~B duplicates in ~p and ~p", [M, F, A, FAP1, FAP2]);
 format_error({ambiguous_call, {F, A, FAP1, FAP2}}) ->
   io_lib:format("function ~ts/~B imported from both ~ts and ~ts, call in ambiguous", [F, A, FAP1, FAP2]).
-
-
