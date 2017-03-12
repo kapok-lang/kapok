@@ -23,16 +23,16 @@ start(_Type, _Args) ->
 
   %% TODO: Remove this once we support only OTP >18
   ok = case io:setopts(standard_error, [{encoding, utf8}]) of
-    ok         -> ok;
-    {error, _} -> io:setopts(standard_error, [{unicode, true}]) %% OTP 17.3 and earlier
-  end,
+         ok         -> ok;
+         {error, _} -> io:setopts(standard_error, [{unicode, true}]) %% OTP 17.3 and earlier
+       end,
 
   case file:native_name_encoding() of
     latin1 ->
       io:format(standard_error,
-        "warning: the VM is running with native name encoding of latin1 which may cause "
-        "Kapok to malfunction as it expects utf8. Please ensure your locale is set to UTF-8 "
-        "(which can be verified by running \"locale\" in your shell)~n", []);
+                "warning: the VM is running with native name encoding of latin1 which may cause "
+                "Kapok to malfunction as it expects utf8. Please ensure your locale is set to UTF-8"
+                " (which can be verified by running \"locale\" in your shell)~n", []);
     _ ->
       ok
   end,
@@ -68,4 +68,3 @@ start_cli() ->
   {ok, _} = application:ensure_all_started(?MODULE),
 
   kapok_cli:main(init:get_plain_arguments()).
-

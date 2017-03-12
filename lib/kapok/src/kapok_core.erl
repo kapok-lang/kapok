@@ -9,4 +9,3 @@ is_core_function("+") -> {erlang, '+'};
 is_core_function("*") -> {erlang, '*'};
 is_core_function("self") -> {erlang, self};
 is_core_function(_) -> false.
-

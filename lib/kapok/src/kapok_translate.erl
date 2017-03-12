@@ -41,16 +41,17 @@ translate({identifier, Meta, Id}, #{context := Context} = Env) ->
   %% TODO if Id is a function name
   %% search env to check whether identifier is a variable
   {Name1, Env1} = case Context of
-                   pattern ->
-                     kapok_env:add_var(Meta, Env, Id);
-                   let_pattern ->
-                     kapok_env:add_let_var(Meta, Env, Id);
-                   _ ->
-                     case kapok_env:get_var(Meta, Env, Id) of
-                       {ok, Name} -> {Name, Env};
-                       error -> kapok_error:compile_error(Meta, ?m(Env, file),"unable to resolve var: ~p", [Id])
-                     end
-                 end,
+                    pattern ->
+                      kapok_env:add_var(Meta, Env, Id);
+                    let_pattern ->
+                      kapok_env:add_let_var(Meta, Env, Id);
+                    _ ->
+                      case kapok_env:get_var(Meta, Env, Id) of
+                        {ok, Name} -> {Name, Env};
+                        error -> kapok_error:compile_error(Meta, ?m(Env, file),
+                                                           "unable to resolve var: ~p", [Id])
+                      end
+                  end,
   {{var, ?line(Meta), Name1}, Env1};
 
 %% binary string
@@ -114,13 +115,17 @@ translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Env) ->
 translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Env)
     when ?is_local_id(C) ->
   translate_fn(Meta, Id, Number, Env);
-translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {number, _, Number}]}, Env)
+translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {number, _, Number}]},
+          Env)
     when ?is_local_id(C1), ?is_local_id(C2) ->
   translate_fn(Meta, Id1, Id2, Number, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args,
                         {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
   translate_fn(Meta, Id, Args, Guard, Body, Env);
-translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args | Body]}, Env) ->
+translate({list,
+           Meta,
+           [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args | Body]},
+          Env) ->
   translate_fn(Meta, Id, Args, [], Body, Env);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id} | Exprs]}, Env) ->
   translate_fn(Meta, Id, Exprs, Env);
@@ -200,8 +205,11 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Env) ->
               %% check whether it's in imported functions/macros
               {R3, TEnv3} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv2),
               case R3 of
-                {M3, F3, A3, P3} -> translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TEnv3);
-                _ -> kapok_error:compile_error(Meta, ?m(TEnv3, file), "unknown local call: ~s", [FunArity])
+                {M3, F3, A3, P3} ->
+                  translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TEnv3);
+                _ ->
+                  kapok_error:compile_error(Meta, ?m(TEnv3, file), "unknown local call: ~s",
+                                            [FunArity])
               end
           end
       end
@@ -227,10 +235,12 @@ translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Env) ->
           %% call to local module
           case kapok_dispatch:find_local(FunArity, TEnv2) of
             {F2, A2, P2} -> translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TEnv2);
-            _ -> kapok_error:compile_error(Meta, ?m(TEnv2, file), "unknown remote call: ~s:~s", [Module, FunArity])
+            _ -> kapok_error:compile_error(Meta, ?m(TEnv2, file), "unknown remote call: ~s:~s",
+                                           [Module, FunArity])
           end;
         _ ->
-          {{M3, F3, A3, P3}, Env3} = kapok_dispatch:get_remote_function(Meta, Module, FunArity, TEnv2),
+          {{M3, F3, A3, P3}, Env3} = kapok_dispatch:get_remote_function(Meta, Module, FunArity,
+                                                                        TEnv2),
           translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Env3)
       end
   end;
@@ -438,17 +448,19 @@ quote(Meta, List) when is_list(List) ->
   {literal_list, Meta, lists:map(fun(X) -> quote(Meta, X) end, List)};
 %% map
 quote(Meta, Map) when is_map(Map) ->
-  {map, Meta, lists:reverse(lists:foldl(fun({K, V}, Acc) -> [quote(Meta, V), quote(Meta, K) | Acc] end,
+  {map, Meta, lists:reverse(lists:foldl(fun({K, V}, Acc) ->
+                                            [quote(Meta, V), quote(Meta, K) | Acc]
+                                        end,
                                         [],
                                         maps:to_list(Map)))}.
 
 %% translate backquote list
 translate_backquote_list({Category, Meta, List}, Env) ->
   {TL, TEnv} = lists:mapfoldl(fun(Ast, Env1) ->
-                                   translate({backquote, token_meta(Ast), Ast}, Env1)
-                               end,
-                               Env,
-                               List),
+                                  translate({backquote, token_meta(Ast), Ast}, Env1)
+                              end,
+                              Env,
+                              List),
   translate_backquote_list(Category, Meta, lists:reverse(TL), [], [], TEnv).
 translate_backquote_list(_Category, _Meta, [], [], Acc, Env) when is_tuple(Acc) ->
   {Acc, Env};
@@ -459,10 +471,12 @@ translate_backquote_list(Category, Meta, [], [], Acc, Env) when is_list(Acc) ->
   {TAst, TEnv2};
 translate_backquote_list(Category, Meta, [], Atoms, Acc, Env) ->
   'build_list*'(Category, Meta, Atoms, Acc, Env);
-translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], [], Acc, Env) ->
+translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], [], Acc,
+                         Env) ->
   {TAst, TEnv} = build_append(Category, Meta1, Arg, Acc, Env),
   translate_backquote_list(Category, Meta, T, [], TAst, TEnv);
-translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms, Acc, Env) ->
+translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms, Acc,
+                         Env) ->
   {TAst, TEnv} = 'build_list*'(Category, Meta1, Atoms, Acc, Env),
   {TAst1, TEnv1} = build_append(Category, Meta1, Arg, TAst, TEnv),
   translate_backquote_list(Category, Meta, T, [], TAst1, TEnv1);
@@ -602,7 +616,8 @@ translate_case_clause({list, Meta, []}, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {empty_case_clause});
 translate_case_clause({list, Meta, [_P]}, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {missing_case_clause_body});
-translate_case_clause({list, Meta, [P, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+translate_case_clause({list, Meta, [P, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+                      Env) ->
   translate_case_clause(Meta, P, Guard, Body, Env);
 translate_case_clause({list, Meta, [P | B]}, Env) ->
   translate_case_clause(Meta, P, [], B, Env);
@@ -698,7 +713,9 @@ translate_fn_exprs(Exprs, Env) when is_list(Exprs) ->
   check_fn_exprs(Exprs, Env),
   lists:mapfoldl(fun translate_fn_expr/2, Env, Exprs).
 
-translate_fn_expr({list, Meta, [{literal_list, _, _} = Args, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+translate_fn_expr({list, Meta, [{literal_list, _, _} = Args,
+                                {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+                  Env) ->
   translate_fn_clause(Meta, Args, Guard, Body, Env);
 translate_fn_expr({list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
   translate_fn_clause(Meta, Args, [], Body, Env);
@@ -800,7 +817,8 @@ translate_catch_clause({list, Meta, []}, Env) ->
 translate_catch_clause({list, Meta, [E]}, Env) ->
   Error = {missing_catch_clause_body, {E}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
-translate_catch_clause({list, Meta, [E, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+translate_catch_clause({list, Meta, [E, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+                       Env) ->
   translate_catch_clause(Meta, E, Guard, Body, Env);
 translate_catch_clause({list, Meta, [E | B]}, Env) ->
   translate_catch_clause(Meta, E, [], B, Env);
@@ -917,7 +935,8 @@ translate_args([], {_Keys, Acc}, {Previous, Meta, Args}, Env) ->
 
 translate_args([{keyword, Meta, _} = Token], _, {_Previous, _Meta, _Args}, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_keyword, {Token}});
-translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal, Meta1, Args}, Env) ->
+translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal, Meta1, Args},
+               Env) ->
   case ordsets:is_element(Atom, Keys) of
     true -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {duplicate_keyword, {Keyword}});
     false -> ok
@@ -927,7 +946,8 @@ translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal
   Keys1 = ordsets:add_element(Atom, Keys),
   Acc1 = [{normal, Meta1, lists:reverse(Args)} | Acc],
   translate_args(T, {Keys1, Acc1}, {keyword, Meta, [{TKeyword, TExpr}]}, TEnv1);
-translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {keyword, Meta1, Args}, Env) ->
+translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {keyword, Meta1, Args},
+               Env) ->
   case ordsets:is_element(Atom, Keys) of
     true -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {duplicate_keyword, {Keyword}});
     false -> ok
@@ -964,9 +984,12 @@ format_error({invalid_case_clause, {Ast}}) ->
 format_error({missing_case_clause_guard}) ->
   io_lib:format("case clause guard is missing");
 format_error({too_many_guards, {First, Left}}) ->
-  io_lib:format("too many arguments for when, please use and/or for guard tests or sequences: ~w, ~w", [First, Left]);
+  io_lib:format("too many arguments for when, please use and/or for "
+                "guard tests or sequences: ~w, ~w",
+                [First, Left]);
 format_error({invalid_nested_and_or_in_guard, {Parent, Id, Left}}) ->
-  io_lib:format("invalid nested and/or in guard, parent: ~p, current: ~p, args: ~w", [Parent, Id, Left]);
+  io_lib:format("invalid nested and/or in guard, parent: ~p, current: ~p, args: ~w",
+                [Parent, Id, Left]);
 format_error({not_enough_operand_in_guard, {Op, Operand}}) ->
   io_lib:format("not enough operand for ~p, given: ~w", [Op, Operand]);
 format_error({invalid_fn_expression, {Expr}}) ->
@@ -1003,4 +1026,3 @@ format_error({duplicate_keyword, {Token}}) ->
   io_lib:format("duplicate keyword ~s", [token_text(Token)]);
 format_error({missing_key_for_argument, {Token}}) ->
   io_lib:format("missing key for argument ~s", [token_text(Token)]).
-

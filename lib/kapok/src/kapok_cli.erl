@@ -247,4 +247,3 @@ exec_file(File) ->
 
 compile_file(File, Outdir) ->
   kapok_compiler:file(list_to_binary(File), Outdir).
-

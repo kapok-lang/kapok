@@ -22,7 +22,8 @@
 add_namespace(Namespace) ->
   gen_server:call(?MODULE, {add_ns, Namespace}).
 
-add_def_clause(Namespace, Kind, Fun, Arity, Clause) when Kind == 'defn'; Kind == 'defn-'; Kind == 'defmacro' ->
+add_def_clause(Namespace, Kind, Fun, Arity, Clause)
+    when Kind == 'defn'; Kind == 'defn-'; Kind == 'defmacro' ->
   gen_server:call(?MODULE, {add_def_clause, Namespace, Kind, Fun, Arity, Clause}).
 
 add_export(Namespace, Kind, Fun, Arity, ParameterType) ->
@@ -126,8 +127,10 @@ handle_call({add_info_fun, Namespace, Env}, _From, Map) ->
   {TFunctions, Env1} = kapok_translate:translate(kapok_translate:quote([], Functions), Env),
   {TMacros, Env2} = kapok_translate:translate(kapok_translate:quote([], Macros), Env1),
   Map1 = add_export(export_fun, Namespace, '__info__', 1, 'normal', Map),
-  Map2 = add_def_clause(defn, Namespace, '__info__', 1, {clause, 0, [{atom,0,'functions'}], [], [TFunctions]}, Map1),
-  Map3 = add_def_clause(defn, Namespace, '__info__', 1, {clause, 0, [{atom,0,'macros'}], [], [TMacros]}, Map2),
+  Map2 = add_def_clause(defn, Namespace, '__info__', 1,
+                        {clause, 0, [{atom,0,'functions'}], [], [TFunctions]}, Map1),
+  Map3 = add_def_clause(defn, Namespace, '__info__', 1,
+                        {clause, 0, [{atom,0,'macros'}], [], [TMacros]}, Map2),
   {reply, Env2, Map3};
 handle_call({namespace_defs, Namespace}, _From, Map) ->
   NS = maps:get(Namespace, Map),

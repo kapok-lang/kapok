@@ -13,7 +13,8 @@
 
 append(Ast1, Ast2) ->
   case kapok_compiler:get_opt(debug) of
-    true -> io:format("--- call kapok_expand:append() ---~nAst1: ~p~nAst2: ~p~n===~n", [Ast1, Ast2]);
+    true -> io:format("--- call kapok_expand:append() ---~nAst1: ~p~nAst2: ~p~n===~n",
+                      [Ast1, Ast2]);
     false -> ok
   end,
   EAst1 = expand(Ast1),
@@ -27,11 +28,15 @@ do_append(List1, {Category2, Meta2, List2})
     when ?is_list(Category2), is_list(List1), is_list(List2) ->
   {Category2, Meta2, lists:append(List1, List2)};
 do_append(Ast1, Ast2) ->
-  kapok_error:compile_error(token_meta(Ast1), <<"in macro:append()">>, "invalid arguments, (~s, ~s)", [token_text(Ast1), token_text(Ast2)]).
+  kapok_error:compile_error(token_meta(Ast1),
+                            <<"in macro:append()">>,
+                            "invalid arguments, (~s, ~s)",
+                            [token_text(Ast1), token_text(Ast2)]).
 
 'list*'(Ast1, Ast2) ->
   case kapok_compiler:get_opt(debug) of
-    true -> io:format("--- call kapok_expand:list* List ---~nAst1: ~p~nAst2: ~p~n===~n", [Ast1, Ast2]);
+    true -> io:format("--- call kapok_expand:list* List ---~nAst1: ~p~nAst2: ~p~n===~n",
+                      [Ast1, Ast2]);
     false -> ok
   end,
   EAst1 = expand(Ast1),
@@ -42,7 +47,10 @@ do_append(Ast1, Ast2) ->
     when ?is_list(Category1), is_list(List1), ?is_list(Category2), is_list(List2) ->
   {Category1, Meta1, lists:append(List1, List2)};
 'do_list*'(Ast1, Ast2) ->
-  kapok_error:compile_error(token_meta(Ast1), <<"in macro:list*()">>, "invalid arguments: (~s, ~s)", [token_text(Ast1), token_text(Ast2)]).
+  kapok_error:compile_error(token_meta(Ast1),
+                            <<"in macro:list*()">>,
+                            "invalid arguments: (~s, ~s)",
+                            [token_text(Ast1), token_text(Ast2)]).
 
 expand({list, _, [{dot, _, {Module, Fun}} | T]})
     when Module == 'kapok_macro' andalso (Fun == 'append' orelse Fun == 'list*') ->
@@ -52,6 +60,3 @@ expand({list, Meta, List}) ->
   {list, Meta, EList};
 expand(Ast) ->
   Ast.
-
-
-

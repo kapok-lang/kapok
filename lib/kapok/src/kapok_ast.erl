@@ -43,7 +43,8 @@ handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Env) ->
          end,
   Env1 = case ?m(Env, namespace) of
            nil -> Env#{namespace => Name};
-           NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {multiple_namespace, {NS, Name}})
+           NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE,
+                                        {multiple_namespace, {NS, Name}})
          end,
   kapok_symbol_table:add_namespace(Name),
   {_, TEnv1} = lists:mapfoldl(fun handle_namespace_clause/2, Env1, Clauses),
@@ -105,19 +106,27 @@ handle_use_element_arguments(Meta, Name, Args, Env) ->
   handle_use_element_arguments(Meta, Name, nil, GArgs, Env).
 handle_use_element_arguments(_Meta, Name, _, [], Env) ->
   {Name, Env};
-handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'as'}, {identifier, _, Id}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'as'}, {identifier, _, Id}} | T],
+                             Env) ->
   handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_require(Meta, Env, Id, Name));
-handle_use_element_arguments(Meta, Name, _, [{{keyword, Meta1, 'exclude'}, {_, Meta2, Args}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, _, [{{keyword, Meta1, 'exclude'}, {_, Meta2, Args}} | T],
+                             Env) ->
   Functions = parse_functions(Meta2, Args, Env),
   Env1 = kapok_env:add_use(Meta1, Env, Name, 'exclude', Functions),
   handle_use_element_arguments(Meta, Name, Meta1, T, Env1);
-handle_use_element_arguments(Meta, Name, nil, [{{keyword, Meta1, 'only'}, {_, Meta2, Args}} | T], Env) ->
+handle_use_element_arguments(Meta, Name, nil, [{{keyword, Meta1, 'only'}, {_, Meta2, Args}} | T],
+                             Env) ->
   Functions = parse_functions(Meta2, Args, Env),
   Env1 = kapok_env:add_use(Meta1, Env, Name, 'only', Functions),
   handle_use_element_arguments(Meta, Name, nil, T, Env1);
-handle_use_element_arguments(_Meta, _Name, Meta1, [{{keyword, Meta2, 'only'}, {_, _, _}} | _T], Env) ->
-  kapok_error:compile_error(Meta2, ?m(Env, file), "invalid usage of :only with :exclude present at line: ~p", [?line(Meta1)]);
-handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'rename'}, {_, _, Args}} | T], Env) ->
+handle_use_element_arguments(_Meta, _Name, Meta1, [{{keyword, Meta2, 'only'}, {_, _, _}} | _T],
+                             Env) ->
+  kapok_error:compile_error(Meta2,
+                            ?m(Env, file),
+                            "invalid usage of :only with :exclude present at line: ~p",
+                            [?line(Meta1)]);
+handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'rename'}, {_, _, Args}} | T],
+                             Env) ->
   Aliases = parse_function_aliases(Meta, Args, Env),
   NewEnv = kapok_env:add_use(Meta, Env, Name, 'rename', Aliases),
   handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv);
@@ -143,13 +152,15 @@ handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Env) when ?is_string(C) ->
 handle_def(Meta, Kind, Name, Exprs, Env) ->
   handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Env).
 
-handle_def_alias(Meta, Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Env)
+handle_def_alias(Meta, Kind, Alias,
+                 [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Env)
     when ?is_string(C) ->
   %% TODO add doc
   do_handle_def_alias(Meta, Kind, Alias, {Fun, Arity}, Env);
 handle_def_alias(Meta, Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}], Env) ->
   do_handle_def_alias(Meta, Kind, Alias, {Fun, Arity}, Env);
-handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Env) when ?is_string(C) ->
+handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Env)
+    when ?is_string(C) ->
   %% TODO add doc
   do_handle_def_alias(Meta, Kind, Alias, Fun, Env);
 handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}], Env) ->
@@ -174,11 +185,13 @@ do_handle_def_alias(Meta, Kind, Alias, Original, Env) ->
   end,
   Env.
 
-handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'} | _]} = Guard | T], Env) ->
+handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'} | _]} = Guard | T],
+                     Env) ->
   handle_def_with_args(Meta, Kind, Name, Args, Guard, T, Env);
 handle_def_with_args(Meta, Kind, Name, Args, T, Env) ->
   handle_def_with_args(Meta, Kind, Name, Args, [], T, Env).
-handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Env) when ?is_string(C) ->
+handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Env)
+    when ?is_string(C) ->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
 handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Env) ->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env).
@@ -193,7 +206,11 @@ empty_def_doc() ->
 handle_def_exprs(_Meta, Kind, Name, Exprs, Env) ->
   lists:foldl(fun (Expr, E) -> handle_def_expr(Kind, Name, Expr, E) end, Env, Exprs).
 
-handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Env) ->
+handle_def_expr(Kind,
+                Name,
+                {list, Meta, [{literal_list, _, _} = Args,
+                              {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+                Env) ->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
 handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
   handle_def_clause(Meta, Kind, Name, Args, [], Body, Env);
@@ -219,7 +236,8 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       TArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
       Arity = length(TArgs),
       PrepareBody = [],
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, TEnv2),
+      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters,
+                           TEnv2),
       Env5 = TEnv2;
     [{normal, _, NormalArgs}, {keyword_rest, _, RestArgs}] ->
       {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
@@ -234,14 +252,18 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
       {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
       ParameterType = 'key',
-      {TMapArg, TEnv3} = kapok_translate:translate_def_arg({identifier, Meta1, kapok_utils:gensym_with("KV")}, TEnv2),
+      {TMapArg, TEnv3} = kapok_translate:translate_def_arg({identifier,
+                                                            Meta1,
+                                                            kapok_utils:gensym_with("KV")},
+                                                           TEnv2),
       TArgs = TNormalArgs ++ [TMapArg],
       Arity = length(TArgs),
       %% retrieve and map all key values from map argument to variables
       {PrepareBody, TEnv4} = kapok_translate:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
       add_key_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNormalArgs, TEnv4),
       Env5 = TEnv4;
-    [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters}, {keyword_rest, RestArgs}] ->
+    [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters},
+     {keyword_rest, RestArgs}] ->
       {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
       {TOptionalParameters, TEnv2} = translate_parameter_with_default(OptionalParameters, TEnv1),
       {TRestArgs, TEnv3} = kapok_translate:translate_def_args(RestArgs, TEnv2),
@@ -251,7 +273,8 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       Arity = length(TArgs),
       PrepareBody = [],
       add_rest_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNonRestArgs, TEnv3),
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, TEnv3),
+      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters,
+                           TEnv3),
       Env5 = TEnv3
   end,
   Env6 = Env5#{function => {Name, Arity, ParameterType}},
@@ -278,7 +301,8 @@ parse_parameters([{Category, Meta} = Token], _Acc, {_Previous, _Meta, _Args}, En
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_parameter_keyword, {Token}});
 
 parse_parameters([{keyword_optional, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
-  parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_optional, Meta, []}, Env);
+  parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_optional, Meta, []},
+                   Env);
 parse_parameters([{keyword_optional, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
@@ -313,7 +337,10 @@ parse_parameters([H | _T], _Acc, {keyword_rest, Meta1, Args}, Env) when Args /= 
   Error = {too_many_parameters_for_keyword, {H, {keyword_rest, Meta1}}},
   kapok_error:form_error(token_meta(H), ?m(Env, file), ?MODULE, Error);
 
-parse_parameters([{list, _Meta, [{identifier, _, _} = Expr, Default]} | T], Acc, {keyword_key, Meta1, Args}, Env) ->
+parse_parameters([{list, _Meta, [{identifier, _, _} = Expr, Default]} | T],
+                 Acc,
+                 {keyword_key, Meta1, Args},
+                 Env) ->
   parse_parameters(T, Acc, {keyword_key, Meta1, [{Expr, Default} | Args]}, Env);
 parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_key, Meta1, Args}, Env) ->
   parse_parameters(T, Acc, {keyword_key, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Env);
@@ -340,7 +367,8 @@ translate_parameter_with_default(Parameters, Env) ->
 add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, Env) ->
   R = lists:reverse(TOptionalParameters),
   do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, R, Env).
-do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TReversedOptionalParameters, Env) ->
+do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TReversedOptionalParameters,
+                        Env) ->
   case TReversedOptionalParameters of
     [{_Expr, Default} | Left] ->
       TArgs = TNormalArgs ++ get_optional_args(lists:reverse(Left)),
@@ -363,7 +391,8 @@ add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, E
   %% redirect normal call(without &rest/&key argument) to the clause with extra argument
   TArgs = TNormalArgs ++ [Extra],
   TBody = [{call, ?line(Meta), TF, TArgs}],
-  kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity, {clause, ?line(Meta), TNormalArgs, [], TBody}),
+  kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity,
+                                    {clause, ?line(Meta), TNormalArgs, [], TBody}),
   kapok_symbol_table:add_export(Namespace, Kind, Name, Arity, 'normal'),
   kapok_symbol_table:add_local(Namespace, Name, Arity, 'normal').
 
@@ -398,28 +427,37 @@ group_arguments(_Meta, [], Acc, _Env) ->
   lists:map(fun({_, KV}) -> KV end, orddict:to_list(Acc));
 group_arguments(Meta, [{keyword, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Env) ->
   group_arguments(Meta, T, orddict:store('as', {K, V}, Acc), Env);
-group_arguments(Meta, [{keyword, _, 'only'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
+group_arguments(Meta, [{keyword, _, 'only'} = K, {C, _, _} = V | T], Acc, Env)
+    when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('only', {K, V}, Acc), Env);
-group_arguments(Meta, [{keyword, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
+group_arguments(Meta, [{keyword, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Env)
+    when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('exclude', {K, V}, Acc), Env);
-group_arguments(Meta, [{keyword, _, 'rename'} = K, {C, _, _} = V | T], Acc, Env) when ?is_list(C) ->
+group_arguments(Meta, [{keyword, _, 'rename'} = K, {C, _, _} = V | T], Acc, Env)
+    when ?is_list(C) ->
   group_arguments(Meta, T, orddict:store('rename', {K, V}, Acc), Env);
 group_arguments(Meta, Args, _Acc, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid use arguments: ~p~n", [Args]).
 
 parse_functions(Meta, Args, Env) ->
-  Fun = fun({list, _, [{identifier, _, Id}, {number, _, Integer}]}) when is_integer(Integer) -> {Id, Integer};
-           ({Category, _, Id}) when ?is_local_id(Category) -> Id;
-           (Other) -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid function: ~p", [Other])
+  Fun = fun({list, _, [{identifier, _, Id}, {number, _, Integer}]}) when is_integer(Integer) ->
+            {Id, Integer};
+           ({Category, _, Id}) when ?is_local_id(Category) ->
+            Id;
+           (Other) ->
+            kapok_error:compile_error(Meta, ?m(Env, file), "invalid function: ~p", [Other])
         end,
   ordsets:from_list(lists:map(Fun, Args)).
 
 
 parse_function_aliases(Meta, Args, Env) ->
-  Fun = fun({Category, _, [{list, _, [{identifier, _, Id}, {number, _, Integer}]}, {identifier, _, Alias}]})
+  Fun = fun({Category, _, [{list, _, [{identifier, _, Id},
+                                      {number, _, Integer}]},
+                           {identifier, _, Alias}]})
               when ?is_list(Category), is_integer(Integer) ->
             {Alias, {Id, Integer}};
-           ({Category, _, [{C1, _, Id}, {C2, _, Alias}]}) when ?is_list(Category), ?is_local_id(C1), ?is_local_id(C2) ->
+           ({Category, _, [{C1, _, Id}, {C2, _, Alias}]})
+              when ?is_list(Category), ?is_local_id(C1), ?is_local_id(C2) ->
             {Alias, Id};
            (Other) ->
             kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
@@ -432,9 +470,11 @@ format_error({invalid_expression, {Ast}}) ->
 format_error({invalid_body, {Form}}) ->
   io_lib:format("invalid body for form: ~p", [Form]);
 format_error({nonexistent_original_for_alias, {Alias, {Fun, Arity}}}) ->
-  io_lib:format("fail to define aliases ~s because original function (~s ~B) does not exist", [Alias, Fun, Arity]);
+  io_lib:format("fail to define aliases ~s because original function (~s ~B) does not exist",
+                [Alias, Fun, Arity]);
 format_error({nonexistent_original_for_alias, {Alias, Fun}}) ->
-  io_lib:format("fail to define aliases ~s because original function ~s does not exist", [Alias, Fun]);
+  io_lib:format("fail to define aliases ~s because original function ~s does not exist",
+                [Alias, Fun]);
 format_error({invalid_defalias_expression, {Alias, Ast}}) ->
   io_lib:format("invalid expression ~p to define alias ~s", [Ast, Alias]);
 format_error({multiple_namespace, {Existing, New}}) ->
@@ -448,6 +488,7 @@ format_error({invalid_postion_of_parameter_keyword, {Token, Previous}}) ->
                                                         token_text(Previous),
                                                         ?line(token_meta(Previous))]);
 format_error({invalid_parameter, {P, Token}}) ->
-  io_lib:format("invalid parameter ~p for ~s at line ~B", [P, token_text(Token), ?line(token_meta(Token))]);
+  io_lib:format("invalid parameter ~p for ~s at line ~B",
+                [P, token_text(Token), ?line(token_meta(Token))]);
 format_error({too_many_parameters_for_keyword, {P, Token}}) ->
   io_lib:format("too many parameters ~p for ~s", [P, token_text(Token)]).

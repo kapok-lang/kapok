@@ -40,16 +40,17 @@ new_env() ->
     function => nil,                       %% the current function
     context => nil,                        %% can be pattern, let_pattern, guards, or nil
     macro_context => new_macro_context(),  %%
-    requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
-    uses => [],                            %% a dict of modules used in 'module -> use arguments'
-    functions => [],                       %% a dict of imported functions(and aliases) by 'module -> [fun...]'
-    macros => [],                          %% a dict of imported macros(aliases) by 'module -> [macro...]'
-    scope => new_scope()                   %% the current scope
+    requires => [],           %% a dict of modules(and aliases) required in 'name -> original'
+    uses => [],               %% a dict of modules used in 'module -> use arguments'
+    functions => [],          %% a dict of imported functions(and aliases) by 'module -> [fun...]'
+    macros => [],             %% a dict of imported macros(aliases) by 'module -> [macro...]'
+    scope => new_scope()      %% the current scope
    }.
 
 add_require(Meta, Env, Require) when is_atom(Require) ->
   add_require(Meta, Env, Require, Require).
-add_require(Meta, #{requires := Requires} = Env, Alias, Original) when is_atom(Alias), is_atom(Original) ->
+add_require(Meta, #{requires := Requires} = Env, Alias, Original)
+    when is_atom(Alias), is_atom(Original) ->
   %% check for duplicate
   case orddict:is_key(Alias, Requires) of
     true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate require: ~p", [Alias]);
@@ -133,7 +134,8 @@ add_var(Meta, #{scope := Scope} = Env, Var, Name) ->
   end,
   Vars = maps:get(vars, Scope),
   case var_exist(Vars, Var) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "redeclare symbol: ~p, vars: ~p", [Var, Vars]);
+    true -> kapok_error:compile_error(Meta, ?m(Env, file),
+                                      "redeclare symbol: ~p, vars: ~p", [Var, Vars]);
     false -> ok
   end,
   NewVars = orddict:store(Var, Name, Vars),
@@ -164,9 +166,9 @@ env_for_eval(Opts) ->
 
 env_for_eval(Env, Opts) ->
   Namespace = case lists:keyfind(namespace, 1, Opts) of
-             {namespace, NamespaceOpt} when is_list(NamespaceOpt) -> NamespaceOpt;
-             false -> nil
-           end,
+                {namespace, NamespaceOpt} when is_list(NamespaceOpt) -> NamespaceOpt;
+                false -> nil
+              end,
 
   File = case lists:keyfind(file, 1, Opts) of
            {file, FileOpt} when is_binary(FileOpt) -> FileOpt;

@@ -54,8 +54,8 @@ string_to_ast(String, StartLine, File, Options) when is_integer(StartLine), is_b
   case kapok_scanner:scan(String, StartLine, [{file, File}|Options]) of
     {ok, Tokens, _EndLocation} ->
       try kapok_parser:parse(Tokens) of
-        {ok, Forms} -> {ok, Forms};
-        {error, {Line, _, [Error, Token]}} -> {error, {Line, to_binary(Error), to_binary(Token)}}
+          {ok, Forms} -> {ok, Forms};
+          {error, {Line, _, [Error, Token]}} -> {error, {Line, to_binary(Error), to_binary(Token)}}
       catch
         {error, {Line, _, [Error, Token]}} -> {error, {Line, to_binary(Error), to_binary(Token)}}
       end;
@@ -121,7 +121,11 @@ eval_erl(Form, Bindings, Env) ->
 
   %% Below must be all one line for locations to be the same when the stacktrace
   %% needs to be extended to the full stacktrace.
-  try erl_eval:expr(Form, Bindings) catch Class:Exception -> erlang:raise(Class, Exception, get_stacktrace()) end.
+  try
+    erl_eval:expr(Form, Bindings)
+  catch
+    Class:Exception -> erlang:raise(Class, Exception, get_stacktrace())
+  end.
 
 get_stacktrace() ->
   Stacktrace = erlang:get_stacktrace(),
@@ -132,7 +136,7 @@ get_stacktrace() ->
     throw(stack)
   catch
     throw:stack ->
-      % Ignore stack item for current function.
+      %% Ignore stack item for current function.
       [_ | CurrentStack] = erlang:get_stacktrace(),
       get_stacktrace(Stacktrace, CurrentStack)
   end.
@@ -259,4 +263,3 @@ format_warnings(Warnings) ->
                                   Each)
                 end,
                 Warnings).
-

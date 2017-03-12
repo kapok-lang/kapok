@@ -213,12 +213,18 @@ find_mfa(FunArity, List) when is_list(List) ->
 
 find_fa({Fun, Arity} = FunArity, FAList) when is_list(FAList) ->
   ordsets:fold(
-      fun({F, A} = FA, Acc) when is_number(A) andalso FA == FunArity -> [{F, A, 'normal'} | Acc];
-         ({Alias, {F, A, P}}, Acc) when (P == 'normal' orelse P == 'key'), {Alias, A} == FunArity -> [{F, A, P} | Acc];
-         ({Alias, {F, A, 'rest'}}, Acc) when (Alias == Fun) andalso (A =< Arity) -> [{F, A, 'rest'} | Acc];
-         ({F, A, P} = FAP, Acc) when (P == 'normal' orelse P == 'key'), {F, A} == FunArity -> [FAP | Acc];
-         ({F, A, 'rest'} = FAP, Acc) when (F == Fun) andalso (A =< Arity) -> [FAP | Acc];
-         (_, Acc) -> Acc
+      fun({F, A} = FA, Acc) when is_number(A) andalso FA == FunArity ->
+          [{F, A, 'normal'} | Acc];
+         ({Alias, {F, A, P}}, Acc) when (P == 'normal' orelse P == 'key'), {Alias, A} == FunArity ->
+          [{F, A, P} | Acc];
+         ({Alias, {F, A, 'rest'}}, Acc) when (Alias == Fun) andalso (A =< Arity) ->
+          [{F, A, 'rest'} | Acc];
+         ({F, A, P} = FAP, Acc) when (P == 'normal' orelse P == 'key'), {F, A} == FunArity ->
+          [FAP | Acc];
+         ({F, A, 'rest'} = FAP, Acc) when (F == Fun) andalso (A =< Arity) ->
+          [FAP | Acc];
+         (_, Acc) ->
+          Acc
       end,
       [],
       FAList).
@@ -260,7 +266,8 @@ ensure_loaded(Meta, Module, Env) ->
     {module, Module} ->
       ok;
     {error, What} ->
-      kapok_error:compile_error(Meta, ?m(Env, file), "fail to load module: ~p due to load error: ~p", [Module, What])
+      kapok_error:compile_error(Meta, ?m(Env, file),
+                                "fail to load module: ~p due to load error: ~p", [Module, What])
   end.
 
 get_optional_functions(Module) ->
@@ -293,7 +300,8 @@ get_functions(Meta, Module, Env) ->
         ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
       catch
         error:undef ->
-          kapok_error:compile_error(Meta, ?m(Env, file), "fail to get exports for unloaded module: ~p", [Module])
+          kapok_error:compile_error(Meta, ?m(Env, file),
+                                    "fail to get exports for unloaded module: ~p", [Module])
       end
   end.
 
@@ -389,7 +397,8 @@ location(Line, Env) ->
 prune_stacktrace([{M, F, A, _} | _], {M, F, A}, Info, _Env) ->
   Info;
 %% We've reached the expand/dispatch internals, skip it with the rest
-prune_stacktrace([{Mod, _, _, _} | _], _MFA, Info, _Env) when Mod == kapok_dispatch; Mod == kapok_expand ->
+prune_stacktrace([{Mod, _, _, _} | _], _MFA, Info, _Env)
+    when Mod == kapok_dispatch; Mod == kapok_expand ->
   Info;
 prune_stacktrace([H|T], MFA, Info, Env) ->
   [H|prune_stacktrace(T, MFA, Info, Env)];
@@ -403,4 +412,5 @@ format_error({invalid_expression, {Ast}}) ->
 format_error({ambiguous_call, {M, F, A, FAP1, FAP2}}) ->
   io_lib:format("find function ~ts:~ts/~B duplicates in ~p and ~p", [M, F, A, FAP1, FAP2]);
 format_error({ambiguous_call, {F, A, FAP1, FAP2}}) ->
-  io_lib:format("function ~ts/~B imported from both ~ts and ~ts, call in ambiguous", [F, A, FAP1, FAP2]).
+  io_lib:format("function ~ts/~B imported from both ~ts and ~ts, call in ambiguous",
+                [F, A, FAP1, FAP2]).

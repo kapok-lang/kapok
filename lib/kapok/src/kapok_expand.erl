@@ -97,7 +97,8 @@ macroexpand_1({backquote, _, {unquote, Meta, Arg}}, #{macro_context := Context} 
       {EArg, EEnv, true};
     U < B ->
       Context1 = Context#{unquote_level => U + 1},
-      {EArg, EEnv, Expanded} = macroexpand_1({backquote, Meta, Arg}, Env#{macro_context => Context1}),
+      {EArg, EEnv, Expanded} = macroexpand_1({backquote, Meta, Arg},
+                                             Env#{macro_context => Context1}),
       {{unquote, Meta, EArg}, EEnv#{macro_context => Context}, Expanded};
     U > B ->
       kapok_error:compile_error(Meta, ?m(Env, file), "unquote doesn't match backquote")
@@ -112,7 +113,8 @@ macroexpand_1({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := 
       {{evaluated_unquote_splicing, Meta, EArg}, EEnv, true};
     U < B ->
       Context1 = Context#{unquote_level => U + 1},
-      {EArg, EEnv1, Expanded} = macroexpand_1({backquote, Meta, Arg}, Env#{macro_context => Context1}),
+      {EArg, EEnv1, Expanded} = macroexpand_1({backquote, Meta, Arg},
+                                              Env#{macro_context => Context1}),
       {{unquote_splicing, Meta, EArg}, EEnv1#{macro_context => Context}, Expanded};
     U > B ->
       kapok_error:compile_error(Meta, ?m(Env, file), "unquote_splicing doesn't match backquote")
@@ -161,22 +163,28 @@ macroexpand_quote_list(List, Env) when is_list(List) ->
   macroexpand_list(List, Env, fun(Ast) -> {quote, token_meta(Ast), Ast} end).
 
 macroexpand_backquote_list({Category, Meta, List}, Env) ->
-  {EL, {Env2, Expanded}} = lists:mapfoldl(fun(Ast, {Env1, Expanded1}) ->
-                                              {EAst, Env2, Expanded2} = macroexpand_1({backquote, token_meta(Ast), Ast}, Env1),
-                                              {EAst, {Env2, Expanded2 orelse Expanded1}}
-                                          end,
+  F = fun(Ast, {Env1, Expanded1}) ->
+          {EAst, Env2, Expanded2} = macroexpand_1({backquote, token_meta(Ast), Ast}, Env1),
+          {EAst, {Env2, Expanded2 orelse Expanded1}}
+      end,
+  {EL, {Env2, Expanded}} = lists:mapfoldl(F,
                                           {Env, false},
                                           List),
   Ast = macroexpand_backquote_list(Category, Meta, lists:reverse(EL), [], []),
   {Ast, Env2, Expanded}.
 
 macroexpand_backquote_list(Category, Meta, [], Atoms, Acc) ->
-  {list, Meta, [{dot, Meta, {'kapok_macro', 'list*'}}, {Category, Meta, Atoms}, {Category, Meta, Acc}]};
+  {list, Meta, [{dot, Meta, {'kapok_macro', 'list*'}},
+                {Category, Meta, Atoms},
+                {Category, Meta, Acc}]};
 macroexpand_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], [], Acc) ->
   Acc1 = [{list, Meta1, [{dot, Meta1, {'kapok_macro', 'append'}}, Arg, {Category, Meta1, Acc}]}],
   macroexpand_backquote_list(Category, Meta, T, [], Acc1);
-macroexpand_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms, Acc) ->
-  Acc1 = {list, Meta1, [{dot, Meta1, {'kapok_macro', 'list*'}}, {Category, Meta1, Atoms}, {Category, Meta1, Acc}]},
+macroexpand_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms,
+                           Acc) ->
+  Acc1 = {list, Meta1, [{dot, Meta1, {'kapok_macro', 'list*'}},
+                        {Category, Meta1, Atoms},
+                        {Category, Meta1, Acc}]},
   Acc2 = [{list, Meta1, [{dot, Meta1, {'kapok_macro', 'append'}}, Arg, {Category, Meta1, Acc1}]}],
   macroexpand_backquote_list(Category, Meta, T, [], Acc2);
 macroexpand_backquote_list(Category, Meta, [Ast|T], Atoms, Acc) ->
