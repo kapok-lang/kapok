@@ -69,11 +69,7 @@ macroexpand_1({Category, Meta, Args}, Env)
   {{Category, Meta, EArgs}, EEnv, Expanded};
 
 %% macro special forms
-%% quote a list and literal list
-macroexpand_1({quote, _, {Category, Meta, List}}, Env) when ?is_list(Category) ->
-  {EList, EEnv, Expanded} = macroexpand_quote_list(List, Env),
-  {{Category, Meta, EList}, EEnv, Expanded};
-%% quote an atom
+%% quote a list and atom
 macroexpand_1({quote, _, Arg}, Env) ->
   {Arg, Env, false};
 
@@ -158,9 +154,6 @@ macroexpand_list(List, Env, Transform) when is_list(List) ->
                                          {Env, false},
                                          List),
   {L, EEnv, Expanded}.
-
-macroexpand_quote_list(List, Env) when is_list(List) ->
-  macroexpand_list(List, Env, fun(Ast) -> {quote, token_meta(Ast), Ast} end).
 
 macroexpand_backquote_list({Category, Meta, List}, Env) ->
   F = fun(Ast, {Env1, Expanded1}) ->
