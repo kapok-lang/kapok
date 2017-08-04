@@ -47,12 +47,12 @@ handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Env) ->
                                         {multiple_namespace, {NS, Name}})
          end,
   kapok_symbol_table:add_namespace(Name),
-  {_, TEnv1} = lists:mapfoldl(fun handle_namespace_clause/2, Env1, Clauses),
+  {_, TEnv1} = lists:mapfoldl(fun handle_ns_clause/2, Env1, Clauses),
   TEnv1.
 
-handle_namespace_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
+handle_ns_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
   handle_require_clause(T, Env);
-handle_namespace_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
+handle_ns_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
   handle_use_clause(T, Env).
 
 %% require

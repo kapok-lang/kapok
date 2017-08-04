@@ -69,12 +69,11 @@ raise(Meta, File, Kind, Message) when is_list(Meta), is_binary(File), is_binary(
 raise(Line, File, Kind, Message) when is_integer(Line), is_binary(File), is_binary(Message) ->
   io:format("~p, file: ~p, line: ~p, ~s\n\n", [Kind, File, Line, Message]),
   %% reset stacktrace
-  try
+  Stacktrace = try
     throw(ok)
   catch
-    ok -> ok
+    ok -> erlang:get_stacktrace()
   end,
-  Stacktrace = erlang:get_stacktrace(),
   Exception = {Kind, File, Line, Message},
   erlang:raise(error, Exception, tl(Stacktrace)).
 
