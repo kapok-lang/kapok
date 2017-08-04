@@ -85,7 +85,7 @@ at_exit(Res) ->
 print_error(Kind, Reason, Stacktrace) ->
   io:format(standard_error, "~w: ~p~n~p~n", [Kind, Reason, Stacktrace]).
 
-%% try to parse the shared option, if there is no mroe shared option then invoke Callback.
+%% try to parse the shared option, if there is no more shared option then invoke Callback.
 shared_option(List, Config, Callback) ->
   case parse_shared_args(List, #{errors := Errors} = Config) of
     {[H|T], _} when H == hd(List) ->
