@@ -114,8 +114,9 @@ expand_list(List, Env) when is_list(List) ->
 %% List building after evaluating macros.
 
 append(Ast1, Ast2) ->
-  EAst1 = build(Ast1),
-  EAst2 = build(Ast2),
+  Env = kapok_env:env_for_eval([{line, ?LINE}, {file, kapok_utils:to_binary(?FILE)}]),
+  {EAst1, _} = expand(Ast1, Env),
+  {EAst2, _} = expand(Ast2, Env),
   RAst = do_append(EAst1, EAst2),
   case kapok_compiler:get_opt(debug) of
     true -> io:format("--- call kapok_macro:append() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
@@ -137,8 +138,9 @@ do_append(Ast1, Ast2) ->
                             [token_text(Ast1), token_text(Ast2)]).
 
 'list*'(Ast1, Ast2) ->
-  EAst1 = build(Ast1),
-  EAst2 = build(Ast2),
+  Env = kapok_env:env_for_eval([{line, ?LINE}, {file, kapok_utils:to_binary(?FILE)}]),
+  {EAst1, _} = expand(Ast1, Env),
+  {EAst2, _} = expand(Ast2, Env),
   RAst = 'do_list*'(EAst1, EAst2),
   case kapok_compiler:get_opt(debug) of
     true -> io:format("--- call kapok_macro:list*() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
@@ -155,12 +157,3 @@ do_append(Ast1, Ast2) ->
                             <<"in macro:list*()">>,
                             "invalid arguments: (~s, ~s)",
                             [token_text(Ast1), token_text(Ast2)]).
-
-build({list, _, [{dot, _, {Module, Fun}} | T]})
-    when Module == 'kapok_macro' andalso (Fun == 'append' orelse Fun == 'list*') ->
-  erlang:apply(Module, Fun, T);
-build({list, Meta, List}) ->
-  EList = lists:map(fun build/1, List),
-  {list, Meta, EList};
-build(Ast) ->
-  Ast.
