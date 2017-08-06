@@ -75,7 +75,7 @@ string_to_ast(String, StartLine, File, Options) when is_integer(StartLine), is_b
 
 %% Converts AST to erlang abstract format
 ast_to_abstract_format(Ast, Env) ->
-  kapok_translate:translate(Ast, Env).
+  kapok_trans:translate(Ast, Env).
 
 %% Evaluation
 

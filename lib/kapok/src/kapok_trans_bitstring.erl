@@ -14,7 +14,7 @@ translate(Meta, {Category, Meta1, Arg}, Env) when ?is_string(Category) ->
    Env};
 
 translate(Meta, Args, Env) when is_list(Args) ->
-  build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env).
+  build_bitstring(fun kapok_trans:translate/2, Args, Meta, Env).
 
 build_bitstring(Fun, Args, Meta, Env) ->
   {Result, TEnv} = build_bitstring_element(Fun, Args, Meta, Env, []),

@@ -18,7 +18,7 @@ handle({list, Meta, [{identifier, _, 'ns'} | T]}, Env) ->
 handle({list, Meta, [{identifier, _, Id} | T]}, Env) when ?is_def(Id) ->
   handle_def(Meta, Id, T, Env);
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Env) when ?is_attr(Id) ->
-  {TAttr, TEnv} = kapok_translate:translate(Ast, Env),
+  {TAttr, TEnv} = kapok_trans:translate(Ast, Env),
   Namespace = ?m(Env, namespace),
   kapok_namesace:add_form(Namespace, TAttr),
   TEnv;
@@ -220,16 +220,16 @@ handle_def_expr(Kind, _Name, Ast, Env) ->
 handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} = Env) ->
   %% TODO add doc
   Namespace = ?m(Env, namespace),
-  {TF, TEnv} = kapok_translate:translate(Name, kapok_env:push_scope(Env)),
+  {TF, TEnv} = kapok_trans:translate(Name, kapok_env:push_scope(Env)),
   case parse_parameters(Args, TEnv) of
     [{normal, _, NormalArgs}] ->
-      {TArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
+      {TArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       ParameterType = 'normal',
       Arity = length(TArgs),
       PrepareBody = [],
       Env5 = TEnv1;
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters}] ->
-      {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
+      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       {TOptionalParameters, TEnv2} = translate_parameter_with_default(OptionalParameters, TEnv1),
       ParameterType = 'normal',
       TArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
@@ -239,8 +239,8 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
                            TEnv2),
       Env5 = TEnv2;
     [{normal, _, NormalArgs}, {keyword_rest, _, RestArgs}] ->
-      {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
-      {TRestArgs, TEnv2} = kapok_translate:translate_def_args(RestArgs, TEnv1),
+      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
+      {TRestArgs, TEnv2} = kapok_trans:translate_def_args(RestArgs, TEnv1),
       ParameterType = 'rest',
       TArgs = TNormalArgs ++ TRestArgs,
       Arity = length(TArgs),
@@ -248,24 +248,24 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       add_rest_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNormalArgs, TEnv2),
       Env5 = TEnv2;
     [{normal, _, NormalArgs}, {keyword_key, Meta1, KeyParameters}] ->
-      {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
+      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
       ParameterType = 'key',
-      {TMapArg, TEnv3} = kapok_translate:translate_def_arg({identifier,
+      {TMapArg, TEnv3} = kapok_trans:translate_def_arg({identifier,
                                                             Meta1,
                                                             kapok_utils:gensym_with("KV")},
                                                            TEnv2),
       TArgs = TNormalArgs ++ [TMapArg],
       Arity = length(TArgs),
       %% retrieve and map all key values from map argument to variables
-      {PrepareBody, TEnv4} = kapok_translate:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
+      {PrepareBody, TEnv4} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
       add_key_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNormalArgs, TEnv4),
       Env5 = TEnv4;
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters},
      {keyword_rest, RestArgs}] ->
-      {TNormalArgs, TEnv1} = kapok_translate:translate_def_args(NormalArgs, TEnv),
+      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       {TOptionalParameters, TEnv2} = translate_parameter_with_default(OptionalParameters, TEnv1),
-      {TRestArgs, TEnv3} = kapok_translate:translate_def_args(RestArgs, TEnv2),
+      {TRestArgs, TEnv3} = kapok_trans:translate_def_args(RestArgs, TEnv2),
       ParameterType = 'rest',
       TNonRestArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
       TArgs = TNonRestArgs ++ TRestArgs,
@@ -277,8 +277,8 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       Env5 = TEnv3
   end,
   Env6 = Env5#{function => {Name, Arity, ParameterType}},
-  {TGuard, TEnv7} = kapok_translate:translate_guard(Guard, Env6),
-  {TBody, TEnv8} = kapok_translate:translate_body(Meta, Body, TEnv7),
+  {TGuard, TEnv7} = kapok_trans:translate_guard(Guard, Env6),
+  {TBody, TEnv8} = kapok_trans:translate_body(Meta, Body, TEnv7),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
   kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity, Clause),
   kapok_symbol_table:add_export(Namespace, Kind, Name, Arity, ParameterType),
@@ -355,8 +355,8 @@ get_optional_args(OptionalParameters) ->
 
 translate_parameter_with_default(Parameters, Env) ->
   {L, TEnv} = lists:foldl(fun({Expr, Default}, {Acc, E}) ->
-                              {TExpr, E1} = kapok_translate:translate_def_arg(Expr, E),
-                              {TDefault, E2} = kapok_translate:translate_def_arg(Default, E1),
+                              {TExpr, E1} = kapok_trans:translate_def_arg(Expr, E),
+                              {TDefault, E2} = kapok_trans:translate_def_arg(Default, E1),
                               {[{TExpr, TDefault} | Acc], E2}
                           end,
                           {[], Env},
@@ -379,11 +379,11 @@ do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TReversedO
   end.
 
 add_rest_clause(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, Env) ->
-  {TListArgs, _} = kapok_translate:translate({literal_list, [], []}, Env),
+  {TListArgs, _} = kapok_trans:translate({literal_list, [], []}, Env),
   add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, TListArgs).
 
 add_key_clause(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, Env) ->
-  {TMapArg, _} = kapok_translate:translate({map, [], []}, Env),
+  {TMapArg, _} = kapok_trans:translate({map, [], []}, Env),
   add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, TMapArg).
 
 add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, Extra) ->

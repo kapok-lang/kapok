@@ -1,5 +1,5 @@
 %% Translate Kapok AST to Erlang Abstract Format.
--module(kapok_translate).
+-module(kapok_trans).
 -export([translate/2,
          translate_def_arg/2,
          translate_def_args/2,
@@ -182,7 +182,7 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Env) ->
   case R1 of
     {M1, F1, A1, P1} ->
       %% the same as macroexpand({list, ...}, Env1)
-      NewArgs = kapok_translate:construct_new_args('expand', Arity, A1, P1, Args),
+      NewArgs = kapok_trans:construct_new_args('expand', Arity, A1, P1, Args),
       {EAst, EEnv2} = kapok_dispatch:expand_macro_named(Meta, M1, F1, A1, NewArgs, Env1),
       translate(EAst, EEnv2);
     false ->
@@ -221,7 +221,7 @@ translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Env) ->
   case R1 of
     {M1, F1, A1, P1} ->
       %% the same as macroexpand({list, ...}, Env1)
-      NewArgs = kapok_translate:construct_new_args('expand', Arity, A1, P1, Args),
+      NewArgs = kapok_trans:construct_new_args('expand', Arity, A1, P1, Args),
       {EAst, EEnv2} = kapok_dispatch:expand_macro_named(Meta, M1, F1, A1, NewArgs, Env1),
       translate(EAst, EEnv2);
     false ->
@@ -544,8 +544,8 @@ build_map_field(_Meta, _FieldType, [], Acc, Env) ->
 build_map_field(Meta, _FieldType, [H], _Acc, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "unpaired values in map ~p", [H]);
 build_map_field(Meta, FieldType, [K, V | Left], Acc, Env) ->
-  {TK, TEnv} = kapok_translate:translate(K, Env),
-  {TV, TEnv1} = kapok_translate:translate(V, TEnv),
+  {TK, TEnv} = kapok_trans:translate(K, Env),
+  {TV, TEnv1} = kapok_trans:translate(V, TEnv),
   Field = {FieldType, ?line(kapok_scanner:token_meta(K)), TK, TV},
   build_map_field(Meta, FieldType, Left, [Field | Acc], TEnv1).
 
