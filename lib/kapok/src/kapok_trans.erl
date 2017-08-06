@@ -475,21 +475,18 @@ translate_backquote_list(Category, Meta, [], [], Acc, Env) when is_list(Acc) ->
   {TMeta, TEnv2} = translate(quote(Meta, Meta), TEnv1),
   TAst = build_tuple(Meta, [TC, TMeta, build_list(Acc)]),
   {TAst, TEnv2};
-translate_backquote_list(Category, Meta, [], Atoms, Acc, Env) ->
-  'build_list*'(Category, Meta, Atoms, Acc, Env);
-translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], [], Acc,
-                         Env) ->
-  {TAst, TEnv} = build_append(Category, Meta1, Arg, Acc, Env),
-  translate_backquote_list(Category, Meta, T, [], TAst, TEnv);
-translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms, Acc,
-                         Env) ->
-  {TAst, TEnv} = 'build_list*'(Category, Meta1, Atoms, Acc, Env),
-  {TAst1, TEnv1} = build_append(Category, Meta1, Arg, TAst, TEnv),
+translate_backquote_list(Category, Meta, [], Atoms, Acc, Env) when is_tuple(Acc) ->
+  'build_macro_list*'(Category, Meta, Atoms, Acc, Env);
+translate_backquote_list(Category, Meta, [], Atoms, Acc, Env) when is_list(Acc) ->
+  translate_backquote_list(Category, Meta, [], [], lists:append(Atoms, Acc), Env);
+translate_backquote_list(Category, Meta, [{evaluated_unquote_splicing, Meta1, Arg}|T], Atoms, Acc, Env) ->
+  {TAst, TEnv} = translate_backquote_list(Category, Meta, [], Atoms, Acc, Env),
+  {TAst1, TEnv1} = build_macro_append(Meta1, Arg, TAst, TEnv),
   translate_backquote_list(Category, Meta, T, [], TAst1, TEnv1);
 translate_backquote_list(Category, Meta, [H|T], Atoms, Acc, Env) ->
   translate_backquote_list(Category, Meta, T, [H|Atoms], Acc, Env).
 
-'build_list*'(Category, Meta, Atoms, Tail, Env) ->
+'build_macro_list*'(Category, Meta, Atoms, Tail, Env) when is_tuple(Tail) ->
   {TC, TEnv} = translate({atom, Meta, Category}, Env),
   {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
   {TListC, TEnv2} = translate({atom, Meta, 'list'}, TEnv1),
@@ -498,27 +495,18 @@ translate_backquote_list(Category, Meta, [H|T], Atoms, Acc, Env) ->
   {TF, TEnv5} = translate({atom, Meta, 'list*'}, TEnv4),
   TListDot = build_tuple(Meta, [TDot, TMeta, build_tuple(Meta, [TM, TF])]),
   TAtoms = build_tuple(Meta, [TC, TMeta, build_list(Atoms)]),
-  TTail = case Tail of
-            _ when is_tuple(Tail) -> Tail;
-            _ when is_list(Tail) -> build_tuple(Meta, [TC, TMeta, build_list(Tail)])
-          end,
-  TAst = build_tuple(Meta, [TListC, TMeta, build_list([TListDot, TAtoms, TTail])]),
+  TAst = build_tuple(Meta, [TListC, TMeta, build_list([TListDot, TAtoms, Tail])]),
   {TAst, TEnv5}.
 
-build_append(Category, Meta, THead, Tail, Env) ->
+build_macro_append(Meta, THead, Tail, Env) ->
   {TListC, TEnv} = translate({atom, Meta, 'list'}, Env),
   {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
   {TDot, TEnv2} = translate({atom, Meta, 'dot'}, TEnv1),
   {TM, TEnv3} = translate({atom, Meta, 'kapok_macro'}, TEnv2),
   {TF, TEnv4} = translate({atom, Meta, 'append'}, TEnv3),
   TAppend = build_tuple(Meta, [TDot, TMeta, build_tuple(Meta, [TM, TF])]),
-  {TC, TEnv5} = translate({atom, Meta, Category}, TEnv4),
-  TTail = case Tail of
-            _ when is_tuple(Tail) -> Tail;
-            _ when is_list(Tail) -> build_tuple(Meta, [TC, TMeta, build_list(Tail)])
-          end,
-  TAst = build_tuple(Meta, [TListC, TMeta, build_list([TAppend, THead, TTail])]),
-  {TAst, TEnv5}.
+  TAst = build_tuple(Meta, [TListC, TMeta, build_list([TAppend, THead, Tail])]),
+  {TAst, TEnv4}.
 
 %% translate map
 build_map(Meta, TranslatedPairs) ->

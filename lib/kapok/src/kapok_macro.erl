@@ -19,8 +19,11 @@
 expand(List, Env) when is_list(List) ->
   lists:mapfoldl(fun expand/2, Env, List);
 expand(Ast, Env) ->
-  {EAst, EEnv, _} = expand_1(Ast, Env),
-  {EAst, EEnv}.
+  {EAst, EEnv, Expanded} = expand_1(Ast, Env),
+  case Expanded of
+    true -> expand(EAst, EEnv);
+    false -> {EAst, EEnv}
+  end.
 
 expand_n(Ast, Env, N) when N == 0 ->
   {Ast, Env};
@@ -111,14 +114,15 @@ expand_list(List, Env) when is_list(List) ->
 %% List building after evaluating macros.
 
 append(Ast1, Ast2) ->
-  case kapok_compiler:get_opt(debug) of
-    true -> io:format("--- call kapok_macro:append() ---~nAst1: ~p~nAst2: ~p~n===~n",
-                      [Ast1, Ast2]);
-    false -> ok
-  end,
   EAst1 = build(Ast1),
   EAst2 = build(Ast2),
-  do_append(EAst1, EAst2).
+  RAst = do_append(EAst1, EAst2),
+  case kapok_compiler:get_opt(debug) of
+    true -> io:format("--- call kapok_macro:append() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
+                      [Ast1, Ast2, RAst]);
+    false -> ok
+  end,
+  RAst.
 
 do_append({Category1, Meta1, List1}, {Category2, _, List2})
     when ?is_list(Category1), ?is_list(Category2), is_list(List1), is_list(List2) ->
@@ -133,14 +137,15 @@ do_append(Ast1, Ast2) ->
                             [token_text(Ast1), token_text(Ast2)]).
 
 'list*'(Ast1, Ast2) ->
-  case kapok_compiler:get_opt(debug) of
-    true -> io:format("--- call kapok_macro:list* List ---~nAst1: ~p~nAst2: ~p~n===~n",
-                      [Ast1, Ast2]);
-    false -> ok
-  end,
   EAst1 = build(Ast1),
   EAst2 = build(Ast2),
-  'do_list*'(EAst1, EAst2).
+  RAst = 'do_list*'(EAst1, EAst2),
+  case kapok_compiler:get_opt(debug) of
+    true -> io:format("--- call kapok_macro:list*() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
+                      [Ast1, Ast2, RAst]);
+    false -> ok
+  end,
+  RAst.
 
 'do_list*'({Category1, Meta1, List1}, {Category2, _Meta2, List2})
     when ?is_list(Category1), is_list(List1), ?is_list(Category2), is_list(List2) ->
