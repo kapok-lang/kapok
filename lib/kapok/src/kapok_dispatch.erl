@@ -398,7 +398,7 @@ prune_stacktrace([{M, F, A, _} | _], {M, F, A}, Info, _Env) ->
   Info;
 %% We've reached the expand/dispatch internals, skip it with the rest
 prune_stacktrace([{Mod, _, _, _} | _], _MFA, Info, _Env)
-    when Mod == kapok_dispatch; Mod == kapok_expand ->
+    when Mod == kapok_dispatch; Mod == kapok_macro ->
   Info;
 prune_stacktrace([H|T], MFA, Info, Env) ->
   [H|prune_stacktrace(T, MFA, Info, Env)];

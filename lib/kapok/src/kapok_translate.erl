@@ -413,7 +413,7 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 %% Helpers
 
 expand_list(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun kapok_expand:macroexpand/2, Env, List).
+  lists:mapfoldl(fun kapok_macro:expand/2, Env, List).
 
 eval({list, Meta, [{identifier, _, Id} | Args]} = Ast, Env) ->
   Arity = length(Args),

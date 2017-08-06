@@ -10,7 +10,7 @@ compile(Ast, Env, Callback) when is_list(Ast) ->
   build_namespace(?m(TEnv, namespace), TEnv, Callback).
 
 compile(Ast, Env) ->
-  {EAst, EEnv} = kapok_expand:macroexpand(Ast, Env),
+  {EAst, EEnv} = kapok_macro:expand(Ast, Env),
   handle(EAst, EEnv).
 
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Env) ->
