@@ -141,8 +141,7 @@ handle_def(Meta, Kind, _T, Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {Kind}}).
 
 handle_def(Meta, Kind, Name, T, Env) when ?is_def_alias(Kind) ->
-  {ET, EEnv} = kapok_expand:macroexpand(T, Env),
-  handle_def_alias(Meta, Kind, Name, ET, EEnv);
+  handle_def_alias(Meta, Kind, Name, T, Env);
 handle_def(Meta, Kind, _Name, [], Env) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {Kind}});
 handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Env) ->

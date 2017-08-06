@@ -254,11 +254,17 @@ translate({list, Meta, [_H | _T]} = Ast, Env) ->
 translate({list, _Meta, []}, Env) ->
   translate_list([], Env);
 
-%% translate quote
+%% quote
 translate({quote, Meta, Arg}, Env) ->
   %% TODO add unquote/unquote_splicing backquote pair checking
   translate(quote(Meta, Arg), Env);
-%% TODO similar code to `kapok_expand:macroexpand_1', merge them?
+
+%% backquote
+%% The backquote is pushed down into the containers(list, cons-list, map, etc.) elements.
+%% and then translated. We don't simply use backquote_level/unquote_level in macro_context
+%% to indicate backquote/unquote environment in order to avoid always checking
+%% backquote_level/unquote_level in other translate clauses for translating other types.
+
 %% backquote a quote expression
 translate({backquote, _, {quote, Meta, Arg}}, Env) ->
   {TC, TEnv} = translate({atom, Meta, 'quote'}, Env),
@@ -309,11 +315,11 @@ translate({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := Cont
       kapok_error:compile_error(Meta, ?m(Env, file), "unquote_splicing doesn't match backquote")
   end;
 %% backquote a list
-translate({backquote, _, {Category, _, _} = Ast}, Env) when ?is_list(Category) ->
-  translate_backquote_list(Ast, Env);
+translate({backquote, _, {Category, _, _} = Arg}, Env) when ?is_list(Category) ->
+  translate_backquote_list(Arg, Env);
 %% backquote a cons list
-translate({backquote, _, {cons_list, Meta, {Head, Tail}}}, Env) ->
-  {TC, TEnv} = translate({atom, Meta, cons_list}, Env),
+translate({backquote, _, {Category, Meta, {Head, Tail}}}, Env) when ?is_cons_list(Category) ->
+  {TC, TEnv} = translate({atom, Meta, Category}, Env),
   {TMeta, TEnv1} = translate(quote(Meta, Meta), TEnv),
   {THead, TEnv2} = translate_list(Head, TEnv1),
   {TTail, TEnv3} = translate({backquote, token_meta(Tail), Tail}, TEnv2),
@@ -329,7 +335,7 @@ translate({backquote, _, {Category, Meta, Args}}, Env)
   L = lists:map(fun(X) -> {backquote, token_meta(X), X} end, Args),
   {TArgs, TEnv2} = translate(L, TEnv1),
   {{tuple, ?line(Meta), [TC, TMeta, TArgs]}, TEnv2};
-%% backquote a atom
+%% backquote a non-container type, e.g. an atom.
 translate({backquote, Meta, Arg}, Env) ->
   translate({quote, Meta, Arg}, Env);
 
