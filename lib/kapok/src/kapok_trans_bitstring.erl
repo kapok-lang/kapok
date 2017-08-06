@@ -1,5 +1,5 @@
 %% bitstring
--module(kapok_bitstring).
+-module(kapok_trans_bitstring).
 -export([translate/3]).
 -include("kapok.hrl").
 

@@ -66,7 +66,7 @@ translate({list_string, Meta, Binary}, Env) ->
 
 %% bitstring
 translate({bitstring, Meta, Arg}, Env) ->
-  kapok_bitstring:translate(Meta, Arg, Env);
+  kapok_trans_bitstring:translate(Meta, Arg, Env);
 
 %% tuple
 translate({tuple, Meta, Arg}, Env) ->
