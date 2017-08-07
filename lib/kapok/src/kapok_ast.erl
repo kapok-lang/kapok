@@ -20,7 +20,7 @@ handle({list, Meta, [{identifier, _, Id} | T]}, Env) when ?is_def(Id) ->
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Env) when ?is_attr(Id) ->
   {TAttr, TEnv} = kapok_trans:translate(Ast, Env),
   Namespace = ?m(Env, namespace),
-  kapok_namesace:add_form(Namespace, TAttr),
+  kapok_symbol_table:add_form(Namespace, TAttr),
   TEnv;
 handle(Ast, Env) ->
   kapok_error:form_error(token_meta(Ast), ?m(Env, file), ?MODULE, {invalid_expression, {Ast}}).
@@ -191,6 +191,7 @@ handle_def_with_args(Meta, Kind, Name, Args, T, Env) ->
   handle_def_with_args(Meta, Kind, Name, Args, [], T, Env).
 handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Env)
     when ?is_string(C) ->
+  %% TODO add doc
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
 handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Env) ->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env).

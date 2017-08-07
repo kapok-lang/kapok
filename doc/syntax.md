@@ -258,7 +258,7 @@ Because spaces are enough to separate them. If you feel like adding commas, you 
   (+, x, y))
 ```
 
-These commas are considered whitespace and striped after source code is parsed. Whether to use commas or not is entirely a quoestion of persoonal style and preference. They could be used when doing so will enhance the human readability of the code. It is most common in cases where pairs of values are listed, but more the one pair appears per line:
+These commas are considered whitespace and striped after source code is parsed. Whether to use commas or not is entirely a question of personal style and preference. They could be used when doing so will enhance the human readability of the code. It is most common in cases where pairs of values are listed, but more the one pair appears per line:
 
 ```clojure
 ;; a literal map constructed by two keyword-value pairs in one line
