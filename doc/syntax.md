@@ -333,13 +333,13 @@ This specifies the endianess of the machine. `:native` means that the endianess 
 Sign = :signed | :unsigned
 ```
 
-This parameter is used only in pattern matching. The default is unsigned.
+This parameter is used only in pattern matching. The default is `:unsigned`.
 
 ```text
 Type = :integer | :float | :binary | :bytes | :bitstring | :bits | :utf8 | :utf16 | :utf32
 ```
 
-The default is `integer`. The default type does not depends on the value, even if the value is a literal. For instance, the default type in the only segment of `<<(3.14)>>` is `:integer` not `:float`.
+The default is `:integer`. The default type does not depends on the value, even if the value is a literal. For instance, the default type in the only segment of `<<(3.14)>>` is `:integer` not `:float`.
 
 ```text
 Unit = (:unit 1|2|...256)
@@ -368,7 +368,7 @@ Lists in Lisps are often called s-expression or sexprs -- short for symbolic exp
 2. Symbols evaluate to the named value in the current scope, which can be a named local value, a function, a macro or a special form.
 3. All other expressions evaluate to the literal values they describe.
 
-The literal list means to represent the list type for data. So a literal list is treated as a literal data, just as a tuple or a map. It will not be evaluated as calls.
+The literal list means to represent the list type for data. So a literal list is treated as a literal data, just as a tuple or a map. It will not be evaluated as macro/function calls.
 
 There are a few reasons to separate the syntax of literal list from general list:
 
