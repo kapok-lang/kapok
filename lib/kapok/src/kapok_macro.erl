@@ -6,6 +6,7 @@
          append/2,
          'list*'/2]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
+-import(kapok_config, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 '__info__'(functions) ->
@@ -118,7 +119,7 @@ append(Ast1, Ast2) ->
   {EAst1, _} = expand(Ast1, Env),
   {EAst2, _} = expand(Ast2, Env),
   RAst = do_append(EAst1, EAst2),
-  case kapok_compiler:get_opt(debug) of
+  case get_compiler_opt(debug) of
     true -> io:format("--- call kapok_macro:append() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
                       [Ast1, Ast2, RAst]);
     false -> ok
@@ -142,7 +143,7 @@ do_append(Ast1, Ast2) ->
   {EAst1, _} = expand(Ast1, Env),
   {EAst2, _} = expand(Ast2, Env),
   RAst = 'do_list*'(EAst1, EAst2),
-  case kapok_compiler:get_opt(debug) of
+  case get_compiler_opt(debug) of
     true -> io:format("--- call kapok_macro:list*() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
                       [Ast1, Ast2, RAst]);
     false -> ok

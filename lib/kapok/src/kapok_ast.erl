@@ -417,7 +417,7 @@ build_module(Module, Exports, Defs, AliasesDefs, Env, Callback) ->
   AttrModule = {attribute, 0, module, Module},
   AttrExport = {attribute, 0, export, Exports},
   Erl = [AttrModule, AttrExport | Funs],
-  kapok_compiler:module(Erl, [], Env, Callback).
+  kapok_erl:module(Erl, [], Env, Callback).
 
 %% Helpers
 

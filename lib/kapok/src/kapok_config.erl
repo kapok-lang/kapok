@@ -1,9 +1,19 @@
 -module(kapok_config).
 -compile({no_auto_import, [get/1]}).
+-export([get_compiler_opt/1]).
 -export([new/1, delete/1, put/2, get/1, update/2, update_in/2, get_and_put/2]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          code_change/3, terminate/2]).
 -behaviour(gen_server).
+
+%% Helper APIs which wrap public APIs
+
+get_compiler_opt(Key) ->
+  Options = kapok_config:get(compiler_options),
+  case lists:keyfind(Key, 1, Options) of
+    false -> false;
+    {Key, Value} -> Value
+  end.
 
 %% Public API
 

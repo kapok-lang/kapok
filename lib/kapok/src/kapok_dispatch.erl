@@ -13,6 +13,7 @@
          expand_macro_named/6,
          format_error/1
         ]).
+-import(kapok_config, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 default_requires() ->
@@ -39,13 +40,13 @@ expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
   end.
 
 expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
-  case kapok_compiler:get_opt(debug) of
+  case get_compiler_opt(debug) of
     true -> io:format("macro ~s:~s/~B args:~n~p~n", [Receiver, Name, Arity, Args]);
     false -> ok
   end,
   Fun = fun Receiver:Name/Arity,
   Result = expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env),
-  case kapok_compiler:get_opt(debug) of
+  case get_compiler_opt(debug) of
     true -> io:format("macro ~s:~s/~B result:~n~p~n", [Receiver, Name, Arity, Result]);
     false -> ok
   end,
