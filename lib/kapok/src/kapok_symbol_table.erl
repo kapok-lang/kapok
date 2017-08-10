@@ -2,17 +2,15 @@
 -module(kapok_symbol_table).
 -behaviour(gen_server).
 -export([add_namespace/1,
-         add_def_clause/5,
-         add_export/5,
+         add_def/6,
          add_alias/3,
-         add_local/4,
          add_form/2,
          add_info_fun/2,
-         namespace_defs/1,
-         namespace_exports/1,
-         namespace_aliases_defs/2,
          namespace_locals/1,
-         get_local/2]).
+         namespace_funs/1,
+         namespace_macros/1,
+         namespace_exports/1,
+         namespace_defs/1]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 -include("kapok.hrl").
@@ -22,18 +20,11 @@
 add_namespace(Namespace) ->
   gen_server:call(?MODULE, {add_ns, Namespace}).
 
-add_def_clause(Namespace, Kind, Fun, Arity, Clause)
-    when Kind == 'defn'; Kind == 'defn-'; Kind == 'defmacro' ->
-  gen_server:call(?MODULE, {add_def_clause, Namespace, Kind, Fun, Arity, Clause}).
-
-add_export(Namespace, Kind, Fun, Arity, ParameterType) ->
-  gen_server:call(?MODULE, {add_export, Namespace, Kind, Fun, Arity, ParameterType}).
+add_def(Namespace, Kind, Fun, Arity, ParameterType, Clause) ->
+  gen_server:call(?MODULE, {add_def, Namespace, Kind, Fun, Arity, ParameterType, Clause}).
 
 add_alias(Namespace, Alias, Original) ->
-  gen_server:call(?MODULE, {add_defalias, Namespace, Alias, Original}).
-
-add_local(Namespace, Fun, Arity, ParameterType) ->
-  gen_server:call(?MODULE, {add_local, Namespace, Fun, Arity, ParameterType}).
+  gen_server:call(?MODULE, {add_alias, Namespace, Alias, Original}).
 
 add_form(Namespace, Form) ->
   gen_server:call(?MODULE, {add_form, Namespace, Form}).
@@ -41,20 +32,21 @@ add_form(Namespace, Form) ->
 add_info_fun(Namespace, Env) ->
   gen_server:call(?MODULE, {add_info_fun, Namespace, Env}).
 
-namespace_defs(Namespace) ->
-  gen_server:call(?MODULE, {namespace_defs, Namespace}).
+%% TODO remove this
+namespace_locals(Namespace) ->
+  gen_server:call(?MODULE, {namespace_locals, Namespace}).
 
-namespace_aliases_defs(Namespace, Defs) ->
-  gen_server:call(?MODULE, {namespace_aliases_defs, Namespace, Defs}).
+namespace_funs(Namespace) ->
+  gen_server:call(?MODULE, {namespace_funs, Namespace}).
+
+namespace_macros(Namespace) ->
+  gen_server:call(?MODULE, {namespace_macros, Namespace}).
 
 namespace_exports(Namespace) ->
   gen_server:call(?MODULE, {namespace_exports, Namespace}).
 
-namespace_locals(Namespace) ->
-  gen_server:call(?MODULE, {namespace_locals, Namespace}).
-
-get_local(Namespace, Local) ->
-  gen_server:call(?MODULE, {get_local, Namespace, Local}).
+namespace_defs(Namespace) ->
+  gen_server:call(?MODULE, {namespace_defs, Namespace}).
 
 %% gen_server API
 
@@ -64,117 +56,75 @@ start_link() ->
 init([]) ->
   {ok, maps:new()}.
 
-% namespace
+%% namespace
 handle_call({add_ns, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
   {reply, ok, Map1};
-% export
-handle_call({add_export, Namespace, Kind, _Fun, _Arity, _ParameterType}, _From, Map)
-    when Kind == 'defn-'; Kind == 'defalias-' ->
-  %% don't export for namespace private function definitions
+%% def
+handle_call({add_def, Namespace, Kind, Fun, Arity, ParameterType, Clause}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
-  {reply, ok, Map1};
-handle_call({add_export, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map)
-    when Kind == 'defn'; Kind == 'defalias' ->
+  FAP = {Fun, Arity, ParameterType},
+  Map2 = add_def(Namespace, Kind, FAP, Map1),
+  Map3 = add_export(Namespace, Kind, FAP, Map2),
+  FA = {Fun, Arity},
+  Map4 = add_def_clause(Namespace, Kind, FA, Clause, Map3),
+  {reply, ok, Map4};
+%% alias
+handle_call({add_alias, Namespace, Alias, Original}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
-  Map2 = add_export(export_fun, Namespace, Fun, Arity, ParameterType, Map1),
-  {reply, ok, Map2};
-handle_call({add_export, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map)
-    when Kind == 'defmacro' ->
-  Map1 = add_namespace_if_missing(Namespace, Map),
-  Map2 = add_export(export_macro, Namespace, Fun, Arity, ParameterType, Map1),
-  {reply, ok, Map2};
-handle_call({add_def_clause, Namespace, Kind, Fun, Arity, Clause}, _From, Map) ->
-  Key = case Kind of
-          defn -> Kind;
-          'defn-' -> 'defn';
-          defmacro -> Kind
-        end,
-  Map1 = add_namespace_if_missing(Namespace, Map),
-  Map2 = add_def_clause(Key, Namespace, Fun, Arity, Clause, Map1),
-  {reply, ok, Map2};
-handle_call({add_defalias, Namespace, Alias, Original}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Namespace, Map),
-  NS = maps:get(Namespace, Map1),
-  Aliases = maps:get(defalias, NS),
-  Aliases1 = case Original of
-               {Fun, Arity} -> ordsets:add_element({Alias, Fun, Arity}, Aliases);
-               Fun -> ordsets:add_element({Alias, Fun}, Aliases)
-             end,
-  NS1 = maps:update(defalias, Aliases1, NS),
-  Map2 = maps:update(Namespace, NS1, Map1),
-  {reply, ok, Map2};
-handle_call({add_local, Namespace, Fun, Arity, ParameterType}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Namespace, Map),
-  NS = maps:get(Namespace, Map1),
-  Locals = maps:get(local, NS),
-  Locals1 = ordsets:add_element({Fun, Arity, ParameterType}, Locals),
-  NS1 = maps:update(local, Locals1, NS),
-  Map2 = maps:update(Namespace, NS1, Map1),
-  {reply, ok, Map2};
+  {R, Map2} = add_alias(Namespace, Alias, Original, Map1),
+  {reply, R, Map2};
+%% form
 handle_call({add_form, Namespace, Form}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
-  NS = maps:get(Namespace, Map1),
-  Forms = maps:get(form, NS),
-  Forms1 = ordsets:add_element(Form, Forms),
-  NS1 = maps:update(form, Forms1, NS),
-  Map2 = maps:update(Namespace, NS1, Map1),
+  Map2 = add_into_kv(Namespace, 'forms', Form, Map1),
   {reply, ok, Map2};
+%% info fun
 handle_call({add_info_fun, Namespace, Env}, _From, Map) ->
   NS = maps:get(Namespace, Map),
-  Functions = maps:get(export_fun, NS),
-  Macros = maps:get(export_macro, NS),
+  Functions = maps:get(export_funs, NS),
+  Macros = maps:get(export_macros, NS),
   {TFunctions, Env1} = kapok_trans:translate(kapok_trans:quote([], Functions), Env),
   {TMacros, Env2} = kapok_trans:translate(kapok_trans:quote([], Macros), Env1),
-  Map1 = add_export(export_fun, Namespace, '__info__', 1, 'normal', Map),
-  Map2 = add_def_clause(defn, Namespace, '__info__', 1,
+  FAP = {'__info__', 1, 'normal'},
+  Map1 = add_export(Namespace, 'defn', FAP, Map),
+  FA = {'__info__', 1},
+  Map2 = add_def_clause(Namespace, defn, FA,
                         {clause, 0, [{atom,0,'functions'}], [], [TFunctions]}, Map1),
-  Map3 = add_def_clause(defn, Namespace, '__info__', 1,
+  Map3 = add_def_clause(Namespace, defn, FA,
                         {clause, 0, [{atom,0,'macros'}], [], [TMacros]}, Map2),
   {reply, Env2, Map3};
-handle_call({namespace_defs, Namespace}, _From, Map) ->
-  NS = maps:get(Namespace, Map),
-  Functions = maps:get(defn, NS),
-  Macros = maps:get(defmacro, NS),
-  %% TODO macro will shadow function if there is any overrides
-  Defs = orddict:merge(fun(_K, _V1, V2) -> V2 end, Functions, Macros),
-  {reply, lists:reverse(Defs), Map};
+%% local functions and macros
+handle_call({namespace_locals, Namespace}, _From, Map) ->
+  Aliases = get_kv(Namespace, 'aliases', Map),
+  MFAList = ordsets:union([get_kv(Namespace, 'macros', Map), get_kv(Namespace, 'funs', Map)]),
+  {reply, Aliases ++ MFAList, Map};
+handle_call({namespace_funs, Namespace}, _From, Map) ->
+  MFAList = get_kv(Namespace, 'funs', Map),
+  {reply, MFAList, Map};
+handle_call({namespace_macros, Namespace}, _From, Map) ->
+  MFAList = get_kv(Namespace, 'macros', Map),
+  {reply, MFAList, Map};
+%% export
 handle_call({namespace_exports, Namespace}, _From, Map) ->
   NS = maps:get(Namespace, Map),
   {ExportFunctions, ExportMacros} = module_exports(NS),
   Exports = ordsets:union(ExportFunctions, ExportMacros),
   {reply, lists:reverse(Exports), Map};
-handle_call({namespace_aliases_defs, Namespace, Defs}, _From, Map) ->
+%% defs
+handle_call({namespace_defs, Namespace}, _From, Map) ->
   NS = maps:get(Namespace, Map),
-  Aliases = maps:get(defalias, NS),
-  AliasesDefs = lists:foldl(fun({Alias, F, A}, Acc) ->
+  Defs = maps:get('defs', NS),
+  %% insert aliases defs
+  Aliases = maps:get('aliases', NS),
+  AliasesDefs = lists:foldl(fun({Alias, {F, A, _}}, Acc) ->
                                 {ok, Clauses} = orddict:find({F, A}, Defs),
-                                orddict:store({Alias, A}, Clauses, Acc);
-                               ({Alias, F}, Acc)->
-                                L = orddict:filter(fun({F1, _A1}, _Clauses) -> F == F1 end, Defs),
-                                orddict:fold(fun({_F, A}, Clauses, Acc1) ->
-                                                 orddict:store({Alias, A}, Clauses, Acc1)
-                                             end,
-                                             Acc,
-                                             L)
+                                orddict:store({Alias, A}, Clauses, Acc)
                             end,
                             orddict:new(),
                             Aliases),
-  {reply, lists:reverse(AliasesDefs), Map};
-handle_call({namespace_locals, Namespace}, _From, Map) ->
-  NS = maps:get(Namespace, Map),
-  Locals = maps:get(local, NS),
-  {reply, Locals, Map};
-handle_call({get_local, Namespace, {Fun, Arity}}, _From, Map) ->
-  NS = maps:get(Namespace, Map),
-  Locals = maps:get(local, NS),
-  Match = ordsets:filter(fun({F, A, _P}) -> (F == Fun) andalso (A == Arity) end, Locals),
-  {reply, Match, Map};
-handle_call({get_local, Namespace, Fun}, _From, Map) ->
-  NS = maps:get(Namespace, Map),
-  Locals = maps:get(local, NS),
-  Match = ordsets:filter(fun({F, _A, _P}) -> F == Fun end, Locals),
-  {reply, Match, Map}.
+  %% append aliases defs into head since it's much shorter in general.
+  {reply, AliasesDefs ++ Defs, Map}.
 
 handle_cast({_, _}, Map) ->
   {noreply, Map}.
@@ -191,14 +141,15 @@ code_change(_OldVsn, Map, _Extra) ->
 %% helper functions
 
 new_namespace() ->
-  #{export_fun => [],
-    export_macro => [],
-    defn => [],
-    'defn-' => [],
-    defmacro => [],
-    defalias => [],
-    local => [],
-    form => []}.
+  #{export_funs => [],
+    export_macros => [],
+    funs => [],
+    macros => [],
+    aliases => [],
+    defs => [],
+    locals => [],
+    forms => [],
+    suspended_defs => []}.
 
 add_namespace_if_missing(Namespace, Map) ->
   case maps:is_key(Namespace, Map) of
@@ -206,27 +157,108 @@ add_namespace_if_missing(Namespace, Map) ->
     true -> Map
   end.
 
-add_export(Key, Namespace, Fun, Arity, ParameterType, Map) ->
-  NS = maps:get(Namespace, Map),
-  Exports = maps:get(Key, NS),
-  Exports1 = ordsets:add_element({Fun, Arity, ParameterType}, Exports),
-  NS1 = maps:update(Key, Exports1, NS),
-  maps:update(Namespace, NS1, Map).
+add_def(Namespace, Kind, FAP, Map) when Kind == 'defn-' ->
+  add_def(Namespace, 'defn', FAP, Map);
+add_def(Namespace, Kind, FAP, Map) when Kind == 'defn' ->
+  add_into_kv(Namespace, 'funs', FAP, Map);
+add_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro' ->
+  add_into_kv(Namespace, 'macros', FAP, Map).
 
-module_exports(NS) ->
-  GetExport = fun({F, A, _P}) -> {F, A} end,
-  Functions = ordsets:from_list(lists:map(GetExport, maps:get(export_fun, NS))),
-  Macros = ordsets:from_list(lists:map(GetExport, maps:get(export_macro, NS))),
-  {Functions, Macros}.
+add_export(_Namespace, Kind, _FAP, Map) when Kind == 'defn-' ->
+  Map;
+add_export(Namespace, Kind, FAP, Map) when Kind == 'defn' ->
+  add_into_kv(Namespace, 'export_funs', FAP, Map);
+add_export(Namespace, Kind, FAP, Map) when Kind == 'defmacro' ->
+  add_into_kv(Namespace, 'export_macros', FAP, Map).
 
-add_def_clause(Key, Namespace, Fun, Arity, Clause, Map) ->
+is_exported(Namespace, 'funs', FAP, Map) ->
+  ordsets:is_element(FAP, get_kv(Namespace, 'export_funs', Map));
+is_exported(Namespace, 'macros', FAP, Map) ->
+  ordsets:is_element(FAP, get_kv(Namespace, 'export_macros', Map)).
+
+add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defn-' ->
+  add_def_clause(Namespace, 'defn', FA, Clause, Map);
+add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defn'; Kind == 'defmacro' ->
+  Key = 'defs',
   NS = maps:get(Namespace, Map),
-  Def = maps:get(Key, NS),
-  FA = {Fun, Arity},
-  Clauses1 = case orddict:find(FA, Def) of
+  Defs = maps:get(Key, NS),
+  Clauses1 = case orddict:find(FA, Defs) of
                {ok, Clauses} -> [Clause | Clauses];
                error -> [Clause]
              end,
-  Def1 = orddict:store(FA, Clauses1, Def),
-  NS1 = maps:update(Key, Def1, NS),
+  Defs1 = orddict:store(FA, Clauses1, Defs),
+  NS1 = maps:update(Key, Defs1, NS),
   maps:update(Namespace, NS1, Map).
+
+add_alias(Namespace, Alias, Original, Map) ->
+  case gen_aliases(Namespace, 'funs', Alias, Original, Map) of
+    {[], Map1} ->
+      case gen_aliases(Namespace, 'macros', Alias, Original, Map1) of
+        {[], Map2} ->
+          {noexist, Map2};
+        {L, Map2} ->
+          {ok, add_into_kv(Namespace, 'aliases', L, Map2)}
+      end;
+    {L, Map1} ->
+      {ok, add_into_kv(Namespace, 'aliases', L, Map1)}
+  end.
+
+%% TODO The impl is similar with kapok_dispatch:filter_exports_by('rename').
+gen_aliases(Namespace, Key, Alias, Original, Map) ->
+  lists:foldl(fun({F, A, P} = FAP, {Acc, M}) ->
+                  case Original of
+                    {Fun, Arity} ->
+                      if F == Fun andalso A == Arity ->
+                          M1 = add_export_alias(Namespace, Key, Alias, FAP, M),
+                          {[{Alias, {F, A, P}} | Acc], M1};
+                         true ->
+                          {Acc, M}
+                      end;
+                    Fun ->
+                      if F == Fun ->
+                          M1 = add_export_alias(Namespace, Key, Alias, FAP, M),
+                          {[{Alias, {F, A, P}} | Acc], M1};
+                         true ->
+                          {Acc, M}
+                      end
+                  end
+              end,
+              {[], Map},
+              get_kv(Namespace, Key, Map)).
+
+%% Check whether this FAP is exported.
+%% Export Alias when the original name is exported.
+add_export_alias(Namespace, Key, Alias, {_, A, P} = FAP, Map) ->
+  case is_exported(Namespace, Key, FAP, Map) of
+    true ->
+      Kind = case Key of
+               'funs' -> 'defn';
+               'macros' -> 'defmacro'
+             end,
+      add_export(Namespace, Kind, {Alias, A, P}, Map);
+    false ->
+      Map
+  end.
+
+add_into_kv(Namespace, Key, List, Map) when is_list(List) ->
+  NS = maps:get(Namespace, Map),
+  Values = maps:get(Key, NS),
+  Values1 = ordsets:union([ordsets:from_list(List), Values]),
+  NS1 = maps:update(Key, Values1, NS),
+  maps:update(Namespace, NS1, Map);
+add_into_kv(Namespace, Key, Value, Map) ->
+  NS = maps:get(Namespace, Map),
+  Values = maps:get(Key, NS),
+  Values1 = ordsets:add_element(Value, Values),
+  NS1 = maps:update(Key, Values1, NS),
+  maps:update(Namespace, NS1, Map).
+
+get_kv(Namespace, Key, Map) ->
+  NS = maps:get(Namespace, Map),
+  maps:get(Key, NS).
+
+module_exports(NS) ->
+  GetExport = fun({F, A, _P}) -> {F, A} end,
+  Functions = ordsets:from_list(lists:map(GetExport, maps:get('export_funs', NS))),
+  Macros = ordsets:from_list(lists:map(GetExport, maps:get('export_macros', NS))),
+  {Functions, Macros}.

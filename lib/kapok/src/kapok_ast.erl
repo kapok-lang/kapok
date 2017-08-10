@@ -151,36 +151,31 @@ handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Env) when ?is_string(C) ->
 handle_def(Meta, Kind, Name, Exprs, Env) ->
   handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Env).
 
-handle_def_alias(Meta, Kind, Alias,
+handle_def_alias(Meta, _Kind, Alias,
                  [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Env)
     when ?is_string(C) ->
   %% TODO add doc
-  do_handle_def_alias(Meta, Kind, Alias, {Fun, Arity}, Env);
-handle_def_alias(Meta, Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}], Env) ->
-  do_handle_def_alias(Meta, Kind, Alias, {Fun, Arity}, Env);
-handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Env)
+  do_handle_def_alias(Meta, Alias, {Fun, Arity}, Env);
+handle_def_alias(Meta, _Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}], Env) ->
+  do_handle_def_alias(Meta, Alias, {Fun, Arity}, Env);
+handle_def_alias(Meta, _Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Env)
     when ?is_string(C) ->
   %% TODO add doc
-  do_handle_def_alias(Meta, Kind, Alias, Fun, Env);
-handle_def_alias(Meta, Kind, Alias, [{identifier, _, Fun}], Env) ->
-  do_handle_def_alias(Meta, Kind, Alias, Fun, Env);
+  do_handle_def_alias(Meta, Alias, Fun, Env);
+handle_def_alias(Meta, _Kind, Alias, [{identifier, _, Fun}], Env) ->
+  do_handle_def_alias(Meta, Alias, Fun, Env);
 handle_def_alias(Meta, _Kind, Alias, Ast, Env) ->
   Error = {invalid_defalias_expression, {Alias, Ast}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
 
-do_handle_def_alias(Meta, Kind, Alias, Original, Env) ->
+do_handle_def_alias(Meta, Alias, Original, Env) ->
   Namespace = ?m(Env, namespace),
-  case kapok_symbol_table:get_local(Namespace, Original) of
-    [] ->
+  case kapok_symbol_table:add_alias(Namespace, Alias, Original) of
+    noexist ->
       Error = {nonexistent_original_for_alias, {Alias, Original}},
       kapok_error:compile_error(Meta, ?m(Env, file), ?MODULE, Error);
-    L ->
-      kapok_symbol_table:add_alias(Namespace, Alias, Original),
-      lists:map(fun({_F, A, P}) ->
-                    kapok_symbol_table:add_local(Namespace, Alias, A, P),
-                    kapok_symbol_table:add_export(Namespace, Kind, Alias, A, P)
-                end,
-                L)
+    ok ->
+      ok
   end,
   Env.
 
@@ -224,30 +219,23 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
   {TF, TEnv} = kapok_trans:translate(Name, kapok_env:push_scope(Env)),
   case parse_parameters(Args, TEnv) of
     [{normal, _, NormalArgs}] ->
-      {TArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
+      {TArgs, CEnv} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       ParameterType = 'normal',
-      Arity = length(TArgs),
-      PrepareBody = [],
-      Env5 = TEnv1;
+      PrepareBody = [];
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters}] ->
       {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
-      {TOptionalParameters, TEnv2} = translate_parameter_with_default(OptionalParameters, TEnv1),
+      {TOptionalParameters, CEnv} = translate_parameter_with_default(OptionalParameters, TEnv1),
       ParameterType = 'normal',
       TArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
-      Arity = length(TArgs),
       PrepareBody = [],
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters,
-                           TEnv2),
-      Env5 = TEnv2;
+      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CEnv);
     [{normal, _, NormalArgs}, {keyword_rest, _, RestArgs}] ->
       {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
-      {TRestArgs, TEnv2} = kapok_trans:translate_def_args(RestArgs, TEnv1),
+      {TRestArgs, CEnv} = kapok_trans:translate_def_args(RestArgs, TEnv1),
       ParameterType = 'rest',
       TArgs = TNormalArgs ++ TRestArgs,
-      Arity = length(TArgs),
       PrepareBody = [],
-      add_rest_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNormalArgs, TEnv2),
-      Env5 = TEnv2;
+      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CEnv);
     [{normal, _, NormalArgs}, {keyword_key, Meta1, KeyParameters}] ->
       {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
@@ -257,33 +245,28 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
                                                             kapok_utils:gensym_with("KV")},
                                                            TEnv2),
       TArgs = TNormalArgs ++ [TMapArg],
-      Arity = length(TArgs),
+
       %% retrieve and map all key values from map argument to variables
-      {PrepareBody, TEnv4} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
-      add_key_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNormalArgs, TEnv4),
-      Env5 = TEnv4;
+      {PrepareBody, CEnv} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
+      add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CEnv);
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters},
      {keyword_rest, RestArgs}] ->
       {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
       {TOptionalParameters, TEnv2} = translate_parameter_with_default(OptionalParameters, TEnv1),
-      {TRestArgs, TEnv3} = kapok_trans:translate_def_args(RestArgs, TEnv2),
+      {TRestArgs, CEnv} = kapok_trans:translate_def_args(RestArgs, TEnv2),
       ParameterType = 'rest',
       TNonRestArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
       TArgs = TNonRestArgs ++ TRestArgs,
-      Arity = length(TArgs),
       PrepareBody = [],
-      add_rest_clause(Meta, Kind, Namespace, Name, Arity - 1, TF, TNonRestArgs, TEnv3),
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters,
-                           TEnv3),
-      Env5 = TEnv3
+      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNonRestArgs, CEnv),
+      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CEnv)
   end,
-  Env6 = Env5#{function => {Name, Arity, ParameterType}},
+  Arity = length(TArgs),
+  Env6 = CEnv#{function => {Name, Arity, ParameterType}},
   {TGuard, TEnv7} = kapok_trans:translate_guard(Guard, Env6),
   {TBody, TEnv8} = kapok_trans:translate_body(Meta, Body, TEnv7),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
-  kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity, Clause),
-  kapok_symbol_table:add_export(Namespace, Kind, Name, Arity, ParameterType),
-  kapok_symbol_table:add_local(Namespace, Name, Arity, ParameterType),
+  kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
   kapok_env:pop_scope(TEnv8#{function => Function}).
 
 %% parse parameters
@@ -296,7 +279,7 @@ parse_parameters(Args, Env) when is_list(Args) ->
 parse_parameters([], Acc, {Previous, Meta, Args}, _Env) ->
   [{Previous, Meta, lists:reverse(Args)} | Acc];
 
-parse_parameters([{Category, Meta} = Token], _Acc, {_Previous, _Meta, _Args}, Env)
+parse_parameters([{Category, Meta, _} = Token], _Acc, {_Previous, _Meta, _Args}, Env)
     when ?is_parameter_keyword(Category) ->
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_parameter_keyword, {Token}});
 
@@ -372,51 +355,44 @@ do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TReversedO
   case TReversedOptionalParameters of
     [{_Expr, Default} | Left] ->
       TArgs = TNormalArgs ++ get_optional_args(lists:reverse(Left)),
-      Arity = length(TArgs),
-      add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TArgs, Default),
+      add_redirect_clause(Meta, Kind, Namespace, Name, TF, TArgs, Default),
       do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, Left, Env);
     [] ->
       ok
   end.
 
-add_rest_clause(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, Env) ->
+add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Env) ->
   {TListArgs, _} = kapok_trans:translate({literal_list, [], []}, Env),
-  add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, TListArgs).
+  add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, TListArgs).
 
-add_key_clause(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, Env) ->
+add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Env) ->
   {TMapArg, _} = kapok_trans:translate({map, [], []}, Env),
-  add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, TMapArg).
+  add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, TMapArg).
 
-add_clause_with_extra_arg(Meta, Kind, Namespace, Name, Arity, TF, TNormalArgs, Extra) ->
-  %% redirect normal call(without &rest/&key argument) to the clause with extra argument
+add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
+  %% redirect normal call(without &rest/&key argument) to the clause with an extra default argument
+  Arity = length(TNormalArgs),
   TArgs = TNormalArgs ++ [Extra],
   TBody = [{call, ?line(Meta), TF, TArgs}],
-  kapok_symbol_table:add_def_clause(Namespace, Kind, Name, Arity,
-                                    {clause, ?line(Meta), TNormalArgs, [], TBody}),
-  kapok_symbol_table:add_export(Namespace, Kind, Name, Arity, 'normal'),
-  kapok_symbol_table:add_local(Namespace, Name, Arity, 'normal').
-
+  kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, 'normal',
+                             {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
 %% namespace
 build_namespace(Namespace, Env, Callback) ->
   kapok_symbol_table:add_info_fun(Namespace, Env),
   Exports = kapok_symbol_table:namespace_exports(Namespace),
   Defs = kapok_symbol_table:namespace_defs(Namespace),
-  AliasesDefs = kapok_symbol_table:namespace_aliases_defs(Namespace, Defs),
-  build_module(Namespace, Exports, Defs, AliasesDefs, Env, Callback).
+  build_module(Namespace, Exports, Defs, Env, Callback).
 
 %% module
-
-build_module(Module, Exports, Defs, AliasesDefs, Env, Callback) ->
+build_module(Module, Exports, Defs, Env, Callback) ->
   TranslateFun = fun({Fun, Arity}, Clauses, Acc) ->
                      [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
                  end,
   FunDefs = orddict:fold(TranslateFun, [], Defs),
-  FunAlieses = orddict:fold(TranslateFun, [], AliasesDefs),
-  Funs = FunDefs ++ FunAlieses,
   AttrModule = {attribute, 0, module, Module},
   AttrExport = {attribute, 0, export, Exports},
-  Erl = [AttrModule, AttrExport | Funs],
+  Erl = [AttrModule, AttrExport | FunDefs],
   kapok_erl:module(Erl, [], Env, Callback).
 
 %% Helpers
