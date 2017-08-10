@@ -9,7 +9,6 @@
          find_local_function/3,
          get_remote_function/4,
          find_remote_function/4,
-         find_fa/2,
          expand_macro_named/6,
          format_error/1
         ]).
@@ -90,7 +89,7 @@ find_remote_macro(Meta, Module, FunArity, Env) ->
   end.
 
 find_local(FunArity, #{function := Function} = Env) ->
-  case find_fa(FunArity, [Function]) of
+  case filter_fa(FunArity, [Function]) of
     [{F, A, P}] ->
       %% match current function definition
       {F, A, P};
@@ -98,7 +97,7 @@ find_local(FunArity, #{function := Function} = Env) ->
       %% find in macros/functions of current namespace
       Namespace = maps:get(namespace, Env),
       Locals = kapok_symbol_table:namespace_locals(Namespace),
-      case find_fa(FunArity, Locals) of
+      case filter_fa(FunArity, Locals) of
         [{F, A, P}] -> {F, A, P};
         [] -> false
       end
@@ -148,63 +147,50 @@ find_remote_function(Meta, Module, FunArity, Env) ->
   end.
 
 find_optional_dispatch(Meta, Module, FunArity, Env) ->
-  FunList = get_optional_functions(Module),
-  MacroList = get_optional_macros(Module),
-  find_dispatch_fa(Meta, Module, FunArity, FunList, MacroList, Env).
+  FunImports = orddict:from_list([{Module, get_optional_functions(Module)}]),
+  MacroImports = orddict:from_list([{Module, get_optional_macros(Module)}]),
+  do_find_dispatch(Meta, FunArity, FunImports, MacroImports, Env).
 
 find_dispatch(Meta, Module, FunArity, Env) ->
   Env1 = ensure_uses_imported(Env),
+  %% TODO check whether module is a require alias
   FunList = case orddict:find(Module, ?m(Env1, functions)) of
-              {ok, L1} -> L1;
-              error -> []
-            end,
+                                   {ok, L1} -> L1;
+                                   error -> []
+          end,
+  FunImports = orddict:from_list([{Module, FunList}]),
   MacroList = case orddict:find(Module, ?m(Env1, macros)) of
                 {ok, L2} -> L2;
                 error -> []
               end,
-  find_dispatch_fa(Meta, Module, FunArity, FunList, MacroList, Env1).
+  MacroImports = orddict:from_list([{Module, MacroList}]),
+  do_find_dispatch(Meta, FunArity, FunImports, MacroImports, Env1).
 
-find_dispatch_fa(Meta, Module, {Fun, Arity} = FunArity, FunList, MacroList, Env) ->
-  FunMatch = find_fa(FunArity, FunList),
-  MacroMatch = find_fa({Fun, Arity}, MacroList),
+find_dispatch(Meta, FunArity, Env) ->
+  Env1 = ensure_uses_imported(Env),
+  do_find_dispatch(Meta, FunArity, ?m(Env1, functions), ?m(Env1, macros), Env1).
+
+do_find_dispatch(Meta, {Fun, Arity} = FunArity, FunImports, MacroImports, Env) ->
+  FunMatch = filter_import(FunArity, FunImports),
+  MacroMatch = filter_import({Fun, Arity}, MacroImports),
   case {FunMatch, MacroMatch} of
     {[], [Match]} ->
-      {F, A, P} = Match,
-      {{macro, {Module, F, A, P}}, Env};
+      {M, [{F, A, P}]} = Match,
+      {{macro, {M, F, A, P}}, Env};
     {[Match], []} ->
-      {F, A, P} = Match,
-      {{function, {Module, F, A, P}}, Env};
+      {M, [{F, A, P}]} = Match,
+      {{function, {M, F, A, P}}, Env};
     {[], []} ->
       {false, Env};
     _ ->
       [First, Second | _T] = FunMatch ++ MacroMatch,
-      Error = {ambiguous_call, {Module, Fun, Arity, First, Second}},
+      Error = {ambiguous_call, {Fun, Arity, First, Second}},
       kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error)
   end.
 
-find_dispatch(Meta, {Fun, Arity} = FunArity, Env) ->
-  Env1 = ensure_uses_imported(Env),
-  FunMatch = find_mfa(FunArity, ?m(Env1, functions)),
-  MacroMatch = find_mfa({Fun, Arity}, ?m(Env1, macros)),
-  case {FunMatch, MacroMatch} of
-    {[], [Match]} ->
-      {M, [{F, A, P}]} = Match,
-      {{macro, {M, F, A, P}}, Env1};
-    {[Match], []} ->
-      {M, [{F, A, P}]} = Match,
-      {{function, {M, F, A, P}}, Env1};
-    {[], []} ->
-      {false, Env1};
-    _ ->
-      [First, Second | _T] = FunMatch ++ MacroMatch,
-      Error = {ambiguous_call, {Fun, Arity, First, Second}},
-      kapok_error:form_error(Meta, ?m(Env1, file), ?MODULE, Error)
-  end.
-
-
-find_mfa(FunArity, List) when is_list(List) ->
+filter_import(FunArity, List) when is_list(List) ->
   lists:foldl(fun({Module, Imports}, Acc) ->
-                  case find_fa(FunArity, Imports) of
+                  case filter_fa(FunArity, Imports) of
                     [] -> Acc;
                     R -> orddict:store(Module, R, Acc)
                   end
@@ -212,7 +198,7 @@ find_mfa(FunArity, List) when is_list(List) ->
               [],
               List).
 
-find_fa({Fun, Arity} = FunArity, FAList) when is_list(FAList) ->
+filter_fa({Fun, Arity} = FunArity, FAList) when is_list(FAList) ->
   ordsets:fold(
       fun({F, A} = FA, Acc) when is_number(A) andalso FA == FunArity ->
           [{F, A, 'normal'} | Acc];
