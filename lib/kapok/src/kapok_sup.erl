@@ -23,23 +23,8 @@ start_link() ->
 
 init([]) ->
   Workers = [
-             {
-                 kapok_config,
-                 {kapok_config, start_link, []},
-
-                 permanent,                    % Restart  = permanent | transient | temporary
-                 2000,                         % Shutdown = brutal_kill | int() >= 0 | infinity
-                 worker,                       % Type     = worker | supervisor
-                 [kapok_config]                % Modules  = [Module] | dynamic
-             },
-             {
-                 kapok_symbol_table,
-                 {kapok_symbol_table, start_link, []},
-
-                 permanent,
-                 2000,
-                 worker,
-                 [kapok_symbol_table]
-             }
+             ?CHILD(kapok_config, worker),
+             ?CHILD(kapok_symbol_table, worker),
+             ?CHILD(kapok_code, worker)
             ],
   {ok, {{one_for_one, 5, 10}, Workers}}.

@@ -45,10 +45,11 @@ update_in(Key, Orddict) when is_list(Orddict) ->
 get_and_put(Key, Value) ->
   get_server:call(?MODULE, {get_and_put, Key, Value}).
 
-start_link() ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, ?MODULE, []).
 
 %% gen_server API
+
+start_link() ->
+  gen_server:start_link({local, ?MODULE}, ?MODULE, ?MODULE, []).
 
 init(Tid) ->
   %% ets table must be writable

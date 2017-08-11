@@ -2,7 +2,7 @@
  [{description, "kapok"},
   {vsn, "0.0.1"},
   {modules, [kapok]},
-  {registered, [kapok_config, kapok_symbol_table]},
+  {registered, [kapok_config, kapok_symbol_table, kapok_code]},
   {applications, [kernel,stdlib]},
   {mod, {kapok, []}},
   {env, []}
