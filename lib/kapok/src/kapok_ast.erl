@@ -379,21 +379,8 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
 
 %% namespace
 build_namespace(Namespace, Env, Callback) ->
-  kapok_symbol_table:add_info_fun(Namespace, Env),
-  Exports = kapok_symbol_table:namespace_exports(Namespace),
-  Defs = kapok_symbol_table:namespace_defs(Namespace),
-  build_module(Namespace, Exports, Defs, Env, Callback).
-
-%% module
-build_module(Module, Exports, Defs, Env, Callback) ->
-  TranslateFun = fun({Fun, Arity}, Clauses, Acc) ->
-                     [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
-                 end,
-  FunDefs = orddict:fold(TranslateFun, [], Defs),
-  AttrModule = {attribute, 0, module, Module},
-  AttrExport = {attribute, 0, export, Exports},
-  Erl = [AttrModule, AttrExport | FunDefs],
-  kapok_erl:module(Erl, [], Env, Callback).
+  {Forms, Env1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Env),
+  kapok_erl:module(Forms, [], Env1, Callback).
 
 %% Helpers
 

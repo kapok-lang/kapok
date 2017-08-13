@@ -57,8 +57,6 @@ get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
   [StackItem | get_stacktrace(Stacktrace, CurrentStack)].
 
 
-%% INTERNAL API
-
 %% Compile the module by forms based on the scope information
 %% executes the callback in case of success. This automatically
 %% handles errors and warnings. Used by this module and kapok_ast.
