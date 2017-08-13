@@ -48,9 +48,18 @@ expand_1({list, Meta, [{identifier, _, Id} | T]} = Ast, Env) ->
   Arity = length(T),
   {R, Env1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env),
   case R of
-    {M, F, A, P} ->
+    {F, A, P} ->
+      %% to call a previously defined macro in the namespace
+      Namespace = ?m(Env, namespace),
+      kapok_code:load_ns(Namespace, Env),
+      {ok, Module} = kapok_code:get_module(Namespace),
       NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, T),
-      {EAst, EEnv} = kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1),
+      {EAst, EEnv} = expand_macro_named(Meta, Module, F, A, NewArgs, Env),
+      {EAst, EEnv, true};
+    {M, F, A, P} ->
+      %% to call a macro defined in another module
+      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, T),
+      {EAst, EEnv} = expand_macro_named(Meta, M, F, A, NewArgs, Env1),
       {EAst, EEnv, true};
     false ->
       expand_list(Ast, Env)
@@ -61,7 +70,7 @@ expand_1({list, Meta, [{dot, _, {Module, Fun}} | T]} = Ast, Env) ->
   case R of
     {M, F, A, P} ->
       NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, T),
-      {EAst, EEnv} = kapok_dispatch:expand_macro_named(Meta, M, F, A, NewArgs, Env1),
+      {EAst, EEnv} = expand_macro_named(Meta, M, F, A, NewArgs, Env1),
       {EAst, EEnv, true};
     false ->
       expand_list(Ast, Env1)
@@ -97,9 +106,6 @@ expand_1({Category, Meta, Arg}, Env) when Category =:= quote;
 expand_1(Ast, Env) ->
   {Ast, Env, false}.
 
-
-%% Helper functions
-
 expand_list({Category, Meta, List}, Env) when ?is_list(Category), is_list(List) ->
   {EList, EEnv, Expanded} = expand_list(List, Env),
   {{Category, Meta, EList}, EEnv, Expanded};
@@ -111,6 +117,54 @@ expand_list(List, Env) when is_list(List) ->
                                              {Env, false},
                                              List),
   {EList, EEnv, Expanded}.
+
+
+%% macro expansion helper functions
+
+expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
+  case get_compiler_opt(debug) of
+    true -> io:format("macro ~s:~s/~B args:~n~p~n", [Receiver, Name, Arity, Args]);
+    false -> ok
+  end,
+  Fun = fun Receiver:Name/Arity,
+  Result = expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env),
+  case get_compiler_opt(debug) of
+    true -> io:format("macro ~s:~s/~B result:~n~p~n", [Receiver, Name, Arity, Result]);
+    false -> ok
+  end,
+  {Result, Env}.
+
+expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
+  Line = ?line(Meta),
+  try
+    apply(Fun, Args)
+  catch
+    Kind:Reason ->
+      Arity = length(Args),
+      MFA = {Receiver, Name, Arity},
+      Info = [{Receiver, Name, Arity, [{file, "expand macro"}]}, caller(Line, Env)],
+      erlang:raise(Kind, Reason, prune_stacktrace(erlang:get_stacktrace(), MFA, Info, nil))
+  end.
+
+caller(Line, #{namespace := Namespace} = Env) ->
+  {Namespace, undefined, undefined, location(Line, Env)}.
+
+location(Line, Env) ->
+  [{file, kapok_utils:characters_to_list(?m(Env, file))},
+   {line, Line}].
+
+%% We've reached the invoked macro, skip it with the rest
+prune_stacktrace([{M, F, A, _} | _], {M, F, A}, Info, _Env) ->
+  Info;
+%% We've reached the expand/dispatch internals, skip it with the rest
+prune_stacktrace([{Mod, _, _, _} | _], _MFA, Info, _Env)
+    when Mod == kapok_dispatch; Mod == kapok_macro ->
+  Info;
+prune_stacktrace([H|T], MFA, Info, Env) ->
+  [H|prune_stacktrace(T, MFA, Info, Env)];
+prune_stacktrace([], _MFA, Info, _Env) ->
+  Info.
+
 
 %% List building after evaluating macros.
 

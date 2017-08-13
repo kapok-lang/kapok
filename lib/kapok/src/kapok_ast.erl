@@ -16,7 +16,7 @@ compile(Ast, Env) ->
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Env) ->
   handle_ns(Meta, T, Env);
 handle({list, Meta, [{identifier, _, Id} | T]}, Env) when ?is_def(Id) ->
-  handle_def(Meta, Id, T, Env);
+  handle_def(Meta, Id, T, Env#{def_kind => Id});
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Env) when ?is_attr(Id) ->
   {TAttr, TEnv} = kapok_trans:translate(Ast, Env),
   Namespace = ?m(Env, namespace),
@@ -171,7 +171,7 @@ handle_def_alias(Meta, _Kind, Alias, Ast, Env) ->
 do_handle_def_alias(Meta, Alias, Original, Env) ->
   Namespace = ?m(Env, namespace),
   case kapok_symbol_table:add_alias(Namespace, Alias, Original) of
-    noexist ->
+    not_exist ->
       Error = {nonexistent_original_for_alias, {Alias, Original}},
       kapok_error:compile_error(Meta, ?m(Env, file), ?MODULE, Error);
     ok ->
@@ -213,7 +213,7 @@ handle_def_expr(Kind, _Name, Ast, Env) ->
   Error = {invalid_def_expression, {Ast, Kind}},
   kapok_error:form_error(token_meta(Ast), ?m(Env, file), ?MODULE, Error).
 
-handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} = Env) ->
+handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Env) ->
   %% TODO add doc
   Namespace = ?m(Env, namespace),
   {TF, TEnv} = kapok_trans:translate(Name, kapok_env:push_scope(Env)),
@@ -262,12 +262,13 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{function := Function} =
       add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CEnv)
   end,
   Arity = length(TArgs),
-  Env6 = CEnv#{function => {Name, Arity, ParameterType}},
+  Env6 = CEnv#{def_fap => {Name, Arity, ParameterType}},
+  %% TODO add def_fap for other clauses(maybe do this when impl delay compilation stuff?)
   {TGuard, TEnv7} = kapok_trans:translate_guard(Guard, Env6),
   {TBody, TEnv8} = kapok_trans:translate_body(Meta, Body, TEnv7),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
   kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
-  kapok_env:pop_scope(TEnv8#{function => Function}).
+  kapok_env:pop_scope(TEnv8#{def_fap => FAP}).
 
 %% parse parameters
 parse_parameters({Category, _, Args}, Env) when Category == literal_list ->

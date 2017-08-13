@@ -9,9 +9,7 @@
          find_local_function/3,
          get_remote_function/4,
          find_remote_function/4,
-         expand_macro_named/6,
-         format_error/1
-        ]).
+         format_error/1]).
 -import(kapok_config, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
@@ -24,36 +22,21 @@ default_functions() ->
 default_macros() ->
   [{kapok_macro, get_optional_macros(kapok_macro)}].
 
-%% expand helpers
-
-expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env) ->
-  Line = ?line(Meta),
-  try
-    apply(Fun, Args)
-  catch
-    Kind:Reason ->
-      Arity = length(Args),
-      MFA = {Receiver, Name, Arity},
-      Info = [{Receiver, Name, Arity, [{file, "expand macro"}]}, caller(Line, Env)],
-      erlang:raise(Kind, Reason, prune_stacktrace(erlang:get_stacktrace(), MFA, Info, nil))
-  end.
-
-expand_macro_named(Meta, Receiver, Name, Arity, Args, Env) ->
-  case get_compiler_opt(debug) of
-    true -> io:format("macro ~s:~s/~B args:~n~p~n", [Receiver, Name, Arity, Args]);
-    false -> ok
-  end,
-  Fun = fun Receiver:Name/Arity,
-  Result = expand_macro_fun(Meta, Fun, Receiver, Name, Args, Env),
-  case get_compiler_opt(debug) of
-    true -> io:format("macro ~s:~s/~B result:~n~p~n", [Receiver, Name, Arity, Result]);
-    false -> ok
-  end,
-  {Result, Env}.
 
 %% find local/remote macro/function
 
-find_local_macro(Meta, FunArity, Env) ->
+find_local_macro(Meta, FunArity, #{namespace := Namespace} = Env) ->
+  %% check whether the FunArity refers to a macro in current namespace
+  %% which is defined previously.
+  Macros = kapok_symbol_table:namespace_macros(Namespace),
+  case filter_fa(FunArity, Macros) of
+    [{F, A, P}] ->
+      {{F, A, P}, Env};
+    [] ->
+      find_import_macro(Meta, FunArity, Env)
+  end.
+
+find_import_macro(Meta, FunArity, Env) ->
   {D, Env1} = find_dispatch(Meta, FunArity, Env),
   R = case D of
         {macro, {M, F, A, P}} -> {M, F, A, P};
@@ -88,8 +71,8 @@ find_remote_macro(Meta, Module, FunArity, Env) ->
       {R, Env1}
   end.
 
-find_local(FunArity, #{function := Function} = Env) ->
-  case filter_fa(FunArity, [Function]) of
+find_local(FunArity, #{def_fap := FAP} = Env) ->
+  case filter_fa(FunArity, [FAP]) of
     [{F, A, P}] ->
       %% match current function definition
       {F, A, P};
@@ -371,31 +354,8 @@ remote_function(Module, Name, Arity, ParaType) ->
     false -> {Module, Name, Arity, ParaType}
   end.
 
-%% Helpers
-
-caller(Line, #{namespace := Namespace, function := {F, A, _P}} = Env) ->
-  {Namespace, F, A, location(Line, Env)}.
-
-location(Line, Env) ->
-  [{file, kapok_utils:characters_to_list(?m(Env, file))},
-   {line, Line}].
-
-%% We've reached the invoked macro, skip it with the rest
-prune_stacktrace([{M, F, A, _} | _], {M, F, A}, Info, _Env) ->
-  Info;
-%% We've reached the expand/dispatch internals, skip it with the rest
-prune_stacktrace([{Mod, _, _, _} | _], _MFA, Info, _Env)
-    when Mod == kapok_dispatch; Mod == kapok_macro ->
-  Info;
-prune_stacktrace([H|T], MFA, Info, Env) ->
-  [H|prune_stacktrace(T, MFA, Info, Env)];
-prune_stacktrace([], _MFA, Info, _Env) ->
-  Info.
-
 %% ERROR HANDLING
 
-format_error({invalid_expression, {Ast}}) ->
-  io_lib:format("invalid expression ~p", [Ast]);
 format_error({ambiguous_call, {M, F, A, FAP1, FAP2}}) ->
   io_lib:format("find function ~ts:~ts/~B duplicates in ~p and ~p", [M, F, A, FAP1, FAP2]);
 format_error({ambiguous_call, {F, A, FAP1, FAP2}}) ->

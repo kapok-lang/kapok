@@ -37,7 +37,8 @@ new_env() ->
     namespace => nil,                      %% the current namespace
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line
-    function => nil,                       %% the current function
+    def_kind => nil,                       %% the kind of def*
+    def_fap => nil,                        %% the {Fun, Arity, ParameterType} of def*
     context => nil,                        %% can be pattern, let_pattern, guards, or nil
     macro_context => new_macro_context(),  %%
     requires => [],           %% a dict of modules(and aliases) required in 'name -> original'

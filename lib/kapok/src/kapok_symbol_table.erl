@@ -73,15 +73,18 @@ handle_call({add_form, Namespace, Form}, _From, Map) ->
   {reply, ok, Map2};
 %% local functions and macros
 handle_call({namespace_locals, Namespace}, _From, Map) ->
-  Aliases = get_kv(Namespace, 'aliases', Map),
-  MFAList = ordsets:union([get_kv(Namespace, 'macros', Map), get_kv(Namespace, 'funs', Map)]),
-  {reply, Aliases ++ MFAList, Map};
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  Aliases = get_kv(Namespace, 'aliases', Map1),
+  FAList = ordsets:union([get_kv(Namespace, 'macros', Map), get_kv(Namespace, 'funs', Map)]),
+  {reply, Aliases ++ FAList, Map1};
 handle_call({namespace_funs, Namespace}, _From, Map) ->
-  MFAList = get_kv(Namespace, 'funs', Map),
-  {reply, MFAList, Map};
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  FAList = get_kv(Namespace, 'funs', Map1),
+  {reply, FAList, Map1};
 handle_call({namespace_macros, Namespace}, _From, Map) ->
-  MFAList = get_kv(Namespace, 'macros', Map),
-  {reply, MFAList, Map};
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  FAList = get_kv(Namespace, 'macros', Map1),
+  {reply, FAList, Map1};
 handle_call({namespace_forms, Namespace, ModuleName, Env}, _From, Map) ->
   {InfoExports, InfoDefs, Env1} = gen_info_fun(Namespace, Env, Map),
   NS = maps:get(Namespace, Map),
@@ -167,7 +170,7 @@ add_alias(Namespace, Alias, Original, Map) ->
     {[], Map1} ->
       case gen_aliases(Namespace, 'macros', Alias, Original, Map1) of
         {[], Map2} ->
-          {noexist, Map2};
+          {not_exist, Map2};
         {L, Map2} ->
           {ok, add_into_kv(Namespace, 'aliases', L, Map2)}
       end;

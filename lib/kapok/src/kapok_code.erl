@@ -1,22 +1,24 @@
 %% Code server for kapok compilation.
 -module(kapok_code).
 -behaviour(gen_server).
--export([is_loaded/2,
-         load/3,
-         call/6]).
+-export([is_loaded/1,
+         load_ns/2,
+         get_module/1]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
-%-import(kapok_code, [load_binary]).
+-include("kapok.hrl").
+
+%% Map namespace to Erlang module with randomly generated name.
 
 %% Public API
-is_loaded(Module, Env) ->
-  gen_server:call(?MODULE, {is_loaded, Module, Env}).
+is_loaded(Ns) ->
+  gen_server:call(?MODULE, {is_loaded, Ns}).
 
-load(Module, Forms, Env) ->
-  gen_server:call(?MODULE, {load, Module, Forms, Env}).
+load_ns(Ns, Env) ->
+  gen_server:call(?MODULE, {load_ns, Ns, Env}).
 
-call(Meta, Module, Fun, Arity, Args, Env) ->
-  get_server:call(?MODULE, {call, Meta, Module, Fun, Arity, Args, Env}).
+get_module(Ns) ->
+  gen_server:call(?MODULE, {get_module, Ns}).
 
 
 %% gen_server API
@@ -25,24 +27,26 @@ start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->
-  {ok, {0, maps:new()}}.
+  {ok, maps:new()}.
 
-handle_call({is_loaded, Module, _Env}, _From, {_Counter, Names} = State) ->
-  {reply, module_is_loaded(Module, Names), State};
-handle_call({load, Module, _Forms, _Env}, _From, {_Counter, Names} = State) ->
-  R = case get_name(Module, Names) of
-        {badkey, Module} ->
-          %% TODO load a new module
-          ok;
-        _RealName ->
-          %% TODO delet an old module
-          ok
+handle_call({is_loaded, Ns}, _From, NsToModules) ->
+  {reply, ns_is_loaded(Ns, NsToModules), NsToModules};
+handle_call({load_ns, Ns, Env}, _From, NsToModules) ->
+  State = case get_ns(Ns, NsToModules) of
+            {badkey, Ns} ->
+              load_ns(Ns, Env, NsToModules);
+            Ns ->
+              unload_ns(Ns),
+              NsToModules1 = remove_ns(Ns, NsToModules),
+              load_ns(Ns, Env, NsToModules1)
+          end,
+  {reply, ok, State};
+handle_call({get_module, Ns}, _From, NsToModules) ->
+  R = case get_ns(Ns, NsToModules) of
+        {badkey, Ns} -> not_exist;
+        N -> {ok, N}
       end,
-  %% TODO add impl
-  {reply, R, State};
-handle_call({call, _Meta, _Module, _Fun, _Arity, _Args, _Env}, _From, State) ->
-  %% TODO add impl
-  {reply, ok, State}.
+  {reply, R, NsToModules}.
 
 handle_cast({_, _}, State) ->
   {noreply, State}.
@@ -58,11 +62,11 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% helper functions.
 
-module_is_loaded(Module, Names) ->
-  has_name(Module, Names) orelse is_loaded_to_evm(Module).
+ns_is_loaded(Ns, NsToModules) ->
+  has_ns(Ns, NsToModules) orelse is_loaded_to_evm(Ns).
 
-has_name(Module, Names) ->
-  maps:is_key(Module, Names).
+has_ns(Ns, NsToModules) ->
+  maps:is_key(Ns, NsToModules).
 
 is_loaded_to_evm(Module) ->
   case code:is_loaded(Module) of
@@ -70,15 +74,33 @@ is_loaded_to_evm(Module) ->
     false -> false
   end.
 
-get_name(Module, Names) ->
-  case has_name(Module, Names) of
+get_ns(Ns, NsToModules) ->
+  case has_ns(Ns, NsToModules) of
     true ->
-      maps:get(Module, Names);
+      maps:get(Ns, NsToModules);
     false ->
       %% This module is load to evm but not recorded in `kapok_code`.
-      Module
+      Ns
   end.
 
-%load(Forms, )
+add_ns(Ns, Module, NsToModules) ->
+  maps:put(Ns, Module, NsToModules).
 
-%unload()
+remove_ns(Ns, NsToModules) ->
+  maps:remove(Ns, NsToModules).
+
+load_ns(Ns, Env, NsToModules) ->
+  Next = next(Ns),
+  {Forms, Env1} = kapok_symbol_table:namespace_forms(Ns, Next, Env),
+  Callback = fun(_Module, _Binary) -> ok end,
+  kapok_erl:module(Forms, [], Env1, Callback),
+  %% update internal state
+  add_ns(Ns, Next, NsToModules).
+
+next(Ns) ->
+  kapok_utils:gensym(Ns).
+
+unload_ns(Ns) ->
+  %% remove the old module
+  code:delete(Ns),
+  ok.

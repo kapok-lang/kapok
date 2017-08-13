@@ -176,78 +176,52 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value
 
 %% Local call
 translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Env) ->
-  %% if it's a macro, expand it
-  Arity = length(Args),
-  {R1, Env1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Env),
-  case R1 of
-    {M1, F1, A1, P1} ->
-      %% the same as macroexpand({list, ...}, Env1)
-      NewArgs = kapok_trans:construct_new_args('expand', Arity, A1, P1, Args),
-      {EAst, EEnv2} = kapok_dispatch:expand_macro_named(Meta, M1, F1, A1, NewArgs, Env1),
-      translate(EAst, EEnv2);
-    false ->
-      {EArgs, Env2} = expand_list(Args, Env1),
-      %% translate ast to erlang abstract format
-      case kapok_env:get_var(Meta, Env2, Id) of
-        {ok, Name} ->
-          %% local variable
-          {TF, TEnv2} = translate({identifier, Meta1, Name}, Env2),
-          {TArgs, TEnv3} = translate_args(EArgs, TEnv2),
-          translate_local_call(Meta, TF, TArgs, TEnv3);
-        error ->
-          {TArgs, TEnv2} = translate_args(EArgs, Env2),
-          Arity1 = length(TArgs),
-          FunArity = {Id, Arity1},
-          case kapok_dispatch:find_local(FunArity, TEnv2) of
-            {F2, A2, P2} ->
-              translate_local_call(Meta, F2, A2, P2, Arity, TArgs, TEnv2);
-            false ->
-              %% check whether it's in imported functions/macros
-              {R3, TEnv3} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv2),
-              case R3 of
-                {M3, F3, A3, P3} ->
-                  translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TEnv3);
-                _ ->
-                  kapok_error:compile_error(Meta, ?m(TEnv3, file), "unknown local call: ~s",
-                                            [FunArity])
-              end
+  %% translate ast to erlang abstract format
+  case kapok_env:get_var(Meta, Env, Id) of
+    {ok, Name} ->
+      %% local variable
+      {TF, TEnv1} = translate({identifier, Meta1, Name}, Env),
+      {TArgs, TEnv2} = translate_args(Args, TEnv1),
+      translate_local_call(Meta, TF, TArgs, TEnv2);
+    error ->
+      {TArgs, TEnv1} = translate_args(Args, Env),
+      Arity = length(TArgs),
+      FunArity = {Id, Arity},
+      case kapok_dispatch:find_local(FunArity, TEnv1) of
+        {F2, A2, P2} ->
+          translate_local_call(Meta, F2, A2, P2, Arity, TArgs, TEnv1);
+        false ->
+          %% check whether it's in imported functions/macros
+          {R3, TEnv2} = kapok_dispatch:find_local_function(Meta, FunArity, TEnv1),
+          case R3 of
+            {M3, F3, A3, P3} ->
+              translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TEnv2);
+            _ ->
+              kapok_error:compile_error(Meta, ?m(TEnv2, file), "unknown local call: ~s", [FunArity])
           end
       end
   end;
 %%  Remote call
 translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Env) ->
+  {TArgs, TEnv1} = translate_args(Args, Env),
   Arity = length(Args),
-  {R1, Env1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, Env),
-  case R1 of
-    {M1, F1, A1, P1} ->
-      %% the same as macroexpand({list, ...}, Env1)
-      NewArgs = kapok_trans:construct_new_args('expand', Arity, A1, P1, Args),
-      {EAst, EEnv2} = kapok_dispatch:expand_macro_named(Meta, M1, F1, A1, NewArgs, Env1),
-      translate(EAst, EEnv2);
-    false ->
-      {EArgs, Env2} = expand_list(Args, Env1),
-      {TArgs, TEnv2} = translate_args(EArgs, Env2),
-      Arity1 = length(TArgs),
-      FunArity = {Fun, Arity1},
-      Namespace = ?m(TEnv2, namespace),
-      case Module of
-        Namespace ->
-          %% call to local module
-          case kapok_dispatch:find_local(FunArity, TEnv2) of
-            {F2, A2, P2} -> translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TEnv2);
-            _ -> kapok_error:compile_error(Meta, ?m(TEnv2, file), "unknown remote call: ~s:~s",
-                                           [Module, FunArity])
-          end;
-        _ ->
-          {{M3, F3, A3, P3}, Env3} = kapok_dispatch:get_remote_function(Meta, Module, FunArity,
-                                                                        TEnv2),
-          translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Env3)
-      end
+  FunArity = {Fun, Arity},
+  Namespace = ?m(TEnv1, namespace),
+  case Module of
+    Namespace ->
+      %% call to local module
+      case kapok_dispatch:find_local(FunArity, TEnv1) of
+        {F2, A2, P2} -> translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TEnv1);
+        _ -> kapok_error:compile_error(Meta, ?m(TEnv1, file),
+                                       "unknown remote call: ~s:~s", [Module, FunArity])
+      end;
+    _ ->
+      {{M3, F3, A3, P3}, Env2} = kapok_dispatch:get_remote_function(Meta, Module, FunArity, TEnv1),
+      translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Env2)
   end;
 translate({list, Meta, [{list, _, _} = H | T]}, Env) ->
-  {TH, TEnv} = translate(H, Env),
-  {ET, EEnv1} = expand_list(T, TEnv),
-  {TT, TEnv2} = translate(ET, EEnv1),
+  {TH, TEnv1} = translate(H, Env),
+  {TT, TEnv2} = translate(T, TEnv1),
   translate_local_call(Meta, TH, TT, TEnv2);
 translate({list, Meta, [_H | _T]} = Ast, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid function call ~s", [token_text(Ast)]);
@@ -411,9 +385,6 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 
 
 %% Helpers
-
-expand_list(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun kapok_macro:expand/2, Env, List).
 
 eval({list, Meta, [{identifier, _, Id} | Args]} = Ast, Env) ->
   Arity = length(Args),
