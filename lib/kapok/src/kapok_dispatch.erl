@@ -48,13 +48,17 @@ find_import_macro(Meta, FunArity, Env) ->
 find_remote_macro(Meta, Module, FunArity, Env) ->
   Requires = ?m(Env, requires),
   Uses = ?m(Env, uses),
-  Module1 = case orddict:find(Module, Requires) of
-              {ok, M1} -> M1;
-              error -> Module
-            end,
-  case orddict:find(Module1, Uses) of
+  %% get the original module name in case Module is a alias or rename.
+  Original = case orddict:find(Module, Requires) of
+               {ok, M1} -> M1;
+               error -> Module
+             end,
+  case orddict:find(Original, Uses) of
     {ok, _} ->
-      {D, Env1} = find_dispatch(Meta, Module1, FunArity, Env),
+      %% Original is declared in ns use clause.
+      %% Load all the import macros/functions from the specified module if necessary,
+      %% and then find the specified FunArity.
+      {D, Env1} = find_dispatch(Meta, Original, FunArity, Env),
       R = case D of
             {macro, {M, F, A, P}} -> {M, F, A, P};
             {function, _} -> false;
@@ -62,7 +66,7 @@ find_remote_macro(Meta, Module, FunArity, Env) ->
           end,
       {R, Env1};
     error ->
-      {D, Env1} = find_optional_dispatch(Meta, Module1, FunArity, Env),
+      {D, Env1} = find_optional_dispatch(Meta, Original, FunArity, Env),
       R = case D of
             {macro, {M, F, A, P}} -> {M, F, A, P};
             {function, _} -> false;
