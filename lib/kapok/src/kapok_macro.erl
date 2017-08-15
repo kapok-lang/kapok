@@ -94,13 +94,18 @@ expand_1({Category, Meta, Args}, Env)
 
 %% macro special forms
 
-%% quote, backquote, unquote, unquote_splicing
-expand_1({Category, Meta, Arg}, Env) when Category =:= quote;
+%% quote
+expand_1({Category, Meta, Arg}, Env) when Category =:= quote ->
+  {EArg, EEnv, Expanded} = expand_1(Arg, Env),
+  {{Category, Meta, EArg}, EEnv, Expanded};
+
+%% backquote, unquote, unquote_splicing
+expand_1({Category, _Meta, _Arg} = Ast, Env) when Category =:= quote;
                                           Category =:= backquote;
                                           Category =:= unquote;
                                           Category =:= unquote_splicing ->
-  {EArg, EEnv, Expanded} = expand_1(Arg, Env),
-  {{Category, Meta, EArg}, EEnv, Expanded};
+  %% don't expand backquote since its evaluation is meant to be delayed.
+  {Ast, Env, false};
 
 %% atom
 expand_1(Ast, Env) ->

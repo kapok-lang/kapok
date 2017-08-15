@@ -65,6 +65,9 @@
   evaluates and yields else.
   If else is not supplied it defaults to nil.
   """
+  ;; the `kapok.core` namespace may be unimported where this macro is used,
+  ;; so we'd better write the calling to `true?` in dot-identifier form
+  ;; to specify its namespace.
   `(case (kapok.core.true? ~test)
      (^true ~then)
      (^false ~else)))
@@ -106,24 +109,21 @@
   ([[_ & t]] t))
 
 
-;; (defmacro cond-1 [clauses]
-;;   """Takes a set of test/expr pairs. It evaluates each test one at a time.
-;;   If a test returns logical true, cond evaluates and returns the value of
-;;   the corresponding expr and doesn't evaluate any of the other tests or exprs.
-;;   (cond) returns `^ok`.
-;;   """
-;;   (kapok.core.when clauses
-;;     `(kapok.core.if ~(first clauses)
-;;               ~(case (next clauses)
-;;                  (^false
-;;                   ;; TODO support in module delay dispatching and replace `erlang.throw` with `throw`
-;;                   (erlang.throw "cond requires an even number of forms"))
-;;                  (_
-;;                   (second clauses)))
-;;        (kapok.core.cond-1 ~(rest (rest clauses))))))
-
-;; (defmacro cond [&rest clauses]
-;;   (cond-1 clauses))
+(defmacro cond [&rest clauses]
+  """Takes a set of test/expr pairs. It evaluates each test one at a time.
+  If a test returns logical true, cond evaluates and returns the value of
+  the corresponding expr and doesn't evaluate any of the other tests or exprs.
+  (cond) returns `^ok`.
+  """
+  (unless (nil? clauses)
+    `(kapok.core.if ~(first clauses)
+              ~(case (next clauses)
+                 (^false
+                  ;; TODO support in module delay dispatching and replace `erlang.throw` with `throw`
+                  (erlang.throw "cond requires an even number of forms"))
+                 (_
+                  (second clauses)))
+       (kapok.core.cond ~(rest (rest clauses))))))
 
 ;; macro
 
