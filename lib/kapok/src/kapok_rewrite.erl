@@ -21,22 +21,22 @@
 ?inline_nfun(?atom, 'to-char-list', 1) -> ?nfun(erlang, atom_to_list, 1);
 
 %% guard predicates
-?inline_nfun(?core, 'is-atom', 1) -> ?nfun(erlang, is_atom, 1);
-?inline_nfun(?core, 'is-binary', 1) -> ?nfun(erlang, is_binary, 1);
-?inline_nfun(?core, 'is_bitstring', 1) -> ?nfun(erlang, is_bitstring, 1);
-?inline_nfun(?core, 'is-boolean', 1) -> ?nfun(erlang, is_boolean, 1);
-?inline_nfun(?core, 'is-float', 1) -> ?nfun(erlang, is_float, 1);
-?inline_nfun(?core, 'is-function', 1) -> ?nfun(erlang, is_function, 1);
-?inline_nfun(?core, 'is-function', 2) -> ?nfun(erlang, is_function, 2);
-?inline_nfun(?core, 'is-integer', 1) -> ?nfun(erlang, is_integer, 1);
-?inline_nfun(?core, 'is-list', 1) -> ?nfun(erlang, is_list, 1);
-?inline_nfun(?core, 'is-map', 1) -> ?nfun(erlang, is_map, 1);
-?inline_nfun(?core, 'is-number', 1) -> ?nfun(erlang, is_number, 1);
-?inline_nfun(?core, 'is-pid', 1) -> ?nfun(erlang, is_pid, 1);
-?inline_nfun(?core, 'is-pmod', 1) -> ?nfun(erlang, is_pmod, 1);
-?inline_nfun(?core, 'is-port', 1) -> ?nfun(erlang, is_port, 1);
-?inline_nfun(?core, 'is-reference', 1) -> ?nfun(erlang, is_reference, 1);
-?inline_nfun(?core, 'is-tuple', 1) -> ?nfun(erlang, is_tuple, 1);
+?inline_nfun(?core, 'atom?', 1) -> ?nfun(erlang, is_atom, 1);
+?inline_nfun(?core, 'binary?', 1) -> ?nfun(erlang, is_binary, 1);
+?inline_nfun(?core, 'bitstring?', 1) -> ?nfun(erlang, is_bitstring, 1);
+?inline_nfun(?core, 'boolean?', 1) -> ?nfun(erlang, is_boolean, 1);
+?inline_nfun(?core, 'float?', 1) -> ?nfun(erlang, is_float, 1);
+?inline_nfun(?core, 'function?', 1) -> ?nfun(erlang, is_function, 1);
+?inline_nfun(?core, 'function?', 2) -> ?nfun(erlang, is_function, 2);
+?inline_nfun(?core, 'integer?', 1) -> ?nfun(erlang, is_integer, 1);
+?inline_nfun(?core, 'list?', 1) -> ?nfun(erlang, is_list, 1);
+?inline_nfun(?core, 'map?', 1) -> ?nfun(erlang, is_map, 1);
+?inline_nfun(?core, 'number?', 1) -> ?nfun(erlang, is_number, 1);
+?inline_nfun(?core, 'pid?', 1) -> ?nfun(erlang, is_pid, 1);
+?inline_nfun(?core, 'pmod?', 1) -> ?nfun(erlang, is_pmod, 1);
+?inline_nfun(?core, 'port?', 1) -> ?nfun(erlang, is_port, 1);
+?inline_nfun(?core, 'reference?', 1) -> ?nfun(erlang, is_reference, 1);
+?inline_nfun(?core, 'tuple?', 1) -> ?nfun(erlang, is_tuple, 1);
 
 %% guard built-in functions
 ?inline_nfun(?core, 'abs', 1) -> ?nfun(erlang, abs, 1);

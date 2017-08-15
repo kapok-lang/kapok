@@ -241,14 +241,14 @@
 
 ;; Guard predicates
 
-(defn is-atom [term]
+(defn atom? [term]
   """Returns `^true` if `term` is an atom; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_atom term))
 
-(defn is-binary [term]
+(defn binary? [term]
   """Returns `^true` if `term` is a binary; otherwise `^false`.
 
   A binary always contains a complete number of bytes.
@@ -257,15 +257,15 @@
 
   ## Examples
 
-      kapok> (is-binary "foo")
+      kapok> (binary? "foo")
       ^true
 
-      kapok> (is-binary <<(1 (:size 3))>>)
+      kapok> (binary? <<(1 (:size 3))>>)
       ^false
   """
   (erlang.is_binary term))
 
-(defn is-bitstring [term]
+(defn bitstring? [term]
   """Returns `^true` if `term` is a bitstring (including a binary);
   otherwise returns `^false`.
 
@@ -273,16 +273,16 @@
 
   ## Examples
 
-      kapok> (is-bitstring "foo")
+      kapok> (bitstring? "foo")
       ^true
 
-      kapok> (is-bitstring <<(1 (:size 3))>>)
+      kapok> (bitstring? <<(1 (:size 3))>>)
       ^true
 
   """
   (erlang.is_bitstring term))
 
-(defn is-boolean [term]
+(defn boolean? [term]
   """Returns `^true` if `term` is either the atom `^true` or the atom `^false`
   (i.e., a boolean); otherwise returns `^false`.
 
@@ -290,7 +290,7 @@
   """
   (erlang.is_boolean term))
 
-(defn is-builtin [module function arity]
+(defn builtin? [module function arity]
   """Returns `^true` if `(module function arity)` is a BIF implemented in C;
   otherwise `^false`.
 
@@ -298,7 +298,7 @@
   """
   (erlang.is_builtin module function arity))
 
-(defn is-float [term]
+(defn float? [term]
   """Returns `^true` if `term` is a floating point number;
   otherwise returns `^false`.
 
@@ -306,14 +306,14 @@
   """
   (erlang.is_float term))
 
-(defn is-function [term]
+(defn function? [term]
   """Returns `^true` if `term` is a function; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_function term))
 
-(defn is-function [term, arity]
+(defn function? [term, arity]
   """Returns `^true` if `term` is a function that can be applied with
   `arity` number of arguments; otherwise returns `^false`.
 
@@ -321,23 +321,23 @@
 
   ## Examples
 
-      kapok> (is-function (fn [x] (* 2 x)) 1)
+      kapok> (function? (fn [x] (* 2 x)) 1)
       ^true
 
-      kapok> (is-function (fn [x] (* 2 x)) 2)
+      kapok> (function? (fn [x] (* 2 x)) 2)
       ^false
 
   """
   (erlang.is_function term arity))
 
-(defn is-integer [term]
+(defn integer? [term]
   """Returns `^true` if `term` is an integer; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_integer term))
 
-(defn is-list [term]
+(defn list? [term]
   """Returns `^true` if `term` is a list with zero or more elements;
   otherwist returns `^false`.
 
@@ -345,14 +345,14 @@
   """
   (erlang.is_list term))
 
-(defn is-map [term]
+(defn map? [term]
   """Returns `^true` if `term` is a map; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_map term))
 
-(defn is-number [term]
+(defn number? [term]
   """Returns `^true` if `term` is an integer or a floating point number;
   otherwise returns `^false`.
 
@@ -360,7 +360,7 @@
   """
   (erlang.is_number term))
 
-(defn is-pid [term]
+(defn pid? [term]
   """Returns `^true` if `term` is a pid (process identifier);
   otherwise returns `^false`.
 
@@ -368,7 +368,7 @@
   """
   (erlang.is_pid term))
 
-(defn is-pmod [term]
+(defn pmod? [term]
   """Returns `^true` if `term` is an instance of a parameterized module;
   otherwise returns `^false`.
 
@@ -376,21 +376,21 @@
   """
   (erlang.is_pmod term))
 
-(defn is-port [term]
+(defn port? [term]
   """Returns `^true` if `term` is a port identifier; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_port term))
 
-(defn is-reference [term]
+(defn reference? [term]
   """Returns `^true` if `term` is a reference; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_reference term))
 
-(defn is-tuple [term]
+(defn tuple? [term]
   """Returns `^true` if `term` is a tuple; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
