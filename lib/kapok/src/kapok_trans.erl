@@ -159,7 +159,7 @@ translate({list, Meta, [{identifier, _, 'receive'} | Clauses]}, Env) ->
 translate({list, Meta, [{identifier, _, 'try'} | Exprs]}, Env) ->
   translate_try(Meta, Exprs, Env);
 
-%% Erlang specified forms
+%% Erlang Attribute Forms
 
 %% behaviour
 translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, Env)
@@ -181,6 +181,8 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Binary}, {C2, _, Number}]
 translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value}]}, Env)
     when ?is_attribute(Form), ?is_local_id(C1), ?is_local_id(C2) ->
   translate_attribute(Meta, Attribute, Value, Env);
+
+%% List
 
 %% Local call
 translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Env) ->
@@ -235,6 +237,8 @@ translate({list, Meta, [_H | _T]} = Ast, Env) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid function call ~s", [token_text(Ast)]);
 translate({list, _Meta, []}, Env) ->
   translate_list([], Env);
+
+%% Lisp Special Forms
 
 %% quote
 translate({quote, Meta, Arg}, Env) ->
@@ -332,8 +336,13 @@ translate({Category, Meta} = Token, Env) when ?is_parameter_keyword(Category) ->
   Error = {parameter_keyword_outside_fun_args, {Token}},
   kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
 
+%% All other things
+
 translate(Other, Env) ->
   {to_abstract_format(Other), Env}.
+
+
+%% Helper Functions
 
 %% Converts specified code to erlang abstract format
 
@@ -392,7 +401,7 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
   {call, Line, {remote, Line, {atom, Line, Module}, {atom, Line, Function}}, Args}.
 
 
-%% Helpers
+%% Macro Evaluation
 
 eval({list, Meta, [{identifier, _, Id} | Args]} = Ast, Env) ->
   Arity = length(Args),
@@ -416,6 +425,7 @@ eval(Ast, Env) ->
   {Ast, Env}.
 
 %% Quotes.
+
 %% atom
 quote(Meta, Atom) when is_atom(Atom) ->
   {atom, Meta, Atom};
@@ -487,11 +497,7 @@ build_macro_append(Meta, THead, Tail, Env) ->
   TAst = build_tuple(Meta, [TListC, TMeta, build_list([TAppend, THead, Tail])]),
   {TAst, TEnv4}.
 
-%% special forms
-
-%% translate attribute
-
-%% translate local call
+%% local call
 translate_local_call(Meta, F, A, P, Arity, TArgs, Env) ->
   {TF, TEnv} = translate(F, Env),
   TArgs1 = construct_new_args('translate', Arity, A, P, TArgs),
@@ -499,7 +505,7 @@ translate_local_call(Meta, F, A, P, Arity, TArgs, Env) ->
 translate_local_call(Meta, TF, TArgs, Env) ->
   {{call, ?line(Meta), TF, TArgs}, Env}.
 
-%% translate remote call
+%% remote call
 translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Env) ->
   TArgs1 = construct_new_args('translate', Arity, A, P, TArgs),
   translate_remote_call(Meta, M, F, TArgs1, Env).
@@ -538,7 +544,7 @@ map_vars(Meta, TMapArg, TKeyParameters, Env) ->
 var_to_keyword({var, Line, Id}) ->
   {atom, Line, Id}.
 
-%% Translate arguments
+%% arguments
 
 translate_def_arg(Arg, #{context := Context} = Env) ->
   {TArg, TEnv} = translate(Arg, Env#{context => pattern}),
@@ -596,7 +602,7 @@ translate_args([H | T], Acc, {normal, Meta1, Args}, Env) ->
 translate_args([H | _T], _, {keyword, _Meta1, _Args}, Env) ->
   kapok_error:form_error(token_meta(H), ?m(Env, file), ?MODULE, {missing_key_for_argument, {H}}).
 
-%% translate guard
+%% guard
 translate_guard([], Env) ->
   {[], Env};
 translate_guard({list, Meta, [{identifier, _, 'when'} | Body]}, Env) ->
@@ -646,7 +652,7 @@ translate_guard(Other, 'or', Env) ->
 translate_guard(Other, _Parent, Env) ->
   translate(Other, Env).
 
-%% translate body
+%% body
 translate_body(Meta, Body, Env) ->
   case Body of
     [] ->
