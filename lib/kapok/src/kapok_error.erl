@@ -9,7 +9,7 @@
          warn/3,
          handle_file_warning/2,
          handle_file_error/2
-         ]).
+        ]).
 -include("kapok.hrl").
 
 warn(Line, File, Warning) when is_integer(Line), is_binary(File) ->
@@ -48,10 +48,10 @@ handle_file_warning(File, {Line, Module, Desc}) ->
 
 handle_file_error(File, {Line, erl_lint, {unsafe_to_atom, Var, {In, _Where}}}) ->
   Translated = case In of
-    'orelse'  -> 'or';
-    'andalso' -> 'and';
-    _ -> In
-  end,
+                 'orelse'  -> 'or';
+                 'andalso' -> 'and';
+                 _ -> In
+               end,
   Message = io_lib:format("cannot define variable ~ts inside ~ts", [Var, Translated]),
   raise(Line, File, 'CompileError', kapok_utils:characters_to_binary(Message));
 
@@ -69,12 +69,11 @@ raise(Meta, File, Kind, Message) when is_list(Meta), is_binary(File), is_binary(
 raise(Line, File, Kind, Message) when is_integer(Line), is_binary(File), is_binary(Message) ->
   io:format("~p, file: ~p, line: ~p, ~s\n\n", [Kind, File, Line, Message]),
   %% reset stacktrace
-  try
+  Stacktrace = try
     throw(ok)
   catch
-    ok -> ok
+    ok -> erlang:get_stacktrace()
   end,
-  Stacktrace = erlang:get_stacktrace(),
   Exception = {Kind, File, Line, Message},
   erlang:raise(error, Exception, tl(Stacktrace)).
 
@@ -88,4 +87,3 @@ format_error([], Desc) ->
   io_lib:format("~p", [Desc]);
 format_error(Module, ErrorDesc) ->
   Module:format_error(ErrorDesc).
-

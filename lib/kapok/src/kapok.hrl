@@ -61,4 +61,3 @@
 %% default source file suffix
 -define(SOURCE_FILE_SUFFIX, ".kpk").
 -define(BEAM_FILE_SUFFIX, ".beam").
-

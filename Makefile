@@ -134,9 +134,9 @@ define gen-build-rules
 
 ifeq "$(strip $1)" "kapok"
 
-.PHONY : $2$1 $2$1-compiler $2$1-libs
+.PHONY : $2$1 $2$1-compiler $2$1-libs $2$1-core-libs
 
-$2$1: $2$1-compiler $2$1-libs
+$2$1: $2$1-compiler $2$1-core-libs $2$1-libs
 
 $2$1-compiler: $($1_parser_src_file) $($1_beam_files)
 
@@ -160,6 +160,10 @@ $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$(QUIET) printf "Compile '%s'\n" $$<
 	$$(call kapokc,$$<,$$(dir $$@))
 
+$2$1-core-libs: $2$1-compiler
+	$(QUIET) echo "--- build core libs ---"
+	$(call erl,kapok_compiler,core)
+
 .PHONY :  $3$1 build-test-$1 run-test-$1
 
 $3$1: build-test-$1 run-test-$1
@@ -177,7 +181,7 @@ $(foreach m,$($1_test_modules), \
    $(eval $(call gen-run-test-rule,run-test-,$m)))
 
 $4$1:
-	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) $($1_test_beam_files)
+	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) $($1_lib_beam_files) $($1_test_beam_files)
 
 else
 
@@ -203,4 +207,3 @@ clean: $(foreach l,$(lib_names),$(call gen-target,clean-,$l))
 	$(QUIET) $(RM) $(other_files)
 
 $(foreach l,$(lib_names),$(call gen-build-for,$l,build-,test-,clean-))
-

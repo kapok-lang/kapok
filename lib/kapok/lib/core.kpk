@@ -56,6 +56,8 @@
   ([^false] ^true)
   ([_] ^false))
 
+(defalias false? nil?)
+
 (defn true? [x]
   """Returns `^true` if `x` is the value true, `^false` otherwise."""
   (erlang.not (nil? x)))
@@ -65,11 +67,14 @@
   evaluates and yields else.
   If else is not supplied it defaults to nil.
   """
+  ;; the `kapok.core` namespace may be unimported where this macro is used,
+  ;; so we'd better write the calling to `true?` in dot-identifier form
+  ;; to specify its namespace.
   `(case (kapok.core.true? ~test)
      (^true ~then)
      (^false ~else)))
 
-(defmacro when [test &rest body]
+(defmacro when-do [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
   `(case (kapok.core.true? ~test)
      (^true ~@body)
@@ -105,14 +110,13 @@
   ([[_]] [])
   ([[_ & t]] t))
 
-
-(defmacro cond-1 [clauses]
+(defmacro cond [&rest clauses]
   """Takes a set of test/expr pairs. It evaluates each test one at a time.
   If a test returns logical true, cond evaluates and returns the value of
   the corresponding expr and doesn't evaluate any of the other tests or exprs.
   (cond) returns `^ok`.
   """
-  (kapok.core.when clauses
+  (unless (nil? clauses)
     `(kapok.core.if ~(first clauses)
               ~(case (next clauses)
                  (^false
@@ -120,10 +124,7 @@
                   (erlang.throw "cond requires an even number of forms"))
                  (_
                   (second clauses)))
-       (kapok.core.cond-1 ~(rest (rest clauses))))))
-
-(defmacro cond [&rest clauses]
-  (cond-1 clauses))
+       (kapok.core.cond ~(rest (rest clauses))))))
 
 ;; macro
 
@@ -137,22 +138,6 @@
   ([prefix] (kapok-utils.gensym prefix)))
 
 ;; functions and operators
-
-(defn abs [number]
-  """Returns the arithmetical absolute value of `number`.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (abs -3.33)
-      3.33
-
-      kapok> (abs -3)
-      3
-
-  """
-  (erlang.abs number))
 
 (defn apply [fun args]
   """Invokes the given `fun` with the arugments `args`.
@@ -239,26 +224,31 @@
   """
   (erlang.byte_size bitstring))
 
-(defn exit [reason]
-  """Stops the execution of the calling process with the given reason.
+(defn tuple-size [tuple]
+  """Returns an integer which is the number of elements in `tuple`.
 
-  Since evaluating this function casuses the process to terminate,
-  it has no return value.
+  This operation happens in constant time.
 
-  Inlined by the compiler.
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (tuple-size {^a ^b ^c})
+      3
+
   """
-  (erlang.exit reason))
+  (erlang.tuple_size tuple))
 
 ;; Guard predicates
 
-(defn is-atom [term]
+(defn atom? [term]
   """Returns `^true` if `term` is an atom; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_atom term))
 
-(defn is-binary [term]
+(defn binary? [term]
   """Returns `^true` if `term` is a binary; otherwise `^false`.
 
   A binary always contains a complete number of bytes.
@@ -267,15 +257,15 @@
 
   ## Examples
 
-      kapok> (is-binary "foo")
+      kapok> (binary? "foo")
       ^true
 
-      kapok> (is-binary <<(1 (:size 3))>>)
+      kapok> (binary? <<(1 (:size 3))>>)
       ^false
   """
   (erlang.is_binary term))
 
-(defn is-bitstring [term]
+(defn bitstring? [term]
   """Returns `^true` if `term` is a bitstring (including a binary);
   otherwise returns `^false`.
 
@@ -283,16 +273,16 @@
 
   ## Examples
 
-      kapok> (is-bitstring "foo")
+      kapok> (bitstring? "foo")
       ^true
 
-      kapok> (is-bitstring <<(1 (:size 3))>>)
+      kapok> (bitstring? <<(1 (:size 3))>>)
       ^true
 
   """
   (erlang.is_bitstring term))
 
-(defn is-boolean [term]
+(defn boolean? [term]
   """Returns `^true` if `term` is either the atom `^true` or the atom `^false`
   (i.e., a boolean); otherwise returns `^false`.
 
@@ -300,7 +290,7 @@
   """
   (erlang.is_boolean term))
 
-(defn is-builtin [module function arity]
+(defn builtin? [module function arity]
   """Returns `^true` if `(module function arity)` is a BIF implemented in C;
   otherwise `^false`.
 
@@ -308,7 +298,7 @@
   """
   (erlang.is_builtin module function arity))
 
-(defn is-float [term]
+(defn float? [term]
   """Returns `^true` if `term` is a floating point number;
   otherwise returns `^false`.
 
@@ -316,14 +306,14 @@
   """
   (erlang.is_float term))
 
-(defn is-function [term]
+(defn function? [term]
   """Returns `^true` if `term` is a function; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_function term))
 
-(defn is-function [term, arity]
+(defn function? [term, arity]
   """Returns `^true` if `term` is a function that can be applied with
   `arity` number of arguments; otherwise returns `^false`.
 
@@ -331,23 +321,23 @@
 
   ## Examples
 
-      kapok> (is-function (fn [x] (* 2 x)) 1)
+      kapok> (function? (fn [x] (* 2 x)) 1)
       ^true
 
-      kapok> (is-function (fn [x] (* 2 x)) 2)
+      kapok> (function? (fn [x] (* 2 x)) 2)
       ^false
 
   """
   (erlang.is_function term arity))
 
-(defn is-integer [term]
+(defn integer? [term]
   """Returns `^true` if `term` is an integer; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_integer term))
 
-(defn is-list [term]
+(defn list? [term]
   """Returns `^true` if `term` is a list with zero or more elements;
   otherwist returns `^false`.
 
@@ -355,14 +345,14 @@
   """
   (erlang.is_list term))
 
-(defn is-map [term]
+(defn map? [term]
   """Returns `^true` if `term` is a map; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_map term))
 
-(defn is-number [term]
+(defn number? [term]
   """Returns `^true` if `term` is an integer or a floating point number;
   otherwise returns `^false`.
 
@@ -370,7 +360,7 @@
   """
   (erlang.is_number term))
 
-(defn is-pid [term]
+(defn pid? [term]
   """Returns `^true` if `term` is a pid (process identifier);
   otherwise returns `^false`.
 
@@ -378,7 +368,7 @@
   """
   (erlang.is_pid term))
 
-(defn is-pmod [term]
+(defn pmod? [term]
   """Returns `^true` if `term` is an instance of a parameterized module;
   otherwise returns `^false`.
 
@@ -386,21 +376,21 @@
   """
   (erlang.is_pmod term))
 
-(defn is-port [term]
+(defn port? [term]
   """Returns `^true` if `term` is a port identifier; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_port term))
 
-(defn is-reference [term]
+(defn reference? [term]
   """Returns `^true` if `term` is a reference; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_reference term))
 
-(defn is-tuple [term]
+(defn tuple? [term]
   """Returns `^true` if `term` is a tuple; otherwise returns `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
@@ -489,6 +479,8 @@
                                  x
                                  [y & more])))
 
+;; process and message
+
 (defn node []
   """Returns an atom representing the name of the local node.
   If the node is not alive, `^nonode@nohost` is returned instead.
@@ -505,38 +497,6 @@
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.node arg))
-
-(defn number-to-float [n]
-  """Convert the given arugment `x` from a number to a float.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (number-to-float 55)
-      55.0
-
-  """
-  (erlang.float n))
-
-(defn round [n]
-  """Rounds a number to the nearest integer.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (round 5.6)
-      6
-
-      kapok> (round 5.2)
-      5
-
-      kapok> (round -9.9)
-      -10
-
-  """
-  (erlang.round n))
 
 (defn self []
   """Returns the pid (process identifier) of the calling process.
@@ -667,40 +627,22 @@
   """
   (erlang.spawn_monitor module fun args))
 
+(defn exit [reason]
+  """Stops the execution of the calling process with the given reason.
+
+  Since evaluating this function casuses the process to terminate,
+  it has no return value.
+
+  Inlined by the compiler.
+  """
+  (erlang.exit reason))
+
 (defn throw [term]
   """A non-local return from a function.
 
   Inlined by the compiler.
   """
   (erlang.throw term))
-
-(defn trunc [number]
-  """Returns an integer by truncating `number`.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (trunc 5.5)
-      5
-
-  """
-  (erlang.trunc number))
-
-(defn tuple-size [tuple]
-  """Returns an integer which is the number of elements in `tuple`.
-
-  This operation happens in constant time.
-
-  Allowed in guard tests. Inlined by the compiler.
-
-  ## Examples
-
-      kapok> (tuple-size {^a ^b ^c})
-      3
-
-  """
-  (erlang.tuple_size tuple))
 
 ;; Arithmetic Operators
 
@@ -822,6 +764,69 @@
 (defn inc [n]
   """Returns a number one greater than the argument `n`."""
   (+ n 1))
+
+;; math
+
+(defn number-to-float [n]
+  """Convert the given arugment `x` from a number to a float.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (number-to-float 55)
+      55.0
+
+  """
+  (erlang.float n))
+
+(defn abs [number]
+  """Returns the arithmetical absolute value of `number`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (abs -3.33)
+      3.33
+
+      kapok> (abs -3)
+      3
+
+  """
+  (erlang.abs number))
+
+(defn round [n]
+  """Rounds a number to the nearest integer.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (round 5.6)
+      6
+
+      kapok> (round 5.2)
+      5
+
+      kapok> (round -9.9)
+      -10
+
+  """
+  (erlang.round n))
+
+(defn trunc [number]
+  """Returns an integer by truncating `number`.
+
+  Allowed in guard tests. Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (trunc 5.5)
+      5
+
+  """
+  (erlang.trunc number))
 
 ;; Bitwise Operators
 

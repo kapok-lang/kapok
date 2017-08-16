@@ -10,9 +10,10 @@
          reset_macro_context/1,
          push_scope/1,
          pop_scope/1,
-         add_var/2,
+         add_var/3,
+         add_let_var/3,
          add_bindings/2,
-         check_var/3,
+         get_var/3,
          env_for_eval/1,
          env_for_eval/2]).
 
@@ -36,26 +37,33 @@ new_env() ->
     namespace => nil,                      %% the current namespace
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line
-    function => nil,                       %% the current function
-    context => nil,                        %% can be pattern, guards, or nil
+    def_kind => nil,                       %% the kind of def*
+    def_fap => nil,                        %% the {Fun, Arity, ParameterType} of def*
+    context => nil,                        %% can be pattern, let_pattern, guards, or nil
     macro_context => new_macro_context(),  %%
-    requires => [],                        %% a dict of modules(and aliases) required in 'name -> original'
-    uses => [],                            %% a dict of modules used in 'module -> use arguments'
-    functions => [],                       %% a dict of imported functions(and aliases) by 'module -> [fun...]'
-    macros => [],                          %% a dict of imported macros(aliases) by 'module -> [macro...]'
-    scope => new_scope()                   %% the current scope
+    requires => [],           %% a dict of modules(and aliases) required in 'name -> original'
+    uses => [],               %% a dict of modules used in 'module -> use arguments'
+    functions => [],          %% a dict of imported functions(and aliases) by 'module -> [fun...]'
+    macros => [],             %% a dict of imported macros(aliases) by 'module -> [macro...]'
+    scope => new_scope()      %% the current scope
    }.
 
 add_require(Meta, Env, Require) when is_atom(Require) ->
   add_require(Meta, Env, Require, Require).
-add_require(Meta, #{requires := Requires} = Env, Alias, Original) when is_atom(Alias), is_atom(Original) ->
-  %% check for duplicate
-  case orddict:is_key(Alias, Requires) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate require: ~p", [Alias]);
-    false -> ok
-  end,
-  NewRequires = orddict:store(Alias, Original, Requires),
-  Env#{requires => NewRequires}.
+add_require(Meta, #{requires := Requires} = Env, Alias, Original)
+    when is_atom(Alias), is_atom(Original) ->
+  case orddict:find(Alias, Requires) of
+    {ok, Original} ->
+      %% Skip when the specified require is added already.
+      Env;
+    {ok, Other} ->
+      kapok_error:compile_error(Meta, ?m(Env, file),
+                                "invalid require ~p as ~p, it conflicts with the previous ~p as ~p",
+                                [Alias, Original, Alias, Other]);
+    error ->
+      NewRequires = orddict:store(Alias, Original, Requires),
+      Env#{requires => NewRequires}
+  end.
 
 add_use(Meta, #{uses := Uses} = Env, Module) ->
   Env#{uses => orddict:store(Module, [{meta, Meta}], Uses)}.
@@ -94,7 +102,7 @@ reset_macro_context(Env) ->
   Env#{macro_context => new_macro_context()}.
 
 push_scope(#{scope := Scope} = Env) ->
-  NewScope = (new_scope())#{parent => Scope, vars => maps:get(vars, Scope)},
+  NewScope = (new_scope())#{parent => Scope},
   Env#{scope => NewScope}.
 
 pop_scope(#{scope := Scope} = Env) ->
@@ -103,41 +111,68 @@ pop_scope(#{scope := Scope} = Env) ->
     ParentScope -> Env#{scope => ParentScope}
   end.
 
-add_var(#{scope := Scope} = Env, Var) ->
-  Vars = maps:get(vars, Scope),
-  NewVars = ordsets:add_element(Var, Vars),
-  Env#{scope => Scope#{vars => NewVars}}.
+keywords() ->
+  ['ns', 'defn', 'defn-', 'defmacro', 'defmacro-',
+   'let', 'do', 'case', 'fn', 'when', 'try'].
 
-add_bindings(#{scope := Scope} = Env, Bindings) ->
-  New = ordsets:from_list([K || {K, _} <- Bindings]),
-  Vars = maps:get(vars, Scope),
-  NewVars = ordsets:union(Vars, New),
-  Env#{scope => Scope#{vars => NewVars}}.
+var_exist(Vars, Var) ->
+  orddict:is_key(Var, Vars).
 
-check_var(Meta, #{scope := Scope} = Env, Var) ->
-  check_var(Meta, Env, Scope, Var).
-check_var(Meta, Env, nil, Var) ->
-  kapok_error:compile_error(Meta, ?m(Env, file),"unable to resolve symbol: ~p", [Var]);
-check_var(Meta, Env, Scope, Var) ->
+is_valid_var_name(Var) ->
+  Keywords = ordsets:from_list(keywords()),
+  case ordsets:is_element(Var, Keywords) of
+    true -> false;
+    false -> true
+  end.
+
+add_var(Meta, Env, Var) ->
+  add_var(Meta, Env, Var, Var).
+
+add_let_var(Meta, Env, Var) ->
+  Prefix = io_lib:format("VAR_~s_", [atom_to_list(Var)]),
+  Name = kapok_utils:gensym_with(Prefix),
+  add_var(Meta, Env, Var, Name).
+
+add_var(Meta, #{scope := Scope} = Env, Var, Name) ->
+  case is_valid_var_name(Var) of
+    true -> ok;
+    false -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid var name: ~s", [Var])
+  end,
   Vars = maps:get(vars, Scope),
-  case ordsets:is_element(Var, Vars) of
-    true -> Env;
-    false -> check_var(Meta, Env, maps:get(parent, Scope), Var)
+  case var_exist(Vars, Var) of
+    true -> kapok_error:compile_error(Meta, ?m(Env, file),
+                                      "redeclare symbol: ~p, vars: ~p", [Var, Vars]);
+    false -> ok
+  end,
+  NewVars = orddict:store(Var, Name, Vars),
+  Env1 = Env#{scope => Scope#{vars => NewVars}},
+  {Name, Env1}.
+
+add_bindings(Env, Bindings) ->
+  lists:mapfoldl(fun({K, _V}, E) -> add_var([], E, K) end, Env, Bindings).
+
+get_var(Meta, #{scope := Scope} = Env, Var) ->
+  get_var(Meta, Env, Scope, Var).
+get_var(_Meta, _Env, nil, _Var) ->
+  error;
+get_var(Meta, Env, Scope, Var) ->
+  Vars = maps:get(vars, Scope),
+  case orddict:find(Var, Vars) of
+    {ok, _Name} = R -> R;
+    error -> get_var(Meta, Env, maps:get(parent, Scope), Var)
   end.
 
 %% EVAL HOOKS
 
 env_for_eval(Opts) ->
-  env_for_eval((new_env())#{requires := kapok_dispatch:default_requires(),
-                            functions := kapok_dispatch:default_functions(),
-                            macros := kapok_dispatch:default_macros()},
+  env_for_eval((new_env())#{requires := kapok_dispatch:default_requires()},
                Opts).
 
 env_for_eval(Env, Opts) ->
   Namespace = case lists:keyfind(namespace, 1, Opts) of
-             {namespace, NamespaceOpt} when is_list(NamespaceOpt) -> NamespaceOpt;
-             false -> nil
-           end,
+                {namespace, NamespaceOpt} when is_list(NamespaceOpt) -> NamespaceOpt;
+                false -> nil
+              end,
 
   File = case lists:keyfind(file, 1, Opts) of
            {file, FileOpt} when is_binary(FileOpt) -> FileOpt;

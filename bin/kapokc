@@ -4,9 +4,9 @@
 usage() {
   echo "Usage: `basename $0` [kapok options] [compiler options] [kapok files]
 
-  -debug       Print debug messages
   -o           The directory to output compiled files
-  -verbose     Print informationaal messages
+  --debug       Print debug messages
+  --verbose     Print informationaal messages
 
 ** Options given after -- are passed down to the execuded code
 ** Options can be passed to the erlang runtime using KAPOK_ERL_OPTIONS
@@ -31,4 +31,3 @@ readlink_f() {
 PROGRAM=$(readlink_f "$0")
 PROGRAM_DIR=$(dirname "$PROGRAM")
 exec "$PROGRAM_DIR"/kapok +kapokc "$@"
-

@@ -35,10 +35,10 @@
       ^false
 
   """
+
   `(kapok.core.and (kapok.core.is_tuple ~data)
                    (kapok.core.> (kapok.core.tuple-size ~data) 0)
                    (kapok.core.is_atom (erlang.element 1 ~data))))
-
 
 (defmacro is-record [data kind]
   """Checks if the given `data` is a record of `kind`.

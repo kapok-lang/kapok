@@ -235,7 +235,8 @@ scan([$"|T], Line, Column, Scope, Tokens) ->
 
 %% Keywords and Atoms
 
-scan([S, H|T] = Original, Line, Column, Scope, Tokens) when (S == $: orelse S == $^), ?is_quote(H) ->
+scan([S, H|T] = Original, Line, Column, Scope, Tokens)
+    when (S == $: orelse S == $^), ?is_quote(H) ->
   case scan_string(Line, Column + 2, T, [H]) of
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
@@ -245,9 +246,9 @@ scan([S, H|T] = Original, Line, Column, Scope, Tokens) when (S == $: orelse S ==
                    $^ -> atom
                  end,
           Suffix = case Scope#kapok_scanner_scope.existing_atoms_only of
-                  true -> safe;
-                  false -> unsafe
-                end,
+                     true -> safe;
+                     false -> unsafe
+                   end,
           Tag = list_to_atom(atom_to_list(Type) ++ "_" ++ atom_to_list(Suffix)),
           scan(Rest, NewLine, NewColumn, Scope,
                [{Tag, build_meta(Line, Column), Unescaped}|Tokens]);
@@ -259,7 +260,8 @@ scan([S, H|T] = Original, Line, Column, Scope, Tokens) when (S == $: orelse S ==
       {error, {Location, ?MODULE, {missing_terminator, H, H, Line}},
        Original, lists:reverse(Tokens)}
   end;
-scan([S, H|T], Line, Column, Scope, Tokens) when (S == $: orelse S == $^), ?is_identifier_start(H) ->
+scan([S, H|T], Line, Column, Scope, Tokens)
+    when (S == $: orelse S == $^), ?is_identifier_start(H) ->
   Type = case S of
            $: -> keyword;
            $^ -> atom
@@ -310,7 +312,8 @@ scan([$&, $k, $e, $y | T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 4, Scope, [{keyword_key, build_meta(Line, Column), '&key'}|Tokens]);
 
 scan([$&, $o, $p, $t, $i, $o, $n, $a, $l | T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 9, Scope, [{keyword_optional, build_meta(Line, Column), '&optional'}|Tokens]);
+  scan(T, Line, Column + 9, Scope,
+       [{keyword_optional, build_meta(Line, Column), '&optional'}|Tokens]);
 
 scan([$&, $r, $e, $s, $t | T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 5, Scope, [{keyword_rest, build_meta(Line, Column), '&rest'}|Tokens]);
@@ -368,7 +371,7 @@ do_scan_hex(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
               {Sign, build_meta(Line, Column), {Category, build_meta(Line, Column+1), Number}};
             Category when is_atom(Category) ->
               {Category, build_meta(Line, Column), Number}
-            end,
+          end,
   scan(Rest, Line, Column + PrefixLength + Length, Scope, [Token|Tokens]).
 
 do_scan_octal(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
@@ -378,7 +381,7 @@ do_scan_octal(Flag, PrefixLength, String, Line, Column, Scope, Tokens) ->
               {Sign, build_meta(Line, Column), {Category, build_meta(Line, Column+1), Number}};
             Category when is_atom(Category) ->
               {Category, build_meta(Line, Column), Number}
-            end,
+          end,
   scan(Rest, Line, Column + PrefixLength + Length, Scope, [Token|Tokens]).
 
 do_scan_n_base(Flag, PrefixLength, N, H, T, Line, Column, Scope, Tokens) ->
@@ -705,4 +708,3 @@ format_error({invalid_space, Char, LineAfterChar}) ->
   io_lib:format("invalid space character U+~.16B before: ~ts", [Char, LineAfterChar]);
 format_error({invalid_token, Line}) ->
   io_lib:format("invalid token: ~ts", [Line]).
-

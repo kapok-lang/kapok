@@ -1,5 +1,5 @@
 %% bitstring
--module(kapok_bitstring).
+-module(kapok_trans_bitstring).
 -export([translate/3]).
 -include("kapok.hrl").
 
@@ -8,10 +8,13 @@
 %% Translate
 
 translate(Meta, {Category, Meta1, Arg}, Env) when ?is_string(Category) ->
-  {{bin, ?line(Meta), [{bin_element, ?line(Meta1), {string, ?line(Meta1), binary_to_list(Arg)}, default, default}]}, Env};
+  {{bin,
+    ?line(Meta),
+    [{bin_element, ?line(Meta1), {string, ?line(Meta1), binary_to_list(Arg)}, default, default}]},
+   Env};
 
 translate(Meta, Args, Env) when is_list(Args) ->
-  build_bitstring(fun kapok_translate:translate/2, Args, Meta, Env).
+  build_bitstring(fun kapok_trans:translate/2, Args, Meta, Env).
 
 build_bitstring(Fun, Args, Meta, Env) ->
   {Result, TEnv} = build_bitstring_element(Fun, Args, Meta, Env, []),
@@ -32,19 +35,27 @@ build_bitstring_element(Fun, Args, Meta, Env, Acc, V, default, Types) when is_bi
       false ->
         case types_require_conversion(Types) of
           true ->
-            {bin_element, ?line(Meta), {string, 0, kapok_utils:characters_to_list(V)}, default, Types};
+            {bin_element,
+             ?line(Meta),
+             {string, 0, kapok_utils:characters_to_list(V)},
+             default,
+             Types};
           false ->
             kapok_error:compile_error(
-                Meta, ?m(Env, file), "invalid types for literal string in bitstring. "
-                "Accepted types are: little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
+                Meta,
+                ?m(Env, file),
+                "invalid types for literal string in bitstring. Accepted types are: "
+                "little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
         end
     end,
   build_bitstring_element(Fun, Args, Meta, Env, [Element|Acc]);
 
 build_bitstring_element(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_binary(V) ->
-  kapok_error:compile_error(Meta, ?m(Env, file), "size is not supported for literal string in bitstring");
+  kapok_error:compile_error(Meta, ?m(Env, file),
+                            "size is not supported for literal string in bitstring");
 
-build_bitstring_element(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types) when is_list(V); is_atom(V) ->
+build_bitstring_element(_Fun, _Args, Meta, Env, _Acc, V, _Size, _Types)
+    when is_list(V); is_atom(V) ->
   kapok_error:compile_error(Meta, ?m(Env, file), "invalid literal ~ts in bitstring", [V]);
 
 build_bitstring_element(Fun, Args, Meta, Env, Acc, V, Size, Types) ->
@@ -53,10 +64,12 @@ build_bitstring_element(Fun, Args, Meta, Env, Acc, V, Size, Types) ->
     {bin, _, Elements} ->
       case (Size == default) andalso types_allow_splice(Types, Elements) of
         true -> build_bitstring_element(Fun, Args, Meta, TEnv, lists:reverse(Elements, Acc));
-        false -> build_bitstring_element(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+        false -> build_bitstring_element(Fun, Args, Meta, TEnv,
+                                         [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
       end;
     _ ->
-      build_bitstring_element(Fun, Args, Meta, TEnv, [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
+      build_bitstring_element(Fun, Args, Meta, TEnv,
+                              [{bin_element, ?line(Meta), Expr, Size, Types}|Acc])
   end.
 
 %% Extra bitstring element specifiers
@@ -76,10 +89,14 @@ extract_element_size_tsl([], _Env, {Size, TypeSpecList}) ->
         X -> X
       end,
   {Size, L};
-extract_element_size_tsl([{list, _Meta, [{keyword, _, size}, SizeExpr]}|T], Env, {_, TypeSpecList}) ->
+extract_element_size_tsl([{list, _Meta, [{keyword, _, size}, SizeExpr]}|T],
+                         Env,
+                         {_, TypeSpecList}) ->
   {Size, _} = kapok_translator:translate(SizeExpr, Env),
   extract_element_size_tsl(T, Env, {Size, TypeSpecList});
-extract_element_size_tsl([{list, _Meta, [{keyword, _, unit}, UnitExpr]}|T], Env, {Size, TypeSpecList}) ->
+extract_element_size_tsl([{list, _Meta, [{keyword, _, unit}, UnitExpr]}|T],
+                         Env,
+                         {Size, TypeSpecList}) ->
   {Unit, _} = kapok_translator:translate(UnitExpr, Env),
   {integer, _, Value} = Unit,
   extract_element_size_tsl(T, Env, {Size, [{unit, Value}|TypeSpecList]});
@@ -125,4 +142,3 @@ unit_size([binary|T], _)       -> unit_size(T, 8);
 unit_size([{unit, Size}|_], _) -> Size;
 unit_size([_|T], Guess)        -> unit_size(T, Guess);
 unit_size([], Guess)           -> Guess.
-

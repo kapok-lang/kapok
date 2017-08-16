@@ -1,8 +1,8 @@
-;; A namespace which wraps atom functions from erlang library module :erlang.
+;; A namespace which wraps functions for working with atoms.
 ;; -*- Kapok -*-
 
 (ns kapok.atom
-  "Convenience functions for working with atoms."
+  "Functions for working with atoms."
   (require erlang))
 
 (defn to-string [atom]
