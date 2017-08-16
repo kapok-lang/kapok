@@ -19,8 +19,7 @@
   The macros `defrecord` and `defrecord-` can be used to create records
   while `extract` can be used to extract records from Erlang files.
   """
-  (require (kapok.core :as core)
-           erlang))
+  (require erlang))
 
 (defmacro is-record [data]
   """Checks if the given `data` is a record.
@@ -36,9 +35,9 @@
       ^false
 
   """
-  `(and (core.is_tuple ~data)
-        (core.> (core.tuple-size ~data) 0)
-        (core.is_atom (erlang.element 1 ~data))))
+  `(kapok.core.and (kapok.core.is_tuple ~data)
+                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
+                   (kapok.core.is_atom (erlang.element 1 ~data))))
 
 
 (defmacro is-record [data kind]
@@ -52,6 +51,6 @@
       ^true
 
   """
-  `(and (core.is_tuple ~data)
-        (core.> (core.tuple-size ~data) 0)
-        (core.== (erlang.element 1 ~data) ~kind)))
+  `(kapok.core.and (kapok.core.is_tuple ~data)
+                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
+                   (kapok.core.== (erlang.element 1 ~data) ~kind)))
