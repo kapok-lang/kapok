@@ -1,8 +1,7 @@
 %% Helper module for dispatching names(module/function/macro/var) and their references.
 -module(kapok_dispatch).
 -export([default_requires/0,
-         default_functions/0,
-         default_macros/0,
+         default_uses/0,
          find_local_macro/3,
          find_remote_macro/4,
          find_local/2,
@@ -14,14 +13,12 @@
 -include("kapok.hrl").
 
 default_requires() ->
-  [{kapok_macro, kapok_macro}].
+  L = ['kapok_macro',
+       'kapok.core'],
+  orddict:from_list(lists:map(fun(X) -> {X, X} end, L)).
 
-default_functions() ->
-  [].
-
-default_macros() ->
-  [{kapok_macro, get_optional_macros(kapok_macro)}].
-
+default_uses() ->
+  ['kapok.core'].
 
 %% find local/remote macro/function
 

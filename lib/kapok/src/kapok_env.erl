@@ -52,13 +52,18 @@ add_require(Meta, Env, Require) when is_atom(Require) ->
   add_require(Meta, Env, Require, Require).
 add_require(Meta, #{requires := Requires} = Env, Alias, Original)
     when is_atom(Alias), is_atom(Original) ->
-  %% check for duplicate
-  case orddict:is_key(Alias, Requires) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file), "duplicate require: ~p", [Alias]);
-    false -> ok
-  end,
-  NewRequires = orddict:store(Alias, Original, Requires),
-  Env#{requires => NewRequires}.
+  case orddict:find(Alias, Requires) of
+    {ok, Original} ->
+      %% Skip when the specified require is added already.
+      Env;
+    {ok, Other} ->
+      kapok_error:compile_error(Meta, ?m(Env, file),
+                                "invalid require ~p as ~p, it conflicts with the previous ~p as ~p",
+                                [Alias, Original, Alias, Other]);
+    error ->
+      NewRequires = orddict:store(Alias, Original, Requires),
+      Env#{requires => NewRequires}
+  end.
 
 add_use(Meta, #{uses := Uses} = Env, Module) ->
   Env#{uses => orddict:store(Module, [{meta, Meta}], Uses)}.
@@ -160,9 +165,7 @@ get_var(Meta, Env, Scope, Var) ->
 %% EVAL HOOKS
 
 env_for_eval(Opts) ->
-  env_for_eval((new_env())#{requires := kapok_dispatch:default_requires(),
-                            functions := kapok_dispatch:default_functions(),
-                            macros := kapok_dispatch:default_macros()},
+  env_for_eval((new_env())#{requires := kapok_dispatch:default_requires()},
                Opts).
 
 env_for_eval(Env, Opts) ->

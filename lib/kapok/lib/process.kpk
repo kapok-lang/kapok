@@ -49,7 +49,7 @@
 
   """
   (case (erlang.get key)
-    ([^undefined] default)
+    (^undefined default)
     (value value)))
 
 (defn get-keys []
@@ -359,4 +359,3 @@
 
 (defn info [pid spec] (when (erlang.is_atom spec))
   (nillify (erlang.process_info pid spec)))
-

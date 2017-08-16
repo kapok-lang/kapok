@@ -17,9 +17,9 @@
       ^false
 
   """
-  `(and (core.is_tuple ~data)
-        (core.> (core.tuple-size ~data) 0)
-        (core.is_atom (erlang.element 1 ~data))))
+  `(kapok.core.and (core.is_tuple ~data)
+                   (core.> (core.tuple-size ~data) 0)
+                   (core.is_atom (erlang.element 1 ~data))))
 
 
 (defmacro is-record [data kind]
@@ -33,6 +33,6 @@
       ^true
 
   """
-  `(and (core.is_tuple ~data)
-        (core.> (core.tuple-size ~data) 0)
-        (core.== (erlang.element 1 ~data) ~kind)))
+  `(kapok.core.and (core.is_tuple ~data)
+                   (core.> (core.tuple-size ~data) 0)
+                   (core.== (erlang.element 1 ~data) ~kind)))

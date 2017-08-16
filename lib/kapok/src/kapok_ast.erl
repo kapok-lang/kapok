@@ -48,7 +48,8 @@ handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Env) ->
          end,
   kapok_symbol_table:add_namespace(Name),
   {_, TEnv1} = lists:mapfoldl(fun handle_ns_clause/2, Env1, Clauses),
-  TEnv1.
+  Env2 = add_default_uses(TEnv1),
+  Env2.
 
 handle_ns_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
   handle_require_clause(T, Env);
@@ -133,6 +134,19 @@ handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'rename'}, {_, _,
 handle_use_element_arguments(_Meta, _Name, _, [Ast | _T], Env) ->
   kapok_error:compile_error(token_meta(Ast), ?m(Env, file), "invalid use argument ~p", [Ast]).
 
+%% Check whether the default namespaces is used. Add them if they are not declared in use clause.
+add_default_uses(Env) ->
+  lists:foldl(fun(Ns, #{uses := Uses} = E) ->
+                  case orddict:is_key(Ns, Uses) of
+                    true ->
+                      E;
+                    false ->
+                      {_, E1} = handle_use_element({identifier, [], Ns}, E),
+                      E1
+                  end
+              end,
+              Env,
+              kapok_dispatch:default_uses()).
 
 %% definitions
 handle_def(Meta, Kind, [{identifier, _, Name}  | T], Env) ->
@@ -241,9 +255,9 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Env) 
       {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
       ParameterType = 'key',
       {TMapArg, TEnv3} = kapok_trans:translate_def_arg({identifier,
-                                                            Meta1,
-                                                            kapok_utils:gensym_with("KV")},
-                                                           TEnv2),
+                                                        Meta1,
+                                                        kapok_utils:gensym_with("KV")},
+                                                       TEnv2),
       TArgs = TNormalArgs ++ [TMapArg],
 
       %% retrieve and map all key values from map argument to variables

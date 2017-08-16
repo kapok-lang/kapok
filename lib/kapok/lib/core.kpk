@@ -74,7 +74,7 @@
      (^true ~then)
      (^false ~else)))
 
-(defmacro when [test &rest body]
+(defmacro when-do [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
   `(case (kapok.core.true? ~test)
      (^true ~@body)
