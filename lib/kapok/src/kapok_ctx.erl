@@ -1,6 +1,6 @@
-%% The compilation time environment for a module
--module(kapok_env).
--export([new_env/0,
+%% The compilation time context for a module
+-module(kapok_ctx).
+-export([new_ctx/0,
          add_require/3,
          add_require/4,
          add_use/3,
@@ -14,8 +14,8 @@
          add_let_var/3,
          add_bindings/2,
          get_var/3,
-         env_for_eval/1,
-         env_for_eval/2]).
+         ctx_for_eval/1,
+         ctx_for_eval/2]).
 
 -include("kapok.hrl").
 
@@ -32,8 +32,8 @@ new_scope() ->
     vars => []                             %% a set of defined variables
    }.
 
-new_env() ->
-  #{'__struct__' => 'Kapok.Env',
+new_ctx() ->
+  #{'__struct__' => 'Kapok.Ctx',
     namespace => nil,                      %% the current namespace
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line
@@ -48,67 +48,67 @@ new_env() ->
     scope => new_scope()      %% the current scope
    }.
 
-add_require(Meta, Env, Require) when is_atom(Require) ->
-  add_require(Meta, Env, Require, Require).
-add_require(Meta, #{requires := Requires} = Env, Alias, Original)
+add_require(Meta, Ctx, Require) when is_atom(Require) ->
+  add_require(Meta, Ctx, Require, Require).
+add_require(Meta, #{requires := Requires} = Ctx, Alias, Original)
     when is_atom(Alias), is_atom(Original) ->
   case orddict:find(Alias, Requires) of
     {ok, Original} ->
       %% Skip when the specified require is added already.
-      Env;
+      Ctx;
     {ok, Other} ->
-      kapok_error:compile_error(Meta, ?m(Env, file),
+      kapok_error:compile_error(Meta, ?m(Ctx, file),
                                 "invalid require ~p as ~p, it conflicts with the previous ~p as ~p",
                                 [Alias, Original, Alias, Other]);
     error ->
       NewRequires = orddict:store(Alias, Original, Requires),
-      Env#{requires => NewRequires}
+      Ctx#{requires => NewRequires}
   end.
 
-add_use(Meta, #{uses := Uses} = Env, Module) ->
-  Env#{uses => orddict:store(Module, [{meta, Meta}], Uses)}.
+add_use(Meta, #{uses := Uses} = Ctx, Module) ->
+  Ctx#{uses => orddict:store(Module, [{meta, Meta}], Uses)}.
 
-add_use(_Meta, #{uses := Uses} = Env, Module, Key, Value) ->
+add_use(_Meta, #{uses := Uses} = Ctx, Module, Key, Value) ->
   case orddict:find(Module, Uses) of
     {ok, Args} ->
       NewArgs = orddict:store(Key, Value, Args),
-      Env#{uses => orddict:store(Module, NewArgs, Uses)};
+      Ctx#{uses => orddict:store(Module, NewArgs, Uses)};
     error ->
       NewArgs = [{Key, Value}],
-      Env#{uses => orddict:store(Module, NewArgs, Uses)}
+      Ctx#{uses => orddict:store(Module, NewArgs, Uses)}
   end.
 
-add_function(_Meta, #{functions := Functions} = Env, Module, ToImports) ->
+add_function(_Meta, #{functions := Functions} = Ctx, Module, ToImports) ->
   case orddict:find(Module, Functions) of
     {ok, Imports} ->
       NewImports = ordsets:union(Imports, ordsets:from_list(ToImports)),
-      Env#{functions => orddict:store(Module, NewImports, Functions)};
+      Ctx#{functions => orddict:store(Module, NewImports, Functions)};
     error ->
       NewImports = ordsets:from_list(ToImports),
-      Env#{functions => orddict:store(Module, NewImports, Functions)}
+      Ctx#{functions => orddict:store(Module, NewImports, Functions)}
   end.
 
-add_macro(_Meta, #{macros := Macros} = Env, Module, ToImports) ->
+add_macro(_Meta, #{macros := Macros} = Ctx, Module, ToImports) ->
   case orddict:find(Module, Macros) of
     {ok, Imports} ->
       NewImports = ordsets:union(Imports, ordsets:from_list(ToImports)),
-      Env#{macros => orddict:store(Module, NewImports, Macros)};
+      Ctx#{macros => orddict:store(Module, NewImports, Macros)};
     error ->
       NewImports = ordsets:from_list(ToImports),
-      Env#{macros => orddict:store(Module, NewImports, Macros)}
+      Ctx#{macros => orddict:store(Module, NewImports, Macros)}
   end.
 
-reset_macro_context(Env) ->
-  Env#{macro_context => new_macro_context()}.
+reset_macro_context(Ctx) ->
+  Ctx#{macro_context => new_macro_context()}.
 
-push_scope(#{scope := Scope} = Env) ->
+push_scope(#{scope := Scope} = Ctx) ->
   NewScope = (new_scope())#{parent => Scope},
-  Env#{scope => NewScope}.
+  Ctx#{scope => NewScope}.
 
-pop_scope(#{scope := Scope} = Env) ->
+pop_scope(#{scope := Scope} = Ctx) ->
   case maps:get(parent, Scope) of
-    nil -> Env;
-    ParentScope -> Env#{scope => ParentScope}
+    nil -> Ctx;
+    ParentScope -> Ctx#{scope => ParentScope}
   end.
 
 keywords() ->
@@ -125,50 +125,50 @@ is_valid_var_name(Var) ->
     false -> true
   end.
 
-add_var(Meta, Env, Var) ->
-  add_var(Meta, Env, Var, Var).
+add_var(Meta, Ctx, Var) ->
+  add_var(Meta, Ctx, Var, Var).
 
-add_let_var(Meta, Env, Var) ->
+add_let_var(Meta, Ctx, Var) ->
   Prefix = io_lib:format("VAR_~s_", [atom_to_list(Var)]),
   Name = kapok_utils:gensym_with(Prefix),
-  add_var(Meta, Env, Var, Name).
+  add_var(Meta, Ctx, Var, Name).
 
-add_var(Meta, #{scope := Scope} = Env, Var, Name) ->
+add_var(Meta, #{scope := Scope} = Ctx, Var, Name) ->
   case is_valid_var_name(Var) of
     true -> ok;
-    false -> kapok_error:compile_error(Meta, ?m(Env, file), "invalid var name: ~s", [Var])
+    false -> kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid var name: ~s", [Var])
   end,
   Vars = maps:get(vars, Scope),
   case var_exist(Vars, Var) of
-    true -> kapok_error:compile_error(Meta, ?m(Env, file),
+    true -> kapok_error:compile_error(Meta, ?m(Ctx, file),
                                       "redeclare symbol: ~p, vars: ~p", [Var, Vars]);
     false -> ok
   end,
   NewVars = orddict:store(Var, Name, Vars),
-  Env1 = Env#{scope => Scope#{vars => NewVars}},
-  {Name, Env1}.
+  Ctx1 = Ctx#{scope => Scope#{vars => NewVars}},
+  {Name, Ctx1}.
 
-add_bindings(Env, Bindings) ->
-  lists:mapfoldl(fun({K, _V}, E) -> add_var([], E, K) end, Env, Bindings).
+add_bindings(Ctx, Bindings) ->
+  lists:mapfoldl(fun({K, _V}, E) -> add_var([], E, K) end, Ctx, Bindings).
 
-get_var(Meta, #{scope := Scope} = Env, Var) ->
-  get_var(Meta, Env, Scope, Var).
-get_var(_Meta, _Env, nil, _Var) ->
+get_var(Meta, #{scope := Scope} = Ctx, Var) ->
+  get_var(Meta, Ctx, Scope, Var).
+get_var(_Meta, _Ctx, nil, _Var) ->
   error;
-get_var(Meta, Env, Scope, Var) ->
+get_var(Meta, Ctx, Scope, Var) ->
   Vars = maps:get(vars, Scope),
   case orddict:find(Var, Vars) of
     {ok, _Name} = R -> R;
-    error -> get_var(Meta, Env, maps:get(parent, Scope), Var)
+    error -> get_var(Meta, Ctx, maps:get(parent, Scope), Var)
   end.
 
 %% EVAL HOOKS
 
-env_for_eval(Opts) ->
-  env_for_eval((new_env())#{requires := kapok_dispatch:default_requires()},
+ctx_for_eval(Opts) ->
+  ctx_for_eval((new_ctx())#{requires := kapok_dispatch:default_requires()},
                Opts).
 
-env_for_eval(Env, Opts) ->
+ctx_for_eval(Ctx, Opts) ->
   Namespace = case lists:keyfind(namespace, 1, Opts) of
                 {namespace, NamespaceOpt} when is_list(NamespaceOpt) -> NamespaceOpt;
                 false -> nil
@@ -176,12 +176,12 @@ env_for_eval(Env, Opts) ->
 
   File = case lists:keyfind(file, 1, Opts) of
            {file, FileOpt} when is_binary(FileOpt) -> FileOpt;
-           false -> ?m(Env, file)
+           false -> ?m(Ctx, file)
          end,
 
   Line = case lists:keyfind(line, 1, Opts) of
            {line, LineOpt} when is_integer(LineOpt) -> LineOpt;
-           false -> ?m(Env, line)
+           false -> ?m(Ctx, line)
          end,
 
   Requires = case lists:keyfind(requires, 1, Opts) of
@@ -190,20 +190,20 @@ env_for_eval(Env, Opts) ->
                               (Require) when is_atom(Require) -> {Require, Require}
                            end,
                            RequiresOpt);
-               false -> ?m(Env, requires)
+               false -> ?m(Ctx, requires)
              end,
 
   Functions = case lists:keyfind(functions, 1, Opts) of
                 {functions, FunctionsOpt} when is_list(FunctionsOpt) -> FunctionsOpt;
-                false -> ?m(Env, functions)
+                false -> ?m(Ctx, functions)
               end,
 
   Macros = case lists:keyfind(macros, 1, Opts) of
              {macros, MacrosOpt} when is_list(MacrosOpt) -> MacrosOpt;
-             false -> ?m(Env, macros)
+             false -> ?m(Ctx, macros)
            end,
 
-  Env#{
+  Ctx#{
       namespace := Namespace,
       file := File,
       line := Line,

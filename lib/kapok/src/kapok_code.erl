@@ -14,8 +14,8 @@
 is_loaded(Ns) ->
   gen_server:call(?MODULE, {is_loaded, Ns}).
 
-load_ns(Ns, Env) ->
-  gen_server:call(?MODULE, {load_ns, Ns, Env}).
+load_ns(Ns, Ctx) ->
+  gen_server:call(?MODULE, {load_ns, Ns, Ctx}).
 
 get_module(Ns) ->
   gen_server:call(?MODULE, {get_module, Ns}).
@@ -31,14 +31,14 @@ init([]) ->
 
 handle_call({is_loaded, Ns}, _From, NsToModules) ->
   {reply, ns_is_loaded(Ns, NsToModules), NsToModules};
-handle_call({load_ns, Ns, Env}, _From, NsToModules) ->
+handle_call({load_ns, Ns, Ctx}, _From, NsToModules) ->
   State = case get_ns(Ns, NsToModules) of
             {badkey, Ns} ->
-              load_ns(Ns, Env, NsToModules);
+              load_ns(Ns, Ctx, NsToModules);
             Ns ->
               unload_ns(Ns),
               NsToModules1 = remove_ns(Ns, NsToModules),
-              load_ns(Ns, Env, NsToModules1)
+              load_ns(Ns, Ctx, NsToModules1)
           end,
   {reply, ok, State};
 handle_call({get_module, Ns}, _From, NsToModules) ->
@@ -89,11 +89,11 @@ add_ns(Ns, Module, NsToModules) ->
 remove_ns(Ns, NsToModules) ->
   maps:remove(Ns, NsToModules).
 
-load_ns(Ns, Env, NsToModules) ->
+load_ns(Ns, Ctx, NsToModules) ->
   Next = next(Ns),
-  {Forms, Env1} = kapok_symbol_table:namespace_forms(Ns, Next, Env),
+  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Ns, Next, Ctx),
   Callback = fun(_Module, _Binary) -> ok end,
-  kapok_erl:module(Forms, [], Env1, Callback),
+  kapok_erl:module(Forms, [], Ctx1, Callback),
   %% update internal state
   add_ns(Ns, Next, NsToModules).
 

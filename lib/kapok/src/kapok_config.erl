@@ -22,7 +22,7 @@ new(Opts) ->
   true = ets:insert_new(?MODULE, Opts),
   Tid.
 
-delete(?MODULE) ->
+shutdown() ->
   ets:delete(?MODULE).
 
 put(Key, Value) ->
@@ -43,7 +43,10 @@ update_in(Key, Orddict) when is_list(Orddict) ->
   kapok_config:update(Key, Update).
 
 get_and_put(Key, Value) ->
-  get_server:call(?MODULE, {get_and_put, Key, Value}).
+  gen_server:call(?MODULE, {get_and_put, Key, Value}).
+
+delete(Key) ->
+  gen_server:call(?MODULE, {delete, Key}).
 
 
 %% gen_server API
@@ -66,7 +69,10 @@ handle_call({update, Key, Fun}, _From, Tid) ->
 handle_call({get_and_put, Key, Value}, _From, Tid) ->
   OldValue = get(Key),
   ets:insert(Tid, {Key, Value}),
-  {reply, OldValue, Tid}.
+  {reply, OldValue, Tid};
+handle_call({delete, Key}, _From, Tid) ->
+  ets:delete(Tid, Key),
+  {reply, ok, Tid}.
 
 handle_cast(Cast, Tid) ->
   {stop, {bad_cast, Cast}, Tid}.
@@ -78,4 +84,5 @@ code_change(_OldVsn, Tid, _Extra) ->
   {ok, Tid}.
 
 terminate(_Reason, _Tid) ->
+  shutdown(),
   ok.

@@ -7,22 +7,22 @@
 
 
 %% Abstract Format Evaluation
-eval_abstract_format(Forms, Env) when is_list(Forms) ->
-  list:mapfoldl(fun eval_abstract_format/2, Env, Forms);
-eval_abstract_format(Form, #{scope := Scope} = Env) ->
+eval_abstract_format(Forms, Ctx) when is_list(Forms) ->
+  list:mapfoldl(fun eval_abstract_format/2, Ctx, Forms);
+eval_abstract_format(Form, #{scope := Scope} = Ctx) ->
   case Form of
     {atom, _, Atom} ->
-      {Atom, Env};
+      {Atom, Ctx};
     _ ->
       Vars = maps:get(vars, Scope),
-      {value, Value, NewBindings} = eval_erl(Form, Vars, Env),
-      {Value, Env#{scope => Scope#{vars => orddict:from_list(NewBindings)}}}
+      {value, Value, NewBindings} = eval_erl(Form, Vars, Ctx),
+      {Value, Ctx#{scope => Scope#{vars => orddict:from_list(NewBindings)}}}
   end.
 
-eval_erl(Form, Bindings, Env) ->
+eval_erl(Form, Bindings, Ctx) ->
   case erl_eval:check_command([Form], Bindings) of
     ok -> ok;
-    {error, Desc} -> kapok_error:handle_file_error(?m(Env, file), Desc)
+    {error, Desc} -> kapok_error:handle_file_error(?m(Ctx, file), Desc)
   end,
 
   %% Below must be all one line for locations to be the same when the stacktrace
@@ -60,15 +60,15 @@ get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
 %% Compile the module by forms based on the scope information
 %% executes the callback in case of success. This automatically
 %% handles errors and warnings. Used by this module and kapok_ast.
-module(Forms, Options, Env, Callback) ->
+module(Forms, Options, Ctx, Callback) ->
   Final = case (get_compiler_opt(debug_info) == true) orelse
             lists:member(debug_info, Options) of
             true -> [debug_info] ++ options();
             false -> options()
           end,
-  compile_module(Forms, Final, Env, Callback).
+  compile_module(Forms, Final, Ctx, Callback).
 
-compile_module(Forms, Options, #{file := File} = _Env, Callback) ->
+compile_module(Forms, Options, #{file := File} = _Ctx, Callback) ->
   Source = kapok_utils:characters_to_list(File),
   case get_compiler_opt(debug) of
     true -> io:format("--- compile_module ---~n~p~n------~n", [Forms]);

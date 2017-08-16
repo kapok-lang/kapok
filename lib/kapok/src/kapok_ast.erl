@@ -6,139 +6,139 @@
 -import(kapok_config, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
-compile(Ast, Env, Callback) when is_list(Ast) ->
-  TEnv = lists:foldl(fun compile/2, Env, Ast),
-  build_namespace(?m(TEnv, namespace), TEnv, Callback).
+compile(Ast, Ctx, Callback) when is_list(Ast) ->
+  Ctx1 = lists:foldl(fun compile/2, Ctx, Ast),
+  build_namespace(?m(Ctx1, namespace), Ctx1, Callback).
 
-compile(Ast, Env) ->
-  {EAst, EEnv} = kapok_macro:expand(Ast, Env),
-  handle(EAst, EEnv).
+compile(Ast, Ctx) ->
+  {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
+  handle(EAst, ECtx).
 
-handle({list, Meta, [{identifier, _, 'ns'} | T]}, Env) ->
-  handle_ns(Meta, T, Env);
-handle({list, Meta, [{identifier, _, Id} | T]}, Env) when ?is_def(Id) ->
-  handle_def(Meta, Id, T, Env#{def_kind => Id});
-handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Env) when ?is_attr(Id) ->
-  {TAttr, TEnv} = kapok_trans:translate(Ast, Env),
-  Namespace = ?m(Env, namespace),
+handle({list, Meta, [{identifier, _, 'ns'} | T]}, Ctx) ->
+  handle_ns(Meta, T, Ctx);
+handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_def(Id) ->
+  handle_def(Meta, Id, T, Ctx#{def_kind => Id});
+handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) ->
+  {TAttr, TCtx} = kapok_trans:translate(Ast, Ctx),
+  Namespace = ?m(Ctx, namespace),
   kapok_symbol_table:add_form(Namespace, TAttr),
-  TEnv;
-handle(Ast, Env) ->
-  kapok_error:form_error(token_meta(Ast), ?m(Env, file), ?MODULE, {invalid_expression, {Ast}}).
+  TCtx;
+handle(Ast, Ctx) ->
+  kapok_error:form_error(token_meta(Ast), ?m(Ctx, file), ?MODULE, {invalid_expression, {Ast}}).
 
 %% namespace
 
-handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Env) when ?is_dot_id(C1), ?is_string(C2) ->
-  handle_ns(Meta, Ast, Doc, T, Env);
-handle_ns(Meta, [{C1, _, _} = Ast | T], Env) when ?is_dot_id(C1) ->
-  handle_ns(Meta, Ast, T, Env);
-handle_ns(Meta, _T, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {'ns'}}).
+handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_dot_id(C1), ?is_string(C2) ->
+  handle_ns(Meta, Ast, Doc, T, Ctx);
+handle_ns(Meta, [{C1, _, _} = Ast | T], Ctx) when ?is_dot_id(C1) ->
+  handle_ns(Meta, Ast, T, Ctx);
+handle_ns(Meta, _T, Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {'ns'}}).
 
-handle_ns(Meta, Ast, Clauses, Env) ->
-  handle_ns(Meta, Ast, <<"">>, Clauses,  Env).
-handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Env) ->
+handle_ns(Meta, Ast, Clauses, Ctx) ->
+  handle_ns(Meta, Ast, <<"">>, Clauses,  Ctx).
+handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Ctx) ->
   Name = case C of
            'dot' -> kapok_parser:dot_fullname(Ast);
            'identifier' -> Arg
          end,
-  Env1 = case ?m(Env, namespace) of
-           nil -> Env#{namespace => Name};
-           NS -> kapok_error:form_error(Meta, ?m(Env, file), ?MODULE,
+  Ctx1 = case ?m(Ctx, namespace) of
+           nil -> Ctx#{namespace => Name};
+           NS -> kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE,
                                         {multiple_namespace, {NS, Name}})
          end,
   kapok_symbol_table:add_namespace(Name),
-  {_, TEnv1} = lists:mapfoldl(fun handle_ns_clause/2, Env1, Clauses),
+  {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),
   case get_compiler_opt(internal) of
-    true -> TEnv1;
-    false -> add_default_uses(TEnv1)
+    true -> TCtx1;
+    false -> add_default_uses(TCtx1)
   end.
 
-handle_ns_clause({list, _, [{identifier, _, 'require'} | T]}, Env) ->
-  handle_require_clause(T, Env);
-handle_ns_clause({list, _, [{identifier, _, 'use'} | T]}, Env) ->
-  handle_use_clause(T, Env).
+handle_ns_clause({list, _, [{identifier, _, 'require'} | T]}, Ctx) ->
+  handle_require_clause(T, Ctx);
+handle_ns_clause({list, _, [{identifier, _, 'use'} | T]}, Ctx) ->
+  handle_use_clause(T, Ctx).
 
 %% require
-handle_require_clause(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun handle_require_element/2, Env, List).
+handle_require_clause(List, Ctx) when is_list(List) ->
+  lists:mapfoldl(fun handle_require_element/2, Ctx, List).
 
-handle_require_element({Category, Meta, Id}, Env) when ?is_local_id(Category) ->
-  {Id, kapok_env:add_require(Meta, Env, Id)};
-handle_require_element({dot, Meta, _} = Dot, Env) ->
+handle_require_element({Category, Meta, Id}, Ctx) when ?is_local_id(Category) ->
+  {Id, kapok_ctx:add_require(Meta, Ctx, Id)};
+handle_require_element({dot, Meta, _} = Dot, Ctx) ->
   Name = kapok_parser:dot_fullname(Dot),
-  {Name, kapok_env:add_require(Meta, Env, Name)};
-handle_require_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
+  {Name, kapok_ctx:add_require(Meta, Ctx, Name)};
+handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
     [{Category, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] when ?is_local_id(Category) ->
-      {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
+      {Name, TCtx} = handle_require_element(Ast, Ctx),
+      {Name, kapok_ctx:add_require(Meta, TCtx, Id, Name)};
     [{dot, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
-      {Name, TEnv} = handle_require_element(Ast, Env),
-      {Name, kapok_env:add_require(Meta, TEnv, Id, Name)};
+      {Name, TCtx} = handle_require_element(Ast, Ctx),
+      {Name, kapok_ctx:add_require(Meta, TCtx, Id, Name)};
     _ ->
-      kapok_error:compile_error(Meta, ?m(Env, file), "invalid require expression ~p", [Args])
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid require expression ~p", [Args])
   end.
 
 %% use
-handle_use_clause(List, Env) when is_list(List) ->
-  lists:mapfoldl(fun handle_use_element/2, Env, List).
+handle_use_clause(List, Ctx) when is_list(List) ->
+  lists:mapfoldl(fun handle_use_element/2, Ctx, List).
 
-handle_use_element({Category, Meta, Id}, Env) when ?is_local_id(Category) ->
-  Env1 = kapok_env:add_require(Meta, Env, Id),
-  Env2 = kapok_env:add_use(Meta, Env1, Id),
-  {Id, Env2};
-handle_use_element({dot, Meta, _} = Dot, Env) ->
+handle_use_element({Category, Meta, Id}, Ctx) when ?is_local_id(Category) ->
+  Ctx1 = kapok_ctx:add_require(Meta, Ctx, Id),
+  Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Id),
+  {Id, Ctx2};
+handle_use_element({dot, Meta, _} = Dot, Ctx) ->
   Name = kapok_parser:dot_fullname(Dot),
-  Env1 = kapok_env:add_require(Meta, Env, Name),
-  Env2 = kapok_env:add_use(Meta, Env1, Name),
-  {Name, Env2};
-handle_use_element({Category, Meta, Args}, Env) when ?is_list(Category) ->
+  Ctx1 = kapok_ctx:add_require(Meta, Ctx, Name),
+  Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Name),
+  {Name, Ctx2};
+handle_use_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
     [{C, _, _} = Ast | T] when ?is_local_id(C) ->
-      {Name, Env1} = handle_use_element(Ast, Env),
-      handle_use_element_arguments(Meta, Name, T, Env1);
+      {Name, Ctx1} = handle_use_element(Ast, Ctx),
+      handle_use_element_arguments(Meta, Name, T, Ctx1);
     [{dot, _, _} = Ast | T] ->
-      {Name, Env1} = handle_use_element(Ast, Env),
-      handle_use_element_arguments(Meta, Name, T, Env1);
+      {Name, Ctx1} = handle_use_element(Ast, Ctx),
+      handle_use_element_arguments(Meta, Name, T, Ctx1);
     _ ->
-      kapok_error:compile_error(Meta, ?m(Env, file), "invalid use expression ~p", [Args])
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid use expression ~p", [Args])
   end.
 
-handle_use_element_arguments(Meta, Name, Args, Env) ->
-  GArgs = group_arguments(Meta, Args, Env),
-  handle_use_element_arguments(Meta, Name, nil, GArgs, Env).
-handle_use_element_arguments(_Meta, Name, _, [], Env) ->
-  {Name, Env};
+handle_use_element_arguments(Meta, Name, Args, Ctx) ->
+  GArgs = group_arguments(Meta, Args, Ctx),
+  handle_use_element_arguments(Meta, Name, nil, GArgs, Ctx).
+handle_use_element_arguments(_Meta, Name, _, [], Ctx) ->
+  {Name, Ctx};
 handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'as'}, {identifier, _, Id}} | T],
-                             Env) ->
-  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_env:add_require(Meta, Env, Id, Name));
+                             Ctx) ->
+  handle_use_element_arguments(Meta, Name, Meta1, T, kapok_ctx:add_require(Meta, Ctx, Id, Name));
 handle_use_element_arguments(Meta, Name, _, [{{keyword, Meta1, 'exclude'}, {_, Meta2, Args}} | T],
-                             Env) ->
-  Functions = parse_functions(Meta2, Args, Env),
-  Env1 = kapok_env:add_use(Meta1, Env, Name, 'exclude', Functions),
-  handle_use_element_arguments(Meta, Name, Meta1, T, Env1);
+                             Ctx) ->
+  Functions = parse_functions(Meta2, Args, Ctx),
+  Ctx1 = kapok_ctx:add_use(Meta1, Ctx, Name, 'exclude', Functions),
+  handle_use_element_arguments(Meta, Name, Meta1, T, Ctx1);
 handle_use_element_arguments(Meta, Name, nil, [{{keyword, Meta1, 'only'}, {_, Meta2, Args}} | T],
-                             Env) ->
-  Functions = parse_functions(Meta2, Args, Env),
-  Env1 = kapok_env:add_use(Meta1, Env, Name, 'only', Functions),
-  handle_use_element_arguments(Meta, Name, nil, T, Env1);
+                             Ctx) ->
+  Functions = parse_functions(Meta2, Args, Ctx),
+  Ctx1 = kapok_ctx:add_use(Meta1, Ctx, Name, 'only', Functions),
+  handle_use_element_arguments(Meta, Name, nil, T, Ctx1);
 handle_use_element_arguments(_Meta, _Name, Meta1, [{{keyword, Meta2, 'only'}, {_, _, _}} | _T],
-                             Env) ->
+                             Ctx) ->
   kapok_error:compile_error(Meta2,
-                            ?m(Env, file),
+                            ?m(Ctx, file),
                             "invalid usage of :only with :exclude present at line: ~p",
                             [?line(Meta1)]);
 handle_use_element_arguments(Meta, Name, Meta1, [{{keyword, _, 'rename'}, {_, _, Args}} | T],
-                             Env) ->
-  Aliases = parse_function_aliases(Meta, Args, Env),
-  NewEnv = kapok_env:add_use(Meta, Env, Name, 'rename', Aliases),
-  handle_use_element_arguments(Meta, Name, Meta1, T, NewEnv);
-handle_use_element_arguments(_Meta, _Name, _, [Ast | _T], Env) ->
-  kapok_error:compile_error(token_meta(Ast), ?m(Env, file), "invalid use argument ~p", [Ast]).
+                             Ctx) ->
+  Aliases = parse_function_aliases(Meta, Args, Ctx),
+  Ctx1 = kapok_ctx:add_use(Meta, Ctx, Name, 'rename', Aliases),
+  handle_use_element_arguments(Meta, Name, Meta1, T, Ctx1);
+handle_use_element_arguments(_Meta, _Name, _, [Ast | _T], Ctx) ->
+  kapok_error:compile_error(token_meta(Ast), ?m(Ctx, file), "invalid use argument ~p", [Ast]).
 
 %% Check whether the default namespaces is used. Add them if they are not declared in use clause.
-add_default_uses(Env) ->
+add_default_uses(Ctx) ->
   lists:foldl(fun(Ns, #{uses := Uses} = E) ->
                   case orddict:is_key(Ns, Uses) of
                     true ->
@@ -148,243 +148,243 @@ add_default_uses(Env) ->
                       E1
                   end
               end,
-              Env,
+              Ctx,
               kapok_dispatch:default_uses()).
 
 %% definitions
-handle_def(Meta, Kind, [{identifier, _, Name}  | T], Env) ->
-  handle_def(Meta, Kind, Name, T, Env);
-handle_def(Meta, Kind, _T, Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {Kind}}).
+handle_def(Meta, Kind, [{identifier, _, Name}  | T], Ctx) ->
+  handle_def(Meta, Kind, Name, T, Ctx);
+handle_def(Meta, Kind, _T, Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}}).
 
-handle_def(Meta, Kind, Name, T, Env) when ?is_def_alias(Kind) ->
-  handle_def_alias(Meta, Kind, Name, T, Env);
-handle_def(Meta, Kind, _Name, [], Env) ->
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {invalid_body, {Kind}});
-handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Env) ->
-  handle_def_with_args(Meta, Kind, Name, Args, T, Env);
-handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Env) when ?is_string(C) ->
-  handle_def_with_doc(Meta, Kind, Name, Doc, T, Env);
-handle_def(Meta, Kind, Name, Exprs, Env) ->
-  handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Env).
+handle_def(Meta, Kind, Name, T, Ctx) when ?is_def_alias(Kind) ->
+  handle_def_alias(Meta, Kind, Name, T, Ctx);
+handle_def(Meta, Kind, _Name, [], Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}});
+handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Ctx) ->
+  handle_def_with_args(Meta, Kind, Name, Args, T, Ctx);
+handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Ctx) when ?is_string(C) ->
+  handle_def_with_doc(Meta, Kind, Name, Doc, T, Ctx);
+handle_def(Meta, Kind, Name, Exprs, Ctx) ->
+  handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Ctx).
 
 handle_def_alias(Meta, _Kind, Alias,
-                 [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Env)
+                 [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Ctx)
     when ?is_string(C) ->
   %% TODO add doc
-  do_handle_def_alias(Meta, Alias, {Fun, Arity}, Env);
-handle_def_alias(Meta, _Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}], Env) ->
-  do_handle_def_alias(Meta, Alias, {Fun, Arity}, Env);
-handle_def_alias(Meta, _Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Env)
+  do_handle_def_alias(Meta, Alias, {Fun, Arity}, Ctx);
+handle_def_alias(Meta, _Kind, Alias, [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}], Ctx) ->
+  do_handle_def_alias(Meta, Alias, {Fun, Arity}, Ctx);
+handle_def_alias(Meta, _Kind, Alias, [{identifier, _, Fun}, {C, _, _} = _Doc], Ctx)
     when ?is_string(C) ->
   %% TODO add doc
-  do_handle_def_alias(Meta, Alias, Fun, Env);
-handle_def_alias(Meta, _Kind, Alias, [{identifier, _, Fun}], Env) ->
-  do_handle_def_alias(Meta, Alias, Fun, Env);
-handle_def_alias(Meta, _Kind, Alias, Ast, Env) ->
+  do_handle_def_alias(Meta, Alias, Fun, Ctx);
+handle_def_alias(Meta, _Kind, Alias, [{identifier, _, Fun}], Ctx) ->
+  do_handle_def_alias(Meta, Alias, Fun, Ctx);
+handle_def_alias(Meta, _Kind, Alias, Ast, Ctx) ->
   Error = {invalid_defalias_expression, {Alias, Ast}},
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error).
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error).
 
-do_handle_def_alias(Meta, Alias, Original, Env) ->
-  Namespace = ?m(Env, namespace),
+do_handle_def_alias(Meta, Alias, Original, Ctx) ->
+  Namespace = ?m(Ctx, namespace),
   case kapok_symbol_table:add_alias(Namespace, Alias, Original) of
     not_exist ->
       Error = {nonexistent_original_for_alias, {Alias, Original}},
-      kapok_error:compile_error(Meta, ?m(Env, file), ?MODULE, Error);
+      kapok_error:compile_error(Meta, ?m(Ctx, file), ?MODULE, Error);
     ok ->
       ok
   end,
-  Env.
+  Ctx.
 
 handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'} | _]} = Guard | T],
-                     Env) ->
-  handle_def_with_args(Meta, Kind, Name, Args, Guard, T, Env);
-handle_def_with_args(Meta, Kind, Name, Args, T, Env) ->
-  handle_def_with_args(Meta, Kind, Name, Args, [], T, Env).
-handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Env)
+                     Ctx) ->
+  handle_def_with_args(Meta, Kind, Name, Args, Guard, T, Ctx);
+handle_def_with_args(Meta, Kind, Name, Args, T, Ctx) ->
+  handle_def_with_args(Meta, Kind, Name, Args, [], T, Ctx).
+handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Ctx)
     when ?is_string(C) ->
   %% TODO add doc
-  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
-handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Env) ->
-  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env).
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx);
+handle_def_with_args(Meta, Kind, Name, Args, Guard, Body, Ctx) ->
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx).
 
-handle_def_with_doc(Meta, Kind, Name, _Doc, Exprs, Env) ->
+handle_def_with_doc(Meta, Kind, Name, _Doc, Exprs, Ctx) ->
   %% TODO add doc
-  handle_def_exprs(Meta, Kind, Name, Exprs, Env).
+  handle_def_exprs(Meta, Kind, Name, Exprs, Ctx).
 
 empty_def_doc() ->
   {bitstring, [], <<"">>}.
 
-handle_def_exprs(_Meta, Kind, Name, Exprs, Env) ->
-  lists:foldl(fun (Expr, E) -> handle_def_expr(Kind, Name, Expr, E) end, Env, Exprs).
+handle_def_exprs(_Meta, Kind, Name, Exprs, Ctx) ->
+  lists:foldl(fun (Expr, E) -> handle_def_expr(Kind, Name, Expr, E) end, Ctx, Exprs).
 
 handle_def_expr(Kind,
                 Name,
                 {list, Meta, [{literal_list, _, _} = Args,
                               {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
-                Env) ->
-  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Env);
-handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args | Body]}, Env) ->
-  handle_def_clause(Meta, Kind, Name, Args, [], Body, Env);
-handle_def_expr(Kind, _Name, Ast, Env) ->
+                Ctx) ->
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx);
+handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args | Body]}, Ctx) ->
+  handle_def_clause(Meta, Kind, Name, Args, [], Body, Ctx);
+handle_def_expr(Kind, _Name, Ast, Ctx) ->
   Error = {invalid_def_expression, {Ast, Kind}},
-  kapok_error:form_error(token_meta(Ast), ?m(Env, file), ?MODULE, Error).
+  kapok_error:form_error(token_meta(Ast), ?m(Ctx, file), ?MODULE, Error).
 
-handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Env) ->
+handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) ->
   %% TODO add doc
-  Namespace = ?m(Env, namespace),
-  {TF, TEnv} = kapok_trans:translate(Name, kapok_env:push_scope(Env)),
-  case parse_parameters(Args, TEnv) of
+  Namespace = ?m(Ctx, namespace),
+  {TF, TCtx} = kapok_trans:translate(Name, kapok_ctx:push_scope(Ctx)),
+  case parse_parameters(Args, TCtx) of
     [{normal, _, NormalArgs}] ->
-      {TArgs, CEnv} = kapok_trans:translate_def_args(NormalArgs, TEnv),
+      {TArgs, CCtx} = kapok_trans:translate_def_args(NormalArgs, TCtx),
       ParameterType = 'normal',
       PrepareBody = [];
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters}] ->
-      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
-      {TOptionalParameters, CEnv} = translate_parameter_with_default(OptionalParameters, TEnv1),
+      {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
+      {TOptionalParameters, CCtx} = translate_parameter_with_default(OptionalParameters, TCtx1),
       ParameterType = 'normal',
       TArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
       PrepareBody = [],
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CEnv);
+      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CCtx);
     [{normal, _, NormalArgs}, {keyword_rest, _, RestArgs}] ->
-      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
-      {TRestArgs, CEnv} = kapok_trans:translate_def_args(RestArgs, TEnv1),
+      {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
+      {TRestArgs, CCtx} = kapok_trans:translate_def_args(RestArgs, TCtx1),
       ParameterType = 'rest',
       TArgs = TNormalArgs ++ TRestArgs,
       PrepareBody = [],
-      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CEnv);
+      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx);
     [{normal, _, NormalArgs}, {keyword_key, Meta1, KeyParameters}] ->
-      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
-      {TKeyParameters, TEnv2} = translate_parameter_with_default(KeyParameters, TEnv1),
+      {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
+      {TKeyParameters, TCtx2} = translate_parameter_with_default(KeyParameters, TCtx1),
       ParameterType = 'key',
-      {TMapArg, TEnv3} = kapok_trans:translate_def_arg({identifier,
+      {TMapArg, TCtx3} = kapok_trans:translate_def_arg({identifier,
                                                         Meta1,
                                                         kapok_utils:gensym_with("KV")},
-                                                       TEnv2),
+                                                       TCtx2),
       TArgs = TNormalArgs ++ [TMapArg],
 
       %% retrieve and map all key values from map argument to variables
-      {PrepareBody, CEnv} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TEnv3),
-      add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CEnv);
+      {PrepareBody, CCtx} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TCtx3),
+      add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx);
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters},
      {keyword_rest, RestArgs}] ->
-      {TNormalArgs, TEnv1} = kapok_trans:translate_def_args(NormalArgs, TEnv),
-      {TOptionalParameters, TEnv2} = translate_parameter_with_default(OptionalParameters, TEnv1),
-      {TRestArgs, CEnv} = kapok_trans:translate_def_args(RestArgs, TEnv2),
+      {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
+      {TOptionalParameters, TCtx2} = translate_parameter_with_default(OptionalParameters, TCtx1),
+      {TRestArgs, CCtx} = kapok_trans:translate_def_args(RestArgs, TCtx2),
       ParameterType = 'rest',
       TNonRestArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
       TArgs = TNonRestArgs ++ TRestArgs,
       PrepareBody = [],
-      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNonRestArgs, CEnv),
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CEnv)
+      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNonRestArgs, CCtx),
+      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CCtx)
   end,
   Arity = length(TArgs),
-  Env6 = CEnv#{def_fap => {Name, Arity, ParameterType}},
+  Ctx6 = CCtx#{def_fap => {Name, Arity, ParameterType}},
   %% TODO add def_fap for other clauses(maybe do this when impl delay compilation stuff?)
-  {TGuard, TEnv7} = kapok_trans:translate_guard(Guard, Env6),
-  {TBody, TEnv8} = kapok_trans:translate_body(Meta, Body, TEnv7),
+  {TGuard, TCtx7} = kapok_trans:translate_guard(Guard, Ctx6),
+  {TBody, TCtx8} = kapok_trans:translate_body(Meta, Body, TCtx7),
   Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
   kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
-  kapok_env:pop_scope(TEnv8#{def_fap => FAP}).
+  kapok_ctx:pop_scope(TCtx8#{def_fap => FAP}).
 
 %% parse parameters
-parse_parameters({Category, _, Args}, Env) when Category == literal_list ->
-  parse_parameters(Args, Env);
-parse_parameters(Args, Env) when is_list(Args) ->
-  L = parse_parameters(Args, [], {normal, [], []}, Env),
+parse_parameters({Category, _, Args}, Ctx) when Category == literal_list ->
+  parse_parameters(Args, Ctx);
+parse_parameters(Args, Ctx) when is_list(Args) ->
+  L = parse_parameters(Args, [], {normal, [], []}, Ctx),
   lists:reverse(L).
 
-parse_parameters([], Acc, {Previous, Meta, Args}, _Env) ->
+parse_parameters([], Acc, {Previous, Meta, Args}, _Ctx) ->
   [{Previous, Meta, lists:reverse(Args)} | Acc];
 
-parse_parameters([{Category, Meta, _} = Token], _Acc, {_Previous, _Meta, _Args}, Env)
+parse_parameters([{Category, Meta, _} = Token], _Acc, {_Previous, _Meta, _Args}, Ctx)
     when ?is_parameter_keyword(Category) ->
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, {dangling_parameter_keyword, {Token}});
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {dangling_parameter_keyword, {Token}});
 
-parse_parameters([{keyword_optional, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
+parse_parameters([{keyword_optional, Meta, _} | T], Acc, {normal, Meta1, Args}, Ctx) ->
   parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_optional, Meta, []},
-                   Env);
-parse_parameters([{keyword_optional, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
+                   Ctx);
+parse_parameters([{keyword_optional, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Ctx) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([{keyword_rest, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
-  parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_rest, Meta, []}, Env);
-parse_parameters([{keyword_rest, Meta, _} | T], Acc, {keyword_optional, Meta1, Args}, Env) ->
+parse_parameters([{keyword_rest, Meta, _} | T], Acc, {normal, Meta1, Args}, Ctx) ->
+  parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_rest, Meta, []}, Ctx);
+parse_parameters([{keyword_rest, Meta, _} | T], Acc, {keyword_optional, Meta1, Args}, Ctx) ->
   Last = {keyword_optional, Meta1, lists:reverse(Args)},
-  parse_parameters(T, [Last | Acc], {keyword_rest, Meta, []}, Env);
-parse_parameters([{keyword_rest, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
+  parse_parameters(T, [Last | Acc], {keyword_rest, Meta, []}, Ctx);
+parse_parameters([{keyword_rest, Meta, _} = Token | _T], _Acc, {Previous, Meta1, _Args}, Ctx) ->
   Error = {invalid_postion_of_parameter_keyword, {Token, {Previous, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([{keyword_key, Meta, _} | T], Acc, {normal, Meta1, Args}, Env) ->
-  parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_key, Meta, []}, Env);
-parse_parameters([{keyword_key, Meta, _} | _T], _Acc, {Previous, Meta1, _Args}, Env) ->
+parse_parameters([{keyword_key, Meta, _} | T], Acc, {normal, Meta1, Args}, Ctx) ->
+  parse_parameters(T, [{normal, Meta1, lists:reverse(Args)} | Acc], {keyword_key, Meta, []}, Ctx);
+parse_parameters([{keyword_key, Meta, _} | _T], _Acc, {Previous, Meta1, _Args}, Ctx) ->
   Error = {invalid_postion_of_parameter_keyword, {keyword_key, {Previous, Meta1}}},
-  kapok_error:form_error(Meta, ?m(Env, file), ?MODULE, Error);
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([H | T], Acc, {normal, Meta, Args}, Env) ->
-  parse_parameters(T, Acc, {normal, Meta, [H | Args]}, Env);
+parse_parameters([H | T], Acc, {normal, Meta, Args}, Ctx) ->
+  parse_parameters(T, Acc, {normal, Meta, [H | Args]}, Ctx);
 
-parse_parameters([{list, _Meta, [Expr, Default]} | T], Acc, {keyword_optional, Meta1, Args}, Env) ->
-  parse_parameters(T, Acc, {keyword_optional, Meta1, [{Expr, Default} | Args]}, Env);
-parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_optional, Meta1, Args}, Env) ->
-  parse_parameters(T, Acc, {keyword_optional, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Env);
-parse_parameters([H | _T], _Acc, {keyword_optional, Meta1, _Args}, Env) ->
+parse_parameters([{list, _Meta, [Expr, Default]} | T], Acc, {keyword_optional, Meta1, Args}, Ctx) ->
+  parse_parameters(T, Acc, {keyword_optional, Meta1, [{Expr, Default} | Args]}, Ctx);
+parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_optional, Meta1, Args}, Ctx) ->
+  parse_parameters(T, Acc, {keyword_optional, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Ctx);
+parse_parameters([H | _T], _Acc, {keyword_optional, Meta1, _Args}, Ctx) ->
   Error = {invalid_parameter, {H, {keyword_optional, Meta1}}},
-  kapok_error:form_error(token_meta(H), ?m(Env, file), ?MODULE, Error);
+  kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([H | _T], _Acc, {keyword_rest, Meta1, Args}, Env) when Args /= [] ->
+parse_parameters([H | _T], _Acc, {keyword_rest, Meta1, Args}, Ctx) when Args /= [] ->
   Error = {too_many_parameters_for_keyword, {H, {keyword_rest, Meta1}}},
-  kapok_error:form_error(token_meta(H), ?m(Env, file), ?MODULE, Error);
+  kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
 
 parse_parameters([{list, _Meta, [{identifier, _, _} = Expr, Default]} | T],
                  Acc,
                  {keyword_key, Meta1, Args},
-                 Env) ->
-  parse_parameters(T, Acc, {keyword_key, Meta1, [{Expr, Default} | Args]}, Env);
-parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_key, Meta1, Args}, Env) ->
-  parse_parameters(T, Acc, {keyword_key, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Env);
-parse_parameters([H | _T], _Acc, {keyword_key, Meta1, _Args}, Env) ->
+                 Ctx) ->
+  parse_parameters(T, Acc, {keyword_key, Meta1, [{Expr, Default} | Args]}, Ctx);
+parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_key, Meta1, Args}, Ctx) ->
+  parse_parameters(T, Acc, {keyword_key, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Ctx);
+parse_parameters([H | _T], _Acc, {keyword_key, Meta1, _Args}, Ctx) ->
   Error = {invalid_parameter, {H, {keyword_key, Meta1}}},
-  kapok_error:form_error(token_meta(H), ?m(Env, file), ?MODULE, Error);
+  kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([H | T], Acc, {Previous, Meta1, Args}, Env) ->
-  parse_parameters(T, Acc, {Previous, Meta1, [H | Args]}, Env).
+parse_parameters([H | T], Acc, {Previous, Meta1, Args}, Ctx) ->
+  parse_parameters(T, Acc, {Previous, Meta1, [H | Args]}, Ctx).
 
 get_optional_args(OptionalParameters) ->
   lists:map(fun({Expr, _Default}) -> Expr end, OptionalParameters).
 
-translate_parameter_with_default(Parameters, Env) ->
-  {L, TEnv} = lists:foldl(fun({Expr, Default}, {Acc, E}) ->
+translate_parameter_with_default(Parameters, Ctx) ->
+  {L, TCtx} = lists:foldl(fun({Expr, Default}, {Acc, E}) ->
                               {TExpr, E1} = kapok_trans:translate_def_arg(Expr, E),
                               {TDefault, E2} = kapok_trans:translate_def_arg(Default, E1),
                               {[{TExpr, TDefault} | Acc], E2}
                           end,
-                          {[], Env},
+                          {[], Ctx},
                           Parameters),
-  {lists:reverse(L), TEnv}.
+  {lists:reverse(L), TCtx}.
 
-add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, Env) ->
+add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, Ctx) ->
   R = lists:reverse(TOptionalParameters),
-  do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, R, Env).
+  do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, R, Ctx).
 do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TReversedOptionalParameters,
-                        Env) ->
+                        Ctx) ->
   case TReversedOptionalParameters of
     [{_Expr, Default} | Left] ->
       TArgs = TNormalArgs ++ get_optional_args(lists:reverse(Left)),
       add_redirect_clause(Meta, Kind, Namespace, Name, TF, TArgs, Default),
-      do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, Left, Env);
+      do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, Left, Ctx);
     [] ->
       ok
   end.
 
-add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Env) ->
-  {TListArgs, _} = kapok_trans:translate({literal_list, [], []}, Env),
+add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Ctx) ->
+  {TListArgs, _} = kapok_trans:translate({literal_list, [], []}, Ctx),
   add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, TListArgs).
 
-add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Env) ->
-  {TMapArg, _} = kapok_trans:translate({map, [], []}, Env),
+add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Ctx) ->
+  {TMapArg, _} = kapok_trans:translate({map, [], []}, Ctx),
   add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, TMapArg).
 
 add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
@@ -396,42 +396,42 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
                              {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
 %% namespace
-build_namespace(Namespace, Env, Callback) ->
-  {Forms, Env1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Env),
-  kapok_erl:module(Forms, [], Env1, Callback).
+build_namespace(Namespace, Ctx, Callback) ->
+  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx),
+  kapok_erl:module(Forms, [], Ctx1, Callback).
 
 %% Helpers
 
-group_arguments(Meta, Args, Env) ->
-  group_arguments(Meta, Args, orddict:new(), Env).
-group_arguments(_Meta, [], Acc, _Env) ->
+group_arguments(Meta, Args, Ctx) ->
+  group_arguments(Meta, Args, orddict:new(), Ctx).
+group_arguments(_Meta, [], Acc, _Ctx) ->
   lists:map(fun({_, KV}) -> KV end, orddict:to_list(Acc));
-group_arguments(Meta, [{keyword, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Env) ->
-  group_arguments(Meta, T, orddict:store('as', {K, V}, Acc), Env);
-group_arguments(Meta, [{keyword, _, 'only'} = K, {C, _, _} = V | T], Acc, Env)
+group_arguments(Meta, [{keyword, _, 'as'} = K, {identifier, _, _} = V | T], Acc, Ctx) ->
+  group_arguments(Meta, T, orddict:store('as', {K, V}, Acc), Ctx);
+group_arguments(Meta, [{keyword, _, 'only'} = K, {C, _, _} = V | T], Acc, Ctx)
     when ?is_list(C) ->
-  group_arguments(Meta, T, orddict:store('only', {K, V}, Acc), Env);
-group_arguments(Meta, [{keyword, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Env)
+  group_arguments(Meta, T, orddict:store('only', {K, V}, Acc), Ctx);
+group_arguments(Meta, [{keyword, _, 'exclude'} = K, {C, _, _} = V | T], Acc, Ctx)
     when ?is_list(C) ->
-  group_arguments(Meta, T, orddict:store('exclude', {K, V}, Acc), Env);
-group_arguments(Meta, [{keyword, _, 'rename'} = K, {C, _, _} = V | T], Acc, Env)
+  group_arguments(Meta, T, orddict:store('exclude', {K, V}, Acc), Ctx);
+group_arguments(Meta, [{keyword, _, 'rename'} = K, {C, _, _} = V | T], Acc, Ctx)
     when ?is_list(C) ->
-  group_arguments(Meta, T, orddict:store('rename', {K, V}, Acc), Env);
-group_arguments(Meta, Args, _Acc, Env) ->
-  kapok_error:compile_error(Meta, ?m(Env, file), "invalid use arguments: ~p~n", [Args]).
+  group_arguments(Meta, T, orddict:store('rename', {K, V}, Acc), Ctx);
+group_arguments(Meta, Args, _Acc, Ctx) ->
+  kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid use arguments: ~p~n", [Args]).
 
-parse_functions(Meta, Args, Env) ->
+parse_functions(Meta, Args, Ctx) ->
   Fun = fun({list, _, [{identifier, _, Id}, {number, _, Integer}]}) when is_integer(Integer) ->
             {Id, Integer};
            ({Category, _, Id}) when ?is_local_id(Category) ->
             Id;
            (Other) ->
-            kapok_error:compile_error(Meta, ?m(Env, file), "invalid function: ~p", [Other])
+            kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid function: ~p", [Other])
         end,
   ordsets:from_list(lists:map(Fun, Args)).
 
 
-parse_function_aliases(Meta, Args, Env) ->
+parse_function_aliases(Meta, Args, Ctx) ->
   Fun = fun({Category, _, [{list, _, [{identifier, _, Id},
                                       {number, _, Integer}]},
                            {identifier, _, Alias}]})
@@ -441,7 +441,7 @@ parse_function_aliases(Meta, Args, Env) ->
               when ?is_list(Category), ?is_local_id(C1), ?is_local_id(C2) ->
             {Alias, Id};
            (Other) ->
-            kapok_error:compile_error(Meta, ?m(Env, file), "invalid rename arguments: ~p", [Other])
+            kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid rename arguments: ~p", [Other])
         end,
   ordsets:from_list(lists:map(Fun, Args)).
 

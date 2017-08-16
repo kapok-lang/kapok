@@ -19,9 +19,8 @@ eval_erlang_expr(Expr) ->
 
 eval_kapok_expr(Expr) ->
   File = <<"compiler_test.erl">>,
-  {Value, _Env} = kapok_compiler:string(Expr, File),
+  {Value, _Ctx} = kapok_compiler:string(Expr, File),
   Value.
-
 
 local_call_test() ->
   Output1 = eval_erlang_expr("self()."),
@@ -46,4 +45,3 @@ binary_test() ->
   Output1 = eval_erlang_expr("<<256:8/big-unsigned-integer-unit:1>>."),
   Output2 = eval_kapok_expr("<<(256 (:size 8) :big :unsigned :integer (:unit 1))>>"),
   ?assertEqual(Output1, Output2).
-

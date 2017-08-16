@@ -37,8 +37,8 @@ namespace_funs(Namespace) ->
 namespace_macros(Namespace) ->
   gen_server:call(?MODULE, {namespace_macros, Namespace}).
 
-namespace_forms(Namespace, ModuleName, Env) ->
-  gen_server:call(?MODULE, {namespace_forms, Namespace, ModuleName, Env}).
+namespace_forms(Namespace, ModuleName, Ctx) ->
+  gen_server:call(?MODULE, {namespace_forms, Namespace, ModuleName, Ctx}).
 
 %% gen_server API
 
@@ -85,8 +85,8 @@ handle_call({namespace_macros, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
   FAList = get_kv(Namespace, 'macros', Map1),
   {reply, FAList, Map1};
-handle_call({namespace_forms, Namespace, ModuleName, Env}, _From, Map) ->
-  {InfoExports, InfoDefs, Env1} = gen_info_fun(Namespace, Env, Map),
+handle_call({namespace_forms, Namespace, ModuleName, Ctx}, _From, Map) ->
+  {InfoExports, InfoDefs, Ctx1} = gen_info_fun(Namespace, Ctx, Map),
   NS = maps:get(Namespace, Map),
   FunExports = namespace_exports(NS),
   FunDefs = namespace_defs(NS),
@@ -99,7 +99,7 @@ handle_call({namespace_forms, Namespace, ModuleName, Env}, _From, Map) ->
   AttrModule = {attribute, 0, module, ModuleName},
   AttrExport = {attribute, 0, export, Exports},
   Forms = [AttrModule, AttrExport | DefForms],
-  {reply, {Forms, Env1}, Map}.
+  {reply, {Forms, Ctx1}, Map}.
 
 handle_cast({_, _}, Map) ->
   {noreply, Map}.
@@ -252,15 +252,15 @@ namespace_defs(NS) ->
   %% append aliases defs into head since it's much shorter in general.
   AliasesDefs ++ Defs.
 
-gen_info_fun(Namespace, Env, Map) ->
+gen_info_fun(Namespace, Ctx, Map) ->
   NS = maps:get(Namespace, Map),
   Functions = maps:get(export_funs, NS),
   Macros = maps:get(export_macros, NS),
-  {TFunctions, Env1} = kapok_trans:translate(kapok_trans:quote([], Functions), Env),
-  {TMacros, Env2} = kapok_trans:translate(kapok_trans:quote([], Macros), Env1),
+  {TFunctions, Ctx1} = kapok_trans:translate(kapok_trans:quote([], Functions), Ctx),
+  {TMacros, Ctx2} = kapok_trans:translate(kapok_trans:quote([], Macros), Ctx1),
   FA = {'__info__', 1},
   Exports = [FA],
   Defs = orddict:from_list([{FA,
                              [{clause, 0, [{atom,0,'functions'}], [], [TFunctions]},
                               {clause, 0, [{atom,0,'macros'}], [], [TMacros]}]}]),
-  {Exports, Defs, Env2}.
+  {Exports, Defs, Ctx2}.

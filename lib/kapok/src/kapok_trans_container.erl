@@ -13,9 +13,9 @@
 -include("kapok.hrl").
 
 %% tuple
-translate_tuple(Meta, Arg, Env) ->
-  {TArg, TEnv} = kapok_trans:translate(Arg, Env),
-  {build_tuple(Meta, TArg), TEnv}.
+translate_tuple(Meta, Arg, Ctx) ->
+  {TArg, TCtx} = kapok_trans:translate(Arg, Ctx),
+  {build_tuple(Meta, TArg), TCtx}.
 
 build_tuple(Meta, TArg) when is_list(Meta) ->
   build_tuple(?line(Meta), TArg);
@@ -23,26 +23,26 @@ build_tuple(Line, TArg) when is_integer(Line) ->
   {tuple, Line, TArg}.
 
 %% map
-translate_map(Meta, Args, #{context := Context} = Env) ->
+translate_map(Meta, Args, #{context := Context} = Ctx) ->
   FieldType = case Context of
                 pattern -> map_field_exact;
                 _ -> map_field_assoc
               end,
-  {TFields, TEnv} = build_map(Meta, FieldType, Args, Env),
-  {{map, ?line(Meta), TFields}, TEnv}.
+  {TFields, TCtx} = build_map(Meta, FieldType, Args, Ctx),
+  {{map, ?line(Meta), TFields}, TCtx}.
 
-build_map(Meta, FieldType, Args, Env) ->
-  build_map(Meta, FieldType, Args, [], Env).
+build_map(Meta, FieldType, Args, Ctx) ->
+  build_map(Meta, FieldType, Args, [], Ctx).
 
-build_map(_Meta, _FieldType, [], Acc, Env) ->
-  {lists:reverse(Acc), Env};
-build_map(Meta, _FieldType, [H], _Acc, Env) ->
-  kapok_error:compile_error(Meta, ?m(Env, file), "unpaired values in map ~p", [H]);
-build_map(Meta, FieldType, [K, V | Left], Acc, Env) ->
-  {TK, TEnv} = kapok_trans:translate(K, Env),
-  {TV, TEnv1} = kapok_trans:translate(V, TEnv),
+build_map(_Meta, _FieldType, [], Acc, Ctx) ->
+  {lists:reverse(Acc), Ctx};
+build_map(Meta, _FieldType, [H], _Acc, Ctx) ->
+  kapok_error:compile_error(Meta, ?m(Ctx, file), "unpaired values in map ~p", [H]);
+build_map(Meta, FieldType, [K, V | Left], Acc, Ctx) ->
+  {TK, TCtx} = kapok_trans:translate(K, Ctx),
+  {TV, TCtx1} = kapok_trans:translate(V, TCtx),
   Field = {FieldType, ?line(kapok_scanner:token_meta(K)), TK, TV},
-  build_map(Meta, FieldType, Left, [Field | Acc], TEnv1).
+  build_map(Meta, FieldType, Left, [Field | Acc], TCtx1).
 
 build_map_from(Meta, TranslatedPairs) ->
   TFields = lists:map(fun({{_, Line, _} = K, V}) ->
@@ -52,21 +52,21 @@ build_map_from(Meta, TranslatedPairs) ->
   {map, ?line(Meta), TFields}.
 
 %% set
-translate_set(_Meta, Arg, Env) ->
+translate_set(_Meta, Arg, Ctx) ->
   %% TODO add impl
-  {Arg, Env}.
+  {Arg, Ctx}.
 
 %% list
-translate_list({Category, Meta, List}, Env) when ?is_list(Category) ->
-  {TList, TEnv} = translate_list(List, Env),
-  {{Category, Meta, TList}, TEnv};
-translate_list(L, Env) when is_list(L) ->
-  translate_list(L, [], Env).
-translate_list([H|T], Acc, Env) ->
-  {Erl, TEnv} = kapok_trans:translate(H, Env),
-  translate_list(T, [Erl|Acc], TEnv);
-translate_list([], Acc, Env) ->
-  {build_list_reversed(Acc), Env}.
+translate_list({Category, Meta, List}, Ctx) when ?is_list(Category) ->
+  {TList, TCtx} = translate_list(List, Ctx),
+  {{Category, Meta, TList}, TCtx};
+translate_list(L, Ctx) when is_list(L) ->
+  translate_list(L, [], Ctx).
+translate_list([H|T], Acc, Ctx) ->
+  {Erl, TCtx} = kapok_trans:translate(H, Ctx),
+  translate_list(T, [Erl|Acc], TCtx);
+translate_list([], Acc, Ctx) ->
+  {build_list_reversed(Acc), Ctx}.
 
 build_list(L) ->
   build_list_reversed(lists:reverse(L)).
@@ -78,18 +78,18 @@ build_list_reversed([], Acc) ->
   Acc.
 
 %% cons_list
-translate_cons_list(Head, Tail, Env) ->
-  translate_cons_list(Head, [], Tail, Env).
+translate_cons_list(Head, Tail, Ctx) ->
+  translate_cons_list(Head, [], Tail, Ctx).
 
-translate_cons_list([], Acc, Tail, Env) ->
-  {TTail, TEnv} = kapok_trans:translate(Tail, Env),
+translate_cons_list([], Acc, Tail, Ctx) ->
+  {TTail, TCtx} = kapok_trans:translate(Tail, Ctx),
   L = lists:foldl(fun(X, Acc1) ->
                       Line = erlang:element(2, X),
                       {cons, Line, X, Acc1}
                   end,
                   TTail,
                   Acc),
-  {L, TEnv};
-translate_cons_list([H | T], Acc, Tail, Env) ->
-  {TH, TEnv} = kapok_trans:translate(H, Env),
-  translate_cons_list(T, [TH | Acc], Tail, TEnv).
+  {L, TCtx};
+translate_cons_list([H | T], Acc, Tail, Ctx) ->
+  {TH, TCtx} = kapok_trans:translate(H, Ctx),
+  translate_cons_list(T, [TH | Acc], Tail, TCtx).

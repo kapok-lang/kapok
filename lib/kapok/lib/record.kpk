@@ -54,3 +54,34 @@
   `(core.and (core.is_tuple ~data)
              (core.> (core.tuple-size ~data) 0)
              (core.== (erlang.element 1 ~data) ~kind)))
+
+;; (defmacro defrecord [name &rest fields]
+;;   """Define a record by the specified `name` and `fields`.
+
+;;   The argument `fields` should contain a list of `field`, which is
+;;   either a tuple `(key, default_value)` or simply just `key`.
+;;   `key` is a keyword to specify record key, `default_value` is
+;;   the default value for this key. When the default value is omitted
+;;   in the second form, it will be `undefined`.
+
+;;   ## Examples
+
+;;       kapok> (defrecord rr
+;;                (:a 1)
+;;                :b
+;;                (:c 2)
+;;                :d)
+
+;;   """
+;;   `(lists.foldl (fn [ast]
+;;                   (let ({category meta value} ast)
+;;                     (core.unless (or (category == 'keyword')
+;;                                      (category == 'atom'))
+;;                                  (kapok_error:compile_error meta  "invalid ")
+;;                         (do
+
+;;                          ))
+;;                     )
+;;                   (when (or (=== category 'keyword')
+;;                                                      (=== category 'atom')))
+;;                     )
