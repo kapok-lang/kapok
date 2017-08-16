@@ -76,7 +76,7 @@ exec_fun(Fun, Res) when is_function(Fun, 1) andalso is_tuple(Res) ->
 
 %% run exit hooks on exit
 at_exit(Res) ->
-  Hooks = kapok_config:get(at_exit),
+  Hooks = kapok_env:get(at_exit),
   Res1 = lists:foldl(fun exec_fun/2, Res, Hooks),
   {Res1, 0}.
 
@@ -190,7 +190,7 @@ is_regular(Path) ->
 %% Process commands
 process_commands(Config) ->
   Options = orddict:from_list(?m(Config, compiler_options)),
-  kapok_config:update_in(compiler_options, Options),
+  kapok_env:update_in(compiler_options, Options),
   Results = lists:map(fun(C) -> process_command(C, Config) end,
                       lists:reverse(?m(Config, commands))),
   Errors = [Msg || {error, Msg} <- Results],

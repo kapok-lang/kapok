@@ -6,7 +6,7 @@
          append/2,
          'list*'/2]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
--import(kapok_config, [get_compiler_opt/1]).
+-import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 '__info__'(functions) ->

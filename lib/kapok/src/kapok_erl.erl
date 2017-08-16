@@ -2,7 +2,7 @@
 -module(kapok_erl).
 -export([eval_abstract_format/2,
          module/4]).
--import(kapok_config, [get_compiler_opt/1]).
+-import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 
@@ -88,9 +88,9 @@ no_auto_import() ->
   {attribute, 0, compile, no_auto_import}.
 
 options() ->
-  case kapok_config:get(erl_compiler_options) of
+  case kapok_env:get(erl_compiler_options) of
     nil ->
-      kapok_config:update(erl_compiler_options, fun options/1);
+      kapok_env:update(erl_compiler_options, fun options/1);
     Options ->
       Options
   end.

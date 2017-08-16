@@ -3,7 +3,7 @@
 -export([compile/3,
          format_error/1]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
--import(kapok_config, [get_compiler_opt/1]).
+-import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 compile(Ast, Ctx, Callback) when is_list(Ast) ->

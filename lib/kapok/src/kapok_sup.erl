@@ -23,7 +23,7 @@ start_link() ->
 
 init([]) ->
   Workers = [
-             ?CHILD(kapok_config, worker),
+             ?CHILD(kapok_env, worker),
              ?CHILD(kapok_symbol_table, worker),
              ?CHILD(kapok_code, worker)
             ],

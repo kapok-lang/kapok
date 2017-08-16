@@ -1,7 +1,7 @@
--module(kapok_config).
+-module(kapok_env).
 -compile({no_auto_import, [get/1]}).
 -export([get_compiler_opt/1]).
--export([new/1, delete/1, put/2, get/1, update/2, update_in/2, get_and_put/2]).
+-export([new/1, shutdown/1, put/2, get/1, update/2, update_in/2, get_and_put/2, delete/1]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          code_change/3, terminate/2]).
 -behaviour(gen_server).
@@ -9,7 +9,7 @@
 %% Helper APIs which wrap public APIs
 
 get_compiler_opt(Key) ->
-  Options = kapok_config:get(compiler_options),
+  Options = kapok_env:get(compiler_options),
   case lists:keyfind(Key, 1, Options) of
     false -> false;
     {Key, Value} -> Value
@@ -22,8 +22,8 @@ new(Opts) ->
   true = ets:insert_new(?MODULE, Opts),
   Tid.
 
-shutdown() ->
-  ets:delete(?MODULE).
+shutdown(Tid) ->
+  ets:delete(Tid).
 
 put(Key, Value) ->
   gen_server:call(?MODULE, {put, Key, Value}).
@@ -40,7 +40,7 @@ update(Key, Fun) ->
 update_in(Key, Orddict) when is_list(Orddict) ->
   Merge = fun(_, _, Value) -> Value end,
   Update = fun(Old) -> orddict:merge(Merge, Old, Orddict) end,
-  kapok_config:update(Key, Update).
+  kapok_env:update(Key, Update).
 
 get_and_put(Key, Value) ->
   gen_server:call(?MODULE, {get_and_put, Key, Value}).
@@ -84,5 +84,4 @@ code_change(_OldVsn, Tid, _Extra) ->
   {ok, Tid}.
 
 terminate(_Reason, _Tid) ->
-  shutdown(),
   ok.

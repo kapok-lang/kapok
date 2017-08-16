@@ -96,7 +96,7 @@ eval_ast(Ast, Ctx) ->
 core() ->
   {ok, _} = application:ensure_all_started(kapok),
   Options = orddict:from_list([{docs, false}, {internal, true}]),
-  kapok_config:update_in(compiler_options, Options),
+  kapok_env:update_in(compiler_options, Options),
   [load_core_libs(File) || File <- core_libs()].
 
 load_core_libs(File) ->
