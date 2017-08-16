@@ -3,7 +3,7 @@
 
 ;; all functions here are imported for every ns by default.
 
-(ns kapok.core
+(ns core
   (require erlang lists kapok-utils))
 
 ;; list operators
@@ -67,22 +67,22 @@
   evaluates and yields else.
   If else is not supplied it defaults to nil.
   """
-  ;; the `kapok.core` namespace may be unimported where this macro is used,
+  ;; the `core` namespace may be unimported where this macro is used,
   ;; so we'd better write the calling to `true?` in dot-identifier form
   ;; to specify its namespace.
-  `(case (kapok.core.true? ~test)
+  `(case (core.true? ~test)
      (^true ~then)
      (^false ~else)))
 
 (defmacro when-do [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
-  `(case (kapok.core.true? ~test)
+  `(case (core.true? ~test)
      (^true ~@body)
      (^false ^ok)))
 
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
-  `(case (kapok.core.true? ~test)
+  `(case (core.true? ~test)
      (^true ^ok)
      (^false ~@body)))
 
@@ -117,14 +117,13 @@
   (cond) returns `^ok`.
   """
   (unless (nil? clauses)
-    `(kapok.core.if ~(first clauses)
+    `(core.if ~(first clauses)
               ~(case (next clauses)
                  (^false
-                  ;; TODO support in module delay dispatching and replace `erlang.throw` with `throw`
                   (erlang.throw "cond requires an even number of forms"))
                  (_
                   (second clauses)))
-       (kapok.core.cond ~(rest (rest clauses))))))
+       (core.cond ~(rest (rest clauses))))))
 
 ;; macro
 
@@ -525,7 +524,7 @@
 (defn spawn [fun]
   """Spawns the given function and returns its pid.
 
-  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  Check the `process` and `node` namespaces for other functions
   to handle processes, including spawning functions in nodes.
 
   Inlined by the compiler.
@@ -545,7 +544,7 @@
   """Spawns the given module and function passing the given args
   and returns its pid.
 
-  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  Check the `process` and `node` namespaces for other functions
   to handle precesses, including spawning functions in nodes.
 
   Inlined by the compiler.
@@ -561,7 +560,7 @@
   """Spawns the given function, links it to the current process and returns
   its pid.
 
-  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  Check the `process` and `node` namespaces for other functions
   to handle processes, including spawning functions in nodes.
 
   Inlined by the compiler.
@@ -581,7 +580,7 @@
   """Spawns the given module and function passing the given args,
   links it to the current process and returns its pid.
 
-  Checks the `kapok.process` and `kapok.node` namespaces for other functions
+  Checks the `process` and `node` namespaces for other functions
   to handle processes, including spawning functions in nodes.
 
   Inlined by the compiler.
@@ -597,7 +596,7 @@
   """Spawns the given module and function passing the given args,
   monitors it and returns its pid and monitoring reference.
 
-  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  Check the `process` and `node` namespaces for other functions
   to handle processes, including spawning functions in nodes.
 
   Inlined by the compiler.
@@ -615,7 +614,7 @@
   """Spawns the given module and functions passing the given args,
   monitors it and returns its pid and monitoring reference.
 
-  Check the `kapok.process` and `kapok.node` namespaces for other functions
+  Check the `process` and `node` namespaces for other functions
   to handle processes, including spawning functions in nodes.
 
   Inlined by the compiler.

@@ -14,11 +14,11 @@
 
 default_requires() ->
   L = ['kapok_macro',
-       'kapok.core'],
+       'core'],
   orddict:from_list(lists:map(fun(X) -> {X, X} end, L)).
 
 default_uses() ->
-  ['kapok.core'].
+  ['core'].
 
 %% find local/remote macro/function
 

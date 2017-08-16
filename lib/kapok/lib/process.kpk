@@ -1,15 +1,15 @@
-(ns kapok.process
+(ns process
   """Conveniences for working with processes and the process dictionary.
 
   Besides the functions available in this module, the `core` module
   exposes and auto-imports some basic functionality related to precesses
   available through the functions:
 
-    * `kapok.core.spawn`
-    * `kapok.core.spawn_link`
-    * `kapok.core.spawn_monitor`
-    * `kapok.core.self`
-    * `kapok.core.send`
+    * `core.spawn`
+    * `core.spawn_link`
+    * `core.spawn_monitor`
+    * `core.self`
+    * `core.send`
 
   """
   (require erlang))

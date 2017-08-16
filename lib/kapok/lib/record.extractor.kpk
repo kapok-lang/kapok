@@ -1,0 +1,9 @@
+(ns record.extractor
+  )
+
+;; (defn extract [name &key file] (when (binary? file))
+;;   """Retrieve a record definition from an Erlang file
+;;   It uses the same lookup as the *include* attribute from Erlang modules.
+;;   """
+;;   (extract_record name (from_file file))
+;;   )

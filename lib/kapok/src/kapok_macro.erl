@@ -41,7 +41,7 @@ expand_1(List, Env) when is_list(List) ->
 
 %% list
 expand_1({list, Meta, [{identifier, _, Id} = Ident | T]}, Env) when ?is_def(Id) ->
-  %% TODO move defs into kapok.core as predefined macros
+  %% TODO move defs into `core' as predefined macros
   {ET, EEnv, Expanded} = expand_1(T, Env),
   {{list, Meta, [Ident | ET]}, EEnv, Expanded};
 expand_1({list, Meta, [{identifier, _, Id} | T]} = Ast, Env) ->

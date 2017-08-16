@@ -36,9 +36,9 @@
 
   """
 
-  `(kapok.core.and (kapok.core.is_tuple ~data)
-                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
-                   (kapok.core.is_atom (erlang.element 1 ~data))))
+  `(core.and (core.is_tuple ~data)
+             (core.> (core.tuple-size ~data) 0)
+             (core.is_atom (erlang.element 1 ~data))))
 
 (defmacro is-record [data kind]
   """Checks if the given `data` is a record of `kind`.
@@ -51,6 +51,6 @@
       ^true
 
   """
-  `(kapok.core.and (kapok.core.is_tuple ~data)
-                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
-                   (kapok.core.== (erlang.element 1 ~data) ~kind)))
+  `(core.and (core.is_tuple ~data)
+             (core.> (core.tuple-size ~data) 0)
+             (core.== (erlang.element 1 ~data) ~kind)))

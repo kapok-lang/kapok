@@ -1,4 +1,4 @@
-(ns kapok.time
+(ns time
   (require erlang))
 
 (defn date []
@@ -13,4 +13,3 @@
 
   """
   (erlang.date))
-
