@@ -25,7 +25,7 @@ build_tuple(Line, TArg) when is_integer(Line) ->
 %% map
 translate_map(Meta, Args, #{context := Context} = Ctx) ->
   FieldType = case Context of
-                pattern -> map_field_exact;
+                C when C == pattern; C == let_pattern -> map_field_exact;
                 _ -> map_field_assoc
               end,
   {TFields, TCtx} = build_map(Meta, FieldType, Args, Ctx),
@@ -52,9 +52,14 @@ build_map_from(Meta, TranslatedPairs) ->
   {map, ?line(Meta), TFields}.
 
 %% set
-translate_set(_Meta, Arg, Ctx) ->
-  %% TODO add impl
-  {Arg, Ctx}.
+translate_set(Meta, Args, #{context := Context} = Ctx) ->
+  case Context of
+    C when C == pattern; C == let_pattern ->
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "unsupported set in pattern");
+    _ -> ok
+  end,
+  {TArgs, TCtx} = translate_list(Args, Ctx),
+  kapok_trans:translate_remote_call(Meta, 'gb_sets', 'from_list', [TArgs], TCtx).
 
 %% list
 translate_list({Category, Meta, List}, Ctx) when ?is_list(Category) ->

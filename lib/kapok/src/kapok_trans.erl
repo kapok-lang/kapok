@@ -6,6 +6,7 @@
          translate_def_args/2,
          translate_guard/2,
          translate_body/3,
+         translate_remote_call/5,
          quote/2,
          eval/2,
          construct_new_args/5,

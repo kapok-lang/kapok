@@ -31,7 +31,7 @@ translate_let(Meta, Args, Body, Ctx) ->
   Ctx1 = kapok_ctx:push_scope(Ctx),
   {TArgs, TCtx1} = translate_let_args(Args, Ctx1),
   {TBody, TCtx2} = translate_body(Meta, Body, TCtx1),
-  BodyBlock = build_block(0, TBody),
+  BodyBlock = build_block(Meta, TBody),
   TCtx3 = kapok_ctx:pop_scope(TCtx2),
   {build_block(Meta, TArgs ++ [BodyBlock]), TCtx3}.
 
