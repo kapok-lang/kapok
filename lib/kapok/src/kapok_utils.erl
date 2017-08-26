@@ -7,7 +7,7 @@
          to_binary/1,
          read_file_type/1,
          relative_to_cwd/1,
-         gensym_with/1,
+         gensym_plain/1,
          gensym/0,
          gensym/1
         ]).
@@ -49,8 +49,8 @@ relative_to_cwd(Path) ->
   %% TODO add external path library call
   Path.
 
-gensym_with(Flag) ->
-  gensym("#:~s~s", [Flag, gensym_random()]).
+gensym_plain(Prefix) ->
+  gensym("~s~s", [Prefix, gensym_random()]).
 
 gensym() ->
   gensym("#:G~s", [gensym_random()]).

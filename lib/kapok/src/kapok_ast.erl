@@ -16,8 +16,8 @@ compile(Ast, Ctx) ->
 
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Ctx) ->
   handle_ns(Meta, T, Ctx);
-handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_def(Id) ->
-  handle_def(Meta, Id, T, Ctx#{def_kind => Id});
+handle({list, Meta, [{identifier, _, Id} | T]} = Ast, Ctx) when ?is_def(Id) ->
+  handle_def(Meta, Id, T, Ctx#{def_kind => Id, def_ast => Ast});
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) ->
   {TAttr, TCtx} = kapok_trans:translate(Ast, Ctx),
   Namespace = ?m(Ctx, namespace),
@@ -233,7 +233,16 @@ handle_def_expr(Kind, _Name, Ast, Ctx) ->
 handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) ->
   %% TODO add doc
   Namespace = ?m(Ctx, namespace),
-  {TF, TCtx} = kapok_trans:translate(Name, kapok_ctx:push_scope(Ctx)),
+  {TF, Ctx1} = kapok_trans:translate(Name, kapok_ctx:push_scope(Ctx)),
+  %% add macro env variables `_&form`
+  {PrepareMacroEnv, TCtx} = case Kind of
+                              'defmacro' ->
+                                Ast = ?m(Ctx1, def_ast),
+                                Env = [{identifier, Meta, '_&form'}, kapok_trans:quote(Meta, Ast)],
+                                kapok_trans_special_form:translate_let_args(Env, Ctx1);
+                              _ ->
+                                {[], Ctx1}
+                            end,
   case parse_parameters(Args, TCtx) of
     [{normal, _, NormalArgs}] ->
       {TArgs, CCtx} = kapok_trans:translate_def_args(NormalArgs, TCtx),
@@ -259,7 +268,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
       ParameterType = 'key',
       {TMapArg, TCtx3} = kapok_trans:translate_def_arg({identifier,
                                                         Meta1,
-                                                        kapok_utils:gensym_with("KV")},
+                                                        kapok_utils:gensym("KV")},
                                                        TCtx2),
       TArgs = TNormalArgs ++ [TMapArg],
 
@@ -283,7 +292,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
   %% TODO add def_fap for other clauses(maybe do this when impl delay compilation stuff?)
   {TGuard, TCtx7} = kapok_trans:translate_guard(Guard, Ctx6),
   {TBody, TCtx8} = kapok_trans:translate_body(Meta, Body, TCtx7),
-  Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareBody ++ TBody},
+  Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareMacroEnv ++ PrepareBody ++ TBody},
   kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
   kapok_ctx:pop_scope(TCtx8#{def_fap => FAP}).
 

@@ -2,6 +2,7 @@
 -module(kapok_trans_special_form).
 -export([translate_attribute/4,
          translate_let/4,
+         translate_let_args/2,
          translate_do/3,
          translate_case/5,
          translate_fn/3,

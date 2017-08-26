@@ -337,7 +337,6 @@ translate({Category, Meta} = Token, Ctx) when ?is_parameter_keyword(Category) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
 
 %% All other things
-
 translate(Other, Ctx) ->
   {to_abstract_format(Other), Ctx}.
 
@@ -346,26 +345,26 @@ translate(Other, Ctx) ->
 
 %% Converts specified code to erlang abstract format
 
-to_abstract_format(Tree) when is_tuple(Tree) ->
-  {tuple, 0, [to_abstract_format(X) || X <- tuple_to_list(Tree)]};
-to_abstract_format([]) ->
-  {nil, 0};
-to_abstract_format(<<>>) ->
-  {bin, 0, []};
-to_abstract_format(Tree) when is_list(Tree) ->
-  to_abstract_format_cons_1(Tree, []);
 to_abstract_format(Tree) when is_atom(Tree) ->
   {atom, 0, Tree};
 to_abstract_format(Tree) when is_integer(Tree) ->
   {integer, 0, Tree};
 to_abstract_format(Tree) when is_float(Tree) ->
   {float, 0, Tree};
+to_abstract_format(<<>>) ->
+  {bin, 0, []};
 to_abstract_format(Tree) when is_binary(Tree) ->
   %% Note that our binaries are utf-8 encoded and we are converting
   %% to a list using binary_to_list. The reason for this is that Erlang
   %% considers a string in a binary to be encoded in latin1, so the bytes
   %% are not changed in any fashion.
   {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(Tree)}, default, default}]};
+to_abstract_format(Tree) when is_tuple(Tree) ->
+  {tuple, 0, [to_abstract_format(X) || X <- tuple_to_list(Tree)]};
+to_abstract_format([]) ->
+  {nil, 0};
+to_abstract_format(Tree) when is_list(Tree) ->
+  to_abstract_format_cons_1(Tree, []);
 to_abstract_format(Function) when is_function(Function) ->
   case (erlang:fun_info(Function, type) == {type, external}) andalso
     (erlang:fun_info(Function, env) == {env, []}) of
