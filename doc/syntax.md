@@ -414,8 +414,6 @@ Maps in Kapok are just maps in Erlang, which are associative collections of key-
 
 The surrounding `#{}` comes from Erlang. And the key-value pairs are matched by their positions, which is like Clojure. Also notice that `#{}` are used for literal set in Clojure.
 
-**TODO** add extract syntax for pattern matching
-
 #### Set
 
 Sets are collections of elements with no duplicate elements. In Kapok sets are implemented as `gb_sets` in Erlang. They are like sets in other programming languages. The syntax for literal map is
@@ -512,6 +510,8 @@ And `let` supports destructing like Clojure. In Erlang, there is a similar conce
   Map destructing is conceptully identical to sequential destructing, except that it works only for maps.
 
 TODO add more details for destructing.
+
+Please notice that set is not supported in destructing.
 
 ### Block expression
 
