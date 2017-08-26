@@ -9,7 +9,6 @@
          get_remote_function/4,
          find_remote_function/4,
          format_error/1]).
--import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 default_requires() ->

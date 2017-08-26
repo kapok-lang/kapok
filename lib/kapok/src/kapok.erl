@@ -38,7 +38,7 @@ start(_Type, _Args) ->
   end,
 
   CompilerOpts = [{docs, true}, {debug_info, true}, {warnings_as_errors, false}],
-  Config = orddict:from_list([{at_exit, []}, {compiler_options, orddict:from_list(CompilerOpts)}]),
+  Config = [{at_exit, []}, {compiler_options, orddict:from_list(CompilerOpts)}],
   Tid = kapok_env:new(Config),
   case kapok_sup:start_link() of
     {ok, Sup} ->
