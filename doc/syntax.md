@@ -459,8 +459,8 @@ You might notice that the namespace name in previous example is not a identifier
 In Kapok, we use dot character for both of these occasions.
 
 ```clojure
-;; call a function true? in namespace kapok.core
-(kapok.core.true? ^nil)
+;; call a function true? in namespace core
+(core.true? ^nil)
 ```
 
 The `ns` special form could have `require` and `use` clauses. The `require` clause could have `:as` argument. And the `use` clause could have `:as`, `:only`, `:exclude`, `:rename` arguments. These examples below would show how to use them:
@@ -472,7 +472,7 @@ The `ns` special form could have `require` and `use` clauses. The `require` clau
   (require compile           ;; require multiple erlang modules
            (rand :as r)
            re)
-  (require kapok.atom)       ;; require a kapok standard library namespace
+  (require atom)       ;; require a kapok standard library namespace
   )
 ```
   
@@ -483,9 +483,8 @@ The `ns` special form could have `require` and `use` clauses. The `require` clau
                :only (apply node)  ;; only import apply/2 and node/0 from module 'erlang'
                :rename (apply ap)  ;; rename 'apply' to 'ap'
                ))
-  (use kapok.process                ;; use multiple modules/namespaces
-       (kapok.core :as core
-                   :exclude (abs))  ;; :exclude agrument
+  (use process                ;; use multiple modules/namespaces
+       (core :exclude (abs))  ;; :exclude agrument
        gb_sets)
   )
 ```
