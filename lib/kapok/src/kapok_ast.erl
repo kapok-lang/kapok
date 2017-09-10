@@ -38,7 +38,7 @@ handle_ns(Meta, _T, Ctx) ->
 
 handle_ns(Meta, Ast, Clauses, Ctx) ->
   handle_ns(Meta, Ast, empty_doc(), Clauses,  Ctx).
-handle_ns(Meta, Ast, _Doc, Clauses, Ctx) ->
+handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
   Name = dot_id_name(Ast),
   Ctx1 = case ?m(Ctx, namespace) of
            nil ->
@@ -46,9 +46,9 @@ handle_ns(Meta, Ast, _Doc, Clauses, Ctx) ->
            Name ->
              Ctx;
            NS ->
-             %% TODO build previous namespace
-             kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE,
-                                        {multiple_namespace, {NS, Name}})
+             %% build the previous namespace before entering the new namespace
+             build_namespace(NS, Ctx),
+             Ctx#{namespace => Name}
          end,
   kapok_symbol_table:add_namespace(Name),
   {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),
@@ -513,8 +513,6 @@ format_error({nonexistent_original_for_alias, {Alias, Fun}}) ->
                 [Alias, Fun]);
 format_error({invalid_defalias_expression, {Alias, Ast}}) ->
   io_lib:format("invalid expression ~p to define alias ~s", [Ast, Alias]);
-format_error({multiple_namespace, {Existing, New}}) ->
-  io_lib:format("multiple namespace in one file not supported: ~p, ~p", [Existing, New]);
 format_error({dangling_parameter_keyword, {Token}}) ->
   io_lib:format("dangling ~s without argument", [token_text(Token)]);
 format_error({invalid_def_expression, {Kind, Name, Expr}}) ->
