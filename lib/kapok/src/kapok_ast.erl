@@ -139,12 +139,12 @@ handle_use_element_arguments(_Meta, _Name, _, [Ast | _T], Ctx) ->
 
 %% Check whether the default namespaces is used. Add them if they are not declared in use clause.
 add_default_uses(Ctx) ->
-  lists:foldl(fun(Ns, #{uses := Uses} = E) ->
+  lists:foldl(fun(Ns, #{uses := Uses} = C) ->
                   case orddict:is_key(Ns, Uses) of
                     true ->
-                      E;
+                      C;
                     false ->
-                      {_, E1} = handle_use_element({identifier, [], Ns}, E),
+                      {_, E1} = handle_use_element({identifier, [], Ns}, C),
                       E1
                   end
               end,
@@ -216,7 +216,7 @@ empty_def_doc() ->
   {bitstring, [], <<"">>}.
 
 handle_def_exprs(_Meta, Kind, Name, Exprs, Ctx) ->
-  lists:foldl(fun (Expr, E) -> handle_def_expr(Kind, Name, Expr, E) end, Ctx, Exprs).
+  lists:foldl(fun (Expr, C) -> handle_def_expr(Kind, Name, Expr, C) end, Ctx, Exprs).
 
 handle_def_expr(Kind,
                 Name,
@@ -226,9 +226,9 @@ handle_def_expr(Kind,
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx);
 handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args | Body]}, Ctx) ->
   handle_def_clause(Meta, Kind, Name, Args, [], Body, Ctx);
-handle_def_expr(Kind, _Name, Ast, Ctx) ->
-  Error = {invalid_def_expression, {Ast, Kind}},
-  kapok_error:form_error(token_meta(Ast), ?m(Ctx, file), ?MODULE, Error).
+handle_def_expr(Kind, Name, Expr, Ctx) ->
+  Error = {invalid_def_expression, {Kind, Name, Expr}},
+  kapok_error:form_error(token_meta(Expr), ?m(Ctx, file), ?MODULE, Error).
 
 handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) ->
   %% TODO add doc
@@ -365,10 +365,10 @@ get_optional_args(OptionalParameters) ->
   lists:map(fun({Expr, _Default}) -> Expr end, OptionalParameters).
 
 translate_parameter_with_default(Parameters, Ctx) ->
-  {L, TCtx} = lists:foldl(fun({Expr, Default}, {Acc, E}) ->
-                              {TExpr, E1} = kapok_trans:translate_def_arg(Expr, E),
-                              {TDefault, E2} = kapok_trans:translate_def_arg(Default, E1),
-                              {[{TExpr, TDefault} | Acc], E2}
+  {L, TCtx} = lists:foldl(fun({Expr, Default}, {Acc, C}) ->
+                              {TExpr, C1} = kapok_trans:translate_def_arg(Expr, C),
+                              {TDefault, C2} = kapok_trans:translate_def_arg(Default, C1),
+                              {[{TExpr, TDefault} | Acc], C2}
                           end,
                           {[], Ctx},
                           Parameters),
@@ -471,8 +471,8 @@ format_error({multiple_namespace, {Existing, New}}) ->
   io_lib:format("multiple namespace in one file not supported: ~p, ~p", [Existing, New]);
 format_error({dangling_parameter_keyword, {Token}}) ->
   io_lib:format("dangling ~s without argument", [token_text(Token)]);
-format_error({invalid_def_expression, {Expr, Kind}}) ->
-  io_lib:format("invalid expression ~p for ~s", [Expr, Kind]);
+format_error({invalid_def_expression, {Kind, Name, Expr}}) ->
+  io_lib:format("invalid expression ~p for ~s ~s", [Expr, Kind, Name]);
 format_error({invalid_postion_of_parameter_keyword, {Token, Previous}}) ->
   io_lib:format("invalid ~s with ~s ahead at line ~B", [token_text(Token),
                                                         token_text(Previous),

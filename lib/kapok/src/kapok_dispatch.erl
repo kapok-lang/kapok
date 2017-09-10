@@ -200,11 +200,11 @@ filter_fa({Fun, Arity} = FunArity, FAList) when is_list(FAList) ->
       FAList).
 
 ensure_uses_imported(#{uses := Uses} = Ctx) ->
-  lists:foldl(fun({Module, Args}, E) ->
+  lists:foldl(fun({Module, Args}, C) ->
                   {ok, Meta} = orddict:find(meta, Args),
-                  case module_is_imported(Module, E) of
-                    true -> E;
-                    false -> import_module(Meta, Module, Args, E)
+                  case module_is_imported(Module, C) of
+                    true -> C;
+                    false -> import_module(Meta, Module, Args, C)
                   end
               end,
               Ctx,

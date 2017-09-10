@@ -154,7 +154,7 @@ add_var(Meta, #{scope := Scope} = Ctx, Var, Name) ->
   {Name, Ctx1}.
 
 add_bindings(Ctx, Bindings) ->
-  lists:mapfoldl(fun({K, _V}, E) -> add_var([], E, K) end, Ctx, Bindings).
+  lists:mapfoldl(fun({K, _V}, C) -> add_var([], C, K) end, Ctx, Bindings).
 
 get_var(Meta, #{scope := Scope} = Ctx, Var) ->
   get_var(Meta, Ctx, Scope, Var).

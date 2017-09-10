@@ -624,7 +624,7 @@ translate_guard({list, Meta, [{keyword, _, 'and'} | Left]}, Parent, Ctx) ->
     [E1, E2 | Tail] ->
       {TE1, TCtx} = translate_guard(E1, 'and', Ctx),
       {TE2, TCtx1} = translate_guard(E2, 'and', TCtx),
-      {TLeft, TCtx2} = lists:mapfoldl(fun (X, E) -> translate_guard(X, 'and', E) end,
+      {TLeft, TCtx2} = lists:mapfoldl(fun (X, C) -> translate_guard(X, 'and', C) end,
                                       TCtx1,
                                       Tail),
       L = [TE1, TE2 | TLeft],
