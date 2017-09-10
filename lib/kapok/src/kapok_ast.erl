@@ -1,21 +1,22 @@
 %% ast handlings, which include expanding/translating the kapok ast
 -module(kapok_ast).
--export([compile/3,
+-export([compile/2,
          format_error/1]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
-compile(Ast, Ctx, Callback) when is_list(Ast) ->
+compile(Ast, Ctx) when is_list(Ast) ->
   Ctx1 = lists:foldl(fun compile/2, Ctx, Ast),
-  build_namespace(?m(Ctx1, namespace), Ctx1, Callback).
-
+  build_namespace(?m(Ctx1, namespace), Ctx1);
 compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
 
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Ctx) ->
   handle_ns(Meta, T, Ctx);
+handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_def_ns(Id) ->
+  handle_def_ns(Meta, Id, T, Ctx);
 handle({list, Meta, [{identifier, _, Id} | T]} = Ast, Ctx) when ?is_def(Id) ->
   handle_def(Meta, Id, T, Ctx#{def_kind => Id, def_ast => Ast});
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) ->
@@ -36,15 +37,17 @@ handle_ns(Meta, _T, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {'ns'}}).
 
 handle_ns(Meta, Ast, Clauses, Ctx) ->
-  handle_ns(Meta, Ast, <<"">>, Clauses,  Ctx).
-handle_ns(Meta, {C, _, Arg} = Ast, _Doc, Clauses, Ctx) ->
-  Name = case C of
-           'dot' -> kapok_parser:dot_fullname(Ast);
-           'identifier' -> Arg
-         end,
+  handle_ns(Meta, Ast, empty_doc(), Clauses,  Ctx).
+handle_ns(Meta, Ast, _Doc, Clauses, Ctx) ->
+  Name = dot_id_name(Ast),
   Ctx1 = case ?m(Ctx, namespace) of
-           nil -> Ctx#{namespace => Name};
-           NS -> kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE,
+           nil ->
+             Ctx#{namespace => Name};
+           Name ->
+             Ctx;
+           NS ->
+             %% TODO build previous namespace
+             kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE,
                                         {multiple_namespace, {NS, Name}})
          end,
   kapok_symbol_table:add_namespace(Name),
@@ -151,22 +154,47 @@ add_default_uses(Ctx) ->
               Ctx,
               kapok_dispatch:default_uses()).
 
+dot_id_name({'dot', _, _} = Ast) ->
+  kapok_parser:dot_fullname(Ast);
+dot_id_name({'identifier', _, Arg}) ->
+  Arg.
+
+%% defns
+handle_def_ns(Meta, Kind, [{C, _, _} = NameAst | T], Ctx) when ?is_dot_id(C) ->
+  handle_def_ns(Meta, Kind, NameAst, T, Ctx);
+handle_def_ns(Meta, Kind, _T, Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}}).
+
+handle_def_ns(Meta, Kind, NameAst, [{C, _, _} = DocAst | T], Ctx) when ?is_string(C) ->
+  handle_def_ns(Meta, Kind, NameAst, DocAst, T, Ctx);
+handle_def_ns(Meta, Kind, _NameAst, [], Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}});
+handle_def_ns(Meta, Kind, NameAst, T, Ctx) ->
+  handle_def_ns(Meta, Kind, NameAst, empty_doc(), T, Ctx).
+
+handle_def_ns(Meta, _Kind, NameAst, DocAst, [{list, _, NSArgs} | T], #{namespace := NS} = Ctx) ->
+  Name = dot_id_name(NameAst),
+  Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx#{namespace => Name}),
+  Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
+  build_namespace(Name, Ctx2),
+  Ctx2#{namespace => NS}.
+
 %% definitions
 handle_def(Meta, Kind, [{identifier, _, Name}  | T], Ctx) ->
   handle_def(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, _T, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}}).
 
-handle_def(Meta, Kind, Name, T, Ctx) when ?is_def_alias(Kind) ->
-  handle_def_alias(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, _Name, [], Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}});
+handle_def(Meta, Kind, Name, T, Ctx) when ?is_def_alias(Kind) ->
+  handle_def_alias(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Ctx) ->
   handle_def_with_args(Meta, Kind, Name, Args, T, Ctx);
 handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Ctx) when ?is_string(C) ->
   handle_def_with_doc(Meta, Kind, Name, Doc, T, Ctx);
 handle_def(Meta, Kind, Name, Exprs, Ctx) ->
-  handle_def_with_doc(Meta, Kind, Name, empty_def_doc(), Exprs, Ctx).
+  handle_def_with_doc(Meta, Kind, Name, empty_doc(), Exprs, Ctx).
 
 handle_def_alias(Meta, _Kind, Alias,
                  [{list, _, [{identifier, _, Fun}, {number, _, Arity}]}, {C, _, _} = _Doc], Ctx)
@@ -212,8 +240,8 @@ handle_def_with_doc(Meta, Kind, Name, _Doc, Exprs, Ctx) ->
   %% TODO add doc
   handle_def_exprs(Meta, Kind, Name, Exprs, Ctx).
 
-empty_def_doc() ->
-  {bitstring, [], <<"">>}.
+empty_doc() ->
+  {binary_string, [], <<"">>}.
 
 handle_def_exprs(_Meta, Kind, Name, Exprs, Ctx) ->
   lists:foldl(fun (Expr, C) -> handle_def_expr(Kind, Name, Expr, C) end, Ctx, Exprs).
@@ -405,9 +433,27 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
                              {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
 %% namespace
-build_namespace(Namespace, Ctx, Callback) ->
+build_namespace(Namespace, Ctx) ->
   {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx),
-  kapok_erl:module(Forms, [], Ctx1, Callback).
+  kapok_erl:module(Forms, [], Ctx1, fun write_compiled/2).
+
+write_compiled(Module, Binary) ->
+  %% write compiled binary to dest file
+  case kapok_env:get(outdir) of
+    nil ->
+      try
+        Module:main()
+      catch
+        error:undef -> ok
+      end;
+    Outdir ->
+      binary_to_path({Module, Binary}, Outdir)
+  end.
+
+binary_to_path({ModuleName, Binary}, Outdir) ->
+  Path = filename:join(Outdir, atom_to_list(ModuleName) ++ ?BEAM_FILE_SUFFIX),
+  ok = file:write_file(Path, Binary),
+  Path.
 
 %% Helpers
 

@@ -49,6 +49,7 @@
 -define(is_parameter_keyword(C), (C == 'keyword_optional' orelse C == 'keyword_rest' orelse C == 'keyword_key')).
 -define(is_string(C), (C == 'list_string' orelse C == 'binary_string')).
 
+-define(is_def_ns(Id), (Id == 'defns')).
 -define(is_def_fn(Id), (Id == 'defn' orelse Id == 'defn-')).
 -define(is_def_macro(Id), (Id == 'defmacro')).
 -define(is_def_alias(Id), (Id == 'defalias' orelse Id == 'defalias-')).

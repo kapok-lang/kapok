@@ -1,7 +1,6 @@
 %% Compiler for kapok
 -module(kapok_compiler).
 -export([file/1,
-         file/2,
          string_to_ast/4,
          'string_to_ast!'/4,
          eval/2,
@@ -16,27 +15,12 @@
 
 %% Compilation entry points.
 
-file(Relative) when is_binary(Relative) ->
-  file(Relative, nil).
-file(File, Outdir) ->
+file(File) when is_binary(File)->
   {ok, Bin} = file:read_file(File),
   Contents = kapok_utils:characters_to_list(Bin),
   Ast = 'string_to_ast!'(Contents, 1, File, []),
   Ctx = kapok_ctx:ctx_for_eval([{line, 1}, {file, File}]),
-  AfterModuleCompiled = fun(Module, Binary) ->
-                            %% write compiled binary to dest file
-                            case Outdir of
-                              nil ->
-                                try
-                                  Module:main()
-                                catch
-                                  error:undef -> ok
-                                end;
-                              _ ->
-                                binary_to_path({Module, Binary}, Outdir)
-                            end
-                        end,
-  kapok_ast:compile(Ast, Ctx, AfterModuleCompiled).
+  kapok_ast:compile(Ast, Ctx).
 
 %% Convertion
 
@@ -100,11 +84,12 @@ core() ->
   [load_core_libs(File) || File <- core_libs()].
 
 load_core_libs(File) ->
-  Dir = "lib/kapok/lib",
-  Dest = <<"lib/kapok/ebin">>,
-  F = list_to_binary(filename:join(Dir, binary_to_list(File))),
+  InDir = "lib/kapok/lib",
+  OutDir = <<"lib/kapok/ebin">>,
+  kapok_env:put(outdir, OutDir),
+  F = list_to_binary(filename:join(InDir, binary_to_list(File))),
   try
-    _Ctx = file(F, Dest)
+    _Ctx = file(F)
   catch
     Kind:Reason ->
       io:format("~p: ~p~nstacktrace: ~p~n", [Kind, Reason, erlang:get_stacktrace()]),
@@ -113,8 +98,3 @@ load_core_libs(File) ->
 
 core_libs() ->
   [<<"core.kpk">>].
-
-binary_to_path({ModuleName, Binary}, Outdir) ->
-  Path = filename:join(Outdir, atom_to_list(ModuleName) ++ ?BEAM_FILE_SUFFIX),
-  ok = file:write_file(Path, Binary),
-  Path.

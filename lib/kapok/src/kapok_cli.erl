@@ -202,6 +202,7 @@ process_command({file, File}, _Config) ->
     false -> {error, io_lib:format("Invalid file: ~p", [File])}
   end;
 process_command({compile, Patterns}, #{outdir := Outdir} = _Config) ->
+  kapok_env:put(outdir, Outdir),
   %% ensure all parent dirs exist or be created successfully
   _ = filelib:ensure_dir(Outdir),
 
@@ -209,7 +210,7 @@ process_command({compile, Patterns}, #{outdir := Outdir} = _Config) ->
     {ok, []} ->
       {error, "No files matched provided pattern(s)"};
     {ok, Files} ->
-      lists:map(fun(F) -> compile_file(F, Outdir) end, Files);
+      lists:map(fun compile_file/1, Files);
     {missing, Missing} ->
       {error, io_lib:format("No files matched pattern(s) ~s", [join_string_list(Missing, ",")])}
   end.
@@ -245,5 +246,5 @@ join_string_list(List, Sep) when is_list(List) ->
 exec_file(File) ->
   kapok_compiler:file(list_to_binary(File)).
 
-compile_file(File, Outdir) ->
-  kapok_compiler:file(list_to_binary(File), Outdir).
+compile_file(File) ->
+  kapok_compiler:file(list_to_binary(File)).
