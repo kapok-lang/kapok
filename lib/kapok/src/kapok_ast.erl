@@ -218,7 +218,7 @@ do_handle_def_alias(Meta, Alias, Original, Ctx) ->
   case kapok_symbol_table:add_alias(Namespace, Alias, Original) of
     not_exist ->
       Error = {nonexistent_original_for_alias, {Alias, Original}},
-      kapok_error:compile_error(Meta, ?m(Ctx, file), ?MODULE, Error);
+      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
     ok ->
       ok
   end,

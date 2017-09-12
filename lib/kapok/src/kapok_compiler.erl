@@ -81,7 +81,7 @@ core() ->
   {ok, _} = application:ensure_all_started(kapok),
   Options = orddict:from_list([{docs, false}, {internal, true}]),
   kapok_env:update_in(compiler_options, Options),
-  [load_core_libs(File) || File <- core_libs()].
+  [load_core_libs(list_to_binary(File)) || File <- core_libs()].
 
 load_core_libs(File) ->
   InDir = "lib/kapok/lib",
@@ -97,4 +97,4 @@ load_core_libs(File) ->
   end.
 
 core_libs() ->
-  [<<"core.kpk">>].
+  ["core.kpk"].

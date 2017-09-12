@@ -1,4 +1,4 @@
-;;; Core namespace for kapok lang.
+;;; Core functions and macros for kapok lang.
 ;; -*- Kapok -*-
 
 ;; all functions here are imported for every ns by default.
