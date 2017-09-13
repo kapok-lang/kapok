@@ -1,7 +1,8 @@
 %% Helper functions used throughout kapok source code.
 
 -module(kapok_utils).
--export([get_line/1,
+-export([meta_line/1,
+         meta_column/1,
          characters_to_list/1,
          characters_to_binary/1,
          to_binary/1,
@@ -13,9 +14,15 @@
         ]).
 -include_lib("kernel/include/file.hrl").
 
-get_line(Opts) when is_list(Opts) ->
-  case lists:keyfind(line, 1, Opts) of
-    {line, Line} when is_integer(Line) -> Line;
+meta_line(TupleList) when is_list(TupleList) ->
+  find_key(line, TupleList).
+
+meta_column(TupleList) when is_list(TupleList) ->
+  find_key(column, TupleList).
+
+find_key(Key, TupleList) when is_list(TupleList) ->
+  case lists:keyfind(Key, 1, TupleList) of
+    {Key, Value} when is_integer(Value) -> Value;
     false -> 0
   end.
 

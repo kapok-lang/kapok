@@ -1295,3 +1295,13 @@
 
   """
   (erlang.setelement (+ index 1) tuple value))
+
+;;; functions for macro programming
+
+(defn meta-line [meta]
+  """Returns the line number of the specified `meta`."""
+  (kapok_utils.meta_line meta))
+
+(defn meta-column [meta]
+  """Returns the column number of the specifed `meta`."""
+  (kapok_util.meta_column meta))

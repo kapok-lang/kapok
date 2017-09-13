@@ -37,7 +37,7 @@
 
 %% Other compiler helper macros
 
--define(line(Opts), kapok_utils:get_line(Opts)).
+-define(line(Opts), kapok_utils:meta_line(Opts)).
 -define(m(M, K), maps:get(K, M)).
 
 -define(is_op(C), (C == '+' orelse C == '-')).
