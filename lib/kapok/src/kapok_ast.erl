@@ -258,18 +258,21 @@ handle_def_expr(Kind, Name, Expr, Ctx) ->
   Error = {invalid_def_expression, {Kind, Name, Expr}},
   kapok_error:form_error(token_meta(Expr), ?m(Ctx, file), ?MODULE, Error).
 
+prepare_macro_vars(Meta, Ctx) ->
+  %% add macro env variables `_&form` and `_&ctx`
+  Ast = ?m(Ctx, def_ast),
+  Context = #{file => ?m(Ctx, file), meta => Meta},
+  Vars = [{identifier, Meta, '_&ctx'}, kapok_trans:quote(Meta, Context),
+          {identifier, Meta, '_&form'}, kapok_trans:quote(Meta, Ast)],
+  kapok_trans_special_form:translate_let_args(Vars, Ctx).
+
 handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) ->
   %% TODO add doc
   Namespace = ?m(Ctx, namespace),
   {TF, Ctx1} = kapok_trans:translate(Name, kapok_ctx:push_scope(Ctx)),
-  %% add macro env variables `_&form`
   {PrepareMacroEnv, TCtx} = case Kind of
-                              'defmacro' ->
-                                Ast = ?m(Ctx1, def_ast),
-                                Env = [{identifier, Meta, '_&form'}, kapok_trans:quote(Meta, Ast)],
-                                kapok_trans_special_form:translate_let_args(Env, Ctx1);
-                              _ ->
-                                {[], Ctx1}
+                              'defmacro' -> prepare_macro_vars(Meta, Ctx1);
+                              _ -> {[], Ctx1}
                             end,
   case parse_parameters(Args, TCtx) of
     [{normal, _, NormalArgs}] ->
