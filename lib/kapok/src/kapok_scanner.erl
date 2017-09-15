@@ -308,6 +308,9 @@ scan([$'|T], Line, Column, Scope, Tokens) ->
 scan([$~|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{unquote, build_meta(Line, Column)}|Tokens]);
 
+scan([$&, $a, $s | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 3, Scope, [{keyword_as, build_meta(Line, Column), '&as'}|Tokens]);
+
 scan([$&, $k, $e, $y | T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 4, Scope, [{keyword_key, build_meta(Line, Column), '&key'}|Tokens]);
 

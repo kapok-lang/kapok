@@ -332,19 +332,6 @@ parse_parameters([{keyword_key, Meta, _} | _T], _Acc, {Previous, Meta1, _Args}, 
   Error = {invalid_postion_of_parameter_keyword, {keyword_key, {Previous, Meta1}}},
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([{keyword, Meta, 'as'} = Token], _Acc, {normal, _Meta, _Args}, Ctx) ->
-  Error = {dangling_destructuring_keyword, {Token}},
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
-parse_parameters([{keyword, Meta, 'as'} = Token | _T], _Acc, {normal, _Meta, []}, Ctx) ->
-  Error = {pointless_destructuring_keyword, {Token}},
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
-parse_parameters([{keyword, Meta, 'as'}, {identifier, _, _} = Id | T],
-                 Acc, {normal, Meta1, [Last | Left]}, Ctx) ->
-  parse_parameters(T, Acc, {normal, Meta1, [{destructuring_bind, Meta, {Last, Id}} | Left]}, Ctx);
-parse_parameters([{keyword, Meta, 'as'}, Token | _T], _Acc, {normal, _Meta, _Args}, Ctx) ->
-  Error = {invalid_destructuring_keyword_argument, {Token}},
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
-
 parse_parameters([H | T], Acc, {normal, Meta, Args}, Ctx) ->
   parse_parameters(T, Acc, {normal, Meta, [H | Args]}, Ctx);
 
@@ -490,12 +477,6 @@ format_error({invalid_postion_of_parameter_keyword, {Token, Previous}}) ->
   io_lib:format("invalid ~s with ~s ahead at line ~B", [token_text(Token),
                                                         token_text(Previous),
                                                         ?line(token_meta(Previous))]);
-format_error({dangling_destructuring_keyword, {Token}}) ->
-  io_lib:format("dangling destructuring keyword ~s without argument", [token_text(Token)]);
-format_error({pointless_destructuring_keyword, {Token}}) ->
-  io_lib:format("destructuring keyword ~s doesn't refer to argument", [token_text(Token)]);
-format_error({invalid_destructuring_keyword_argument, {Token}}) ->
-  io_lib:format("invalid destructuring keyword argument ~p", [Token]);
 format_error({invalid_parameter, {P, Token}}) ->
   io_lib:format("invalid parameter ~p for ~s at line ~B",
                 [P, token_text(Token), ?line(token_meta(Token))]);
