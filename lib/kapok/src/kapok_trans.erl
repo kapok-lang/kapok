@@ -332,6 +332,17 @@ translate({Category, Meta, _}, Ctx) when Category == unquote; Category == unquot
 translate({evaluated_unquote_splicing, Meta, _}, Ctx) ->
   kapok_error:compile_error(Meta, ?m(Ctx, file), "unquote_splicing outside a list");
 
+%% destructuring bind
+translate({destructuring_bind, Meta, {Arg, Id}} = Bind, #{context := Context} = Ctx) ->
+  case Context of
+    C when C == pattern; C == let_pattern ->
+      {TArg, TCtx1} = translate(Arg, Ctx),
+      {TId, TCtx2} = translate(Id, TCtx1),
+      {{match, ?line(Meta), TArg, TId}, TCtx2};
+    _ ->
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid destructuring bind: ~p", [Bind])
+  end;
+
 %% errors for function argument keywords
 translate({Category, Meta} = Token, Ctx) when ?is_parameter_keyword(Category) ->
   Error = {parameter_keyword_outside_fun_args, {Token}},
