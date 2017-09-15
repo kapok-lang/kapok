@@ -332,6 +332,14 @@ translate({Category, Meta, _}, Ctx) when Category == unquote; Category == unquot
 translate({evaluated_unquote_splicing, Meta, _}, Ctx) ->
   kapok_error:compile_error(Meta, ?m(Ctx, file), "unquote_splicing outside a list");
 
+%%% function
+
+%% destructuring bind
+translate({destructuring_bind, Meta, {Arg, Id}}, Ctx) ->
+  {TArg, TCtx1} = translate(Arg, Ctx),
+  {TId, TCtx2} = translate(Id, TCtx1),
+  {{match, ?line(Meta), TArg, TId}, TCtx2};
+
 %% errors for function argument keywords
 translate({Category, Meta} = Token, Ctx) when ?is_parameter_keyword(Category) ->
   Error = {parameter_keyword_outside_fun_args, {Token}},
