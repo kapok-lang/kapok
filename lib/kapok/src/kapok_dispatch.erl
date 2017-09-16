@@ -13,11 +13,13 @@
 
 default_requires() ->
   L = ['kapok_macro',
-       'core'],
+       'core',
+       'protocol'],
   orddict:from_list(lists:map(fun(X) -> {X, X} end, L)).
 
 default_uses() ->
-  ['core'].
+  ['core',
+   'protocol'].
 
 %% find local/remote macro/function
 
@@ -214,6 +216,7 @@ module_is_imported(Module, #{functions := Functions, macros := Macros}) ->
   orddict:is_key(Module, Functions) orelse orddict:is_key(Module, Macros).
 
 import_module(Meta, Module, Args, Ctx) ->
+  io:format("import module: ~p~n", [Module]),
   {Functions, Macros} = get_exports(Meta, Module, Args, Ctx),
   Ctx1 = case Functions of
            [] -> Ctx;

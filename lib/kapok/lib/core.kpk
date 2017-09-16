@@ -4,7 +4,7 @@
 ;; all functions here are imported for every ns by default.
 
 (ns core
-  (require erlang lists kapok-utils))
+  (require erlang lists kapok_utils))
 
 ;; list operators
 
@@ -133,8 +133,8 @@
   If a prefix string is supplied, the name is #:|prefix%|,
   where % is some unique number.
   """
-  ([] (kapok-utils.gensym))
-  ([prefix] (kapok-utils.gensym prefix)))
+  ([] (kapok_utils.gensym))
+  ([prefix] (kapok_utils.gensym prefix)))
 
 ;; functions and operators
 
@@ -1305,3 +1305,6 @@
 (defn meta-column [meta]
   """Returns the column number of the specifed `meta`."""
   (kapok_util.meta_column meta))
+
+(defn empty-doc []
+  (kapok_ast.empty_doc))

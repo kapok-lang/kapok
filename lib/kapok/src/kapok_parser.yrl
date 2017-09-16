@@ -130,7 +130,7 @@ bitstring_container -> '<<' binary_string '>>' : build_bitstring('$1', '$2').
 %% List
 
 container_value -> value: '$1'.
-container_value -> value keyword_as identifier: build_bind_value('$2', '$1', '$3').
+container_value -> value keyword_as identifier: build_bind('$2', '$1', '$3').
 
 comma_container_value -> container_value : '$1'.
 comma_container_value -> ',' container_value : '$2'.
@@ -243,8 +243,8 @@ build_unquote(Marker, Arg) ->
 build_unquote_splicing(Marker, Arg) ->
   {unquote_splicing, token_meta(Marker), Arg}.
 
-build_bind_value(Keyword, Value, Id) ->
-  {destructuring_bind, token_meta(Keyword), {Value, Id}}.
+build_bind(Keyword, Value, Id) ->
+  {bind, token_meta(Keyword), {Value, Id}}.
 
 build_literal_list(Marker, Args) ->
   {literal_list, token_meta(Marker), Args}.

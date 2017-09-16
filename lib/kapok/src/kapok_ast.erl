@@ -1,7 +1,8 @@
 %% ast handlings, which include expanding/translating the kapok ast
 -module(kapok_ast).
 -export([compile/2,
-         format_error/1]).
+         format_error/1,
+         empty_doc/0]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").

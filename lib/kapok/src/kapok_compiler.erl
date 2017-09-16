@@ -97,4 +97,5 @@ load_core_libs(File) ->
   end.
 
 core_libs() ->
-  ["core.kpk"].
+  ["core.kpk",
+   "protocol.kpk"].

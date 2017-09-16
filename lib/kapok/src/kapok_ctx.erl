@@ -117,7 +117,7 @@ keywords() ->
    'let', 'do', 'case', 'fn', 'when', 'try'].
 
 var_exist(Vars, Var) ->
-  orddict:is_key(Var, Vars).
+  Var =/= '_' andalso orddict:is_key(Var, Vars).
 
 is_valid_var_name(Var) ->
   Keywords = ordsets:from_list(keywords()),

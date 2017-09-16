@@ -1,0 +1,55 @@
+;;; Functions and macros for protocol.
+;; -*- Kapok -*-
+
+(ns protocol
+  ;; need to use `core' explicitly since core libs
+  ;; are not automatically imported or used when compiled.
+  (use core)
+  (require kapok_error maps erlang))
+
+(defn- handle_def_clause [meta {_ id-meta id-name} &as id args]
+  {^list meta [{^identifier id-meta ^defn} id args
+               {^list meta [{^dot meta {^protocol ^impl}}
+                            {^atom id-meta id-name} & args]}]}
+  )
+
+(defn- handle_def_clause [{file meta} clause]
+  (case clause
+    ([{^identifier _ _} &as id {^literal_list _ _} &as args {c _ _}]
+     (when (:or (=== c ^list_string)
+                (=== c ^binary_string)))
+     ;; TODO add doc
+     (handle_def_clause meta id args))
+    ([{^identifier _ _} &as id {^literal_list _ _} &as args]
+     (handle_def_clause meta id args))
+    (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol"))))
+
+(defn- handle_def [file name _doc args acc]
+  (case args
+    ([]
+     (lists.reverse acc))
+    ([{^list meta clause} & t]
+     (let [handled (handle_def_clause {file meta} clause)]
+       (handle_def file name _doc t [handled & acc])))
+    ([{_c meta _} & _t]
+     (kapok_error.compile_error meta file "invalid clause for defprotocol"))))
+
+(defn handle_def [file name _doc clauses]
+  """handle protocol definition."""
+  (handle_def file name _doc clauses [])
+  )
+
+(defmacro defprotocol [name &rest args]
+  """Define a protocol."""
+  (let [meta (maps.get ^meta _&ctx)
+        file (maps.get ^file _&ctx)]
+    (case args
+      ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
+      ([{c _ _} &as doc & t] (when (:or (=== c ^list_string)
+                                        (=== c ^binary_string)))
+       ;; TODO add support for aliasing {c _meta _doc} as _doc
+       (protocol.handle_def file name doc t))
+      (t (protocol.handle_def file name (empty-doc) t))
+      )
+    )
+  )
