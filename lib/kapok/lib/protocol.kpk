@@ -8,7 +8,7 @@
   (require kapok_error maps erlang))
 
 (defn- handle_def_clause [meta
-                          {_ protocol-meta protocol-name} &as protocol
+                          {_ protocol-meta protocol-name}
                           {_ id-meta id-name} &as id
                           {_ _ args-list} &as args]
   {^list meta [{^identifier id-meta ^defn} id args
@@ -20,8 +20,8 @@
 (defn- handle_def_clause [{file meta} protocol clause]
   (case clause
     ([{^identifier _ _} &as id {^literal_list _ _} &as args {c _ _}]
-     (when (:or (=== c ^list_string)
-                (=== c ^binary_string)))
+     (when (or (=== c ^list_string)
+               (=== c ^binary_string)))
      ;; TODO add doc
      (handle_def_clause meta protocol id args))
     ([{^identifier _ _} &as id {^literal_list _ _} &as args]
@@ -53,8 +53,8 @@
       ({c _ _} (when (=== c ^identifier))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
-         ([{c _ _} &as doc & t] (when (:or (=== c ^list_string)
-                                           (=== c ^binary_string)))
+         ([{c _ _} &as doc & t] (when (or (=== c ^list_string)
+                                          (=== c ^binary_string)))
           (handle_def file meta id doc t))
          (t (handle_def file meta id (empty-doc) t))))
       (_ (kapok_error.compile_error meta file "invalid id for defprotocol: ~p" [id])))))
@@ -95,11 +95,11 @@
   (let [meta (maps.get ^meta _&ctx)
         file (maps.get ^file _&ctx)]
     (case protocol
-      ({c _ _} (when (:or (=== c ^identifier)))
+      ({c _ _} (when (=== c ^identifier))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to implement protocol"))
-         ([{c _ _} &as doc & t] (when (:or (=== c ^list_string)
-                                           (=== c ^binary_string)))
+         ([{c _ _} &as doc & t] (when (or (=== c ^list_string)
+                                          (=== c ^binary_string)))
           (handle_impl file meta protocol type doc t))
          (t (handle_impl file meta protocol type (empty-doc) t)))
        )
