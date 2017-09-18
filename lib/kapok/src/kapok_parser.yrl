@@ -22,7 +22,7 @@ Terminals
     binary_string list_string identifier '.'
     keyword keyword_safe keyword_unsafe atom atom_safe atom_unsafe
     '(' ')' '[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
-    unquote_splicing backquote quote unquote keyword_as keyword_optional keyword_rest keyword_key cons
+    unquote_splicing backquote quote unquote keyword_as keyword_optional keyword_rest keyword_key keyword_cons
     .
 
 Rootsymbol grammar.
@@ -150,8 +150,8 @@ list_container -> open_bracket container_values close_bracket : build_literal_li
 list_container -> open_paren close_paren : build_list('$1', []).
 list_container -> open_paren container_values close_paren: build_list('$1', '$2').
 
-cons_list -> open_bracket container_values cons value close_bracket : build_cons_list('$3', '$2', '$4').
-cons_list -> open_paren container_values cons value close_paren : build_cons_list('$3', '$2', '$4').
+cons_list -> open_bracket container_values keyword_cons value close_bracket : build_cons_list('$3', '$2', '$4').
+cons_list -> open_paren container_values keyword_cons value close_paren : build_cons_list('$3', '$2', '$4').
 
 %% Tuple
 open_curly   -> '{' : '$1'.
