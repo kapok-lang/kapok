@@ -7,49 +7,128 @@
   (use core)
   (require kapok_error maps erlang))
 
-(defn- handle_def_clause [meta {_ id-meta id-name} &as id args]
+(defn- handle_def_clause [meta
+                          {_ protocol-meta protocol-name} &as protocol
+                          {_ id-meta id-name} &as id
+                          {_ _ args-list} &as args]
   {^list meta [{^identifier id-meta ^defn} id args
-               {^list meta [{^dot meta {^protocol ^impl}}
-                            {^atom id-meta id-name} & args]}]}
-  )
+               {^list meta [{^dot meta {^protocol ^protocol-impl}}
+                            {^atom protocol-meta protocol-name}
+                            {^atom id-meta id-name}
+                            & args-list]}]})
 
-(defn- handle_def_clause [{file meta} clause]
+(defn- handle_def_clause [{file meta} protocol clause]
   (case clause
     ([{^identifier _ _} &as id {^literal_list _ _} &as args {c _ _}]
      (when (:or (=== c ^list_string)
                 (=== c ^binary_string)))
      ;; TODO add doc
-     (handle_def_clause meta id args))
+     (handle_def_clause meta protocol id args))
     ([{^identifier _ _} &as id {^literal_list _ _} &as args]
-     (handle_def_clause meta id args))
+     (handle_def_clause meta protocol id args))
     (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol"))))
 
-(defn- handle_def [file name _doc args acc]
-  (case args
+(defn- handle_def [file meta id doc clauses acc]
+  (case clauses
     ([]
-     (lists.reverse acc))
-    ([{^list meta clause} & t]
-     (let [handled (handle_def_clause {file meta} clause)]
-       (handle_def file name _doc t [handled & acc])))
-    ([{_c meta _} & _t]
-     (kapok_error.compile_error meta file "invalid clause for defprotocol"))))
+     (let [defs (lists.reverse acc)]
+       {^list meta [{^identifier meta ^defns}
+                    id
+                    doc
+                    {^list meta []} & defs]}))
+    ([{^list clause-meta clause} & t]
+     (let [handled (handle_def_clause {file clause-meta} id clause)]
+       (handle_def file meta id doc t [handled & acc])))
+    ([{_c clause-meta _} & _t]
+     (kapok_error.compile_error clause-meta file "invalid clause for defprotocol"))))
 
-(defn handle_def [file name _doc clauses]
-  """handle protocol definition."""
-  (handle_def file name _doc clauses [])
-  )
+(defn- handle_def [file meta id doc clauses]
+  (handle_def file meta id doc clauses []))
 
-(defmacro defprotocol [name &rest args]
+(defmacro defprotocol [id &rest args]
   """Define a protocol."""
   (let [meta (maps.get ^meta _&ctx)
         file (maps.get ^file _&ctx)]
-    (case args
-      ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
-      ([{c _ _} &as doc & t] (when (:or (=== c ^list_string)
-                                        (=== c ^binary_string)))
-       ;; TODO add support for aliasing {c _meta _doc} as _doc
-       (protocol.handle_def file name doc t))
-      (t (protocol.handle_def file name (empty-doc) t))
-      )
-    )
+    (case id
+      ({c _ _} (when (=== c ^identifier))
+       (case args
+         ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
+         ([{c _ _} &as doc & t] (when (:or (=== c ^list_string)
+                                           (=== c ^binary_string)))
+          (handle_def file meta id doc t))
+         (t (handle_def file meta id (empty-doc) t))))
+      (_ (kapok_error.compile_error meta file "invalid id for defprotocol: ~p" [id])))))
+
+(defn- handle_impl_clause [{file meta} clause]
+  (case clause
+    ([{^identifier _ ^defn} {^identifier _ _} {^literal_list _ _} & _t]
+     ;; TODO check the impl defn matches the defprotocol declaration
+     {^list meta clause})
+    (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))
+
+(defn- handle_impl [file meta protocol type doc defs acc]
+  (let [{_ protocol-meta protocol-name} protocol
+        {_ _ type-name} type]
+    (case defs
+      ([]
+       (let [r (lists.reverse acc)
+               p-name (erlang.atom_to_list protocol-name)
+               t-name (erlang.atom_to_list type-name)
+               module-name (erlang.list_to_atom
+                            (lists.append p-name (lists.append #"." t-name)))]
+         {^list meta [{^identifier meta ^defns}
+                      {^identifier protocol-meta module-name}
+                      doc
+                      {^list protocol-meta []} & r]}))
+      ([{^list clause-meta clause} & t]
+       (let [handled (handle_impl_clause {file clause-meta} clause)]
+         (handle_impl file meta protocol type doc t [handled & acc])))
+      ([{_c clause-meta _} &as def & _t]
+       (kapok_error.compile_error clause-meta file "invalid clause for defimpl: ~p" [def])))))
+
+(defn- handle_impl [file meta protocol type doc defs]
+  (handle_impl file meta protocol type doc defs []))
+
+(defmacro defimpl [protocol type &rest args]
+  """Implement a protocol for the specified type."""
+  ;; TODO check type is valid
+  (let [meta (maps.get ^meta _&ctx)
+        file (maps.get ^file _&ctx)]
+    (case protocol
+      ({c _ _} (when (:or (=== c ^identifier)))
+       (case args
+         ([] (kapok_error.compile_error meta file "not enough arguments to implement protocol"))
+         ([{c _ _} &as doc & t] (when (:or (=== c ^list_string)
+                                           (=== c ^binary_string)))
+          (handle_impl file meta protocol type doc t))
+         (t (handle_impl file meta protocol type (empty-doc) t)))
+       )
+      (_ (kapok_error.compile_error meta file "invalid protocol for defimpl: ~p" [protocol])))))
+
+(defn- type-of [self] (when (atom? self))
+  ^atom)
+(defn- type-of [self] (when (binary? self))
+  ^binary)
+(defn- type-of [self] (when (bitstring? self))
+  ^bitstring)
+(defn- type-of [self] (when (boolean? self))
+  ^boolean)
+(defn- type-of [self] (when (float? self))
+  ^float)
+(defn- type-of [self] (when (integer? self))
+  ^integer)
+(defn- type-of [self] (when (list? self))
+  ^list)
+(defn- type-of [self] (when (map? self))
+  ^map)
+(defn- type-of [self] (when (tuple? self))
+  ^tuple)
+;; TODO add clause for struct
+
+(defn protocol-impl [protocol f self &rest args]
+  (let [type (type-of self)
+        protocol-name (erlang.atom_to_list protocol)
+        type-name (erlang.atom_to_list type)
+        module (erlang.list_to_atom (lists.append protocol-name (lists.append #"." type-name)))]
+    (erlang.apply module f [self & args]))
   )

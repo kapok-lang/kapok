@@ -208,7 +208,7 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
             {M3, F3, A3, P3} ->
               translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TCtx2);
             _ ->
-              kapok_error:compile_error(Meta, ?m(TCtx2, file), "unknown local call: ~s", [FunArity])
+              kapok_error:compile_error(Meta, ?m(TCtx2, file), "unknown local call: ~p", [FunArity])
           end
       end
   end;
