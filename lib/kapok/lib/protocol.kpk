@@ -61,33 +61,40 @@
 
 (defn- handle_impl_clause [{file meta} clause]
   (case clause
+    ([{^identifier _ id} & _t] (when (or (=== id ^require)
+                                         (=== id ^use)))
+     {^ns {^list meta clause}})
     ([{^identifier _ ^defn} {^identifier _ _} {^literal_list _ _} & _t]
      ;; TODO check the impl defn matches the defprotocol declaration
-     {^list meta clause})
+     {^defn {^list meta clause}})
     (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))
 
-(defn- handle_impl [file meta protocol type doc defs acc]
+(defn- handle_impl [file meta protocol type doc defs {ns-acc defn-acc}]
   (let [{_ protocol-meta protocol-name} protocol
         {_ _ type-name} type]
     (case defs
       ([]
-       (let [r (lists.reverse acc)
-               p-name (erlang.atom_to_list protocol-name)
-               t-name (erlang.atom_to_list type-name)
-               module-name (erlang.list_to_atom
-                            (lists.append p-name (lists.append #"." t-name)))]
+       (let [ns-all (lists.reverse ns-acc)
+             defn-all (lists.reverse defn-acc)
+             p-name (erlang.atom_to_list protocol-name)
+             t-name (erlang.atom_to_list type-name)
+             module-name (erlang.list_to_atom
+                          (lists.append p-name (lists.append #"." t-name)))]
          {^list meta [{^identifier meta ^defns}
                       {^identifier protocol-meta module-name}
                       doc
-                      {^list protocol-meta []} & r]}))
+                      {^list protocol-meta ns-all} & defn-all]}))
       ([{^list clause-meta clause} & t]
-       (let [handled (handle_impl_clause {file clause-meta} clause)]
-         (handle_impl file meta protocol type doc t [handled & acc])))
+       (case (handle_impl_clause {file clause-meta} clause)
+         ({^ns handled-ns}
+          (handle_impl file meta protocol type doc t {[handled-ns & ns-acc] defn-acc}))
+         ({^defn handled-defn}
+          (handle_impl file meta protocol type doc t {ns-acc [handled-defn & defn-acc]}))))
       ([{_c clause-meta _} &as def & _t]
        (kapok_error.compile_error clause-meta file "invalid clause for defimpl: ~p" [def])))))
 
 (defn- handle_impl [file meta protocol type doc defs]
-  (handle_impl file meta protocol type doc defs []))
+  (handle_impl file meta protocol type doc defs {[], []}))
 
 (defmacro defimpl [protocol type &rest args]
   """Implement a protocol for the specified type."""

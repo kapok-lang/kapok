@@ -8,11 +8,18 @@
 -include("kapok.hrl").
 
 compile(Ast, Ctx) when is_list(Ast) ->
-  Ctx1 = lists:foldl(fun compile/2, Ctx, Ast),
-  build_namespace(?m(Ctx1, namespace), Ctx1);
+  Ctx1 = setup_ctx(Ctx),
+  Ctx2 = lists:foldl(fun compile/2, Ctx1, Ast),
+  build_namespace(?m(Ctx2, namespace), Ctx2);
 compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
+
+setup_ctx(Ctx) ->
+  case get_compiler_opt(internal) of
+    true -> Ctx;
+    false -> add_default_uses(Ctx)
+  end.
 
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Ctx) ->
   handle_ns(Meta, T, Ctx);
@@ -53,10 +60,7 @@ handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
          end,
   kapok_symbol_table:add_namespace(Name),
   {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),
-  case get_compiler_opt(internal) of
-    true -> TCtx1;
-    false -> add_default_uses(TCtx1)
-  end.
+  TCtx1.
 
 handle_ns_clause({list, _, [{identifier, _, 'require'} | T]}, Ctx) ->
   handle_require_clause(T, Ctx);
