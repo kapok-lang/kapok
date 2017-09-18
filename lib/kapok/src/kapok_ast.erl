@@ -161,7 +161,7 @@ handle_def(Meta, Kind, Name, T, Ctx) when ?is_def_alias(Kind) ->
   handle_def_alias(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, _Name, [], Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}});
-handle_def(Meta, Kind, Name, [{literal_list, _, _} = Args | T], Ctx) ->
+handle_def(Meta, Kind, Name, [{C, _, _} = Args | T], Ctx) when ?is_parameter_list(C) ->
   handle_def_with_args(Meta, Kind, Name, Args, T, Ctx);
 handle_def(Meta, Kind, Name, [{C, _, _} = Doc | T], Ctx) when ?is_string(C) ->
   handle_def_with_doc(Meta, Kind, Name, Doc, T, Ctx);
@@ -220,11 +220,13 @@ handle_def_exprs(_Meta, Kind, Name, Exprs, Ctx) ->
 
 handle_def_expr(Kind,
                 Name,
-                {list, Meta, [{literal_list, _, _} = Args,
+                {list, Meta, [{C, _, _} = Args,
                               {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
-                Ctx) ->
+                Ctx)
+    when ?is_parameter_list(C)->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx);
-handle_def_expr(Kind, Name, {list, Meta, [{literal_list, _, _} = Args | Body]}, Ctx) ->
+handle_def_expr(Kind, Name, {list, Meta, [{C, _, _} = Args | Body]}, Ctx)
+    when ?is_parameter_list(C) ->
   handle_def_clause(Meta, Kind, Name, Args, [], Body, Ctx);
 handle_def_expr(Kind, _Name, Ast, Ctx) ->
   Error = {invalid_def_expression, {Ast, Kind}},
@@ -299,6 +301,9 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
 %% parse parameters
 parse_parameters({Category, _, Args}, Ctx) when Category == literal_list ->
   parse_parameters(Args, Ctx);
+%% For the case when `&` is used instead of `&rest`
+parse_parameters({Category, Meta, {Head, Tail}}, Ctx) when Category == cons_list ->
+  parse_parameters(Head ++ [{keyword_rest, Meta, '&rest'}, Tail], Ctx);
 parse_parameters(Args, Ctx) when is_list(Args) ->
   L = parse_parameters(Args, [], {normal, [], []}, Ctx),
   lists:reverse(L).

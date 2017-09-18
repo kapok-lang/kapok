@@ -46,6 +46,7 @@
 -define(is_local_id(C), (C == 'identifier' orelse C == 'atom')).
 -define(is_list(C), (C == 'list' orelse C == 'literal_list')).
 -define(is_cons_list(C), (C == 'cons_list')).
+-define(is_parameter_list(C), (C == 'literal_list' orelse C == 'cons_list')).
 -define(is_parameter_keyword(C), (C == 'keyword_optional' orelse C == 'keyword_rest' orelse C == 'keyword_key')).
 -define(is_string(C), (C == 'list_string' orelse C == 'binary_string')).
 

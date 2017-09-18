@@ -322,7 +322,7 @@ scan([$&, $r, $e, $s, $t | T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 5, Scope, [{keyword_rest, build_meta(Line, Column), '&rest'}|Tokens]);
 
 scan([$&|T], Line, Column, Scope, Tokens) ->
-  scan(T, Line, Column + 1, Scope, [{cons, build_meta(Line, Column)}|Tokens]);
+  scan(T, Line, Column + 1, Scope, [{keyword_cons, build_meta(Line, Column)}|Tokens]);
 
 scan([$,|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{',', build_meta(Line, Column)}|Tokens]);
