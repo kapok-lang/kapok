@@ -49,8 +49,8 @@ done
 
 PROGRAM=$(readlink_f "$0")
 PROGRAM_DIR=$(dirname "$PROGRAM")
+PATH_OPTIONS=$(find "$PROGRAM_DIR"/../lib/* -type d -name ebin | sed -e 's#\(.*\)# -pa \1 #' | tr -d '\n')
 
 ERL_OPTIONS="-noshell -s kapok start_cli $ERL_OPTIONS"
 
-exec "${ERL_EXEC}" -pa "$PROGRAM_DIR"/../lib/*/ebin ${KAPOK_ERL_OPTIONS} ${ERL_OPTIONS} -extra "$@"
-
+exec "${ERL_EXEC}" ${PATH_OPTIONS} ${KAPOK_ERL_OPTIONS} ${ERL_OPTIONS} -extra "$@"

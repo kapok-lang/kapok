@@ -1,0 +1,28 @@
+(ns kunit
+  (require erlang io io_lib maps))
+
+(defn- error [file line message]
+  (io.format "file: ~p, line: ~p, error: ~p~n" [file line message])
+  (let [stacktrace (try (erlang.throw ^ok)
+                     (catch (^ok (erlang.get_stacktrace))))
+        exception {file line message}]
+    (erlang.raise ^error exception (erlang.tl stacktrace))))
+
+(defn- error [file line format args]
+  (error file line (io_lib.format format args)))
+
+(defmacro assert [args]
+  (let [file (maps.get ^meta _&ctx)
+        line (meta-line (maps.get ^file _&ctx))]
+    (case args
+      ({^list _ [op left right]}
+       `(case ~args
+          (^true ^ok)
+          (_ (io.format "expect true~n(op: ~p~n left: ~p~nright : ~p~n" [~op ~left ~right]))))
+      (_
+       (error file line "invalid assert args: ~p~n" [args])))))
+
+(defmacro test [message &rest body]
+  `(do
+    (io.format "test: ~s~n" [~message])
+    ~@body))

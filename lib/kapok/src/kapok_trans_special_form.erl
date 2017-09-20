@@ -263,7 +263,7 @@ translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Ctx)
 translate_exception(Pattern, Ctx) ->
   {TPattern, TCtx} = translate_def_arg(Pattern, Ctx),
   Line = ?line(token_meta(Pattern)),
-  {{tuple, Line, [{keyword, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TCtx}.
+  {{tuple, Line, [{atom, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TCtx}.
 
 %% Error
 

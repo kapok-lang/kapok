@@ -173,7 +173,7 @@ parse_compiler_args([H|T] = List, #{compile := Compile} = Config) ->
       shared_option(List, Config, fun parse_compiler_args/2);
     _ ->
       Pattern = case is_dir(H) of
-                  true -> io_lib:format("~s/**/*.~s", [H, ?SOURCE_FILE_SUFFIX]);
+                  true -> io_lib:format("~s/**/*~s", [H, ?SOURCE_FILE_SUFFIX]);
                   false -> H
                 end,
       parse_compiler_args(T, Config#{compile => [Pattern | Compile]})

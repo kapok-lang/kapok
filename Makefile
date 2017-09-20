@@ -46,7 +46,13 @@ define check-cmd
 then echo "command" "$1" "not found"; exit 1; fi
 endef
 
-ERL_PATH_OPTIONS := -pa $(CURDIR)/*/*/ebin
+# generate path options for erlang compiler
+# $(call get-path-options,project-root-dir)
+define get-path-options
+  $(shell find $1/lib -type d -name ebin | sed -e 's#\(.*\)# -pa \1 #' | tr -d '\n')
+endef
+
+ERL_PATH_OPTIONS := $(call get-path-options,$(CURDIR))
 ERL_OPTIONS      := -noshell $(ERL_PATH_OPTIONS)
 
 # call erl command line
@@ -121,7 +127,20 @@ $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
 
 else
 
+ifeq "$(strip $1)" "kunit"
+
+lib_$1_dir             := $(lib_dir)/$1
+$1_lib_dir             := $$(lib_$1_dir)/lib
+$1_beam_output_dir     := $$(lib_$1_dir)/ebin
+
+$1_lib_files           := $$(call get-files-in-dir,$$($1_lib_dir),kpk)
+$1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_files))
+
+else
+
 $$(error "currently we don't define any vars for lib: $1")
+
+endif
 
 endif
 
@@ -134,7 +153,7 @@ define gen-build-rules
 
 ifeq "$(strip $1)" "kapok"
 
-.PHONY : $2$1 $2$1-compiler $2$1-libs $2$1-core-libs
+.PHONY : $2$1 $2$1-compiler $2$1-libs $2$1-core-libs $3$1 $4$1
 
 $2$1: $2$1-compiler $2$1-core-libs $2$1-libs
 
@@ -185,7 +204,28 @@ $4$1:
 
 else
 
+ifeq "$(strip $1)" "kunit"
+
+.PHONY : $2$1 $2$1-libs $3$1 $4$1
+
+$2$1: $2$1-libs
+
+$2$1-libs: $($1_lib_beam_files)
+
+$($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
+	$(QUIET) printf "Compile '%s'\n" $$<
+	$$(call kapokc,$$<,$$(dir $$@))
+
+$3$1:
+
+$4$1:
+	$(QUIET) $(RM) $($1_lib_beam_files)
+
+else
+
 $$(error "currently we don't define any rule for lib: $1")
+
+endif
 
 endif
 
