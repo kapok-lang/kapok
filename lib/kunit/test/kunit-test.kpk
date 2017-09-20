@@ -1,0 +1,12 @@
+(ns kunit-test
+  (require io)
+  (use kunit))
+
+(defn f []
+  1)
+
+(defn main []
+  (test "kunit test case"
+        (assert (=== 1 (f)))
+        (try (assert (=== 2 (f)))
+             (catch ((^error _) ^ok)))))

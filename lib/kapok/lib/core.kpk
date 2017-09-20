@@ -1304,7 +1304,7 @@
 
 (defn meta-column [meta]
   """Returns the column number of the specifed `meta`."""
-  (kapok_util.meta_column meta))
+  (kapok_utils.meta_column meta))
 
 (defn empty-doc []
   (kapok_ast.empty_doc))
