@@ -1,5 +1,4 @@
 (ns kunit-test
-  (require io)
   (use kunit))
 
 (defn f []

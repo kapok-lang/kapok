@@ -111,9 +111,9 @@ scan([B1, $r, H|T], Line, Column, Scope, Tokens) when (B1 >= $2 andalso B1 =< $9
   do_scan_n_base(n_base_number, 2, N, H, T, Line, Column, Scope, Tokens);
 scan([S, B1, B2, $r, H|T], Line, Column, Scope, Tokens)
     when ?is_sign(S), (B1 >= $1 andalso B1 =< $2), (B2 >= $0 andalso B2 =< $9);
-         (B1 == $3), (B2 >= $0 andalso B2 =< $6) ->
+         ?is_sign(S), (B1 == $3), (B2 >= $0 andalso B2 =< $6) ->
   N = list_to_integer([B1, B2]),
-  do_scan_n_base({list_to_atom([S]), n_base_number}, 3, N, H, T, Line, Column, Scope, Tokens);
+  do_scan_n_base({list_to_atom([S]), n_base_number}, 4, N, H, T, Line, Column, Scope, Tokens);
 scan([B1, B2, $r, H|T], Line, Column, Scope, Tokens)
     when (B1 >= $1 andalso B1 =< $2), (B2 >= $0 andalso B2 =< $9);
          (B1 == $3), (B2 >= $0 andalso B2 =< $6) ->
@@ -261,7 +261,7 @@ scan([S, H|T] = Original, Line, Column, Scope, Tokens)
        Original, lists:reverse(Tokens)}
   end;
 scan([S, H|T], Line, Column, Scope, Tokens)
-    when (S == $: orelse S == $^), ?is_identifier_start(H) ->
+    when (S == $: orelse S == $^), ?is_identifier(H) ->
   Type = case S of
            $: -> keyword;
            $^ -> atom

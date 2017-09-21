@@ -18,8 +18,8 @@
        `(case ~args
           (^true ^ok)
           (_
-           (io.format "~nassert failed~n   op: ~p~n left: ~p~nright: ~p~n~n"
-                      ['~op '~left '~right])
+           (io.format "~nassert failed~n   op: ~p~n left: ~p~n eval: ~p~nright: ~p~n eval: ~p~n~n"
+                      ['~op '~left ~left '~right ~right])
            (kunit.error ~file ~line "assert failed"))))
       (_
        (error file line "invalid assert args: ~p~n" [args])))))
