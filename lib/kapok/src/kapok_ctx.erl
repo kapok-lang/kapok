@@ -16,7 +16,7 @@
          get_var/3,
          ctx_for_eval/1,
          ctx_for_eval/2]).
-
+-import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 new_macro_context() ->
@@ -169,9 +169,16 @@ get_var(Meta, Ctx, Scope, Var) ->
 
 %% EVAL HOOKS
 
+setup_ctx(Ctx) ->
+  case get_compiler_opt(internal) of
+    true -> Ctx;
+    false -> kapok_ast:add_default_uses(Ctx)
+  end.
+
 ctx_for_eval(Opts) ->
-  ctx_for_eval((new_ctx())#{requires := kapok_dispatch:default_requires()},
-               Opts).
+  Ctx = ctx_for_eval((new_ctx())#{requires := kapok_dispatch:default_requires()},
+                     Opts),
+  setup_ctx(Ctx).
 
 ctx_for_eval(Ctx, Opts) ->
   Namespace = case lists:keyfind(namespace, 1, Opts) of

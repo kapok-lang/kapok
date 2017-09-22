@@ -1,0 +1,50 @@
+(ns compiler-test
+  (require erl_scan
+           erl_parse
+           io
+           kapok_compiler)
+  (use kunit))
+
+
+(defn erl-to-abstract-format [string]
+  (case (erl_scan.string string)
+    ({^ok tokens _end-location}
+     (let [{^ok expr_list} (erl_parse.parse_exprs tokens)]
+       expr_list))
+    ({^error error_info error_location}
+     (erlang.throw {"scan error, location: ~w, error: ~s~n"
+                    [error_location error_info]}))))
+
+(defn eval-erlang-expr [string]
+  (let [eaf (erl-to-abstract-format string)
+        [expr] eaf
+        {^value, value, _new-bindings} (erl_eval.expr expr [])]
+    value))
+
+(defn eval-kapok-expr [string]
+  (let [{values, _ctx} (kapok_compiler.eval string [])
+        [value & _] values]
+    value))
+
+(defn main []
+
+  (test "compile local call"
+    (assert (=== (eval-erlang-expr #"self().")
+                 (eval-kapok-expr #"(self)"))))
+
+  (test "compile remote call"
+    (assert (=== (eval-erlang-expr #"erlang:self().")
+                 (eval-kapok-expr #"(erlang.self)"))))
+
+  (test "compile list"
+    (let [l1 (eval-erlang-expr #"[1 | [2]].")
+          l2 (eval-erlang-expr #"[1, 2].")
+          l3 (eval-kapok-expr #"[1 2]")]
+      (assert (=== l1 l2))
+      (assert (=== l2 l3))))
+
+  (test "compile binary"
+    (let [b1 (eval-erlang-expr #"<<256:8/big-unsigned-integer-unit:1>>.")
+          b2 (eval-kapok-expr #"<<(256 (:size 8) :big :unsigned :integer (:unit 1))>>")]
+      (assert (=== b1 b2))))
+  )

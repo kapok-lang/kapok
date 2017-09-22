@@ -367,14 +367,6 @@
   """
   (erlang.is_pid term))
 
-(defn pmod? [term]
-  """Returns `^true` if `term` is an instance of a parameterized module;
-  otherwise returns `^false`.
-
-  Allowed in guard tests. Inlined by the compiler.
-  """
-  (erlang.is_pmod term))
-
 (defn port? [term]
   """Returns `^true` if `term` is a port identifier; otherwise returns `^false`.
 
@@ -878,10 +870,10 @@
       11
 
   """
-  (list.foldl (fn [n acc]
-                (erlang.bor n acc))
-              x
-              [y & more]))
+  (lists.foldl (fn [n acc]
+                 (erlang.bor n acc))
+               x
+               [y & more]))
 
 (defalias bit-or bor
   """Alias to `bor`.""")
@@ -897,10 +889,10 @@
       10
 
   """
-  (list.foldl (fn [n acc]
-                (erlang.bxor n acc))
-              x
-              [y & more]))
+  (lists.foldl (fn [n acc]
+                 (erlang.bxor n acc))
+               x
+               [y & more]))
 
 (defalias bit-xor bxor
   """Alias to `bxor`.""")
@@ -1026,7 +1018,7 @@
 
   """
   ([_x] ^true)
-  ([x y &rest more] (all (fn [n acc] (erlang.<= acc n))
+  ([x y &rest more] (all (fn [n acc] (erlang.=< acc n))
                          x
                          [y & more])))
 

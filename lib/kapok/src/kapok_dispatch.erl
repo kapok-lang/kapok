@@ -4,9 +4,8 @@
          default_uses/0,
          find_local_macro/3,
          find_remote_macro/4,
-         find_local/2,
-         find_local_function/3,
-         get_remote_function/4,
+         find_local_function/2,
+         find_imported_local_function/3,
          find_remote_function/4,
          format_error/1]).
 -include("kapok.hrl").
@@ -73,7 +72,7 @@ find_remote_macro(Meta, Module, FunArity, Ctx) ->
       {R, Ctx1}
   end.
 
-find_local(FunArity, #{def_fap := FAP} = Ctx) ->
+find_local_function(FunArity, #{def_fap := FAP} = Ctx) ->
   case filter_fa(FunArity, [FAP]) of
     [{F, A, P}] ->
       %% match current function definition
@@ -88,24 +87,13 @@ find_local(FunArity, #{def_fap := FAP} = Ctx) ->
       end
   end.
 
-find_local_function(Meta, FunArity, Ctx) ->
+find_imported_local_function(Meta, FunArity, Ctx) ->
   {D, Ctx1} = find_dispatch(Meta, FunArity, Ctx),
   R = case D of
         {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
         false -> false
       end,
   {R, Ctx1}.
-
-get_remote_function(Meta, Module, FunArity, Ctx) ->
-  {R, Ctx1} = find_remote_function(Meta, Module, FunArity, Ctx),
-  R1 = case R of
-         {_M, _F, _A, _P} ->
-           R;
-         false ->
-           {F, A} = FunArity,
-           remote_function(Module, F, A, 'normal')
-       end,
-  {R1, Ctx1}.
 
 find_remote_function(Meta, Module, FunArity, Ctx) ->
   Requires = ?m(Ctx, requires),

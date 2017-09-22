@@ -8,7 +8,7 @@
 
 %% Abstract Format Evaluation
 eval_abstract_format(Forms, Ctx) when is_list(Forms) ->
-  list:mapfoldl(fun eval_abstract_format/2, Ctx, Forms);
+  lists:mapfoldl(fun eval_abstract_format/2, Ctx, Forms);
 eval_abstract_format(Form, #{scope := Scope} = Ctx) ->
   case Form of
     {atom, _, Atom} ->

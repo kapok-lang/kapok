@@ -125,7 +125,7 @@
       {{^merry ^lambs ^are ^playing}, ^nil}
 
   """
-  (erlang.delete key))
+  (erlang.erase key))
 
 (defn exit [pid reason]
   """Sends an exit signal with the given `reason` to the `pid`.

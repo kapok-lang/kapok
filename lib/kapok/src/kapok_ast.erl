@@ -1,25 +1,18 @@
 %% ast handlings, which include expanding/translating the kapok ast
 -module(kapok_ast).
 -export([compile/2,
+         add_default_uses/1,
          format_error/1,
          empty_doc/0]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
--import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
 compile(Ast, Ctx) when is_list(Ast) ->
-  Ctx1 = setup_ctx(Ctx),
-  Ctx2 = lists:foldl(fun compile/2, Ctx1, Ast),
-  build_namespace(?m(Ctx2, namespace), Ctx2);
+  Ctx1 = lists:foldl(fun compile/2, Ctx, Ast),
+  build_namespace(?m(Ctx1, namespace), Ctx1);
 compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
-
-setup_ctx(Ctx) ->
-  case get_compiler_opt(internal) of
-    true -> Ctx;
-    false -> add_default_uses(Ctx)
-  end.
 
 handle({list, Meta, [{identifier, _, 'ns'} | T]}, Ctx) ->
   handle_ns(Meta, T, Ctx);

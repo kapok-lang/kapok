@@ -198,12 +198,12 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
       {TArgs, TCtx1} = translate_args(Args, Ctx),
       Arity = length(TArgs),
       FunArity = {Id, Arity},
-      case kapok_dispatch:find_local(FunArity, TCtx1) of
+      case kapok_dispatch:find_local_function(FunArity, TCtx1) of
         {F2, A2, P2} ->
           translate_local_call(Meta, F2, A2, P2, Arity, TArgs, TCtx1);
         false ->
           %% check whether it's in imported functions/macros
-          {R3, TCtx2} = kapok_dispatch:find_local_function(Meta, FunArity, TCtx1),
+          {R3, TCtx2} = kapok_dispatch:find_imported_local_function(Meta, FunArity, TCtx1),
           case R3 of
             {M3, F3, A3, P3} ->
               translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TCtx2);
@@ -221,14 +221,21 @@ translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Ctx) ->
   case Module of
     Namespace ->
       %% call to local module
-      case kapok_dispatch:find_local(FunArity, TCtx1) of
-        {F2, A2, P2} -> translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
-        _ -> kapok_error:compile_error(Meta, ?m(TCtx1, file),
-                                       "unknown remote call: ~s:~s", [Module, FunArity])
+      case kapok_dispatch:find_local_function(FunArity, TCtx1) of
+        {F2, A2, P2} ->
+          translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
+        _ ->
+          kapok_error:compile_error(Meta, ?m(TCtx1, file),
+                                    "unknown remote call: ~s ~s", [Module, FunArity])
       end;
     _ ->
-      {{M3, F3, A3, P3}, Ctx2} = kapok_dispatch:get_remote_function(Meta, Module, FunArity, TCtx1),
-      translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2)
+      case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
+        {{M3, F3, A3, P3}, Ctx2} ->
+          translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
+        _ ->
+          kapok_error:compile_errer(Meta, ?m(TCtx1, file),
+                                    "unknown remote call: ~s ~s", [Module, FunArity])
+      end
   end;
 translate({list, Meta, [{list, _, _} = H | T]}, Ctx) ->
   {TH, TCtx1} = translate(H, Ctx),

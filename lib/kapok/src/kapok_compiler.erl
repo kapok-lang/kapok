@@ -1,6 +1,7 @@
 %% Compiler for kapok
 -module(kapok_compiler).
 -export([file/1,
+         string/2,
          string_to_ast/4,
          'string_to_ast!'/4,
          eval/2,
@@ -18,7 +19,10 @@
 file(File) when is_binary(File)->
   {ok, Bin} = file:read_file(File),
   Contents = kapok_utils:characters_to_list(Bin),
-  Ast = 'string_to_ast!'(Contents, 1, File, []),
+  string(Contents, File).
+
+string(String, File) ->
+  Ast = 'string_to_ast!'(String, 1, File, []),
   Ctx = kapok_ctx:ctx_for_eval([{line, 1}, {file, File}]),
   kapok_ast:compile(Ast, Ctx).
 
