@@ -1,5 +1,5 @@
 (ns scanner-test
-  (require kapok_scanner io)
+  (require kapok_scanner io lists erlang)
   (use kunit))
 
 (defn scan [string]
@@ -12,8 +12,13 @@
       ([token] token)
       (erlang.throw "expect only one token"))))
 
+(defn scan-error [string]
+  (let [{^error error_info _ _} (kapok_scanner.scan string 1 [])
+        {_ _module error_desc} error_info]
+    error_desc))
+
 (defn main []
-  (test "test unquote keyword"
+  (test "scan unquote keyword"
     (let [chars [;; upper cases
                  "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O"
                  "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z"
@@ -31,18 +36,18 @@
                     (let [c (erlang.binary_to_list e)
                           l (lists.append #":" c)
                           a (erlang.list_to_atom c)]
-                      (assert (== {^keyword [{^line 1} {^column 1}] a}
-                                  (scan-1 l)))))
+                      (assert (=== {^keyword [{^line 1} {^column 1}] a}
+                                   (scan-1 l)))))
                   chars)))
 
-  (test "test quote keyword"
-    (assert (== {^keyword_unsafe [{^line 1} {^column 1}] <<"foo bar">>}
-                (scan-1 #":\"foo bar\""))))
+  (test "scan quote keyword"
+    (assert (=== {^keyword_unsafe [{^line 1} {^column 1}] <<"foo bar">>}
+                 (scan-1 #":\"foo bar\""))))
 
-  (test "test keyword"
-    (assert (== {^keyword [{^line 1} {^column 1}] ^f0_1} (scan-1 #":f0_1"))))
+  (test "scan keyword"
+        (assert (=== {^keyword [{^line 1} {^column 1}] ^f0_1} (scan-1 #":f0_1"))))
 
-  (test "test char"
+  (test "scan char"
     (let [cases [;; simple escape char
                  {97 "\\a"}
                  {99 "\\c"}
@@ -68,40 +73,192 @@
                  {1092557 "\\x{10abcd}"}]]
       (lists.map (fn [{n b}]
                    (let [l (erlang.binary_to_list b)]
-                     (assert (== {^char_number [{^line 1} {^column 1}] n}
-                                 (scan-1 l)))))
+                     (assert (=== {^char_number [{^line 1} {^column 1}] n}
+                                  (scan-1 l)))))
                  cases)))
 
-  (test "test integer"
+  (test "scan integer"
     (let [cases [;; naive notation
                  {123 "123"}
                  ]]
       (lists.map (fn [{n b}]
                    (let [l (erlang.binary_to_list b)]
-                     (assert (== {^integer [{^line 1} {^column 1}] n}
-                                 (scan-1 l)))))
+                     (assert (=== {^integer [{^line 1} {^column 1}] n}
+                                  (scan-1 l)))))
                  cases))
     (let [cases [{[{^integer [{^line 1} {^column 1}] 123} {^',' [{^line 1} {^column 4}]}]
                   "123,"}
                  {[{^integer [{^line 1} {^column 3}] 123} {^integer [{^line 1} {^column 8}] 456}]
                   "  123  456  "}
                  {[{^integer [{^line 2} {^column 1}] 123}] "\n123\n"}
+                 ;; signed
+                 {[{^'+' [{^line 1} {^column 1}] {^integer [{^line 1} {^column 2}] 234}}] "+234"}
                  ;; hex, octal and n base notation
                  {[{^hex_number [{^line 1} {^column 1}] 255}]
                   "0xFF"}
-                 {[{^octal_number [{^line 1} {^column 1}] 63}]
+                 {[{^octal_number [{^line 1} {^column 1} ] 63}]
                   "077"}
                  {[{^n_base_number [{^line 1} {^column 1}] 3}]
                   "2r11"}
+                 {[{^+, [{^line 1} {^column 1}] {^n_base_number [{^line 1} {^column 2}] 3}}]
+                  "+2r11"}
+                 {[{^-, [{^line 1} {^column 1}] {^n_base_number [{^line 1} {^column 2}] 3}}]
+                  "-2r11"}
                  {[{^n_base_number [{^line 1} {^column 1}] 20}]
                   "10r20"}
+                 {[{^+, [{^line 1} {^column 1}] {^n_base_number [{^line 1} {^column 2}] 20}}]
+                  "+10r20"}
+                 {[{^-, [{^line 1} {^column 1}] {^n_base_number [{^line 1} {^column 2}] 20}}]
+                  "-10r20"}
                  {[{^n_base_number [{^line 1} {^column 1}] 72}]
                   "36r20"}
+                 {[{^+, [{^line 1} {^column 1}] {^n_base_number [{^line 1} {^column 2}] 72}}]
+                  "+36r20"}
+                 {[{^-, [{^line 1} {^column 1}] {^n_base_number [{^line 1} {^column 2}] 72}}]
+                  "-36r20"}
                  ]]
       (lists.map (fn [{expected b}]
                    (let [l (erlang.binary_to_list b)]
-                     (assert (== expected
-                                 (scan l)))))
+                     (assert (=== expected
+                                  (scan l)))))
+                 cases))
+    )
+
+  (test "scan float"
+    (let [cases [;; simple float
+                 {12.3 "12.3"}
+                 ]]
+      (lists.map (fn [{n b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== {^float [{^line 1} {^column 1}] n} (scan-1 l)))))
+                 cases))
+    (let [cases [;;
+                 {[{^float [{^line 1} {^column 1}] 12.3} {^',' [{^line 1} {^column 5}]}]
+                  "12.3,"}
+                 {[{^float [{^line 2} {^column 1}] 12.3}]
+                  "\n12.3\n"}
+                 {[{^float [{^line 1} {^column 3}] 12.3} {^float [{^line 1} {^column 9}] 45.6}]
+                  "  12.3  45.6  "}
+                 ;; scientific
+                 {[{^float [{^line 1} {^column 1}] 0.1}] "1.0e-1"}
+                 ;; signed
+                 {[{^'-' [{^line 1} {^column 1}] {^float [{^line 1} {^column 2}] 23.4}}] "-23.4"}
+                 ]]
+      (lists.map (fn [{expected b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== expected
+                                  (scan l)))))
                  cases)))
 
+  (test "scan comment"
+    (let [cases [;;
+                 {[{^integer [{^line 1} {^column 1}] 1} {^integer [{^line 2} {^column 1}] 2}]
+                  "1 ;; comment\n2"}
+                 {[{^integer [{^line 1} {^column 1}] 1} {^integer [{^line 3} {^column 1}] 2}]
+                  "1\n;; comment ...\n2"}
+                 ]]
+      (lists.map (fn [{expected b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== expected
+                                  (scan l)))))
+                 cases)))
+
+  (test "scan identifier"
+    (let [cases [{^'abc' "abc   "}
+                 {^'Tp!#$*+=<=>?@^_|' "Tp!#$*+=<=>?@^_|"}
+                  ]]
+      (lists.map (fn [{a b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== {^identifier [{^line 1} {^column 1}] a}
+                                  (scan-1 l)))))
+                 cases)))
+
+  (test "scan dot identifier"
+    (let [cases [{[{^identifier [{^line 1} {^column 1}] ^'foo'}
+                   {^'.' [{^line 1} {^column 4}]}
+                   {^identifier [{^line 1} {^column 5}] ^'bar'}
+                   {^'.' [{^line 1} {^column 8}]}
+                   {^identifier [{^line 1} {^column 9}] ^'baz'}]
+                  "foo.bar.baz"}]]
+      (lists.map (fn [{expected b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== expected
+                                  (scan l)))))
+                 cases)))
+
+  (test "scan space"
+        (assert (=== [{^identifier [{^line 1} {^column 1}] ^'foo'}
+                      {^integer [{^line 1} {^column 6}] 2}]
+                     (scan #"foo  2")))
+        (let [space 16rA0
+              str (lists.append #"foo" (lists.append [space] #"2"))
+              error_desc (scan-error str)]
+          (assert (=== {^invalid_space space #"2"} error_desc)))
+        )
+
+  (test "scan newline"
+    (let [cases [{[{^identifier [{^line 1} {^column 1}] ^'foo'}
+                   {^'.' [{^line 2} {^column 1}]}
+                   {^identifier [{^line 2} {^column 2}] ^'bar'}]
+                  "foo\n.bar"}
+                 {[{^integer [{^line 1} {^column 1}] 1}
+                   {^unquote_splicing [{^line 2} {^column 1}]}
+                   {^integer [{^line 2} {^column 3}] 2}]
+                  "1\n~@2"}
+                 ]]
+      (lists.map (fn [{expected b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== expected
+                                  (scan l)))))
+                 cases)
+      ))
+
+  (test "scan string"
+        (let [cases [{^binary_string 1 "foo" #"\"foo\""}
+                     {^binary_string 1 "f\"" #"\"f\\\"\""}
+                     {^list_string 2 "foo" #"#\"foo\""}
+                     {^binary_string 1 "" #"\"\""}
+                     {^list_string 2 "" #"#\"\""}
+                     ]]
+          (lists.map (fn [{type column value l}]
+                       (assert (=== {type [{^line 1} {^column column}] value}
+                                    (scan-1 l))))
+                     cases)))
+
+  (test "scan container"
+    (let [cases [
+                 ;; bitstring
+                 {[{^'<<' [{^line 1} {^column 2}]}
+                   {^integer [{^line 1} {^column 5}] 1}
+                   {^'>>' [{^line 1} {^column 7}]}]
+                  " << 1 >> "}
+                 ;; list
+                 {[{^'(' [{^line 1} {^column 2}]}
+                   {^integer [{^line 1} {^column 4}] 1}
+                   {^')' [{^line 1} {^column 6}]}]
+                  " ( 1 ) "}
+                 {[{^'[' [{^line 1} {^column 2}]}
+                   {^integer [{^line 1} {^column 4}] 1}
+                   {^']' [{^line 1} {^column 6}]}]
+                  " [ 1 ] "}
+                 ;; tuple
+                 {[{^'{' [{^line 1} {^column 2}]},
+                   {^integer [{^line 1} {^column 4}] 1}
+                   {^'}' [{^line 1} {^column 6}]}]
+                  " { 1 } "}
+                 ;; map
+                 {[{^'#{' [{^line 1} {^column 2}]}
+                   {^integer [{^line 1} {^column 5}] 1}
+                   {^'}' [{^line 1} {^column 7}]}]
+                  " #{ 1 } "}
+                 ;; set
+                 {[{^'%{' [{^line 1} {^column 2}]}
+                   {^integer [{^line 1} {^column 5}] 1}
+                   {^'}' [{^line 1} {^column 7}]}]
+                  " %{ 1 } "}]]
+      (lists.map (fn [{expected b}]
+                   (let [l (erlang.binary_to_list b)]
+                     (assert (=== expected
+                                  (scan l)))))
+                 cases)))
   )
