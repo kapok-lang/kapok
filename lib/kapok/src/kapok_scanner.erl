@@ -530,14 +530,11 @@ append_escaped(Rest, Map, List, Hex, Acc, Base) ->
 %% Unescape Helpers
 
 unescape_map($b) -> $\b;
-unescape_map($d) -> $\d;
-unescape_map($e) -> $\e;
 unescape_map($f) -> $\f;
 unescape_map($n) -> $\n;
 unescape_map($r) -> $\r;
 unescape_map($s) -> $\s;
 unescape_map($t) -> $\t;
-unescape_map($v) -> $\v;
 unescape_map($x) -> true;
 unescape_map(E)  -> E.
 

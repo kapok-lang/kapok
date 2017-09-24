@@ -92,12 +92,12 @@ extract_element_size_tsl([], _Ctx, {Size, TypeSpecList}) ->
 extract_element_size_tsl([{list, _Meta, [{keyword, _, size}, SizeExpr]}|T],
                          Ctx,
                          {_, TypeSpecList}) ->
-  {Size, _} = kapok_translator:translate(SizeExpr, Ctx),
+  {Size, _} = kapok_trans:translate(SizeExpr, Ctx),
   extract_element_size_tsl(T, Ctx, {Size, TypeSpecList});
 extract_element_size_tsl([{list, _Meta, [{keyword, _, unit}, UnitExpr]}|T],
                          Ctx,
                          {Size, TypeSpecList}) ->
-  {Unit, _} = kapok_translator:translate(UnitExpr, Ctx),
+  {Unit, _} = kapok_trans:translate(UnitExpr, Ctx),
   {integer, _, Value} = Unit,
   extract_element_size_tsl(T, Ctx, {Size, [{unit, Value}|TypeSpecList]});
 extract_element_size_tsl([{keyword, _, Other}|T], Ctx, {Size, TypeSpecList}) ->

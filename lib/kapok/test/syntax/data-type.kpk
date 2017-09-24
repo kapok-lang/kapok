@@ -1,0 +1,142 @@
+(ns data-type
+  (require erlang maps gb_sets)
+  (use kunit))
+
+(defn to-int [bin]
+  (erlang.list_to_integer (erlang.binary_to_list bin)))
+
+(defn to-float [bin]
+  (erlang.list_to_float (erlang.binary_to_list bin)))
+
+(defn main []
+  (test "test all data-type"
+    ;; integer
+    ;; tranditional notation
+    (assert (=== 123 (to-int "123")))
+    (assert (=== +123 (to-int "123")))
+    (assert (=== -123 (to-int "-123")))
+    ;; octal notation
+    (assert (=== 040 (to-int "32")))
+    (assert (=== +040 (to-int "+32")))
+    (assert (=== -040 (to-int "-32")))
+    ;; hex notation
+    (assert (=== 0xff (to-int "255")))
+    (assert (=== +0xff (to-int "+255")))
+    (assert (=== -0xff (to-int "-255")))
+    ;; n base notation
+    (assert (=== 2r111 (to-int "7")))
+    (assert (=== +2r111 (to-int "+7")))
+    (assert (=== -2r111 (to-int "-7")))
+    (assert (=== 10r20 (to-int "20")))
+    (assert (=== +10r20 (to-int "+20")))
+    (assert (=== -10r20 (to-int "-20")))
+    (assert (=== 36r20 (to-int "72")))
+    (assert (=== +36r20 (to-int "+72")))
+    (assert (=== -36r20 (to-int "-72")))
+
+    ;; float
+    (assert (=== 3.1415 (to-float "3.1415")))
+    (assert (=== +3.1415 (to-float "+3.1415")))
+    (assert (=== -3.1415 (to-float "-3.1415")))
+    (assert (=== 314.15E-2 (to-float "3.1415")))
+    (assert (=== +314.15E-2 (to-float "+3.1415")))
+    (assert (=== -314.15E-2 (to-float "-3.1415")))
+
+    ;; char
+    ;; escape format
+    (assert (=== \a (to-int "97")))
+    (assert (=== \c (to-int "99")))
+    ;; special escape chars
+    (assert (=== \space (to-int "32") ))
+    (assert (=== \tab (to-int "9")))
+    (assert (=== \formfeed (to-int "12")))
+    (assert (=== \backspace (to-int "8")))
+    (assert (=== \newline (to-int "10")))
+    (assert (=== \return (to-int "13")))
+    ;; escape escape
+    (assert (=== \\ (to-int "92")))
+    ;; hex notation
+    (assert (=== \xa (to-int "10")))
+    (assert (=== \x61 \a))
+    ;; utf-8 code point
+    (assert (=== \x{a} \xa))
+    (assert (=== \x{ab} \xab))
+    (assert (=== \x{abc} (to-int "2748")))
+    (assert (=== \x{abcd} (to-int "43981")))
+    (assert (=== \x{abcde} (to-int "703710")))
+    (assert (=== \x{10abcd} (to-int "1092557")))
+
+    ;; string
+    ;; list string
+    (assert (=== #"hello, world!" (erlang.atom_to_list ^'hello, world!')))
+    (assert (=== #"hello,
+world!"
+                 (erlang.atom_to_list ^'hello,\nworld!')))
+    (assert (=== #"hello, \"world\"!"
+                 (erlang.atom_to_list ^'hello, "world"!')))
+    ;; binary string
+    (assert (=== "hello, world!" (erlang.list_to_binary #"hello, world!")))
+    (assert (=== "hello,
+world!"
+                 (erlang.list_to_binary #"hello,
+world!")))
+    (assert (=== "hello, \"world\"!"
+                 (erlang.list_to_binary #"hello, \"world\"!")))
+    (assert (=== """hello, "world"!"""
+                 "hello, \"world\"!"))
+    (assert (=== '''hello, "world"!'''
+                 "hello, \"world\"!"))
+
+    ;; atom
+    (assert (=== ^atom (erlang.list_to_atom #"atom")))
+    (assert (=== ^'atom has space' (erlang.list_to_atom #"atom has space")))
+    (assert (=== ^"atom has space" (erlang.list_to_atom #"atom has space")))
+    ;; keyword
+    (assert (=== :atom (erlang.list_to_atom #"atom")))
+    (assert (=== :'atom has space' (erlang.list_to_atom #"atom has space")))
+    (assert (=== :"atom has space" (erlang.list_to_atom #"atom has space")))
+
+    ;; boolean
+    (assert (=== ^true (true? ^true)))
+    (assert (=== ^false (false? ^true)))
+    (assert (=== :true (true? ^true)))
+    (assert (=== :false (true? ^false)))
+
+    ;; comment
+    ;; Comments occur all over this file. It's uneccesary to make
+    ;; an independent test case for it.
+
+    ;; containers
+    ;; bitstring, binary
+    (assert (=== <<#"hello">>
+                 (erlang.list_to_binary #"hello")))
+    (assert (=== <<"hello">>
+                 (erlang.list_to_binary #"hello")))
+    (assert (=== <<(104), (101), (108), (108) (111)>>
+                 (erlang.list_to_binary #"hello")))
+    (assert (=== <<(104 (:size 8)) (101 (:size 8)) (108 (:size 8)) (108 (:size 8)) (111 (:size 8))>>
+                 (erlang.list_to_binary #"hello")))
+    (assert (=== <<(104 (:size 8) :little :unsigned :integer (:unit 1))
+                   (101 (:size 8) :little :unsigned :integer (:unit 1))
+                   (108 (:size 8) :little :unsigned :integer (:unit 1))
+                   (108 (:size 8) :little :unsigned :integer (:unit 1))
+                   (111 (:size 8) :little :unsigned :integer (:unit 1))>>
+                 (erlang.list_to_binary #"hello")))
+    ;; list
+    ;; literal list
+    (assert (=== [\h \e \l \l \o]
+                 #"hello"))
+    ;; general list evaluated to a function call
+    (assert (=== (to-int "100")
+                 100))
+    ;; tuple
+    (assert (=== {1 2 3}
+                 (erlang.list_to_tuple [1 2 3])))
+    ;; map
+    (assert (=== #{^a 1 ^b 2}
+                 (maps.from_list [{^a 1} {^b 2}])))
+    ;; set
+    (assert (=== %{1 2 3}
+                 (gb_sets.from_list [1 2 3])))
+    )
+  )

@@ -58,6 +58,7 @@
                  {8 "\\backspace"}
                  {10 "\\newline"}
                  {13 "\\return"}
+                 ;; escape escape
                  {92 "\\\\"}
                  ;; hex char notation
                  {0 "\\x0"}
