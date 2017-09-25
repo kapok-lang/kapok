@@ -126,7 +126,7 @@ define gen-build-rules
 
 ifeq "$(strip $1)" "kapok"
 
-.PHONY : $2$1 $2$1-compiler $2$1-libs $2$1-core-libs $3$1 $4$1
+.PHONY : $2$1 $2$1-compiler  $2$1-core-libs $2$1-libs $3$1 $4$1
 
 $2$1: $2$1-compiler $2$1-core-libs $2$1-libs
 
@@ -139,6 +139,7 @@ $($1_parser_src_file):
 	$(QUIET) echo "--- generate parser and build source files ---"
 	$(QUIET) cd $(lib_$1_dir) && $(REBAR) compile
 
+# TODO add $($1_parser_src_file) as an dependency
 $($1_beam_files): $($1_beam_output_dir)/%.beam: $($1_src_dir)/%.erl
 
 $($1_beam_files):
@@ -146,17 +147,15 @@ $($1_beam_files):
 	$(QUIET) echo "--- build source file ---"
 	$(QUIET) cd $(lib_$1_dir) && $(REBAR) compile
 
-$2$1-libs: $2$1-compiler $($1_lib_beam_files)
-
-$($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
-	$(QUIET) printf "Compile '%s'\n" $$<
-	$$(call kapokc,$$<,$$(dir $$@))
-
 $2$1-core-libs: $2$1-compiler
 	$(QUIET) echo "--- build core libs ---"
 	$(call erl,kapok_compiler,core)
 
-.PHONY :  $3$1
+$2$1-libs: $2$1-compiler $2$1-core-libs $($1_lib_beam_files)
+
+$($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
+	$(QUIET) printf "Compile '%s'\n" $$<
+	$$(call kapokc,$$<,$$(dir $$@))
 
 $3$1: $2$1
 	$$(call kdt-test,$$(lib_$1_dir))

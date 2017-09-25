@@ -49,7 +49,9 @@ handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
            NS ->
              %% build the previous namespace before entering the new namespace
              build_namespace(NS, Ctx),
-             Ctx#{namespace => Name}
+             %% create a new context for the new namespace
+             File = maps:get(file, Ctx),
+             kapok_ctx:ctx_for_eval([{namespace, Name}, {file, File}, {line, 1}])
          end,
   kapok_symbol_table:add_namespace(Name),
   {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),
@@ -71,7 +73,7 @@ handle_require_element({dot, Meta, _} = Dot, Ctx) ->
   {Name, kapok_ctx:add_require(Meta, Ctx, Name)};
 handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
-    [{Category, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] when ?is_local_id(Category) ->
+    [{C, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] when ?is_local_id(C) ->
       {Name, TCtx} = handle_require_element(Ast, Ctx),
       {Name, kapok_ctx:add_require(Meta, TCtx, Id, Name)};
     [{dot, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->

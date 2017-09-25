@@ -233,8 +233,8 @@ translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Ctx) ->
         {{M3, F3, A3, P3}, Ctx2} ->
           translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
         _ ->
-          kapok_error:compile_errer(Meta, ?m(TCtx1, file),
-                                    "unknown remote call: ~s ~s", [Module, FunArity])
+          kapok_error:compile_error(Meta, ?m(TCtx1, file),
+                                    "unknown remote call: ~p ~p", [Module, FunArity])
       end
   end;
 translate({list, Meta, [{list, _, _} = H | T]}, Ctx) ->

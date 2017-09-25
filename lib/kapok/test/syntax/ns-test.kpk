@@ -1,0 +1,56 @@
+;; A namespace for testing namespace.
+;; -*- Kapok -*-
+
+
+;; TODO add test case to declare and import/use namespace with dot name.
+
+
+(ns ns-use-test
+  "A namespace for testing ns use clause."
+  (use (erlang
+        :as erl
+        :only (;; use only along rename, be sure to list every functions
+               ;; which are used and listed ase rename targets
+               list_to_atom)
+        :rename (;; rename a function used below
+                 (list_to_atom to-atom)
+                 ;; rename a function unused
+                 ((list_to_integer 2) to-int)))
+       kunit
+       (io_lib
+        :as verbose-name-iolib
+        :exclude (fread
+                  (print 1)))))
+
+(defn main []
+  (test "test ns use"
+    (assert (=== ^true
+                 ;; Use directly the rename function
+                 (to-atom #"true")))
+    (assert (=== ^true
+                 ;; Use the alias namespace name and renamed function
+                 ;; to access the `list_to_integer' function.
+                 (erl.to-atom #"true")))
+    (assert (=== [#"abc"]
+                 ;; Use the functions in a namespace whose functions
+                 ;; are selectively import by `:exclude'
+                 (verbose-name-iolib.format "~s" ["abc"])))))
+
+(ns ns-require-test
+  "A namespace for testing ns require clause."
+  (require
+    io_lib
+    (erlang :as erl))
+  (use kunit))
+
+(defn main []
+  (test "test ns require"
+    (assert (=== ^true
+                 ;; use the origial namespace name
+                 (erlang.list_to_atom #"true")))
+    (assert (=== ^true
+                 ;; use the namespace alias
+                 (erl.list_to_atom #"true")))
+    (assert (=== [#"abc"]
+                 ;; use the simply required namespace
+                 (io_lib.format "~s" ["abc"])))))

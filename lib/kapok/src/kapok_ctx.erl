@@ -14,8 +14,7 @@
          add_let_var/3,
          add_bindings/2,
          get_var/3,
-         ctx_for_eval/1,
-         ctx_for_eval/2]).
+         ctx_for_eval/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
@@ -62,8 +61,9 @@ add_require(Meta, #{requires := Requires} = Ctx, Alias, Original)
                                 "invalid require ~p as ~p, it conflicts with the previous ~p as ~p",
                                 [Alias, Original, Alias, Other]);
     error ->
-      NewRequires = orddict:store(Alias, Original, Requires),
-      Ctx#{requires => NewRequires}
+      Requires1 = orddict:store(Alias, Original, Requires),
+      Requires2 = orddict:store(Original, Original, Requires1),
+      Ctx#{requires => Requires2}
   end.
 
 add_use(Meta, #{uses := Uses} = Ctx, Module) ->
@@ -182,7 +182,7 @@ ctx_for_eval(Opts) ->
 
 ctx_for_eval(Ctx, Opts) ->
   Namespace = case lists:keyfind(namespace, 1, Opts) of
-                {namespace, NamespaceOpt} when is_list(NamespaceOpt) -> NamespaceOpt;
+                {namespace, V} -> V;
                 false -> nil
               end,
 
