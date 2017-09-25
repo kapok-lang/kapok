@@ -96,9 +96,10 @@ translate_fn(Meta, Exprs, Ctx) when is_list(Exprs) ->
 
 translate_fn(Meta, Name, Arity, Ctx) when is_atom(Name), is_number(Arity) ->
   {{'fun', ?line(Meta), {function, Name, Arity}}, Ctx};
-translate_fn(Meta, Name, Exprs, Ctx) when is_atom(Name), is_list(Exprs) ->
-  {Clauses, TCtx} = translate_fn_exprs(Exprs, Ctx),
-  {{'named_fun', ?line(Meta), Name, Clauses}, TCtx}.
+translate_fn(Meta, {identifier, _, Name} = Id, Exprs, Ctx) when is_list(Exprs) ->
+  {_, TCtx1} = translate_def_arg(Id, Ctx),
+  {Clauses, TCtx2} = translate_fn_exprs(Exprs, TCtx1),
+  {{'named_fun', ?line(Meta), Name, Clauses}, TCtx2}.
 
 translate_fn(Meta, Module, Name, Arity, Ctx)
     when is_atom(Module), is_atom(Name), is_number(Arity) ->
@@ -110,10 +111,11 @@ translate_fn(Meta, Args, Guard, Body, Ctx)
     when is_tuple(Args), (is_list(Guard) orelse is_tuple(Guard)), is_list(Body) ->
   {Clause, TCtx} = translate_fn_clause(Meta, Args, Guard, Body, Ctx),
   {{'fun', ?line(Meta), {clauses, [Clause]}}, TCtx}.
-translate_fn(Meta, Name, Args, Guard, Body, Ctx)
-    when is_atom(Name), is_tuple(Args), (is_list(Guard) andalso is_tuple(Guard)), is_list(Body) ->
-  {Clause, TCtx} = translate_fn_clause(Meta, Args, Guard, Body, Ctx),
-  {{'named_fun', ?line(Meta), Name, [Clause]}, TCtx}.
+translate_fn(Meta, {identifier, _, Name} = Id, Args, Guard, Body, Ctx)
+    when is_tuple(Args), (is_list(Guard) orelse is_tuple(Guard)), is_list(Body) ->
+  {_, TCtx1} = translate_def_arg(Id, Ctx),
+  {Clause, TCtx2} = translate_fn_clause(Meta, Args, Guard, Body, TCtx1),
+  {{'named_fun', ?line(Meta), Name, [Clause]}, TCtx2}.
 
 translate_fn_exprs(Exprs, Ctx) when is_list(Exprs) ->
   check_fn_exprs(Exprs, Ctx),

@@ -130,15 +130,15 @@ translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {numb
           Ctx)
     when ?is_local_id(C1), ?is_local_id(C2) ->
   translate_fn(Meta, Id1, Id2, Number, Ctx);
-translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args,
+translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id, {literal_list, _, _} = Args,
                         {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Ctx) ->
   translate_fn(Meta, Id, Args, Guard, Body, Ctx);
 translate({list,
            Meta,
-           [{identifier, _, 'fn'}, {identifier, _, Id}, {literal_list, _, _} = Args | Body]},
+           [{identifier, _, 'fn'}, {identifier, _, _} = Id, {literal_list, _, _} = Args | Body]},
           Ctx) ->
   translate_fn(Meta, Id, Args, [], Body, Ctx);
-translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, Id} | Exprs]}, Ctx) ->
+translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id | Exprs]}, Ctx) ->
   translate_fn(Meta, Id, Exprs, Ctx);
 translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args,
                         {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Ctx) ->

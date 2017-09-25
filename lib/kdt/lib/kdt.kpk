@@ -1,10 +1,79 @@
 (ns kdt
-  (require init
-           io))
+  (require erlang
+           init
+           io
+           io_lib
+           maps
+           re))
+
+(defn exit [message]
+  (io.format message)
+  (erlang.exit message))
+
+(defn exit [format args]
+  (let [message (io_lib.format format args)]
+    (exit message)))
+
+(defn- blank-arguements []
+  #{^command []
+    ^dir ""})
+
+(defn- parse-args [[_program #"test" dir & _t] acc]
+  (let [acc1 (maps.put ^command ^test acc)
+        acc2 (maps.put ^dir dir acc1)]
+    acc2))
+
+(defn- parse-args [args _acc]
+  (exit "invalid args: ~p~n" [args]))
+
+(defn- parse-args [args]
+  (parse-args args (blank-arguements)))
+
+(defn is-test-file [path]
+  (case (filelib.is_file path)
+    (^true
+     (case (re.run (filename.basename path) ".*-test.kpk")
+       (^match ^true)
+       ({^match, _} ^true)
+       (^nomatch ^false)))
+    (^false
+     ^false)))
+
+(defn iterate-dir [dir fun]
+  (case (file.list_dir dir)
+    ({^ok filenames}
+     (lists.foreach fun
+                    (lists.map (fn [file]
+                                 (filename.join dir file))
+                               filenames)))
+    ({^error reason}
+     (exit "fail to iterate dir: ~p, reason: ~p~n" [dir reason]))))
+
+(defn test-project [dir]
+  (let [test-dir (filename.join dir #"test")
+        fun (fn itor [path]
+               (if (filelib.is_dir path)
+                   (iterate-dir path itor)
+                 (when-do (is-test-file path)
+                   (io.format "--- Run ~s ---~n" [path])
+                   (let [cmd (io_lib.format "kapok ~p" [path])
+                         out (os.cmd cmd)]
+                     (io.format "~s" [out])))))]
+    (io.format "--- run tests for project: ~s ---~n" [test-dir])
+    (iterate-dir test-dir fun))
+  )
+
+(defn- process-args [args]
+  (let [command (maps.get ^command args)]
+    (case command
+      (^test
+       (let [dir (maps.get ^dir args)]
+         (test-project dir))))))
 
 (defn main []
   """KDT is short for kapok development tool.
   """
-  (let [args (init.get_plain_arguments)]
-    (io.format "args: ~p~n", [args]))
-  )
+  (let [plain-args (init.get_plain_arguments)
+        args (parse-args plain-args)]
+    (process-args args)
+    ))

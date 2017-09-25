@@ -73,7 +73,7 @@ endef
 
 # call kdt command line to test a project
 define kdt-test
-  $(QUIET) $(KDT) --test $1
+  $(QUIET) $(KDT) test $1
 endef
 
 # generate the targets with specified prefix for specified modules
