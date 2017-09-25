@@ -10,6 +10,7 @@ ERL      := erl
 ERLC     := erlc
 ESCRIPT  := escript
 KAPOKC   := kapokc
+KDT      := kdt
 
 
 QUIET    := @
@@ -34,7 +35,7 @@ define modules-to-beams
 endef
 
 # ensure directory's existence
-# $(call ensure-dir,dir-name)
+# $(call ensure-dir,path)
 define ensure-dir
   $(QUIET) [ -d "$1" ] || $(MKDIR) $1
 endef
@@ -61,15 +62,8 @@ define erl
   $(QUIET) $(ERL) $(ERL_OPTIONS) -s $1 $2 $3 -s init stop
 endef
 
-ERLC_OPTIONS      := $(ERL_PATH_OPTIONS)
-
-# call erlc command line
-# $(call erlc,file,outdir)
-define erlc
-  $(QUIET) $(ERLC) $(ERLC_OPTIONS) -o "$2" "$1"
-endef
-
-KAPOKC_OPTIONS    := $(ERLC_OPTIONS)
+KAPOKC_OPTIONS    := $(ERL_PATH_OPTIONS)
+KAPOK_OPTIONS     :=
 
 # call kapokc command line
 # $(call kapokc,file,outdir)
@@ -77,25 +71,15 @@ define kapokc
   $(QUIET) $(KAPOKC) $(KAPOKC_OPTIONS) -o "$2" "$1"
 endef
 
-# call eunit test on specified module, using the auto-exported `test` function
-# $(call eunit-test,module)
-define eunit-test
-  $(QUIET) $(ERL) $(ERL_OPTIONS) -s $1 test -s init stop
+# call kdt command line to test a project
+define kdt-test
+  $(QUIET) $(KDT) --test $1
 endef
 
 # generate the targets with specified prefix for specified modules
 # $(call gen-target,prefix,module...)
 define gen-target
   $(addprefix $1,$2)
-endef
-
-# define the rules with specified prefix for the specified module
-# $(call gen-run-test-rule,prefix,module)
-define gen-run-test-rule
-.PHONY : $1$2
-$1$2:
-	$(QUIET) printf '--- Run test %s ---\n' $2
-	$(call eunit-test,$2)
 endef
 
 # echo the message that about to build the specified type package
@@ -111,7 +95,6 @@ define gen-build-vars
 ifeq "$(strip $1)" "kapok"
 
 lib_$1_dir             := $(lib_dir)/$1
-$1_deps_dir            := $$(lib_$1_dir)/deps
 $1_src_dir             := $$(lib_$1_dir)/src
 $1_lib_dir             := $$(lib_$1_dir)/lib
 $1_test_dir            := $$(lib_$1_dir)/test
@@ -121,13 +104,9 @@ $1_modules             := $$(call get-files-in-dir,$$($1_src_dir),erl)
 $1_lib_files           := $$(call get-files-in-dir,$$($1_lib_dir),kpk)
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
 $1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_files))
-$1_test_modules        := $$(call get-files-in-dir,$$($1_test_dir),erl)
-$1_test_beam_files     := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_test_modules))
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
 
 else
-
-ifeq "$(strip $1)" "kunit"
 
 lib_$1_dir             := $(lib_dir)/$1
 $1_lib_dir             := $$(lib_$1_dir)/lib
@@ -135,12 +114,6 @@ $1_beam_output_dir     := $$(lib_$1_dir)/ebin
 
 $1_lib_files           := $$(call get-files-in-dir,$$($1_lib_dir),kpk)
 $1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_files))
-
-else
-
-$$(error "currently we don't define any vars for lib: $1")
-
-endif
 
 endif
 
@@ -183,28 +156,15 @@ $2$1-core-libs: $2$1-compiler
 	$(QUIET) echo "--- build core libs ---"
 	$(call erl,kapok_compiler,core)
 
-.PHONY :  $3$1 build-test-$1 run-test-$1
+.PHONY :  $3$1
 
-$3$1: build-test-$1 run-test-$1
-
-build-test-$1: $2$1 $($1_test_beam_files)
-
-$($1_test_beam_files): $($1_beam_output_dir)/%.beam: $($1_test_dir)/%.erl
-	$$(call ensure-dir,$$(dir $$@))
-	$(QUIET) printf "Compile '%s'\n" $$<
-	$$(call erlc,$$<,$$(dir $$@))
-
-run-test-$1: $($1_test_beam_files)
-run-test-$1: $(call gen-target,run-test-,$($1_test_modules))
-$(foreach m,$($1_test_modules), \
-   $(eval $(call gen-run-test-rule,run-test-,$m)))
+$3$1: $2$1
+	$$(call kdt-test,$$(lib_$1_dir))
 
 $4$1:
-	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) $($1_lib_beam_files) $($1_test_beam_files)
+	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) $($1_lib_beam_files)
 
 else
-
-ifeq "$(strip $1)" "kunit"
 
 .PHONY : $2$1 $2$1-libs $3$1 $4$1
 
@@ -217,15 +177,10 @@ $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$$(call kapokc,$$<,$$(dir $$@))
 
 $3$1:
+	$$(call kdt-test,$$(lib_$1_dir))
 
 $4$1:
 	$(QUIET) $(RM) $($1_lib_beam_files)
-
-else
-
-$$(error "currently we don't define any rule for lib: $1")
-
-endif
 
 endif
 

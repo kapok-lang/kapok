@@ -1,0 +1,10 @@
+(ns kdt
+  (require init
+           io))
+
+(defn main []
+  """KDT is short for kapok development tool.
+  """
+  (let [args (init.get_plain_arguments)]
+    (io.format "args: ~p~n", [args]))
+  )

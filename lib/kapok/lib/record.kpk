@@ -1,4 +1,4 @@
-(ns kapok.record
+(ns record
   """Namespace to work, define and import records.
 
   Records are simply tuples where the first element is an atom:
