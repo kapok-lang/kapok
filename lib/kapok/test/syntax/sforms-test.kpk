@@ -1,0 +1,15 @@
+(ns sforms-test
+  "A namespace for testing special forms."
+  (use kunit))
+
+(defn main []
+  (test "test do"
+    (assert (=== 1
+                 (do
+                  (+ 1 0))))
+    (assert (=== 2
+                 (do
+                  (let [_ (+ 1 0)]
+                    ^ok)
+                  (+ 1 1)))))
+  )

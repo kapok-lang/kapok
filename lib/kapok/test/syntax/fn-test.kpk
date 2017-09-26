@@ -1,0 +1,83 @@
+(ns fn-test
+  (require lists)
+  (use kunit))
+
+
+(defn g [e]
+  (+ 1 e))
+
+(defn main []
+  ;; there are several formats to define a lambda function(alias, fn):
+  ;; 1. (fn function-name arity)
+  ;;    a fn to existing local function with specified arity
+  ;; 2. (fn module function arity)
+  ;;    a fn to existing remote function with specified arity
+  ;; 3. (fn [args] (when guard) body)
+  ;;    (fn [args] body)
+  ;;    a single clause fn definition with optioinal guard
+  ;; 4. (fn
+  ;;      ([args 1] (when guard 1) clause 1 body)
+  ;;      ([args 2] clause 2 body)
+  ;;      ...)
+  ;;    a multiple clauses fn definition with optional guard to each clause
+  ;; 5. (fn name [args] (when guard) body)
+  ;;    (fn name [args] body)
+  ;;    a single clause named fn definition with optional guard
+  ;; 6. (fn name
+  ;;      ([args 1] (when guard 1) clause 1 body)
+  ;;      ([args 2] clause 2 body)
+  ;;      ...)
+  ;;    a multiple clause named fn definition with optional guard to each clause
+  ;; Since fn is temporariry defined and used, no doc is needed or supported.
+
+  ;; (test "test fn to local call"
+  ;;   (let [f (fn g 1)]
+  ;;     (assert (=== [2 3]
+  ;;                  (lists.map f [1 2])))))
+
+  ;; (test "test fn to remote call"
+  ;;   (let [f (fn core - 1)]
+  ;;     (assert (=== [-1 -2]
+  ;;                  (lists.map f [1 2])))))
+
+  ;; (test "test unnamed fn"
+  ;;       (let [f1 (fn [e] (when (integer? e))
+  ;;                    (+ 1 e))
+  ;;             f2 (fn [e]
+  ;;                  (+ 1 e))
+  ;;             f3 (fn
+  ;;                  ([{x y}] (+ x y))
+  ;;                  ([e] (+ 1 e)))]
+  ;;         (assert (=== [2 3]
+  ;;                      (lists.map f1 [1 2])))
+  ;;         (assert (=== [2 3]
+  ;;                      (lists.map f2 [1 2])))
+  ;;         (assert (=== [3 7]
+  ;;                      (lists.map f3 [{1 2} {3 4}])))
+  ;;         (assert (=== [2 3]
+  ;;                      (lists.map f3 [1 2])))))
+
+  (test "test named fn"
+        (let [f1 (fn fibonacci-1 [n] (when (integer? n))
+                     (case n
+                       (0 0)
+                       (1 1)
+                       (_ (+ (fibonacci-1 (- n 1))
+                             (fibonacci-1 (- n 2))))))
+              f2 (fn fibonacci-2 [n]
+                     (case n
+                       (0 0)
+                       (1 1)
+                       (_ (+ (fibonacci-2 (- n 1))
+                             (fibonacci-2 (- n 2))))))
+              f3 (fn fibonacci-3 ([n] (when (=== n 0)) 0)
+                                 ([n] (when (=== n 1)) 1)
+                                 ([n] (+ (fibonacci-3 (- n 1))
+                                         (fibonacci-3 (- n 2)))))]
+          (assert (=== 8 (f1 6)))
+          (assert (=== 8 (f2 6)))
+          (assert (=== 8 (f3 6)))
+          ;; The names `fibonacci-1', `fibonacci-2', `fibonacci-3' are inacessible
+          ;; outside their definition, just like what's in erlang.
+          ;; (assert (=== 8 (fibonacci-1 6)))
+          )))

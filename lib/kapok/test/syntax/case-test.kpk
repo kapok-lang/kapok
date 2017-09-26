@@ -1,0 +1,24 @@
+(ns case-test
+  (use kunit))
+
+(defn f [i]
+  (case i
+    (0 ^false)
+    (1 ^true)
+    (2 ^match)
+    (3 ^error)
+    (_ i)))
+
+(defn main []
+  (test "test case"
+    (assert (=== ^true
+                 (let [x (f 4)]
+                   (case x
+                     (_ (when (atom? x))
+                        ^match)
+                     (_ (when (integer? x))
+                        (let [_ (+ 1 1)]
+                          ^ignore)
+                        ^true)
+                     (_ ^false))))))
+  )

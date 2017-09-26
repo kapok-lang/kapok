@@ -74,7 +74,7 @@ translate({identifier, Meta, Id}, #{context := Context} = Ctx) ->
                                                            "unable to resolve var: ~p", [Id])
                       end
                   end,
-  {{var, ?line(Meta), Name1}, Ctx1};
+  {to_var(Meta, Name1), Ctx1};
 
 %% binary string
 translate({binary_string, _Meta, Binary}, Ctx) ->
@@ -191,9 +191,9 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
   case kapok_ctx:get_var(Meta, Ctx, Id) of
     {ok, Name} ->
       %% local variable
-      {TF, TCtx1} = translate({identifier, Meta1, Name}, Ctx),
-      {TArgs, TCtx2} = translate_args(Args, TCtx1),
-      translate_local_call(Meta, TF, TArgs, TCtx2);
+      TF = to_var(Meta1, Name),
+      {TArgs, TCtx1} = translate_args(Args, Ctx),
+      translate_local_call(Meta, TF, TArgs, TCtx1);
     error ->
       {TArgs, TCtx1} = translate_args(Args, Ctx),
       Arity = length(TArgs),
@@ -361,6 +361,9 @@ translate(Other, Ctx) ->
 
 
 %% Helper Functions
+
+to_var(Meta, Name) ->
+  {var, ?line(Meta), Name}.
 
 %% Converts specified code to erlang abstract format
 
