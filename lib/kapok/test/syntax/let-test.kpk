@@ -1,0 +1,40 @@
+(ns let-test
+  (require erlang)
+  (use kunit))
+
+(defn main []
+  (test "test simple let"
+    (let [a (erlang.list_to_integer #"100")]
+      (assert (=== a 100))))
+
+  (test "test embedded let"
+    (let [a 100]
+      (assert (=== a 100))
+      (let [a 200]
+        (assert (=== a 200)))))
+
+  (test "test destructing let"
+    (let [;; list
+          [a _ _] [1 2 3]
+          ;; tuple
+          {b _} {4 5}
+          ;; bitstring
+          <<(c (:size 5)) (_ (:size 15))>> <<(6 (:size 5)) (7 (:size 3)) (8 (:size 12))>>
+          ;; binary
+          <<(d), (_), (_)>> <<(9), (10), (11)>>
+          ;; list string
+          [e & _] #"hello"
+          ;; binary string
+          <<(f), (_) (_) (_) (_)>> "hello"
+          ;; map
+          #{^k1 value} #{^k1 100
+                         ^k2 200}
+          ]
+      (assert (=== a 1))
+      (assert (=== b 4))
+      (assert (=== c 6))
+      (assert (=== d 9))
+      (assert (=== e \h))
+      (assert (=== f \h))
+      (assert (=== value 100))))
+  )

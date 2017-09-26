@@ -494,8 +494,8 @@ The `ns` special form could have `require` and `use` clauses. The `require` clau
 (ns example-for-use
   (use lists)                ;; use a single erlang module 'lists'
   (use (erlang :as er        ;; use a erlang module 'erlang' and give it an alias 'er'
-               :only (apply node)  ;; only import apply/2 and node/0 from module 'erlang'
-               :rename (apply ap)  ;; rename 'apply' to 'ap'
+               :only (apply node)   ;; only import apply/2 and node/0 from module 'erlang'
+               :rename ((apply ap))  ;; rename 'apply' to 'ap'
                ))
   (use process                ;; use multiple modules/namespaces
        (core :exclude (abs))  ;; :exclude agrument
@@ -516,7 +516,7 @@ And `let` supports destructing like Clojure. In Erlang, there is a similar conce
 
 1. Sequential destructing
 
-  Sequential destructing works with the below types: lists, tuples, bitstring, binary, binary string.
+  Sequential destructing works with the below types: lists, tuples, bitstring, binary, list string, binary string.
 
 2. Map destructing
 
