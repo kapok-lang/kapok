@@ -54,3 +54,35 @@
     (assert (=== [#"abc"]
                  ;; use the simply required namespace
                  (io_lib.format "~s" ["abc"])))))
+
+(defns ns-test.defns-test
+  "A embedded namespace for testing `defns`."
+  ((require (io_lib :as verbose-name-iolib))
+   (use (erlang
+         :as erl
+         :only (list_to_atom)
+         :rename ((list_to_atom to-atom))))
+   (use kunit))
+
+  (defn main []
+    (test "test defns"
+      (assert (=== ^true
+                   (erl.list_to_atom #"true")))
+      (assert (=== ^true
+                   (to-atom #"true")))
+      (assert (=== [#"abc"]
+                   (verbose-name-iolib.format "~s" ["abc"])))))
+  )
+
+(defns ns-test.defns-twice-test
+  "A embedded namespace for testing `defns` occurs twice in the same file."
+  ((require io_lib)
+   (use (erlang :only (list_to_atom)
+                :rename ((list_to_atom to-atom)))
+        kunit))
+
+  (defn main []
+    (test "test defns twice"
+      (assert (=== ^true
+                   (to-atom #"true")))))
+  )

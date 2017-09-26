@@ -323,7 +323,7 @@ filter_exports_by({'rename', Renames}, Exports) ->
                                     Renames),
                   case New of
                     [] -> [FAP | Acc];
-                    _ -> New ++ Acc
+                    _ -> New ++ [FAP | Acc]
                   end
               end,
               [],
