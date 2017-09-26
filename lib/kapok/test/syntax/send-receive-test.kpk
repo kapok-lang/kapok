@@ -1,0 +1,26 @@
+(ns send-receive-test
+  (use kunit))
+
+(defn- child []
+  (receive
+    ({pid n}
+     (send pid (+ 1 n)))))
+
+(defn- calc-timeout []
+  10)
+
+(defn- plus-one [n]
+  (let [child-pid (spawn (fn child 0))]
+    (send child-pid {(self) n})
+    (receive
+      (m (when (integer? m))
+         m)
+      (after (calc-timeout)
+         (throw "timeout")))))
+
+(defn main []
+  (test "test send receive"
+    (let [n 1]
+      (assert (=== (+ 1 n)
+                   (plus-one n)))))
+  )
