@@ -1,0 +1,26 @@
+(ns macro-test
+  "A namespace for testing macro primitives."
+  (use kunit))
+
+(defn p [a]
+  (+ 1 a))
+
+(defmacro f [fun &rest args]
+  `(~fun ~@args))
+
+(defmacro g [a &rest list]
+  `[~a ~@list])
+
+(defmacro j []
+  'x)
+
+(defn main []
+  (test "test macro primitives"
+    (assert (=== (f p 1)
+                 2))
+    (assert (=== (g 1 2)
+                 [1 2]))
+    (let [x 1]
+      (assert (=== (j) ;; `(j)' evaluates to `x'
+                   1)))
+  ))
