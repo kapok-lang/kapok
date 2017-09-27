@@ -1,0 +1,38 @@
+(ns attribute-test.attr
+  (use kunit))
+
+;; TODO test pre-difined attributes
+;; behavior
+;; file
+
+;; user-defined attributes
+(attribute vsn 1050)
+(attribute date 20170927)
+
+;; call 'attribute-test.attr':module_info(attributes) in erlang will returns:
+;; [{vsn,[1050]},
+;;  {date,[20170927]}]
+
+;; define a function with the same name as the top level
+;; `attribute' name
+(defn attribute [a b]
+  (+ a b))
+
+(defn attribute [a]
+  (attribute a 1))
+
+(ns attribute-test.usage
+  (require io lists)
+  (use (attribute-test.attr :as attr))
+  (use kunit))
+
+(defn main []
+  (test "test attribute"
+    (assert (=== 2
+                 (attribute 1)))
+    (let [attributes (attr.module_info ^attributes)
+          {_, vsn} (lists.keyfind ^vsn, 1, attributes)
+          {_, date} (lists.keyfind ^date, 1, attributes)]
+      (assert (=== [1050] vsn))
+      (assert (=== [20170927] date))))
+  )

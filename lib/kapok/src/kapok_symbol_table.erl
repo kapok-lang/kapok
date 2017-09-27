@@ -98,7 +98,12 @@ handle_call({namespace_forms, Namespace, ModuleName, Ctx}, _From, Map) ->
   DefForms = lists:foldl(TranslateFun, [], Defs),
   AttrModule = {attribute, 0, module, ModuleName},
   AttrExport = {attribute, 0, export, Exports},
-  Forms = [AttrModule, AttrExport | DefForms],
+  %% add other forms such as attributes
+  OtherForms = get_kv(Namespace, 'forms', Map),
+  %% The `module_info' functions definitions and exports are added automatically
+  %% by the erlang compiler, so it's not necessary to manually add them
+  %% in kapok compiler.
+  Forms = [AttrModule, AttrExport ] ++ OtherForms ++ DefForms,
   {reply, {Forms, Ctx1}, Map}.
 
 handle_cast({_, _}, Map) ->
@@ -252,9 +257,14 @@ namespace_defs(NS) ->
   %% append aliases defs into head since it's much shorter in general.
   AliasesDefs ++ Defs.
 
+%% generate the `__info__' function for kapok.
 gen_info_fun(Namespace, Ctx, Map) ->
   NS = maps:get(Namespace, Map),
-  Functions = maps:get(export_funs, NS),
+  %% The `module_info' functions definitions and exports are automatically added by
+  %% the erlang compiler, their exports need to be added to the kapok exported functions list.
+  ModuleInfoFunctions = ordsets:from_list([{'module_info', 0, 'normal'},
+                                           {'module_info', 1, 'normal'}]),
+  Functions = ordsets:union(ModuleInfoFunctions, maps:get(export_funs, NS)),
   Macros = maps:get(export_macros, NS),
   {TFunctions, Ctx1} = kapok_trans:translate(kapok_trans:quote([], Functions), Ctx),
   {TMacros, Ctx2} = kapok_trans:translate(kapok_trans:quote([], Macros), Ctx1),

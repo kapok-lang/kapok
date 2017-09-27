@@ -163,25 +163,22 @@ translate({list, Meta, [{identifier, _, 'try'} | Exprs]}, Ctx) ->
 %% Erlang Attribute Forms
 
 %% behaviour
-translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, Ctx)
-    when ?is_behaviour(Form), ?is_local_id(Category) ->
+translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, #{def_kind := Kind} = Ctx)
+    when ?is_behaviour(Form), ?is_local_id(Category), ?is_attr(Kind) ->
   translate_attribute(Meta, Form, Id, Ctx);
 
-%% compile
-translate({list, Meta, [{identifier, _, Form}, {Category, _, _} = Options]}, Ctx)
-    when ?is_compile(Form), ?is_list(Category) ->
-  {TOptions, TCtx} = kapok_compiler:ast(Options, Ctx),
-  translate_attribute(Meta, Form, TOptions, TCtx);
-
 %% file
-translate({list, Meta, [{identifier, _, Form}, {C1, _, Binary}, {C2, _, Number}]}, Ctx)
-    when ?is_file(Form), ?is_string(C1), ?is_number(C2) ->
+translate({list, Meta, [{identifier, _, Form}, {C1, _, Binary}, {C2, _, Number}]},
+          #{def_kind := Kind} = Ctx)
+    when ?is_file(Form), ?is_string(C1), ?is_number(C2), ?is_attr(Kind) ->
   translate_attribute(Meta, Form, {Binary, Number}, Ctx);
 
-%% wild attribute
-translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, {C2, _, Value}]}, Ctx)
-    when ?is_attribute(Form), ?is_local_id(C1), ?is_local_id(C2) ->
-  translate_attribute(Meta, Attribute, Value, Ctx);
+%% user-defined attribute
+translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
+          #{def_kind := Kind} = Ctx)
+    when ?is_attribute(Form), ?is_local_id(C1), ?is_attr(Kind) ->
+  {EValue, ECtx} = kapok_compiler:eval_ast(Value, Ctx),
+  translate_attribute(Meta, Attribute, EValue, ECtx);
 
 %% List
 

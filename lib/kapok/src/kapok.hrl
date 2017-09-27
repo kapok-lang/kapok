@@ -50,16 +50,16 @@
 -define(is_parameter_keyword(C), (C == 'keyword_optional' orelse C == 'keyword_rest' orelse C == 'keyword_key')).
 -define(is_string(C), (C == 'list_string' orelse C == 'binary_string')).
 
+-define(is_ns(Id), (Id == 'ns')).
 -define(is_def_ns(Id), (Id == 'defns')).
 -define(is_def_fn(Id), (Id == 'defn' orelse Id == 'defn-')).
 -define(is_def_macro(Id), (Id == 'defmacro')).
 -define(is_def_alias(Id), (Id == 'defalias' orelse Id == 'defalias-')).
 -define(is_def(Id), (?is_def_fn(Id) orelse ?is_def_macro(Id) orelse ?is_def_alias(Id))).
 -define(is_behaviour(Id), (Id == 'behavior' orelse Id == 'behaviour')).
--define(is_compile(Id), (Id == 'compile')).
 -define(is_file(Id), (Id == 'file')).
 -define(is_attribute(Id), (Id == 'attribute')).
--define(is_attr(Id), (?is_behaviour(Id) orelse ?is_compile(Id) orelse ?is_file(Id) orelse ?is_attribute(Id))).
+-define(is_attr(Id), (?is_behaviour(Id) orelse ?is_file(Id) orelse ?is_attribute(Id))).
 -define(is_special_form(Id), (Id == 'ns' orelse ?is_def(Id) orelse ?is_attr(Id))).
 
 %% default source file suffix

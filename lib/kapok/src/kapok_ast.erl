@@ -14,14 +14,14 @@ compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
 
-handle({list, Meta, [{identifier, _, 'ns'} | T]}, Ctx) ->
-  handle_ns(Meta, T, Ctx);
+handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_ns(Id) ->
+  handle_ns(Meta, T, Ctx#{def_kind => Id});
 handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_def_ns(Id) ->
-  handle_def_ns(Meta, Id, T, Ctx);
+  handle_def_ns(Meta, Id, T, Ctx#{def_kind => Id});
 handle({list, Meta, [{identifier, _, Id} | T]} = Ast, Ctx) when ?is_def(Id) ->
   handle_def(Meta, Id, T, Ctx#{def_kind => Id, def_ast => Ast});
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) ->
-  {TAttr, TCtx} = kapok_trans:translate(Ast, Ctx),
+  {TAttr, TCtx} = kapok_trans:translate(Ast, Ctx#{def_kind => Id}),
   Namespace = ?m(Ctx, namespace),
   kapok_symbol_table:add_form(Namespace, TAttr),
   TCtx;
