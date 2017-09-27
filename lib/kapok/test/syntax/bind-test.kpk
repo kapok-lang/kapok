@@ -1,0 +1,26 @@
+(ns bind-test
+  (use kunit))
+
+
+(defn f [a &as aa b &as bb]
+  {[a b] [aa bb]}
+  )
+
+(defn g [{a &as aa _} &as b]
+  {a aa b})
+
+(defn main []
+  (test "test bind to function args"
+    (assert (=== {[1 2] [1 2]}
+                 (f 1 2)))
+    (assert (=== {1 1 {1 2}}
+                 (g {1 2}))))
+
+  (test "test bind to let pattern"
+    (assert (=== {[1 2] [1 2]}
+                 (let [[a &as aa b &as bb] [1 2]]
+                   {[a b] [aa bb]})))
+    (assert (=== {1 1 {1 2}}
+                 (let [{a &as aa _} &as b {1 2}]
+                   {a aa b}))))
+  )
