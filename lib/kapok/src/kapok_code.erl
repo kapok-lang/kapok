@@ -35,8 +35,8 @@ handle_call({load_ns, Ns, Ctx}, _From, NsToModules) ->
   State = case get_ns(Ns, NsToModules) of
             {badkey, Ns} ->
               load_ns(Ns, Ctx, NsToModules);
-            Ns ->
-              unload_ns(Ns),
+            RealName ->
+              unload_ns(RealName),
               NsToModules1 = remove_ns(Ns, NsToModules),
               load_ns(Ns, Ctx, NsToModules1)
           end,

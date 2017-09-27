@@ -309,7 +309,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
       {PrepareBody, CCtx} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TCtx3),
       add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx);
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters},
-     {keyword_rest, RestArgs}] ->
+     {keyword_rest, _, RestArgs}] ->
       {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
       {TOptionalParameters, TCtx2} = translate_parameter_with_default(OptionalParameters, TCtx1),
       {TRestArgs, CCtx} = kapok_trans:translate_def_args(RestArgs, TCtx2),

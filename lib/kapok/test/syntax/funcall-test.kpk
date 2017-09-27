@@ -1,0 +1,80 @@
+(ns funcall-test.impl
+  (use kunit))
+
+(defn f []
+  "function without argument."
+  [])
+
+(defn f [a]
+  "function with one argument."
+  [a])
+
+(defn f [a b]
+  "function with two argument"
+  [a b])
+
+(defn g [a &rest l]
+  "function with a rest argument."
+  [a l])
+
+;; another way to write a rest argument
+;; use `&'(cons_list) instead of `&rest'
+(defn h [a & l]
+  "function with a rest argument."
+  [a l])
+
+(defn m [a &optional b]
+  [a b])
+
+(defn n [a &optional b &rest c]
+  [a b c])
+
+(defn p [a &key (b 100) c (d ^none)]
+  [a b c d])
+
+(defmacro gen-test [message]
+  `(test ~message
+     ;; It's not a good practice to define a macro to be called
+     ;; outside this module just using local calls.
+     ;; Here we write it this way for simplicity.
+     (assert (=== (f)
+                  []))
+     (assert (=== (f 1)
+                  [1]))
+     (assert (=== (f 1 2)
+                  [1 2]))
+     (assert (=== (g 1)
+                  [1 []]))
+     (assert (=== (g 1 2)
+                  [1 [2]]))
+     (assert (=== (h 1)
+                  [1 []]))
+     (assert (=== (h 1 2)
+                  [1 [2]]))
+     (assert (=== (m 1)
+                  [1 ^nil]))
+     (assert (=== (m 1 2)
+                  [1 2]))
+     (assert (=== (n 1)
+                  [1 ^nil []]))
+     (assert (=== (n 1 2)
+                  [1 2 []]))
+     (assert (=== (n 1 2 3)
+                  [1 2 [3]]))
+     (assert (=== (p 1)
+                  [1 100 ^nil ^none]))
+     (assert (=== (p 1 :c ^world :b "hello" :d 2017)
+                  [1 "hello" ^world 2017])))
+  )
+
+(defn main []
+  (gen-test "test local call")
+  )
+
+(ns funcall-test.call
+  (use funcall-test.impl)
+  (use kunit))
+
+(defn main []
+  (gen-test "test remote call")
+  )
