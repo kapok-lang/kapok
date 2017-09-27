@@ -129,6 +129,9 @@ world!")))
     ;; general list evaluated to a function call
     (assert (=== (to-int "100")
                  100))
+    ;; cons list
+    (assert (=== [\h \e \l \l & [\o]]
+                 #"hello"))
     ;; tuple
     (assert (=== {1 2 3}
                  (erlang.list_to_tuple [1 2 3])))
