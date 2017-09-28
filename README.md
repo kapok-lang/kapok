@@ -15,5 +15,5 @@ Currently kapok is under development. It's not stable and incoming changes are e
 
 ### Documentation
 
-* [Kapok Docs](doc/index.md)
+* [Language Guide](doc/guide/index.md)
 
