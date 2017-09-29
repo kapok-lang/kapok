@@ -113,51 +113,6 @@ And it support multiline as well."""
 '''The triple single-quotes act the same as triple double-quotes as string terminator.'''
 ```
 
-#### Symbol
-
-Symbols are names (or called identifiers) which could represent namespaces, functions, variables, etc.
-
-Symbols must begin with a non-numeric character, and in addition to any alphanumeric characters, it could contain these characters:
-
-```text
-! $ % # + - / < = > ? @ _ | ~ & # ^
-```
-
-Like other Lisp dialects, the valid characters for symbols is far more than non-Lisp language. For example, valid characters for identifiers in Python could only contain alphanumeric characters and underscore. Notice that the last a few characters are preserved for some other keywords or literal types, as listed below:
-
-```clojure
-~ ~@                    ;; is macro unquote, unquote splicing keyword
-&optional &rest &key    ;; function argument specification
-#""                     ;; list string
-^                       ;; atom
-```
-
-Using `~ & # ^` as the start of a symbol would not works. But you could use them in any position after the first char in a symbol, as long as it would not cause confusion with the preserved literal types.
-
-Also notice that symbols/identifiers in other Erlang VM based programming languages have fewer valid characters. For example, identifiers in Elixir contain only alphanumeric characters and underscore. If you need to write a Kapok module for Elixir code to call, please make the symbol name to be compactible.
-
-If a symbol that start with underscore(_) and with tailing other characters, the Kapok compiler would not report warning if the symbol is not used. If a symbol is a underscore, it acts like a placeholder. For example, if we didn’t need to capture a value during the pattern matching, we could specify the special variable _ (an underscore). This acts like a variable but immediately discards any value given to it—in a pattern match, it is like a wildcard saying, “I’ll accept any value here.”
-
-A symbol that contains a dot character(.) denotes a namespaced-symbol, and will evaluate to the named value in the specified namespace. For example, we could specify a embedded namespace in the ns special form, as
-
-```clojure
-(ns com.kapok.some-module
-  ;; ...
-  )
-
-(defn f []
-  ;; ...
-  )
-```
-
-Or call a function of this namespace like this
-
-```clojure
-(com.kapok.some-module.f ...)
-```
-
-Multiple dot characters could occur in a single symbol, which is a way to support multiple embedded levels of namespaces and their members.
-
 #### Atom
 
 Atoms are used to represent constant values in Erlang. They are global constants evaluated to themself.
