@@ -10,7 +10,7 @@ Identifiers are the names which refer to namespaces, functions, variables, etc. 
 Identifier must begin with a non-numeric character, and in addition to any alphanumeric characters, it could contain these characters:
 
 ```text
-! $ % # + - / < = > ? @ _ | ~ & # ^
+! $ % * + - / < = > ? @ _ | ~ & # ^
 ```
 
 like symbols in other Lisp dialects, the valid characters for identifiers are far more than non-Lisp language. For example, valid characters for identifiers in Python could only contain alphanumeric characters and underscore. Notice that the last a few characters are preserved for some other keywords or literal types, as listed below:
