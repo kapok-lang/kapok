@@ -114,12 +114,8 @@
 
 (defn- type-of [self] (when (atom? self))
   ^atom)
-(defn- type-of [self] (when (binary? self))
-  ^binary)
 (defn- type-of [self] (when (bitstring? self))
   ^bitstring)
-(defn- type-of [self] (when (boolean? self))
-  ^boolean)
 (defn- type-of [self] (when (float? self))
   ^float)
 (defn- type-of [self] (when (integer? self))
