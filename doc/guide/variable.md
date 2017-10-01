@@ -1,7 +1,11 @@
 Variable and Pattern Matching
 ==========
 
-Immutable data plays a important role in functional programming language. Just like what's in Erlang, variables in Kapok are immutable. It means that once a variable is bound, it's illegal to be rebound. 
+Immutable data plays a important role in functional programming language. Just like what's in Erlang, variables in Kapok are immutable. It means that once a variable is bound, it's illegal to be rebound. The idea behind keeping this variable immutability in Kapok is that it helps us to program better, and it's easy for Kapok to utilize the immutability of Erlang and map the Kapok code to Erlang code.
+
+Just like what's in Lisp, there is a keyword `let` used to bind variables. But there is no `setq` or any similar operation to perform imperative style assignment/re-assignment. And it supports pattern matching. Yeah, this good feature from Erlang is kept. In summury, it looks closer to Clojure other than any other older Lisp dialet, when talking about variable binding and pattern matching in Kapok.
+
+To declare, bind and use a variable, first we need to took a look at identifiers.
 
 ### Identifier
 
@@ -28,7 +32,7 @@ Also notice that identifiers in other Erlang VM based programming languages have
 
 If an identifier that start with underscore(_) and with tailing other characters, the Kapok compiler would not report warning if the identifier is not used. If an identifier is a single underscore, it acts like a placeholder. For example, if we didn’t need to capture a value during the pattern matching, we could specify the special variable _ (an underscore). This acts like a variable but immediately discards any value given to it—in a pattern match, it is like a wildcard saying, “I’ll accept any value here.”
 
-The dot character(.) is not a valid character of an identifier. If the dot character occurs between two identifiers, it represents a namespaced-identifier, which is called dot-identifier in whole. A dot-identifier evaluates to the named value in the specified namespace. For example, we could specify a embedded namespace in the ns special form, as
+The dot character(.) is not a valid character of an identifier. If the dot character occurs between two identifiers, it represents a namespaced-identifier, which is called dot-identifier in whole. A dot-identifier evaluates to the named value in the specified namespace. For example, we could specify a simple namespace in the ns special form, as
 
 ```clojure
 (ns some-namespace
@@ -46,7 +50,7 @@ Or call a function of this namespace like this
 (some-namespace.f)
 ```
 
-Multiple dot characters could occur in an dot-identifier, which is a way to specify multiple levels of namespaces and their hierarchy. For example
+Similarly, we could specify a embedded namespace in the ns form using dot-identifier. Multiple dot characters could occur in an dot-identifier, which is a way to specify multiple levels of namespaces and their hierarchy. For example
 
 ```clojure
 (ns some-namespace.some-inner-namspace.some-innermost-namespace
@@ -64,11 +68,11 @@ the above codes are valid, the `f` function could be called in this way:
 (some-namespace.some-inner-namespace.some-innermost-namespace.f)
 ```
 
-TODO add more content
+The dot-identifier could be used in namespace name, struct name and protocol name only. It's not allowed to be used as a variable or function because there is no hierarchy needed for them.
 
-### Binding and Pattern matching
+### Binding and Pattern Matching
 
-Like Clojure, the special form to define local bindings in Kapok is `let`.
+The `let` form is a special form to define local bindings in Lisp. In kapok, it also supports pattern matching like Clojure.
 
 TODO add examples for local bindings
 

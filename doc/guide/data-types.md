@@ -186,7 +186,7 @@ Boolean type in Kapok is the same with Erlang. There is no distinct boolean type
 :false ;=> boolean false
 ```
 
-Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library function
+Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In Kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library function
 
 ```clojure
 ;; use `nil?`
