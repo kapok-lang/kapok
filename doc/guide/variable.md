@@ -74,19 +74,97 @@ The dot-identifier could be used in namespace name, struct name and protocol nam
 
 The `let` form is a special form to define local bindings in Lisp. In kapok, it also supports pattern matching like Clojure.
 
-TODO add examples for local bindings
+A local binding is a named reference which is lexically scoped to the extent of the let expression. It's also called local variable or locals. For example, this is a function in Python:
 
-And `let` supports destructing like Clojure. In Erlang, there is a similar concept of destructing, called pattern matching. There are two kinds of destructing
+```python
+def f(x, y):
+    l = x * x + 1;
+    m = y * 2 + x;
+    return l * m + m
+```
 
-1. Sequential destructing
+is equivalent to this Kapok function:
 
-  Sequential destructing works with the below types: lists, tuples, bitstring, binary, list string, binary string.
+```clojure
+(defn f [x y]
+  (let [l (+ (* x x) 1)
+        m (+ (* y 2) x)]
+    (+ (* l m) m)))
+```
 
-2. Map destructing
+the `l` and `m` locals in the respective function bodies both refer to an intermediate value. They're declared in the list as the first argument of the let form, which is called binding list. Inside the binding list, every two expressions match in a pair to declare a local: a pattern and a value. We will talk about them later in pattern matching. Following the binding list, it's is the body of let form, which could contain one or more than one expression. Locals are usual in common programming language. In Kapok, all locals are immutable. you can override a local binding within a nested `let` form, but there is no way to change its value within the scope of a single let form. 
 
-  Map destructing is conceptully identical to sequential destructing, except that it works only for maps.
+Occasionally, you will want to evaluate an expression in the binding list without a local refered to its result. In these cases, an underscore could be used as the local name, or as the prefix of local name, so that the compiler know that this value is going to be unused intentionally. For example,
 
-TODO add more details for destructing.
+```clojure
+(let [x (get-value)
+      _ (print "value: ~p" x)]
+  (+ 1 x)
+  )
+```
 
-Please notice that set is not supported in destructing.
+The `print` expression will be evaluated and the result will be marked as unused. Otherwise if a local without underscore prefix is unused within tho context of a `let`'s body, the compiler will trigger a warning for this unused variable.
+
+In the binding list, it supports destructuring like Clojure. In Erlang, a similar concept of destructuring is called pattern matching. Destructuring is somewhat different from pattern matching. In Kapok, the semantics follows closer to Erlang, so we stick to the name pattern matching. The pattern matching works for two kinds of structure:
+
+1. sequential container
+
+  Sequential containers include the types of lists, tuples, bitstring(and binary), list strings, binary strings.
+  
+  For every element in the container, a local must be declared in the pattern part. For example, we could write this code to do pattern matching for a list:
+
+```
+(let [[x _y z] [42 "foo" 99.2]]
+  (+ x z))
+```
+
+  No ommit is allowed in pattern, which is different from Clojure. For example, it's legal to do destructuring like
+
+```clojure
+(def v [42 "foo" 99.2 [5 12]])
+;= #'user/v 
+(let [[x y z] v]
+  (+ x z))
+;= 141.2
+```
+
+But it's illegal to omit `[5 12]` in `v` in the pattern part in Kapok.
+
+It shares the same syntax to pattern match a sequential container, and declare a sequential container. The syntax is consistent in this way. For example, the following code show how to pattern match each type of sequential containers:
+
+```
+(let [;; list
+      [a _ _] [1 2 3]
+      ;; tuple
+      {b _} {4 5}
+      ;; bitstring
+      <<(c (:size 5)) (_ (:size 15))>> <<(6 (:size 5)) (7 (:size 3)) (8 (:size 12))>>
+      ;; binary
+      <<(d), (_), (_)>> <<(9), (10), (11)>>
+      ;; list string
+      [e & _] #"hello"
+      ;; binary string
+      <<(f), (_) (_) (_) (_)>> "hello"
+      ]
+  ;; body
+  ...
+)
+```
+
+2. map container
+
+  We could do pattern matching for maps. Conceptually it's identical to pattern matching for sequential container. The difference is that we only have to write the key value pair in the pattern part for what we want to match. For example
+
+```
+(let  [;; map
+       #{^k1 value} #{^k1 100 
+                      ^k2 200}]
+  ;; body
+  (+ 1 value)
+)
+```
+
+We omit `^k2` in the pattern and fetch whatever value of `^k1`, refer it as the local `value` and access it in the body of the let form.
+
+Please notice that set container is not supported in pattern matching.
 
