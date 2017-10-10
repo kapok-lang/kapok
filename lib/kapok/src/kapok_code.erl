@@ -93,7 +93,11 @@ load_ns(Ns, Ctx, NsToModules) ->
   Next = next(Ns),
   {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Ns, Next, Ctx),
   Callback = fun(_Module, _Binary) -> ok end,
-  kapok_erl:module(Forms, [], Ctx1, Callback),
+  Options = [%% Turns off warnings for unused local functions.
+             %% It's possible that there are other functions rather than the
+             %% called macro definitions. No need to issue warnings in this case.
+             nowarn_unused_function],
+  kapok_erl:module(Forms, Options, Ctx1, Callback),
   %% update internal state
   add_ns(Ns, Next, NsToModules).
 

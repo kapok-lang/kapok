@@ -107,7 +107,7 @@ The `print` expression will be evaluated and the result will be marked as unused
 
 In the binding list, it supports destructuring like Clojure. In Erlang, a similar concept of destructuring is called pattern matching. Destructuring is somewhat different from pattern matching. In Kapok, the semantics follows closer to Erlang, so we stick to the name pattern matching. The pattern matching works for two kinds of structure:
 
-1. sequential container
+#### 1. sequential container
 
   Sequential containers include the types of lists, tuples, bitstring(and binary), list strings, binary strings.
   
@@ -151,7 +151,7 @@ It shares the same syntax to pattern match a sequential container, and declare a
 )
 ```
 
-2. map container
+#### 2. map container
 
   We could do pattern matching for maps. Conceptually it's identical to pattern matching for sequential container. The difference is that we only have to write the key value pair in the pattern part for what we want to match. For example
 

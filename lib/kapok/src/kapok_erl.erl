@@ -63,8 +63,8 @@ get_stacktrace([StackItem | Stacktrace], CurrentStack) ->
 module(Forms, Options, Ctx, Callback) ->
   Final = case (get_compiler_opt(debug_info) == true) orelse
             lists:member(debug_info, Options) of
-            true -> [debug_info] ++ options();
-            false -> options()
+            true -> [debug_info] ++ Options ++ env_options();
+            false -> Options ++ env_options()
           end,
   compile_module(Forms, Final, Ctx, Callback).
 
@@ -87,15 +87,15 @@ compile_module(Forms, Options, #{file := File} = _Ctx, Callback) ->
 no_auto_import() ->
   {attribute, 0, compile, no_auto_import}.
 
-options() ->
+env_options() ->
   case kapok_env:get(erl_compiler_options) of
     nil ->
-      kapok_env:update(erl_compiler_options, fun options/1);
+      kapok_env:update(erl_compiler_options, fun env_options/1);
     Options ->
       Options
   end.
 
-options(nil) ->
+env_options(nil) ->
   Key = "ERL_COMPILER_OPTIONS",
   case os:getenv(Key) of
     false ->
@@ -115,7 +115,7 @@ options(nil) ->
           []
       end
   end;
-options(Options) ->
+env_options(Options) ->
   Options.
 
 %% ERROR HANDLING
