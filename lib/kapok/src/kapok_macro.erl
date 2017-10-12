@@ -40,38 +40,42 @@ expand_1(List, Ctx) when is_list(List) ->
   expand_list(List, Ctx);
 
 %% list
-expand_1({list, Meta, [{identifier, _, Id} = Ident | T]}, Ctx) when ?is_def(Id) ->
+expand_1({list, Meta, [{identifier, _, Id} = Def | T]}, Ctx) when ?is_def(Id) ->
   %% TODO move defs into `core' as predefined macros
   {ET, ECtx, Expanded} = expand_1(T, Ctx),
-  {{list, Meta, [Ident | ET]}, ECtx, Expanded};
-expand_1({list, Meta, [{identifier, _, Id} | T]} = Ast, Ctx) ->
-  Arity = length(T),
-  {R, Ctx1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Ctx),
+  {{list, Meta, [Def | ET]}, ECtx, Expanded};
+expand_1({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
+  Arity = length(Args),
+  {R, Ctx1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, IdMeta, Args, Ctx),
   case R of
-    {F, A, P} ->
+    {local, {F, A, P}} ->
       %% to call a previously defined macro in the namespace
       Namespace = ?m(Ctx, namespace),
       kapok_code:load_ns(Namespace, Ctx),
       {ok, Module} = kapok_code:get_module(Namespace),
-      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, T),
+      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
       {EAst, ECtx} = expand_macro_named(Meta, Module, F, A, NewArgs, Ctx),
       {EAst, ECtx, true};
-    {M, F, A, P} ->
+    {remote, {M, F, A, P}} ->
       %% to call a macro defined in another module
-      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, T),
+      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
       {EAst, ECtx} = expand_macro_named(Meta, M, F, A, NewArgs, Ctx1),
       {EAst, ECtx, true};
+    {rewrite, Ast1} ->
+      {Ast1, Ctx1, true};
     false ->
       expand_list(Ast, Ctx)
   end;
-expand_1({list, Meta, [{dot, _, {Module, Fun}} | T]} = Ast, Ctx) ->
-  Arity = length(T),
-  {R, Ctx1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, Ctx),
+expand_1({list, Meta, [{dot, DotMeta, {Module, Fun}} | Args]} = Ast, Ctx) ->
+  Arity = length(Args),
+  {R, Ctx1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, DotMeta, Args, Ctx),
   case R of
-    {M, F, A, P} ->
-      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, T),
+    {remote, {M, F, A, P}} ->
+      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
       {EAst, ECtx} = expand_macro_named(Meta, M, F, A, NewArgs, Ctx1),
       {EAst, ECtx, true};
+    {rewrite, Ast1} ->
+      {Ast1, Ctx1, true};
     false ->
       expand_list(Ast, Ctx1)
   end;

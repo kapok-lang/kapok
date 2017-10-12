@@ -2,8 +2,8 @@
 -module(kapok_dispatch).
 -export([default_requires/0,
          default_uses/0,
-         find_local_macro/3,
-         find_remote_macro/4,
+         find_local_macro/5,
+         find_remote_macro/6,
          find_local_function/2,
          find_imported_local_function/3,
          find_remote_function/4,
@@ -22,27 +22,30 @@ default_uses() ->
 
 %% find local/remote macro/function
 
-find_local_macro(Meta, FunArity, #{namespace := Namespace} = Ctx) ->
+find_local_macro(Meta, FunArity, FunMeta, Args, #{namespace := Namespace} = Ctx) ->
   %% check whether the FunArity refers to a macro in current namespace
   %% which is defined previously.
   Macros = kapok_symbol_table:namespace_macros(Namespace),
   case filter_fa(FunArity, Macros) of
     [{F, A, P}] ->
-      {{F, A, P}, Ctx};
+      {{local, {F, A, P}}, Ctx};
     [] ->
-      find_import_macro(Meta, FunArity, Ctx)
+      find_import_macro(Meta, FunArity, FunMeta, Args, Ctx)
   end.
 
-find_import_macro(Meta, FunArity, Ctx) ->
+find_import_macro(Meta, FunArity, FunMeta, Args, Ctx) ->
   {D, Ctx1} = find_dispatch(Meta, FunArity, Ctx),
   R = case D of
-        {macro, {M, F, A, P}} -> {M, F, A, P};
-        {function, _} -> false;
-        false -> false
+        {macro, MFAP} ->
+          {remote, MFAP};
+        {function, {M, F, A, P}} ->
+          rewrite_function(Meta, M, F, FunMeta, A, P, Args);
+        false ->
+          false
       end,
   {R, Ctx1}.
 
-find_remote_macro(Meta, Module, FunArity, Ctx) ->
+find_remote_macro(Meta, Module, FunArity, FunMeta, Args, Ctx) ->
   Requires = ?m(Ctx, requires),
   Uses = ?m(Ctx, uses),
   %% get the original module name in case Module is a alias or rename.
@@ -56,21 +59,29 @@ find_remote_macro(Meta, Module, FunArity, Ctx) ->
       %% Load all the import macros/functions from the specified module if necessary,
       %% and then find the specified FunArity.
       {D, Ctx1} = find_dispatch(Meta, Original, FunArity, Ctx),
-      R = case D of
-            {macro, {M, F, A, P}} -> {M, F, A, P};
-            {function, _} -> false;
-            false -> false
-          end,
-      {R, Ctx1};
+      case D of
+        {macro, MFAP} ->
+          {{remote, MFAP}, Ctx1};
+        {function, {M, F, A, P}} ->
+          {rewrite_function(Meta, M, F, FunMeta, A, P, Args), Ctx1};
+        false ->
+          find_optional_remote_macro(Meta, Original, FunArity, FunMeta, Args, Ctx1)
+      end;
     error ->
-      {D, Ctx1} = find_optional_dispatch(Meta, Original, FunArity, Ctx),
-      R = case D of
-            {macro, {M, F, A, P}} -> {M, F, A, P};
-            {function, _} -> false;
-            false -> false
-          end,
-      {R, Ctx1}
+      find_optional_remote_macro(Meta, Original, FunArity, FunMeta, Args, Ctx)
   end.
+
+find_optional_remote_macro(Meta, Module, FunArity, FunMeta, Args, Ctx) ->
+  {D, Ctx1} = find_optional_dispatch(Meta, Module, FunArity, Ctx),
+  R = case D of
+        {macro, MFAP} ->
+          {remote, MFAP};
+        {function, {M, F, A, P}} ->
+          rewrite_function(Meta, M, F, FunMeta, A, P, Args);
+        false ->
+          false
+      end,
+  {R, Ctx1}.
 
 find_local_function(FunArity, #{def_fap := FAP} = Ctx) ->
   case filter_fa(FunArity, [FAP]) of
@@ -90,7 +101,7 @@ find_local_function(FunArity, #{def_fap := FAP} = Ctx) ->
 find_imported_local_function(Meta, FunArity, Ctx) ->
   {D, Ctx1} = find_dispatch(Meta, FunArity, Ctx),
   R = case D of
-        {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
+        {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
         false -> false
       end,
   {R, Ctx1}.
@@ -105,19 +116,23 @@ find_remote_function(Meta, Module, FunArity, Ctx) ->
   case orddict:find(Module1, Uses) of
     {ok, _} ->
       {D, Ctx1} = find_dispatch(Meta, Module1, FunArity, Ctx),
-      R = case D of
-            {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
-            false -> false
-          end,
-      {R, Ctx1};
+      case D of
+        {Tag, MFAP} when Tag == macro; Tag == function ->
+          {MFAP, Ctx1};
+        false ->
+          find_optional_remote_function(Meta, Module1, FunArity, Ctx1)
+      end;
     error ->
-      {D, Ctx1} = find_optional_dispatch(Meta, Module1, FunArity, Ctx),
-      R = case D of
-            {Tag, MFAP} when Tag == macro; Tag == function -> remote_function(MFAP);
-            false -> false
-          end,
-      {R, Ctx1}
+      find_optional_remote_function(Meta, Module1, FunArity, Ctx)
   end.
+
+find_optional_remote_function(Meta, Module, FunArity, Ctx) ->
+  {D, Ctx1} = find_optional_dispatch(Meta, Module, FunArity, Ctx),
+  R = case D of
+        {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
+        false -> false
+      end,
+  {R, Ctx1}.
 
 find_optional_dispatch(Meta, Module, FunArity, Ctx) ->
   FunImports = orddict:from_list([{Module, get_optional_functions(Module)}]),
@@ -336,12 +351,18 @@ match_fa({F, A}, {Fun, Arity, _ParaType}) ->
 match_fa(Name, {Fun, _Arity, _ParaType}) when is_atom(Name) ->
   Name == Fun.
 
-remote_function({Module, Name, Arity, ParaType}) ->
-  remote_function(Module, Name, Arity, ParaType).
-remote_function(Module, Name, Arity, ParaType) ->
-  case kapok_rewrite:inline(Module, Name, Arity, ParaType) of
-    {M, F, A, P} -> {M, F, A, P};
-    false -> {Module, Name, Arity, ParaType}
+rewrite_function(Meta, Module, Fun, FunMeta, Arity, ParaType, Args) ->
+  case kapok_rewrite:inline(Module, Fun, Arity, ParaType) of
+    {M, F, _A, _P} ->
+      Ast = {list, Meta, [{dot, FunMeta, {M, F}} | Args]},
+      {rewrite, Ast};
+    false ->
+      case kapok_rewrite:rewrite(Meta, Module, Fun, FunMeta, Arity, ParaType, Args) of
+        false ->
+          false;
+        Ast ->
+          {rewrite, Ast}
+      end
   end.
 
 %% ERROR HANDLING

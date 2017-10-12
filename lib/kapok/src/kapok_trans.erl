@@ -421,21 +421,27 @@ abstract_format_remote_call(Line, Module, Function, Args) ->
 
 %% Macro Evaluation
 
-eval({list, Meta, [{identifier, _, Id} | Args]} = Ast, Ctx) ->
+%% TODO refactor the eval ast process
+eval({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
   Arity = length(Args),
-  {R, Ctx1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, Ctx),
+  {R, Ctx1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, IdMeta, Args, Ctx),
   case R of
-    T when is_tuple(T) ->
+    {Tag, _} when Tag == local; Tag == remote ->
       kapok_compiler:eval_ast(Ast, kapok_ctx:reset_macro_context(Ctx1));
+    {rewrite, Ast1} ->
+      kapok_compiler:eval_ast(Ast1, kapok_ctx:reset_macro_context(Ctx1));
     false ->
+      %% TODO expand eval ast indeed
       {Ast, Ctx1}
   end;
 eval({list, Meta, [{dot, _, {Module, Fun}} | Args]} = Ast, Ctx) ->
   Arity = length(Args),
   {R, Ctx1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, Ctx),
   case R of
-    T when is_tuple(T) ->
+    {remote, _} ->
       kapok_compiler:eval_ast(Ast, kapok_ctx:reset_macro_context(Ctx1));
+    {rewrite, Ast1} ->
+      kapok_compiler:eval_ast(Ast1, kapok_ctx:reset_macro_context(Ctx1));
     false ->
       {Ast, Ctx1}
   end;

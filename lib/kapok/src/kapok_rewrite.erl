@@ -1,6 +1,6 @@
 %% Rewrite local/remote call when translating AST to Erlang Abstract Format
 -module(kapok_rewrite).
--export([inline/4]).
+-export([rewrite/7, inline/4]).
 
 %% Convenience variables
 
@@ -39,7 +39,6 @@
 ?inline_nfun('core', 'abs', 1) -> ?nfun(erlang, abs, 1);
 ?inline_nfun('core', 'bit-size', 1) -> ?nfun(erlang, bit_size, 1);
 ?inline_nfun('core', 'byte-size', 1) -> ?nfun(erlang, byte_size, 1);
-?inline_nfun('core', 'elem', 2) -> ?nfun(erlang, element, 2);
 ?inline_nfun('core', 'number-to-float', 1) -> ?nfun(erlang, float, 1);
 ?inline_nfun('core', 'hd', 1) -> ?nfun(erlang, hd, 1);
 ?inline_nfun('core', 'head', 1) -> ?nfun(erlang, hd, 1);
@@ -90,6 +89,39 @@
 inline(_M, _F, _A, _P) ->
   %% TODO add impl
   false.
+
+
+%% Rewrite rules
+%% Rewrite rules are more complex than regular inlining code.
+%% It receives all remote call arguments and return quoted
+%% expressions with the new enviroment.
+
+
+rewrite(Meta, Module, Fun, FunMeta, _Arity, _ParaType, Args) ->
+  case rewrite(Module, Fun, Args) of
+    {M, F, Args1} ->
+      {list, Meta, [{dot, FunMeta, {M, F}} | Args1]};
+    false ->
+      false
+  end.
+
+%% Simple rewrite rules
+
+rewrite('core', 'elem', [Tuple, Index]) ->
+  {erlang, element, [increment(Index), Tuple]};
+rewrite('core', 'set-elem', [Tuple, Index, Value]) ->
+  {erlang, setelement, [increment(Index), Tuple, Value]};
+rewrite(_Receiver, _Fun, _Args) ->
+  false.
+
+%% Helpers
+
+increment(Expr) ->
+  {list, [], [{dot, [], {'core', '+'}},
+               {number, [], 1},
+               Expr]}.
+
+
 
 
 %% rewrite core.set-elem/3, index + 1
