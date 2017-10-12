@@ -113,8 +113,9 @@ pop_scope(#{scope := Scope} = Ctx) ->
   end.
 
 keywords() ->
-  ['ns', 'defn', 'defn-', 'defmacro', 'defmacro-',
-   'let', 'do', 'case', 'fn', 'when', 'try'].
+  %% TODO re-check all the keywords are included
+  ['ns', 'defn', 'defn-', 'defmacro', 'defmacro-', 'defalias',
+   'let', 'do', 'case', 'fn', 'try', 'catch', 'send', 'receive'].
 
 var_exist(Vars, Var) ->
   Var =/= '_' andalso orddict:is_key(Var, Vars).
