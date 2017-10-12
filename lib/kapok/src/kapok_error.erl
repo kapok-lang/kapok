@@ -27,9 +27,11 @@ form_error(Meta, File, Module, ErrorDesc) ->
 %% Compilation error.
 
 compile_error(Meta, File, Message) when is_list(Message) ->
-  raise(Meta, File, 'CompileError', kapok_utils:characters_to_binary(Message)).
+  compile_error(Meta, File, kapok_utils:characters_to_binary(Message));
+compile_error(Meta, File, Message) when is_binary(Message) ->
+  raise(Meta, File, 'CompileError', Message).
 
-compile_error(Meta, File, Format, Args) when is_list(Format) ->
+compile_error(Meta, File, Format, Args) ->
   compile_error(Meta, File, io_lib:format(Format, Args)).
 
 %% Tokenization/parsing error.

@@ -71,7 +71,7 @@
      (handle-defprotocol-clause meta protocol id args))
     ([{^identifier _ _} &as id {^literal_list _ _} &as args]
      (handle-defprotocol-clause meta protocol id args))
-    (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol"))))
+    (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol: ~p" [clause]))))
 
 (defn- handle-defprotocol [file meta id doc clauses acc]
   (case clauses
@@ -85,7 +85,7 @@
      (let [handled (handle-defprotocol-clause {file clause-meta} id clause)]
        (handle-defprotocol file meta id doc t [handled & acc])))
     ([{_c clause-meta _} & _t]
-     (kapok_error.compile_error clause-meta file "invalid clause for defprotocol"))))
+     (kapok_error.compile_error clause-meta file "invalid clause for defprotocol: ~p" [clauses]))))
 
 (defn- handle-defprotocol [file meta id doc clauses]
   (handle-defprotocol file meta id doc clauses []))
