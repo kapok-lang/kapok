@@ -1294,3 +1294,15 @@
 
 (defn empty-doc []
   (kapok_ast.empty_doc))
+
+;;; Others
+
+(defmacro match? [{^identifier _ ^_} &as _pattern _expr]
+  """A convenience macro that checks if the right side (an expression) matches
+  the left side (a pattern)."""
+  ^true)
+
+(defmacro match? [pattern expr]
+  `(case ~expr
+     (~pattern ^true)
+     (_ ^false)))

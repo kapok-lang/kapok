@@ -1,0 +1,147 @@
+;;
+
+(defprotocol sequential
+  "Sequential protocol used by `seq` and `stream` modules."
+
+  (reduce [collection acc fun]
+    "Reduces the collection into a value.")
+
+  (member? [collection value]
+    "Checks if a value exists within the collection.")
+
+  (count [collection]
+    "Retrieves the collection's size."))
+
+(defprotocol collection
+  "A common protocol for built-in collections."
+
+  (== [self &rest others]
+    "Checks value equality of a collection compared to other colloctions.")
+
+  (count [self]
+    "Gets number of items in a collection.")
+
+  (conj [self elem]
+    "Adds an item to a collection.")
+
+  (empty [self]
+    "Obtains an empty instance of the same type as a provided collection.")
+
+  (seq [self]
+    "Gets a sequence of a collection.")
+  )
+
+(ns seq
+  """Provides a set of algorithms to obtain and traverse collections according to
+  the `sequential` protocol."""
+  (use core))
+
+
+(defn- do-all? [[h & t] fun]
+  (if (fun h)
+      (do-all? t fun)
+    ^false))
+
+(defn- do-all? [[] _]
+  ^true)
+
+(defn all? [collection fun] (&when (list? collection))
+  """Invoke the given `fun` for each item in the `collection` and returns
+  `false` if at least one invocation returns `false` or `nil`. Otherwise
+  returns `true`."""
+  (do-all? collection fun))
+
+(defn all? [collection fun]
+  (elem (sequential.reduce collection
+                           {^cont ^true}
+                           (fn [entry _]
+                             (if (fun entry)
+                                 {^cont ^true}
+                                 {^halt ^false})))
+        1))
+
+(defn all? [collection]
+  (all? collection (fn [x] x)))
+
+
+;; Implementations of sequential for built-in collections.
+
+(defimpl sequential list
+
+  (defn reduce [_ {^halt acc} _fun]
+    {^halted acc})
+  (defn reduce [list {^suspend, acc} fun]
+    {^suspended acc (fn [acc1] (reduce list acc1 fun))})
+  (defn reduce [[] {^cont acc} _fun]
+    {^done acc})
+  (defn reduce [[h & t] {^cont acc} fun]
+    (reduce t (fun h acc) fun))
+
+  (defn member? [_list, _value]
+    ;; TODO add macro `__MODULE__`
+    {^error ^"sequential.list"})
+  (defn count [_list]
+    ;; TODO add macro `__MODULE__`
+    {^error ^"sequential.list"})
+  )
+
+(defimpl sequential map
+  (require maps)
+
+  (defn reduce [map acc fun]
+    (sequential.reduce (maps.to_list map)
+                       acc
+                       fun))
+
+  (defn member? [map {key value}]
+    {^ok (match? {^ok value}
+                 (maps.find key map))})
+
+  (defn member? [_map _other]
+    {^ok ^false})
+
+  (defn count [map]
+    {^ok (map-size map)}))
+
+;; TODO
+
+;; (defprotocol seq
+;;   "A protocol for sequence."
+
+;;   ;; clojure seq protocol
+
+;;   (defn first [self]
+;;     "Returns the first item in the collection.")
+
+;;   (defn rest [self]
+;;     "Returns a possibly empty seq of the items after the first.")
+
+;;   (defn next [self]
+;;     """Returns a seq of the items after the first.
+;;     If there are no more items, returns nil.""")
+
+;;   ;; elixir enum protocol
+
+
+;;   (defn any? [collection fun]
+;;     """Invokes the given `fun` for each item in the `collection` and returns
+;;     `true` if at least one invocation returns a truthy value. Returns `false`
+;;     Otherwise.""")
+
+;;   (defn at [collection index &optional default]
+;;     """Finds the element at the given index (zero-based).
+
+;;     return `default` if index is out of bounds.
+;;     """)
+
+;;   (defn chunk [collection n]
+;;     "Shortcut to `(chunk collection n n)`.")
+
+;;   (defn chunk [collection n step &optional pad]
+;;     """Returns a collection of lists containing `n` items each, where
+;;     each new chunk starts `step` elements into the collection.""")
+
+;;   (defn chunk_by [collection fun]
+;;     """Splits `collection` on every element for which `fun` returns a new value.""")
+
+;;   )
