@@ -54,7 +54,7 @@
         fun (fn itor [path]
                (if (filelib.is_dir path)
                    (iterate-dir path itor)
-                 (when-do (is-test-file path)
+                 (when (is-test-file path)
                    (io.format "--- Run ~s ---~n" [path])
                    (let [cmd (io_lib.format "kapok ~p" [path])
                          out (os.cmd cmd)]

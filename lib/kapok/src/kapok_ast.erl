@@ -224,7 +224,7 @@ do_handle_def_alias(Meta, Alias, Original, Ctx) ->
   end,
   Ctx.
 
-handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{identifier, _, 'when'} | _]} = Guard | T],
+handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{keyword_when, _, _} | _]} = Guard | T],
                      Ctx) ->
   handle_def_with_args(Meta, Kind, Name, Args, Guard, T, Ctx);
 handle_def_with_args(Meta, Kind, Name, Args, T, Ctx) ->
@@ -249,7 +249,7 @@ handle_def_exprs(_Meta, Kind, Name, Exprs, Ctx) ->
 handle_def_expr(Kind,
                 Name,
                 {list, Meta, [{C, _, _} = Args,
-                              {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+                              {list, _, [{keyword_when, _, _} | _]} = Guard | Body]},
                 Ctx)
     when ?is_parameter_list(C)->
   handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx);

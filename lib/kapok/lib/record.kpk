@@ -82,6 +82,6 @@
 
 ;;                          ))
 ;;                     )
-;;                   (when (or (=== category 'keyword')
+;;                   (&when (&or (=== category 'keyword')
 ;;                                                      (=== category 'atom')))
 ;;                     )

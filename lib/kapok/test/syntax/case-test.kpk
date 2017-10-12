@@ -14,11 +14,12 @@
     (assert (=== ^true
                  (let [x (f 4)]
                    (case x
-                     (_ (when (atom? x))
-                        ^match)
-                     (_ (when (integer? x))
-                        (let [_ (+ 1 1)]
-                          ^ignore)
-                        ^true)
-                     (_ ^false))))))
+                     (_ (&when (atom? x))
+                       ^match)
+                     (_ (&when (integer? x))
+                       (let [_ (+ 1 1)]
+                         ^ignore)
+                       ^true)
+                     (_
+                       ^false))))))
   )

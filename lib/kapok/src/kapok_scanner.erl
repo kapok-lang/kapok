@@ -321,6 +321,15 @@ scan([$&, $o, $p, $t, $i, $o, $n, $a, $l | T], Line, Column, Scope, Tokens) ->
 scan([$&, $r, $e, $s, $t | T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 5, Scope, [{keyword_rest, build_meta(Line, Column), '&rest'}|Tokens]);
 
+scan([$&, $w, $h, $e, $n | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 5, Scope, [{keyword_when, build_meta(Line, Column), '&when'}|Tokens]);
+
+scan([$&, $a, $n, $d | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 4, Scope, [{keyword_and, build_meta(Line, Column), '&and'}|Tokens]);
+
+scan([$&, $o, $r | T], Line, Column, Scope, Tokens) ->
+  scan(T, Line, Column + 3, Scope, [{keyword_or, build_meta(Line, Column), '&or'}|Tokens]);
+
 scan([$&|T], Line, Column, Scope, Tokens) ->
   scan(T, Line, Column + 1, Scope, [{keyword_cons, build_meta(Line, Column)}|Tokens]);
 

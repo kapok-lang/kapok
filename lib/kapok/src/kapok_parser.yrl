@@ -22,7 +22,9 @@ Terminals
     binary_string list_string identifier '.'
     keyword keyword_safe keyword_unsafe atom atom_safe atom_unsafe
     '(' ')' '[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
-    unquote_splicing backquote quote unquote keyword_as keyword_optional keyword_rest keyword_key keyword_cons
+    unquote_splicing backquote quote unquote
+    keyword_as keyword_optional keyword_rest keyword_key keyword_cons
+    keyword_when keyword_and keyword_or
     .
 
 Rootsymbol grammar.
@@ -60,10 +62,13 @@ value       -> atom_expr : '$1'.
 %% identifier
 value       -> identifier : '$1'.
 value       -> dot_identifier : '$1'.
-%% function argument keywords
+%% function argument and pattern guard keywords
 value       -> keyword_optional : '$1'.
 value       -> keyword_rest : '$1'.
 value       -> keyword_key : '$1'.
+value       -> keyword_when : '$1'.
+value       -> keyword_and : '$1'.
+value       -> keyword_or : '$1'.
 %% macro syntax
 value       -> quote_expr : '$1'.
 value       -> backquote_expr : '$1'.

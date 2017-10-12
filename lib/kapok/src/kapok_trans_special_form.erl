@@ -72,7 +72,7 @@ translate_case_clause({list, Meta, []}, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {empty_case_clause});
 translate_case_clause({list, Meta, [_P]}, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {missing_case_clause_body});
-translate_case_clause({list, Meta, [P, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+translate_case_clause({list, Meta, [P, {list, _, [{keyword_when, _, _} | _]} = Guard | Body]},
                       Ctx) ->
   translate_case_clause(Meta, P, Guard, Body, Ctx);
 translate_case_clause({list, Meta, [P | B]}, Ctx) ->
@@ -126,7 +126,7 @@ translate_fn_exprs(Exprs, Ctx) when is_list(Exprs) ->
   lists:mapfoldl(fun translate_fn_expr/2, Ctx, Exprs).
 
 translate_fn_expr({list, Meta, [{literal_list, _, _} = Args,
-                                {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+                                {list, _, [{keyword_when, _, _} | _]} = Guard | Body]},
                   Ctx) ->
   translate_fn_clause(Meta, Args, Guard, Body, Ctx);
 translate_fn_expr({list, Meta, [{literal_list, _, _} = Args | Body]}, Ctx) ->
@@ -236,7 +236,7 @@ translate_catch_clause({list, Meta, []}, Ctx) ->
 translate_catch_clause({list, Meta, [E]}, Ctx) ->
   Error = {missing_catch_clause_body, {E}},
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
-translate_catch_clause({list, Meta, [E, {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]},
+translate_catch_clause({list, Meta, [E, {list, _, [{keyword_when, _, _} | _]} = Guard | Body]},
                        Ctx) ->
   translate_catch_clause(Meta, E, Guard, Body, Ctx);
 translate_catch_clause({list, Meta, [E | B]}, Ctx) ->

@@ -7,17 +7,16 @@
   (use core)
   (require kapok_error maps erlang lists))
 
-
 (defmacro string? [category]
-  `(or (=== ~category ^list_string)
-       (=== ~category ^binary_string)))
+  `(&or (=== ~category ^list_string)
+        (=== ~category ^binary_string)))
 
 (defmacro def? [id]
-  `(or (=== ~id ^defn)
-       (=== ~id ^defn-)
-       (=== ~id ^defmacro)
-       (=== ~id ^defalias)
-       (=== ~id ^defalias-)))
+  `(&or (=== ~id ^defn)
+        (=== ~id ^defn-)
+        (=== ~id ^defmacro)
+        (=== ~id ^defalias)
+        (=== ~id ^defalias-)))
 
 (defn- handle-defstruct-fields [file args]
   (lists.map (fn
@@ -46,7 +45,7 @@
         file (maps.get ^file _&ctx)]
     (case args
       ([] (kapok_error.compile_error meta file "not enough arguments to define struct"))
-      ([{c _ _} &as doc & t] (when (string? c))
+      ([{c _ _} &as doc & t] (&when (string? c))
        (handle-defstruct file meta doc t))
       (t (handle-defstruct file meta (empty-doc) t)))))
 
@@ -63,7 +62,7 @@
 (defn- handle-defprotocol-clause [{file meta} protocol clause]
   (case clause
     ([{^identifier _ _} &as id {^literal_list _ _} &as args {c _ _}]
-     (when (string? c))
+     (&when (string? c))
      ;; TODO add doc
      (handle-defprotocol-clause meta protocol id args))
     ([{^identifier _ _} &as id {^literal_list _ _} &as args]
@@ -92,21 +91,21 @@
   (let [meta (maps.get ^meta _&ctx)
         file (maps.get ^file _&ctx)]
     (case id
-      ({c _ _} (when (=== c ^identifier))
+      ({c _ _} (&when (=== c ^identifier))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
-         ([{c _ _} &as doc & t] (when (or (=== c ^list_string)
-                                          (=== c ^binary_string)))
+         ([{c1 _ _} &as doc & t] (&when (&or (=== c1 ^list_string)
+                                             (=== c1 ^binary_string)))
           (handle-defprotocol file meta id doc t))
          (t (handle-defprotocol file meta id (empty-doc) t))))
       (_ (kapok_error.compile_error meta file "invalid id for defprotocol: ~p" [id])))))
 
 (defn- handle-defimpl-clause [{file meta} clause]
   (case clause
-    ([{^identifier _ id} & _t] (when (or (=== id ^require)
-                                         (=== id ^use)))
+    ([{^identifier _ id} & _t] (&when (&or (=== id ^require)
+                                           (=== id ^use)))
      {^ns {^list meta clause}})
-    ([{^identifier _ id} {^identifier _ _} {^literal_list _ _} & _t] (when (def? id))
+    ([{^identifier _ id} {^identifier _ _} {^literal_list _ _} & _t] (&when (def? id))
      ;; TODO check the impl defn matches the defprotocol declaration
      {^def {^list meta clause}})
     (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))
@@ -144,29 +143,29 @@
   (let [meta (maps.get ^meta _&ctx)
         file (maps.get ^file _&ctx)]
     (case protocol
-      ({c _ _} (when (=== c ^identifier))
+      ({c _ _} (&when (=== c ^identifier))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to implement protocol"))
-         ([{c _ _} &as doc & t] (when (or (=== c ^list_string)
-                                          (=== c ^binary_string)))
+         ([{c _ _} &as doc & t] (&when (&or (=== c ^list_string)
+                                            (=== c ^binary_string)))
           (handle-defimpl file meta protocol type doc t))
          (t (handle-defimpl file meta protocol type (empty-doc) t)))
        )
       (_ (kapok_error.compile_error meta file "invalid protocol for defimpl: ~p" [protocol])))))
 
-(defn- type-of [self] (when (atom? self))
+(defn- type-of [self] (&when (atom? self))
   ^atom)
-(defn- type-of [self] (when (bitstring? self))
+(defn- type-of [self] (&when (bitstring? self))
   ^bitstring)
-(defn- type-of [self] (when (float? self))
+(defn- type-of [self] (&when (float? self))
   ^float)
-(defn- type-of [self] (when (integer? self))
+(defn- type-of [self] (&when (integer? self))
   ^integer)
-(defn- type-of [self] (when (list? self))
+(defn- type-of [self] (&when (list? self))
   ^list)
-(defn- type-of [self] (when (map? self))
+(defn- type-of [self] (&when (map? self))
   ^map)
-(defn- type-of [self] (when (tuple? self))
+(defn- type-of [self] (&when (tuple? self))
   ^tuple)
 ;; TODO add clause for struct
 

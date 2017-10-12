@@ -13,7 +13,7 @@
   (let [child-pid (spawn (fn child 0))]
     (send child-pid {(self) n})
     (receive
-      (m (when (integer? m))
+      (m (&when (integer? m))
          m)
       (after (calc-timeout)
          (throw "timeout")))))

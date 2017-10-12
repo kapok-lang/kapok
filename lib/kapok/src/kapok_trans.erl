@@ -131,7 +131,7 @@ translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {numb
     when ?is_local_id(C1), ?is_local_id(C2) ->
   translate_fn(Meta, Id1, Id2, Number, Ctx);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id, {literal_list, _, _} = Args,
-                        {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Ctx) ->
+                        {list, _, [{keyword_when, _, _} | _]} = Guard | Body]}, Ctx) ->
   translate_fn(Meta, Id, Args, Guard, Body, Ctx);
 translate({list,
            Meta,
@@ -141,7 +141,7 @@ translate({list,
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id | Exprs]}, Ctx) ->
   translate_fn(Meta, Id, Exprs, Ctx);
 translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args,
-                        {list, _, [{identifier, _, 'when'} | _]} = Guard | Body]}, Ctx) ->
+                        {list, _, [{keyword_when, _, _} | _]} = Guard | Body]}, Ctx) ->
   translate_fn(Meta, Args, Guard, Body, Ctx);
 translate({list, Meta, [{identifier, _, 'fn'}, {literal_list, _, _} = Args | Body]}, Ctx) ->
   translate_fn(Meta, Args, [], Body, Ctx);
@@ -623,7 +623,7 @@ translate_args([H | _T], _, {keyword, _Meta1, _Args}, Ctx) ->
 %% guard
 translate_guard([], Ctx) ->
   {[], Ctx};
-translate_guard({list, Meta, [{identifier, _, 'when'} | Body]}, Ctx) ->
+translate_guard({list, Meta, [{keyword_when, _, _} | Body]}, Ctx) ->
   case Body of
     [] ->
       Error = {missing_guard},
@@ -634,10 +634,10 @@ translate_guard({list, Meta, [{identifier, _, 'when'} | Body]}, Ctx) ->
       Error = {too_many_guards, {H, T}},
       kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error)
   end.
-translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, 'and', Ctx) ->
+translate_guard({list, Meta, [{keyword_and, _, _} | Left]}, 'and', Ctx) ->
   Error = {invalid_nested_and_or_in_guard, {'and', 'and', Left}},
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
-translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, Parent, Ctx) ->
+translate_guard({list, Meta, [{keyword_and, _, _} | Left]}, Parent, Ctx) ->
   case Left of
     [E1, E2 | Tail] ->
       {TE1, TCtx} = translate_guard(E1, 'and', Ctx),
@@ -654,9 +654,9 @@ translate_guard({list, Meta, [{identifier, _, 'and'} | Left]}, Parent, Ctx) ->
       Error1 = {not_enough_operand_in_guard, {'and', Tail}},
       kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error1)
   end;
-translate_guard({list, _, [{identifier, _, 'or'} | Left]}, nil, Ctx) ->
+translate_guard({list, _, [{keyword_or, _, _} | Left]}, nil, Ctx) ->
   lists:mapfoldl(fun (X, E) -> translate_guard(X, 'or', E) end, Ctx, Left);
-translate_guard({list, Meta, [{identifier, _, 'or'} | Left]}, Parent, Ctx) ->
+translate_guard({list, Meta, [{keyword_or, _, _} | Left]}, Parent, Ctx) ->
   Error = {invalid_nested_and_or_in_guard, {Parent, 'or', Left}},
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
 translate_guard(Other, nil, Ctx) ->

@@ -43,7 +43,7 @@
 
 (defmacro define [name value]
   """Defines a macro with name `name` and return `value`."""
-  `(defmacro ~name [] (when ^true)
+  `(defmacro ~name [] (&when ^true)
      ""
      ~value))
 
@@ -74,7 +74,7 @@
      (^true ~then)
      (^false ~else)))
 
-(defmacro when-do [test &rest body]
+(defmacro when [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
   `(case (core.true? ~test)
      (^true ~@body)
