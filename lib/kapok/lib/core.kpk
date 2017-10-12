@@ -133,8 +133,12 @@
   If a prefix string is supplied, the name is #:|prefix%|,
   where % is some unique number.
   """
-  ([] (kapok_utils.gensym))
-  ([prefix] (kapok_utils.gensym prefix)))
+  ([]
+   (let [name (kapok_utils.gensym)]
+     {^identifier [] name}))
+  ([prefix]
+   (let [name (kapok_utils.gensym prefix)]
+     {^identifier [] name})))
 
 ;; functions and operators
 
@@ -1149,8 +1153,7 @@
 
 ;; Boolean and Short-circuit Boolean Operators
 
-;; TODO get a macro version
-(defn not [x]
+(defmacro not [x]
   """Returns `^true` if `x` is logical false, otherwise `^false`.
 
   Allowed in guard tests. Inlined by the compiler.
@@ -1161,28 +1164,14 @@
       ^true
 
   """
-  (erlang.not x))
+  `(case ~x
+     (bool (&when (&or (erlang.^'=:=' bool :false)
+                       (erlang.^'=:=' bool :nil)))
+       :true)
+     (_ :false)))
 
-(defn- all-but-last [_predicate _acc []]
-  ^true)
-(defn- all-but-last [_predicate _acc [h]]
-  h)
-(defn- all-but-last [predicate acc [h & t]]
-  (case (predicate h acc)
-    (^true (all-but-last predicate h t))
-    (^false ^false)))
 
-(defn- any-but-last [_predicate _acc []]
-  ^false)
-(defn- any-but-last [_predicate _acc [h]]
-  h)
-(defn- any-but-last [predicate acc [h & t]]
-  (case (predicate h acc)
-    (^false (any-but-last predicate h t))
-    (^true ^true)))
-
-;; TODO get a macro version
-(defn and
+(defmacro and
   """Boolean and (short-circuit).
 
   Evaluates the given arguments one at a time, from left to right.
@@ -1204,13 +1193,16 @@
       "yay!"
 
   """
-  ([&optional (x ^true)] x)
-  ([x y &rest more] (all-but-last (fn [n _acc] n)
-                                  x
-                                  [y & more])))
+  ([]
+   ^true)
+  ([x &rest more]
+   (case more
+     ([] x)
+     (_ (let [sym (gensym "and")]
+          `(let [~sym ~x]
+             (core.if ~sym (core.and ~@more) ~sym)))))))
 
-;; TODO get a macro version
-(defn or
+(defmacro or
   """Boolean or (short-circuit).
 
   Evaluates the given arguments one at a time, from left to right.
@@ -1232,12 +1224,14 @@
       42
 
   """
-  ([&optional (x ^false)] x)
-  ([x y &rest more] (any-but-last (fn [n _acc] n)
-                                  x
-                                  [y & more])))
+  ([] ^true)
+  ([x &rest more]
+   (case more
+     ([] x)
+     (_ (let [sym (gensym "or")]
+          `(let [~sym ~x]
+             (core.if ~sym ~sym (core.or ~@more))))))))
 
-;; TODO get a macro version
 (defn xor [x y]
   """Boolean xor.
 

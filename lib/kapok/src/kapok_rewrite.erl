@@ -85,10 +85,6 @@
 ?inline_nfun('core', 'bsr', 2) -> ?nfun(erlang, 'bsr', 2);
 
 %% boolean operators
-%% TODO change them to the macro versions, and remove them from the inlines
-?inline_nfun('core', 'not', 1) -> ?nfun(erlang, 'not', 1);
-?inline_nfun('core', 'and', 2) -> ?nfun(erlang, 'andalso', 2);
-?inline_nfun('core', 'or', 2) -> ?nfun(erlang, 'orelse', 2);
 ?inline_nfun('core', 'xor', 2) -> ?nfun(erlang, 'xor', 2);
 
 inline(_M, _F, _A, _P) ->
