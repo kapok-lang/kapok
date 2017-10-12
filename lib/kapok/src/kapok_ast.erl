@@ -14,6 +14,11 @@ compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
 
+%% Sometimes we need to expand a top level macro call to a list of ast,
+%% in this case, we need to handle the returned all these asts in sequence.
+handle(List, Ctx) when is_list(List) ->
+  lists:foldl(fun handle/2, Ctx, List);
+
 handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_ns(Id) ->
   handle_ns(Meta, T, Ctx#{def_kind => Id});
 handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_def_ns(Id) ->

@@ -32,16 +32,24 @@
                 (kapok_error.compile_error meta file "invalid field arg for defstruct")))
              args))
 
+(defn- struct-constructor [meta name fields-list]
+  {^list meta [{^identifier meta ^defn}
+               {^identifier meta name}
+               {^literal_list meta []}
+               {^map meta fields-list}]}
+  )
+
 (defn- handle-defstruct [file meta _doc args]
   (let [fields (handle-defstruct-fields file args)
         fields-list (lists.reverse (lists.foldl (fn [{k, v} acc]
                                                   [v k & acc])
                                                 []
                                                 fields))]
-    {^list meta [{^identifier meta ^defn}
-                 {^identifier meta ^'__struct__'}
-                 {^literal_list meta []}
-                 {^map meta fields-list}]}))
+    ;; Returns a list of asts since we need two duplicate functions,
+    ;; 1. '__struct__' is for being compactible with elixir protocol
+    ;; 2. 'new' is for the kapok struct constructor
+    [(struct-constructor meta ^'__struct__' fields-list)
+     (struct-constructor meta ^'new' fields-list)]))
 
 (defmacro defstruct [&rest args]
   """Define a struct."""
