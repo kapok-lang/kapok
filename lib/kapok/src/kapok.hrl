@@ -53,7 +53,7 @@
 -define(is_ns(Id), (Id == 'ns')).
 -define(is_def_ns(Id), (Id == 'defns')).
 -define(is_def_fn(Id), (Id == 'defn' orelse Id == 'defn-')).
--define(is_def_macro(Id), (Id == 'defmacro')).
+-define(is_def_macro(Id), (Id == 'defmacro' orelse Id == 'defmacro-')).
 -define(is_def_alias(Id), (Id == 'defalias' orelse Id == 'defalias-')).
 -define(is_def(Id), (?is_def_fn(Id) orelse ?is_def_macro(Id) orelse ?is_def_alias(Id))).
 -define(is_behaviour(Id), (Id == 'behavior' orelse Id == 'behaviour')).

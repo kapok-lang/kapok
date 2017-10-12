@@ -48,11 +48,10 @@ expand_1({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
   Arity = length(Args),
   {R, Ctx1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, IdMeta, Args, Ctx),
   case R of
-    {local, {F, A, P}} ->
+    {local, {F, A, P} = FAP} ->
       %% to call a previously defined macro in the namespace
       Namespace = ?m(Ctx, namespace),
-      kapok_code:load_ns(Namespace, Ctx),
-      {ok, Module} = kapok_code:get_module(Namespace),
+      {ok, Module} = kapok_code:load_ns_for(Namespace, FAP, Ctx),
       NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
       {EAst, ECtx} = expand_macro_named(Meta, Module, F, A, NewArgs, Ctx),
       {EAst, ECtx, true};

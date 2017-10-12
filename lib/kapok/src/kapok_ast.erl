@@ -278,7 +278,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
   Namespace = ?m(Ctx, namespace),
   {TF, Ctx1} = kapok_trans:translate(Name, kapok_ctx:push_scope(Ctx)),
   {PrepareMacroEnv, TCtx} = case Kind of
-                              'defmacro' -> prepare_macro_vars(Meta, Ctx1);
+                              K when ?is_def_macro(K) -> prepare_macro_vars(Meta, Ctx1);
                               _ -> {[], Ctx1}
                             end,
   case parse_parameters(Args, TCtx) of
@@ -447,7 +447,12 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
 
 %% namespace
 build_namespace(Namespace, Ctx) ->
-  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx),
+  %% Strip all private macros from the forms for the final compilation of the specified module.
+  %% A private macro is meant to be called only in current module. There will be
+  %% no explicit call to it any more after its full expansion. We strip their definitions
+  %% from the forms for the final compilation in order to avoid unused warnings caused by them.
+  Options = [strip_private_macro],
+  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx, Options),
   kapok_erl:module(Forms, [], Ctx1, fun write_compiled/2).
 
 write_compiled(Module, Binary) ->

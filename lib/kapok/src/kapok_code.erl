@@ -2,7 +2,7 @@
 -module(kapok_code).
 -behaviour(gen_server).
 -export([is_loaded/1,
-         load_ns/2,
+         load_ns_for/3,
          get_module/1]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -14,8 +14,8 @@
 is_loaded(Ns) ->
   gen_server:call(?MODULE, {is_loaded, Ns}).
 
-load_ns(Ns, Ctx) ->
-  gen_server:call(?MODULE, {load_ns, Ns, Ctx}).
+load_ns_for(Ns, FAP, Ctx) ->
+  gen_server:call(?MODULE, {load_ns_for, Ns, FAP, Ctx}).
 
 get_module(Ns) ->
   gen_server:call(?MODULE, {get_module, Ns}).
@@ -31,20 +31,27 @@ init([]) ->
 
 handle_call({is_loaded, Ns}, _From, NsToModules) ->
   {reply, ns_is_loaded(Ns, NsToModules), NsToModules};
-handle_call({load_ns, Ns, Ctx}, _From, NsToModules) ->
-  State = case get_ns(Ns, NsToModules) of
-            {badkey, Ns} ->
-              load_ns(Ns, Ctx, NsToModules);
-            RealName ->
-              unload_ns(RealName),
-              NsToModules1 = remove_ns(Ns, NsToModules),
-              load_ns(Ns, Ctx, NsToModules1)
-          end,
-  {reply, ok, State};
+handle_call({load_ns_for, Ns, FAP, Ctx}, _From, NsToModules) ->
+  {Name, State} = case get_ns(Ns, NsToModules) of
+                    unloaded ->
+                      load_ns(Ns, Ctx, NsToModules);
+                    {loaded, LoadedName} ->
+                      case kapok_dispatch:is_macro_loaded(LoadedName, FAP, Ctx) of
+                        true ->
+                          %% skip to load the specified namespace again
+                          %% if it's loaded already and the specified FAP available.
+                          {LoadedName, NsToModules};
+                        false ->
+                          unload_ns(LoadedName),
+                          NsToModules1 = remove_ns(Ns, NsToModules),
+                          load_ns(Ns, Ctx, NsToModules1)
+                      end
+                  end,
+  {reply, {ok, Name}, State};
 handle_call({get_module, Ns}, _From, NsToModules) ->
   R = case get_ns(Ns, NsToModules) of
-        {badkey, Ns} -> not_exist;
-        N -> {ok, N}
+        unloaded -> unloaded;
+        {loaded, LoadedName} -> {ok, LoadedName}
       end,
   {reply, R, NsToModules}.
 
@@ -77,10 +84,15 @@ is_loaded_to_evm(Module) ->
 get_ns(Ns, NsToModules) ->
   case has_ns(Ns, NsToModules) of
     true ->
-      maps:get(Ns, NsToModules);
+      {loaded, maps:get(Ns, NsToModules)};
     false ->
-      %% This module is load to evm but not recorded in `kapok_code`.
-      Ns
+      case is_loaded_to_evm(Ns) of
+        true ->
+          %% This module is load to evm but not recorded in `kapok_code`.
+          {loaded, Ns};
+        false ->
+          unloaded
+      end
   end.
 
 add_ns(Ns, Module, NsToModules) ->
@@ -91,7 +103,7 @@ remove_ns(Ns, NsToModules) ->
 
 load_ns(Ns, Ctx, NsToModules) ->
   Next = next(Ns),
-  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Ns, Next, Ctx),
+  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Ns, Next, Ctx, [export_all_macro]),
   Callback = fun(_Module, _Binary) -> ok end,
   Options = [%% Turns off warnings for unused local functions.
              %% It's possible that there are other functions rather than the
@@ -99,7 +111,7 @@ load_ns(Ns, Ctx, NsToModules) ->
              nowarn_unused_function],
   kapok_erl:module(Forms, Options, Ctx1, Callback),
   %% update internal state
-  add_ns(Ns, Next, NsToModules).
+  {Next, add_ns(Ns, Next, NsToModules)}.
 
 next(Ns) ->
   kapok_utils:gensym(Ns).

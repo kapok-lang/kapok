@@ -7,6 +7,7 @@
          find_local_function/2,
          find_imported_local_function/3,
          find_remote_function/4,
+         is_macro_loaded/3,
          format_error/1]).
 -include("kapok.hrl").
 
@@ -133,6 +134,9 @@ find_optional_remote_function(Meta, Module, FunArity, Ctx) ->
         false -> false
       end,
   {R, Ctx1}.
+
+is_macro_loaded(Module, FAP, Ctx) ->
+  lists:member(FAP, get_macros([], Module, Ctx)).
 
 find_optional_dispatch(Meta, Module, FunArity, Ctx) ->
   FunImports = orddict:from_list([{Module, get_optional_functions(Module)}]),

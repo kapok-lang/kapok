@@ -8,7 +8,7 @@
          namespace_locals/1,
          namespace_funs/1,
          namespace_macros/1,
-         namespace_forms/3]).
+         namespace_forms/4]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 -include("kapok.hrl").
@@ -37,8 +37,8 @@ namespace_funs(Namespace) ->
 namespace_macros(Namespace) ->
   gen_server:call(?MODULE, {namespace_macros, Namespace}).
 
-namespace_forms(Namespace, ModuleName, Ctx) ->
-  gen_server:call(?MODULE, {namespace_forms, Namespace, ModuleName, Ctx}).
+namespace_forms(Namespace, ModuleName, Ctx, Options) ->
+  gen_server:call(?MODULE, {namespace_forms, Namespace, ModuleName, Ctx, Options}).
 
 %% gen_server API
 
@@ -85,11 +85,11 @@ handle_call({namespace_macros, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
   FAList = get_kv(Namespace, 'macros', Map1),
   {reply, FAList, Map1};
-handle_call({namespace_forms, Namespace, ModuleName, Ctx}, _From, Map) ->
-  {InfoExports, InfoDefs, Ctx1} = gen_info_fun(Namespace, Ctx, Map),
+handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) ->
+  {InfoExports, InfoDefs, Ctx1} = gen_info_fun(Namespace, Ctx, Options, Map),
   NS = maps:get(Namespace, Map),
-  FunExports = namespace_exports(NS),
-  FunDefs = namespace_defs(NS),
+  FunExports = namespace_exports(NS, Options),
+  FunDefs = namespace_defs(NS, Options),
   Exports = InfoExports ++ FunExports,
   Defs = InfoDefs ++ FunDefs,
   TranslateFun = fun({{Fun, Arity}, Clauses}, Acc) ->
@@ -103,7 +103,7 @@ handle_call({namespace_forms, Namespace, ModuleName, Ctx}, _From, Map) ->
   %% The `module_info' functions definitions and exports are added automatically
   %% by the erlang compiler, so it's not necessary to manually add them
   %% in kapok compiler.
-  Forms = [AttrModule, AttrExport ] ++ OtherForms ++ DefForms,
+  Forms = [AttrModule, AttrExport] ++ OtherForms ++ DefForms,
   {reply, {Forms, Ctx1}, Map}.
 
 handle_cast({_, _}, Map) ->
@@ -141,6 +141,8 @@ add_def(Namespace, Kind, FAP, Map) when Kind == 'defn-' ->
   add_def(Namespace, 'defn', FAP, Map);
 add_def(Namespace, Kind, FAP, Map) when Kind == 'defn' ->
   add_into_kv(Namespace, 'funs', FAP, Map);
+add_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro-' ->
+  add_def(Namespace, 'defmacro', FAP, Map);
 add_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro' ->
   add_into_kv(Namespace, 'macros', FAP, Map).
 
@@ -148,6 +150,8 @@ add_export(_Namespace, Kind, _FAP, Map) when Kind == 'defn-' ->
   Map;
 add_export(Namespace, Kind, FAP, Map) when Kind == 'defn' ->
   add_into_kv(Namespace, 'export_funs', FAP, Map);
+add_export(_Namespace, Kind, _FAP, Map) when Kind == 'defmacro-' ->
+  Map;
 add_export(Namespace, Kind, FAP, Map) when Kind == 'defmacro' ->
   add_into_kv(Namespace, 'export_macros', FAP, Map).
 
@@ -158,6 +162,8 @@ is_exported(Namespace, 'macros', FAP, Map) ->
 
 add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defn-' ->
   add_def_clause(Namespace, 'defn', FA, Clause, Map);
+add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defmacro-' ->
+  add_def_clause(Namespace, 'defmacro', FA, Clause, Map);
 add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defn'; Kind == 'defmacro' ->
   Key = 'defs',
   NS = maps:get(Namespace, Map),
@@ -237,15 +243,45 @@ get_kv(Namespace, Key, Map) ->
   NS = maps:get(Namespace, Map),
   maps:get(Key, NS).
 
-namespace_exports(NS) ->
+namespace_exports(NS, Options) ->
   GetExport = fun({F, A, _P}) -> {F, A} end,
   Functions = ordsets:from_list(lists:map(GetExport, maps:get('export_funs', NS))),
-  Macros = ordsets:from_list(lists:map(GetExport, maps:get('export_macros', NS))),
+  Key = case lists:member(export_all_macro, Options) of
+          true -> 'macros';
+          false -> 'export_macros'
+        end,
+  Macros = ordsets:from_list(lists:map(GetExport, maps:get(Key, NS))),
   Exports = ordsets:union(Functions, Macros),
   Exports.
 
-namespace_defs(NS) ->
-  Defs = maps:get('defs', NS),
+private_macros(NS) ->
+  Exports = maps:get('export_macros', NS),
+  All = maps:get('macros', NS),
+  ordsets:subtract(All, Exports).
+
+namespace_defs(NS, Options) ->
+  Defs = case lists:member(strip_private_macro, Options) of
+           true ->
+             AllDefs = maps:get('defs', NS),
+             PrivateMacros = private_macros(NS),
+             case PrivateMacros of
+               [] ->
+                 AllDefs;
+               _ ->
+                 Filter = fun ({F, A}, _) ->
+                              Match = fun ({PF, PA, _PP}) when PF == F, PA == A -> true;
+                                          (_) -> false
+                                      end,
+                              case ordsets:filter(Match, PrivateMacros) of
+                                [] -> true;
+                                _ -> false
+                              end
+                          end,
+                 orddict:filter(Filter, AllDefs)
+             end;
+           false ->
+             maps:get('defs', NS)
+         end,
   %% insert aliases defs
   Aliases = maps:get('aliases', NS),
   AliasesDefs = lists:foldl(fun({Alias, {F, A, _}}, Acc) ->
@@ -258,14 +294,17 @@ namespace_defs(NS) ->
   AliasesDefs ++ Defs.
 
 %% generate the `__info__' function for kapok.
-gen_info_fun(Namespace, Ctx, Map) ->
+gen_info_fun(Namespace, Ctx, Options, Map) ->
   NS = maps:get(Namespace, Map),
   %% The `module_info' functions definitions and exports are automatically added by
   %% the erlang compiler, their exports need to be added to the kapok exported functions list.
   ModuleInfoFunctions = ordsets:from_list([{'module_info', 0, 'normal'},
                                            {'module_info', 1, 'normal'}]),
   Functions = ordsets:union(ModuleInfoFunctions, maps:get(export_funs, NS)),
-  Macros = maps:get(export_macros, NS),
+  Macros = case lists:member(export_all_macro, Options) of
+             true -> maps:get(macros, NS);
+             false -> maps:get(export_macros, NS)
+           end,
   {TFunctions, Ctx1} = kapok_trans:translate(kapok_trans:quote([], Functions), Ctx),
   {TMacros, Ctx2} = kapok_trans:translate(kapok_trans:quote([], Macros), Ctx1),
   FA = {'__info__', 1},
