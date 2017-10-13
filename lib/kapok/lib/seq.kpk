@@ -63,6 +63,31 @@
 (defn all? [collection]
   (all? collection (fn [x] x)))
 
+(defn- do-any? [[h & t] fun]
+  (if (fun h)
+      ^true
+    (do-any? t fun)))
+
+(defn- do-any? [[] _]
+  ^false)
+
+(defn any? [collection fun] (&when (list? collection))
+  """Invokes the given `fun` for each item in the `collection` and returns
+  `true` if at least one invocation returns a truthy value. Returns `false`
+  Otherwise."""
+  (do-any? collection fun))
+
+(defn any? [collection fun]
+  (elem (sequential.reduce collection
+                           {^cont ^false}
+                           (fn [entry _]
+                             (if (fun entry)
+                                 {^halt ^true}
+                               {^cont ^false})))
+        1))
+
+(defn any? [collection]
+  (any? collection (fn [x] x)))
 
 ;; Implementations of sequential for built-in collections.
 
