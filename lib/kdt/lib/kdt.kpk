@@ -31,13 +31,13 @@
 
 (defn is-test-file [path]
   (case (filelib.is_file path)
-    (^true
+    (:true
      (case (re.run (filename.basename path) ".*-test.kpk")
-       (^match ^true)
-       ({^match, _} ^true)
-       (^nomatch ^false)))
-    (^false
-     ^false)))
+       (^match :true)
+       ({^match, _} :true)
+       (^nomatch :false)))
+    (:false
+     :false)))
 
 (defn iterate-dir [dir fun]
   (case (file.list_dir dir)

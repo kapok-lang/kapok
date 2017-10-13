@@ -43,23 +43,23 @@
 
 (defmacro define [name value]
   """Defines a macro with name `name` and return `value`."""
-  `(defmacro ~name [] (&when ^true)
+  `(defmacro ~name [] (&when :true)
      ""
      ~value))
 
 ;; the conditionals
 
 (defn nil?
-  """Returns `^true` if `x` is nil, `^false` otherwise."""
-  ([^nil] ^true)
-  ([[]] ^true)
-  ([^false] ^true)
-  ([_] ^false))
+  """Returns `:true` if `x` is nil, `:false` otherwise."""
+  ([:nil] :true)
+  ([[]] :true)
+  ([:false] :true)
+  ([_] :false))
 
 (defalias false? nil?)
 
 (defn true? [x]
-  """Returns `^true` if `x` is the value true, `^false` otherwise."""
+  """Returns `:true` if `x` is the value true, `:false` otherwise."""
   (erlang.not (nil? x)))
 
 (defmacro if [test then &optional else]
@@ -71,20 +71,20 @@
   ;; so we'd better write the calling to `true?` in dot-identifier form
   ;; to specify its namespace.
   `(case (core.true? ~test)
-     (^true ~then)
-     (^false ~else)))
+     (:true ~then)
+     (:false ~else)))
 
 (defmacro when [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
   `(case (core.true? ~test)
-     (^true ~@body)
-     (^false ^ok)))
+     (:true ~@body)
+     (:false ^ok)))
 
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
   `(case (core.true? ~test)
-     (^true ^ok)
-     (^false ~@body)))
+     (:true ^ok)
+     (:false ~@body)))
 
 (defalias unless when-not
   """Alias to `when-not`.""")
@@ -92,20 +92,20 @@
 ;; TODO move all these functions to protocol `seq`
 (defn first [list]
   (case (nil? list)
-    (^true ^nil)
-    (^false (head list))))
+    (:true :nil)
+    (:false (head list))))
 
 (defn second [list]
   (first (tail list)))
 
 (defn next
-  ([[]] ^nil)
-  ([[_]] ^nil)
+  ([[]] :nil)
+  ([[_]] :nil)
   ([[_ & t]] t)
-  ([_] ^nil))
+  ([_] :nil))
 
 (defn rest
-  ([^nil] [])
+  ([:nil] [])
   ([[]] [])
   ([[_]] [])
   ([[_ & t]] t))
@@ -119,7 +119,7 @@
   (unless (nil? clauses)
     `(core.if ~(first clauses)
               ~(case (next clauses)
-                 (^false
+                 (:false
                   (erlang.throw "cond requires an even number of forms"))
                  (_
                   (second clauses)))
@@ -245,14 +245,14 @@
 ;; Guard predicates
 
 (defn atom? [term]
-  """Returns `^true` if `term` is an atom; otherwise returns `^false`.
+  """Returns `:true` if `term` is an atom; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_atom term))
 
 (defn binary? [term]
-  """Returns `^true` if `term` is a binary; otherwise `^false`.
+  """Returns `:true` if `term` is a binary; otherwise `:false`.
 
   A binary always contains a complete number of bytes.
 
@@ -261,132 +261,132 @@
   ## Examples
 
       kapok> (binary? "foo")
-      ^true
+      :true
 
       kapok> (binary? <<(1 (:size 3))>>)
-      ^false
+      :false
   """
   (erlang.is_binary term))
 
 (defn bitstring? [term]
-  """Returns `^true` if `term` is a bitstring (including a binary);
-  otherwise returns `^false`.
+  """Returns `:true` if `term` is a bitstring (including a binary);
+  otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
 
   ## Examples
 
       kapok> (bitstring? "foo")
-      ^true
+      :true
 
       kapok> (bitstring? <<(1 (:size 3))>>)
-      ^true
+      :true
 
   """
   (erlang.is_bitstring term))
 
 (defn boolean? [term]
-  """Returns `^true` if `term` is either the atom `^true` or the atom `^false`
-  (i.e., a boolean); otherwise returns `^false`.
+  """Returns `:true` if `term` is either the atom `:true` or the atom `:false`
+  (i.e., a boolean); otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_boolean term))
 
 (defn builtin? [module function arity]
-  """Returns `^true` if `(module function arity)` is a BIF implemented in C;
-  otherwise `^false`.
+  """Returns `:true` if `(module function arity)` is a BIF implemented in C;
+  otherwise `:false`.
 
   This BIF is useful for builders of closs-reference tools.
   """
   (erlang.is_builtin module function arity))
 
 (defn float? [term]
-  """Returns `^true` if `term` is a floating point number;
-  otherwise returns `^false`.
+  """Returns `:true` if `term` is a floating point number;
+  otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_float term))
 
 (defn function? [term]
-  """Returns `^true` if `term` is a function; otherwise returns `^false`.
+  """Returns `:true` if `term` is a function; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_function term))
 
 (defn function? [term, arity]
-  """Returns `^true` if `term` is a function that can be applied with
-  `arity` number of arguments; otherwise returns `^false`.
+  """Returns `:true` if `term` is a function that can be applied with
+  `arity` number of arguments; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
 
   ## Examples
 
       kapok> (function? (fn [x] (* 2 x)) 1)
-      ^true
+      :true
 
       kapok> (function? (fn [x] (* 2 x)) 2)
-      ^false
+      :false
 
   """
   (erlang.is_function term arity))
 
 (defn integer? [term]
-  """Returns `^true` if `term` is an integer; otherwise returns `^false`.
+  """Returns `:true` if `term` is an integer; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_integer term))
 
 (defn list? [term]
-  """Returns `^true` if `term` is a list with zero or more elements;
-  otherwist returns `^false`.
+  """Returns `:true` if `term` is a list with zero or more elements;
+  otherwist returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_list term))
 
 (defn map? [term]
-  """Returns `^true` if `term` is a map; otherwise returns `^false`.
+  """Returns `:true` if `term` is a map; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_map term))
 
 (defn number? [term]
-  """Returns `^true` if `term` is an integer or a floating point number;
-  otherwise returns `^false`.
+  """Returns `:true` if `term` is an integer or a floating point number;
+  otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_number term))
 
 (defn pid? [term]
-  """Returns `^true` if `term` is a pid (process identifier);
-  otherwise returns `^false`.
+  """Returns `:true` if `term` is a pid (process identifier);
+  otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_pid term))
 
 (defn port? [term]
-  """Returns `^true` if `term` is a port identifier; otherwise returns `^false`.
+  """Returns `:true` if `term` is a port identifier; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_port term))
 
 (defn reference? [term]
-  """Returns `^true` if `term` is a reference; otherwise returns `^false`.
+  """Returns `:true` if `term` is a reference; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
   (erlang.is_reference term))
 
 (defn tuple? [term]
-  """Returns `^true` if `term` is a tuple; otherwise returns `^false`.
+  """Returns `:true` if `term` is a tuple; otherwise returns `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
   """
@@ -954,15 +954,15 @@
 ;; Comparators
 
 (defn- all [_predicate _acc []]
-  ^true)
+  :true)
 (defn- all [predicate acc [h & t]]
   (case (predicate h acc)
-    (^true (all predicate h t))
-    (^false ^false)))
+    (:true (all predicate h t))
+    (:false :false)))
 
 (defn <
-  """Returns `^true` if the given arguments are in monotonically increasing
-  order, otherwise `^false`.
+  """Returns `:true` if the given arguments are in monotonically increasing
+  order, otherwise `:false`.
 
   All terms in Kapok can be compared with each other.
 
@@ -971,20 +971,20 @@
   ## Examples
 
       kapok> (< 1)
-      ^true
+      :true
 
       kapok> (< 1 2 2)
-      ^false
+      :false
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more] (all (fn [n acc] (erlang.< acc n))
                          x
                          [y & more])))
 
 (defn >
-  """Returns `^true` if the given arguments are in monotonically decreasing
-  order, otherwise `^false`.
+  """Returns `:true` if the given arguments are in monotonically decreasing
+  order, otherwise `:false`.
 
   All terms in Kapok can be compared with each other.
 
@@ -993,20 +993,20 @@
   ## Examples
 
       kapok> (> 1)
-      ^true
+      :true
 
       kapok> (> 3 2 2)
-      ^false
+      :false
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more] (all (fn [n acc] (erlang.> acc n))
                          x
                          [y & more])))
 
 (defn <=
-  """Returns `^true` if the given arguments are in monotonically non-decreasing
-  order, otherwise `^false`.
+  """Returns `:true` if the given arguments are in monotonically non-decreasing
+  order, otherwise `:false`.
 
   All terms in Kapok can be compared with each other.
 
@@ -1015,20 +1015,20 @@
   ## Examples
 
       kapok> (<= 1)
-      ^true
+      :true
 
       kapok> (<= 1 2 1)
-      ^false
+      :false
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more] (all (fn [n acc] (erlang.=< acc n))
                          x
                          [y & more])))
 
 (defn >=
-  """Returns `^true` if the given arguments are in monotonically non-increasing
-  order, othenwise `^false`.
+  """Returns `:true` if the given arguments are in monotonically non-increasing
+  order, othenwise `:false`.
 
   All terms in Kapok can be compared with each other.
 
@@ -1037,20 +1037,20 @@
   ## Examples
 
       kapok> (>= 1)
-      ^true
+      :true
 
       kapok> (>= 3 2 3)
-      ^false
+      :false
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more] (all (fn [n acc] (erlang.>= acc n))
                          x
                          [y & more])))
 
 (defn ==
-  """Returns `^true` if the given arguments all have the equivalent value
-  (type-independent), otherwise `^false`.
+  """Returns `:true` if the given arguments all have the equivalent value
+  (type-independent), otherwise `:false`.
 
   This operator considers 1 and 1.0 to be equal. For match semantics,
   use '===' instead.
@@ -1062,20 +1062,20 @@
   ## Exapmles
 
       kapok> (== 1 2)
-      ^false
+      :false
 
       kapok> (== 1 1.0)
-      ^true
+      :true
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more] (all (fn [n acc] (erlang.== acc n))
                          x
                          [y & more])))
 
 (defn !=
-  """Returns `^true` if the given arguments all have the unequal value
-  (type-independent), otherwise `^false`.
+  """Returns `:true` if the given arguments all have the unequal value
+  (type-independent), otherwise `:false`.
 
   All terms in Kapok can be compared with each other.
 
@@ -1084,13 +1084,13 @@
   ## Examples
 
       kapok> (!= 1 1.0)
-      ^false
+      :false
 
       kapok> (!= 1 2)
-      ^true
+      :true
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more]
    (let [{total set} (lists.foldl
                       (fn [n {count acc}]
@@ -1100,8 +1100,8 @@
      (== total (ordsets.size set)))))
 
 (defn ===
-  """Returns `^true` if the given arguments do match (identical),
-  otherwise `^false`.
+  """Returns `:true` if the given arguments do match (identical),
+  otherwise `:false`.
 
   This operator gives the same semantics as the one existing in
   pattern matching, i.e., `1` and `1.0` are equal, but they do not match
@@ -1114,20 +1114,20 @@
   ## Examples
 
       kapok> (=== 1 2)
-      ^false
+      :false
 
       kapok> (=== 1 1.0)
-      ^false
+      :false
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more] (all (fn [n acc] (erlang.^'=:=' acc n))
                          x
                          [y & more])))
 
 (defn !==
-  """Returns `^true` if the given arguments all do not match (not identical),
-  otherwise `^false`.
+  """Returns `:true` if the given arguments all do not match (not identical),
+  otherwise `:false`.
 
   All terms in Kapok can be compared with each other.
 
@@ -1136,13 +1136,13 @@
   ## Examples
 
       kapok> (!== 1 2)
-      ^true
+      :true
 
       kapok> (!== 1 1.0)
-      ^false
+      :false
 
   """
-  ([_x] ^true)
+  ([_x] :true)
   ([x y &rest more]
    (let [{total set} (lists.foldl
                       (fn [n {count acc}]
@@ -1154,14 +1154,14 @@
 ;; Boolean and Short-circuit Boolean Operators
 
 (defmacro not [x]
-  """Returns `^true` if `x` is logical false, otherwise `^false`.
+  """Returns `:true` if `x` is logical false, otherwise `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
 
   ## Examples
 
-      kapok> (not ^false)
-      ^true
+      kapok> (not :false)
+      :true
 
   """
   `(case ~x
@@ -1175,9 +1175,9 @@
   """Boolean and (short-circuit).
 
   Evaluates the given arguments one at a time, from left to right.
-  If any one returns `^false`, returns that value and doesn't evaluate
+  If any one returns `:false`, returns that value and doesn't evaluate
   the left arugments, otherwise it returns the value of the last argument.
-  (and) returns `^true`.
+  (and) returns `:true`.
 
   Requires all the arguments except the last to be a boolean since
   it short-curcuits.
@@ -1186,15 +1186,15 @@
 
   ## Examples
 
-      kapok> (and ^true ^false)
-      ^false
+      kapok> (and :true :false)
+      :false
 
-      kapok> (and ^true "yay!")
+      kapok> (and :true "yay!")
       "yay!"
 
   """
   ([]
-   ^true)
+   :true)
   ([x &rest more]
    (case more
      ([] x)
@@ -1206,9 +1206,9 @@
   """Boolean or (short-circuit).
 
   Evaluates the given arguments one at a time, from left to right.
-  If any one returns `^false`, returns that value and doesn't evaluate
+  If any one returns `:false`, returns that value and doesn't evaluate
   the left arguments, otherwise it returns the value of the last argument.
-  (or) return `^false`.
+  (or) return `:false`.
 
   Requires all the arguments except the last to be a boolean since
   it short-circuits.
@@ -1217,14 +1217,14 @@
 
   ## Examples
 
-      kapok> (or ^true ^false)
-      ^true
+      kapok> (or :true :false)
+      :true
 
-      kapok> (or ^false 42)
+      kapok> (or :false 42)
       42
 
   """
-  ([] ^true)
+  ([] :true)
   ([x &rest more]
    (case more
      ([] x)
@@ -1235,8 +1235,8 @@
 (defn xor [x y]
   """Boolean xor.
 
-  Returns `^true` if `x` and `y` are evaluated to different logical value
-  (`^true` or `^false`), otherwise returns `^false`.
+  Returns `:true` if `x` and `y` are evaluated to different logical value
+  (`:true` or `:false`), otherwise returns `:false`.
 
   Requires all the arguments to be a boolean.
 
@@ -1244,11 +1244,11 @@
 
   ## Examples
 
-      kapok> (xor ^true ^false)
-      ^true
+      kapok> (xor :true :false)
+      :true
 
-      kapok> (xor ^true ^true)
-      ^false
+      kapok> (xor :true :true)
+      :false
 
   """
   (erlang.xor x y))
@@ -1300,9 +1300,9 @@
 (defmacro match? [{^identifier _ ^_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches
   the left side (a pattern)."""
-  ^true)
+  :true)
 
 (defmacro match? [pattern expr]
   `(case ~expr
-     (~pattern ^true)
-     (_ ^false)))
+     (~pattern :true)
+     (_ :false)))

@@ -120,7 +120,7 @@ Atoms are used to represent constant values in Erlang. They are global constants
 In Kapok, there are a few ways to write a literal atom:
 
 ```clojure
-^true
+^atom
 ^'this atom have space, so we have to use single-quotes as terminators'
 ^"this atom uses double-quotes instead of single-quotes as terminators"
 ```
@@ -144,14 +144,18 @@ Keywords are used in these occasions.
 
 1. special forms and literal types
 
-  Keywords are widely used in special forms and literal types, for example
+  Keywords are widely used in literal types and special forms, for example
 
   ```clojure
+  ;; boolean
+  :true
+  :false
+
+  <<(75 (:size 8) :big :unsigned :integer (:unit 1)) (97) (112 :native) (111) (75 (:unit 1))>>
+
   ;; a ns special form
   (ns sample-ns
     (use (io :only (format))))
-
-  <<(75 (:size 8) :big :unsigned :integer (:unit 1)) (97) (112 :native) (111) (75 (:unit 1))>>
   ```
  
 2. function arguments
@@ -186,16 +190,18 @@ Boolean type in Kapok is the same with Erlang. There is no distinct boolean type
 :false ;=> boolean false
 ```
 
+It's a convention to use `:true` and `:false`, which are in the keyword format, as the boolean true and false in Kapok source code.
+
 Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In Kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library function
 
 ```clojure
 ;; use `nil?`
-(nil? ^nil)       ;=> ^true
+(nil? :nil)       ;=> ^true
 (nil? [])         ;=> ^true
-(nil? ^false)     ;=> ^true
+(nil? :false)     ;=> ^true
 (nil? ^abc)       ;=> ^false
 ;; `true?` reverses the result of calling `nil?` 
-(true? ^nil)      ;=> ^false
+(true? :nil)      ;=> ^false
 ```
 
 Please notice in these occasions only the Erlang strict version booleans are allowed:

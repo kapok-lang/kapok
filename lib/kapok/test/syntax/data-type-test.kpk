@@ -97,10 +97,10 @@ world!")))
     (assert (=== :"atom has space" (erlang.list_to_atom #"atom has space")))
 
     ;; boolean
-    (assert (=== ^true (true? ^true)))
-    (assert (=== ^false (false? ^true)))
-    (assert (=== :true (true? ^true)))
-    (assert (=== :false (true? ^false)))
+    (assert (=== :true (true? :true)))
+    (assert (=== :false (false? :true)))
+    (assert (=== :true (true? :true)))
+    (assert (=== :false (true? :false)))
 
     ;; comment
     ;; Comments occur all over this file. It's uneccesary to make

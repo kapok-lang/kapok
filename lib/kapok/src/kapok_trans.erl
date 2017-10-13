@@ -597,6 +597,13 @@ translate_args(Args, Ctx) when is_list(Args) ->
 translate_args([], {_Keys, Acc}, {Previous, Meta, Args}, Ctx) ->
   {[{Previous, Meta, lists:reverse(Args)} | Acc], Ctx};
 
+translate_args([{keyword, _, Value} = Token], Acc, {normal, Meta1, Args}, Ctx)
+    when Value == true; Value == false; Value == nil->
+  {TH, TCtx} = translate_arg(Token, Ctx),
+  translate_args([], Acc, {normal, Meta1, [TH | Args]}, TCtx);
+translate_args([{keyword, Meta, Value} = Token], _, {keyword, _, _}, Ctx)
+    when Value == true; Value == false; Value == nil->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_key, {Token}});
 translate_args([{keyword, Meta, _} = Token], _, {_Previous, _Meta, _Args}, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {dangling_keyword, {Token}});
 translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal, Meta1, Args},
@@ -610,6 +617,9 @@ translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal
   Keys1 = ordsets:add_element(Atom, Keys),
   Acc1 = [{normal, Meta1, lists:reverse(Args)} | Acc],
   translate_args(T, {Keys1, Acc1}, {keyword, Meta, [{TKeyword, TExpr}]}, TCtx1);
+translate_args([{keyword, Meta, Value} = Token, _Expr | _T], _, {keyword, _, _}, Ctx)
+    when Value == true; Value == false; Value == nil ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_key, {Token}});
 translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {keyword, Meta1, Args},
                Ctx) ->
   case ordsets:is_element(Atom, Keys) of
@@ -691,6 +701,8 @@ format_error({parameter_keyword_outside_fun_args, {Token}}) ->
   io_lib:format("invalid ~s outside the arguments of a function definition", [token_text(Token)]);
 format_error({missing_body}) ->
   io_lib:format("body is missing", []);
+format_error({invalid_key, {Token}}) ->
+  io_lib:format("invalid key ~s", [token_text(Token)]);
 format_error({dangling_keyword, {Token}}) ->
   io_lib:format("dangling ~s without argument", [token_text(Token)]);
 format_error({duplicate_keyword, {Token}}) ->

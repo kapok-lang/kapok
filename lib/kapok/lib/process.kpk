@@ -15,8 +15,8 @@
   (require erlang))
 
 (defn alive? [pid]
-  """Returns `^true` if the precess exists and is alive, that is,
-  is not exiting and has not exited. Otherwise, returns `^false`.
+  """Returns `:true` if the precess exists and is alive, that is,
+  is not exiting and has not exited. Otherwise, returns `:false`.
 
   `pid` must refer to a process at the local node.
   """
@@ -36,7 +36,7 @@
   """
   (erlang.get))
 
-(defn get [key &optional (default ^nil)]
+(defn get [key &optional (default :nil)]
   """Returns the value for the given `key` in the process dictionary,
   or undefined if `key` does not exist.
 
@@ -84,7 +84,7 @@
   (erlang.get_keys value))
 
 (defn- nillify [^undefined]
-  ^nil)
+  :nil)
 
 (defn- nillify [other]
   other)
@@ -92,7 +92,7 @@
 (defn put [key value]
   """Stores the given key-value in the process dictionary.
 
-  Returns ^nil of `key` does not exist. If `key` exists, the old value
+  Returns :nil of `key` does not exist. If `key` exists, the old value
   is replaced with `value` and this function returns the old value.
   """
   (nillify (erlang.put key value)))
@@ -115,14 +115,14 @@
 (defn delete [key]
   """Delete the value associated with `key` from the process dictionary.
 
-  Returns {key, value} if the given `key` exists, or ^nil if the given `key`
+  Returns {key, value} if the given `key` exists, or :nil if the given `key`
   does not exist.
 
   ## Examples
 
       kapok> (put ^key1 {^merry ^lambs ^are ^playing})
       kapok> (let [x (delete ^key1)] {x, (delete ^key1)})
-      {{^merry ^lambs ^are ^playing}, ^nil}
+      {{^merry ^lambs ^are ^playing}, :nil}
 
   """
   (erlang.erase key))
@@ -247,7 +247,7 @@
   currently existing on the local node.
 
   Note that a process that is exiting, exists but is not alive, that is,
-  `alive?` will return `^false` for a process that is existing,
+  `alive?` will return `:false` for a process that is existing,
   but its process identifier will be part of the result returned.
 
   See http://www.erlang.org/doc/man/erlang.html#processes-0 for more info.
@@ -266,7 +266,7 @@
 
 (defn unlink [pid]
   """Removes the link, if there is one, between the calling process and
-  the process or port referred to by `pid`. Returns `^true` and does not
+  the process or port referred to by `pid`. Returns `:true` and does not
   fail, even if there is no link or `pid` does not exist.
 
   See http://www.erlang.org/doc/man/erlang.html#unlink-1 for more info.
@@ -353,7 +353,7 @@
   See http://www.erlang.org/doc/man/erlang.html#process_info-2 for more info.
   """
   (case (erlang.process_info pid ^registered_name)
-    (^undefined ^nil)
+    (^undefined :nil)
     ([] {^registered_name, []})
     (other other)))
 

@@ -35,7 +35,7 @@ In Kapok, we use dot character for both of these occasions.
 
 ```clojure
 ;; call a function true? in namespace core
-(core.true? ^nil)
+(core.true? :nil)
 ```
 
 The `ns` special form could have `require` and `use` clauses. The `require` clause could have `:as` argument. And the `use` clause could have `:as`, `:only`, `:exclude`, `:rename` arguments. These examples below would show how to use them:

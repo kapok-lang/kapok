@@ -24,10 +24,10 @@
 
 (defn main []
   (test "test ns use"
-    (assert (=== ^true
+    (assert (=== :true
                  ;; Use directly the rename function
                  (to-atom #"true")))
-    (assert (=== ^true
+    (assert (=== :true
                  ;; Use the alias namespace name and renamed function
                  ;; to access the `list_to_integer' function.
                  (erl.to-atom #"true")))
@@ -45,10 +45,10 @@
 
 (defn main []
   (test "test ns require"
-    (assert (=== ^true
+    (assert (=== :true
                  ;; use the origial namespace name
                  (erlang.list_to_atom #"true")))
-    (assert (=== ^true
+    (assert (=== :true
                  ;; use the namespace alias
                  (erl.list_to_atom #"true")))
     (assert (=== [#"abc"]
@@ -66,9 +66,9 @@
 
   (defn main []
     (test "test defns"
-      (assert (=== ^true
+      (assert (=== :true
                    (erl.list_to_atom #"true")))
-      (assert (=== ^true
+      (assert (=== :true
                    (to-atom #"true")))
       (assert (=== [#"abc"]
                    (verbose-name-iolib.format "~s" ["abc"])))))
@@ -83,6 +83,6 @@
 
   (defn main []
     (test "test defns twice"
-      (assert (=== ^true
+      (assert (=== :true
                    (to-atom #"true")))))
   )

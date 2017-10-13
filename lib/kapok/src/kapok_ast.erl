@@ -388,13 +388,25 @@ parse_parameters([H | _T], _Acc, {keyword_rest, Meta1, Args}, Ctx) when Args /= 
   Error = {too_many_parameters_for_keyword, {H, {keyword_rest, Meta1}}},
   kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
 
-parse_parameters([{list, _Meta, [{identifier, _, _} = Expr, Default]} | T],
+parse_parameters([{list, _Meta, [{identifier, _, Id} = Token, Default]} | T],
                  Acc,
                  {keyword_key, Meta1, Args},
                  Ctx) ->
-  parse_parameters(T, Acc, {keyword_key, Meta1, [{Expr, Default} | Args]}, Ctx);
-parse_parameters([{identifier, Meta, _} = Id | T], Acc, {keyword_key, Meta1, Args}, Ctx) ->
-  parse_parameters(T, Acc, {keyword_key, Meta1, [{Id, {atom, Meta, 'nil'}} | Args]}, Ctx);
+  case Id of
+    Value when Value == true; Value == false; Value == nil ->
+      Error = {invalid_key, {Token}},
+      kapok_error:form_error(token_meta(Token), ?m(Ctx, file), ?MODULE, Error);
+    _ ->
+      parse_parameters(T, Acc, {keyword_key, Meta1, [{Token, Default} | Args]}, Ctx)
+  end;
+parse_parameters([{identifier, Meta, Id} = Token | T], Acc, {keyword_key, Meta1, Args}, Ctx) ->
+  case Id of
+    Value when Value == true, Value == false, Value == nil ->
+      Error = {invalid_key, {Token}},
+      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
+    _ ->
+      parse_parameters(T, Acc, {keyword_key, Meta1, [{Token, {atom, Meta, 'nil'}} | Args]}, Ctx)
+  end;
 parse_parameters([H | _T], _Acc, {keyword_key, Meta1, _Args}, Ctx) ->
   Error = {invalid_parameter, {H, {keyword_key, Meta1}}},
   kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
@@ -543,4 +555,6 @@ format_error({invalid_parameter, {P, Token}}) ->
   io_lib:format("invalid parameter ~p for ~s at line ~B",
                 [P, token_text(Token), ?line(token_meta(Token))]);
 format_error({too_many_parameters_for_keyword, {P, Token}}) ->
-  io_lib:format("too many parameters ~p for ~s", [P, token_text(Token)]).
+  io_lib:format("too many parameters ~p for ~s", [P, token_text(Token)]);
+format_error({invalid_key, {Token}}) ->
+  io_lib:format("invalid key ~s", [token_text(Token)]).

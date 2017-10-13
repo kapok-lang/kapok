@@ -29,10 +29,10 @@
   ## Examples
 
       kapok> (is_record {^user, "john", 27})
-      ^true
+      :true
 
       kapok> (is_record {})
-      ^false
+      :false
 
   """
 
@@ -48,7 +48,7 @@
   ## Examples
 
       kapok> (is_record {^user, "john", 27} ^user)
-      ^true
+      :true
 
   """
   `(core.and (core.is_tuple ~data)

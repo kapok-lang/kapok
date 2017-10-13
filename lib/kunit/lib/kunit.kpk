@@ -16,7 +16,7 @@
     (case args
       ({^list _ [op left right]}
        `(case ~args
-          (^true ^ok)
+          (:true ^ok)
           (_
            (io.format "~nassert failed~n   op: ~p~n left: ~p~n eval: ~p~nright: ~p~n eval: ~p~n~n"
                       ['~op '~left ~left '~right ~right])
