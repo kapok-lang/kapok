@@ -2,9 +2,14 @@
 -module(kapok_symbol_table).
 -behaviour(gen_server).
 -export([add_namespace/1,
+         add_fap/5,
+         remove_fap/5,
          add_def/6,
          add_alias/3,
          add_form/2,
+         add_suspended_def_clause/3,
+         remove_suspended_def_clause/2,
+         namespace_suspended_def_clause/1,
          namespace_locals/1,
          namespace_funs/1,
          namespace_macros/1,
@@ -18,6 +23,12 @@
 add_namespace(Namespace) ->
   gen_server:call(?MODULE, {add_ns, Namespace}).
 
+add_fap(Namespace, Kind, Fun, Arity, ParameterType) ->
+  gen_server:call(?MODULE, {add_fap, Namespace, Kind, Fun, Arity, ParameterType}).
+
+remove_fap(Namespace, Kind, Fun, Arity, ParameterType) ->
+  gen_server:call(?MODULE, {remove_fap, Namespace, Kind, Fun, Arity, ParameterType}).
+
 add_def(Namespace, Kind, Fun, Arity, ParameterType, Clause) ->
   gen_server:call(?MODULE, {add_def, Namespace, Kind, Fun, Arity, ParameterType, Clause}).
 
@@ -26,6 +37,15 @@ add_alias(Namespace, Alias, Original) ->
 
 add_form(Namespace, Form) ->
   gen_server:call(?MODULE, {add_form, Namespace, Form}).
+
+add_suspended_def_clause(Namespace, FA, ClauseArgs) ->
+  gen_server:call(?MODULE, {add_suspended_def_clause, Namespace, FA, ClauseArgs}).
+
+remove_suspended_def_clause(Namespace, FA) ->
+  gen_server:call(?MODULE, {remove_suspended_def_clause, Namespace, FA}).
+
+namespace_suspended_def_clause(Namespace) ->
+  gen_server:call(?MODULE, {namespace_suspended_def_clause, Namespace}).
 
 %% TODO remove this
 namespace_locals(Namespace) ->
@@ -52,6 +72,18 @@ init([]) ->
 handle_call({add_ns, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
   {reply, ok, Map1};
+%% fap
+handle_call({add_fap, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  FAP = {Fun, Arity, ParameterType},
+  Map2 = add_def(Namespace, Kind, FAP, Map1),
+  {reply, ok, Map2};
+handle_call({remove_fap, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  FAP = {Fun, Arity, ParameterType},
+  Map2 = remove_def(Namespace, Kind, FAP, Map1),
+  {reply, ok, Map2};
+
 %% def
 handle_call({add_def, Namespace, Kind, Fun, Arity, ParameterType, Clause}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
@@ -71,6 +103,36 @@ handle_call({add_form, Namespace, Form}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
   Map2 = add_into_kv(Namespace, 'forms', Form, Map1),
   {reply, ok, Map2};
+%% pending def clause
+handle_call({add_suspended_def_clause, Namespace, FA, ClauseArgs}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  NS = maps:get(Namespace, Map1),
+  Key =  'suspended_def_clauses',
+  Clauses = maps:get(Key, NS),
+  Args = case orddict:find(FA, Clauses) of
+           {ok, V} -> ordsets:add_element(ClauseArgs, V);
+           error -> ordsets:from_list([ClauseArgs])
+         end,
+  Clauses1 = orddict:store(FA, Args, Clauses),
+  NS1 = maps:update(Key, Clauses1, NS),
+  Map2 = maps:update(Namespace, NS1, Map1),
+  {reply, ok, Map2};
+
+handle_call({remove_suspended_def_clause, Namespace, FA}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  NS = maps:get(Namespace, Map1),
+  Key = 'suspended_def_clauses',
+  Clauses = maps:get(Key, NS),
+  Clauses1 = orddict:erase(FA, Clauses),
+  NS1 = maps:update(Key, Clauses1, NS),
+  Map2 = maps:update(Namespace, NS1, Map1),
+  {reply, ok, Map2};
+
+handle_call({namespace_suspended_def_clause, Namespace}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Namespace, Map),
+  Suspended = get_kv(Namespace, 'suspended_def_clauses', Map1),
+  {reply, Suspended, Map1};
+
 %% local functions and macros
 handle_call({namespace_locals, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
@@ -86,25 +148,21 @@ handle_call({namespace_macros, Namespace}, _From, Map) ->
   FAList = get_kv(Namespace, 'macros', Map1),
   {reply, FAList, Map1};
 handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) ->
-  {InfoExports, InfoDefs, Ctx1} = gen_info_fun(Namespace, Ctx, Options, Map),
-  NS = maps:get(Namespace, Map),
-  FunExports = namespace_exports(NS, Options),
-  FunDefs = namespace_defs(NS, Options),
-  Exports = InfoExports ++ FunExports,
-  Defs = InfoDefs ++ FunDefs,
-  TranslateFun = fun({{Fun, Arity}, Clauses}, Acc) ->
-                     [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
-                 end,
-  DefForms = lists:foldl(TranslateFun, [], Defs),
-  AttrModule = {attribute, 0, module, ModuleName},
-  AttrExport = {attribute, 0, export, Exports},
-  %% add other forms such as attributes
-  OtherForms = get_kv(Namespace, 'forms', Map),
-  %% The `module_info' functions definitions and exports are added automatically
-  %% by the erlang compiler, so it's not necessary to manually add them
-  %% in kapok compiler.
-  Forms = [AttrModule, AttrExport] ++ OtherForms ++ DefForms,
-  {reply, {Forms, Ctx1}, Map}.
+  R = case lists:member(ignore_suspended_def_clauses, Options) of
+        false ->
+          NS = maps:get(Namespace, Map),
+          case maps:get('suspended_def_clauses', NS) of
+            [] ->
+              {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
+              {ok, Forms, Ctx1};
+            Suspended ->
+              {suspended, orddict:to_list(Suspended), Ctx}
+          end;
+        true ->
+          {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
+          {ok, Forms, Ctx1}
+      end,
+  {reply, R, Map}.
 
 handle_cast({_, _}, Map) ->
   {noreply, Map}.
@@ -129,7 +187,7 @@ new_namespace() ->
     defs => [],
     locals => [],
     forms => [],
-    suspended_defs => []}.
+    suspended_def_clauses => []}.
 
 add_namespace_if_missing(Namespace, Map) ->
   case maps:is_key(Namespace, Map) of
@@ -145,6 +203,15 @@ add_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro-' ->
   add_def(Namespace, 'defmacro', FAP, Map);
 add_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro' ->
   add_into_kv(Namespace, 'macros', FAP, Map).
+
+remove_def(Namespace, Kind, FAP, Map) when Kind == 'defn-' ->
+  remove_def(Namespace, 'defn', FAP, Map);
+remove_def(Namespace, Kind, FAP, Map) when Kind == 'defn' ->
+  remove_from_kv(Namespace, 'funs', FAP, Map);
+remove_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro-' ->
+  remove_def(Namespace, 'defmacro', FAP, Map);
+remove_def(Namespace, Kind, FAP, Map) when Kind == 'defmacro' ->
+  remove_from_kv(Namespace, 'macros', FAP, Map).
 
 add_export(_Namespace, Kind, _FAP, Map) when Kind == 'defn-' ->
   Map;
@@ -239,9 +306,43 @@ add_into_kv(Namespace, Key, Value, Map) ->
   NS1 = maps:update(Key, Values1, NS),
   maps:update(Namespace, NS1, Map).
 
+remove_from_kv(Namespace, Key, List, Map) when is_list(List) ->
+  NS = maps:get(Namespace, Map),
+  Values = maps:get(Key, NS),
+  Values1 = ordsets:subtract(Values, ordsets:from_list(List)),
+  NS1 = maps:update(Key, Values1, NS),
+  maps:update(Namespace, NS1, Map);
+remove_from_kv(Namespace, Key, Value, Map) ->
+  NS = maps:get(Namespace, Map),
+  Values = maps:get(Key, NS),
+  Values1 = ordsets:del_element(Value, Values),
+  NS1 = maps:update(Key, Values1, NS),
+  maps:update(Namespace, NS1, Map).
+
 get_kv(Namespace, Key, Map) ->
   NS = maps:get(Namespace, Map),
   maps:get(Key, NS).
+
+namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->
+  {InfoExports, InfoDefs, Ctx1} = gen_info_fun(Namespace, Ctx, Options, Map),
+  NS = maps:get(Namespace, Map),
+  FunExports = namespace_exports(NS, Options),
+  FunDefs = namespace_defs(NS, Options),
+  Exports = InfoExports ++ FunExports,
+  Defs = InfoDefs ++ FunDefs,
+  TranslateFun = fun({{Fun, Arity}, Clauses}, Acc) ->
+                     [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
+                 end,
+  DefForms = lists:foldl(TranslateFun, [], Defs),
+  AttrModule = {attribute, 0, module, ModuleName},
+  AttrExport = {attribute, 0, export, Exports},
+  %% add other forms such as attributes
+  OtherForms = get_kv(Namespace, 'forms', Map),
+  %% The `module_info' functions definitions and exports are added automatically
+  %% by the erlang compiler, so it's not necessary to manually add them
+  %% in kapok compiler.
+  Forms = [AttrModule, AttrExport] ++ OtherForms ++ DefForms,
+  {Forms, Ctx1}.
 
 namespace_exports(NS, Options) ->
   GetExport = fun({F, A, _P}) -> {F, A} end,

@@ -273,7 +273,7 @@ prepare_macro_vars(Meta, Ctx) ->
           {identifier, Meta, '_&form'}, kapok_trans:quote(Meta, Ast)],
   kapok_trans_special_form:translate_let_args(Vars, Ctx).
 
-handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) ->
+handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP} = Ctx) ->
   %% TODO add doc
   Namespace = ?m(Ctx, namespace),
   {TF, Ctx1} = kapok_trans:translate(Name, kapok_ctx:push_scope(Ctx)),
@@ -285,21 +285,31 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
     [{normal, _, NormalArgs}] ->
       {TArgs, CCtx} = kapok_trans:translate_def_args(NormalArgs, TCtx),
       ParameterType = 'normal',
-      PrepareBody = [];
+      PrepareBody = [],
+      RedirectedFAPList = [],
+      AddRedirctClauses = fun() -> ok end;
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters}] ->
       {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
       {TOptionalParameters, CCtx} = translate_parameter_with_default(OptionalParameters, TCtx1),
       ParameterType = 'normal',
       TArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
       PrepareBody = [],
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CCtx);
+      {_, RedirectedFAPList} = calc_optional_redirected_fap(Name, TNormalArgs,
+                                                            TOptionalParameters),
+      AddRedirctClauses = fun() ->
+                              add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs,
+                                                   TOptionalParameters, CCtx)
+                          end;
     [{normal, _, NormalArgs}, {keyword_rest, _, RestArgs}] ->
       {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
       {TRestArgs, CCtx} = kapok_trans:translate_def_args(RestArgs, TCtx1),
       ParameterType = 'rest',
       TArgs = TNormalArgs ++ TRestArgs,
       PrepareBody = [],
-      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx);
+      RedirectedFAPList = [{Name, length(TNormalArgs), 'normal'}],
+      AddRedirctClauses = fun() ->
+                              add_rest_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx)
+                          end;
     [{normal, _, NormalArgs}, {keyword_key, Meta1, KeyParameters}] ->
       {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
       {TKeyParameters, TCtx2} = translate_parameter_with_default(KeyParameters, TCtx1),
@@ -309,30 +319,57 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := FAP} = Ctx) 
                                                         kapok_utils:gensym("KV")},
                                                        TCtx2),
       TArgs = TNormalArgs ++ [TMapArg],
-
       %% retrieve and map all key values from map argument to variables
       {PrepareBody, CCtx} = kapok_trans:map_vars(Meta, TMapArg, TKeyParameters, TCtx3),
-      add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx);
+      RedirectedFAPList = [{Name, length(TNormalArgs), 'normal'}],
+      AddRedirctClauses = fun() ->
+                              add_key_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, CCtx)
+                          end;
     [{normal, _, NormalArgs}, {keyword_optional, _, OptionalParameters},
      {keyword_rest, _, RestArgs}] ->
       {TNormalArgs, TCtx1} = kapok_trans:translate_def_args(NormalArgs, TCtx),
-      {TOptionalParameters, TCtx2} = translate_parameter_with_default(OptionalParameters, TCtx1),
+      {TOptionalParameters, TCtx2} = translate_parameter_with_default(OptionalParameters,
+                                                                      TCtx1),
       {TRestArgs, CCtx} = kapok_trans:translate_def_args(RestArgs, TCtx2),
       ParameterType = 'rest',
       TNonRestArgs = TNormalArgs ++ get_optional_args(TOptionalParameters),
+      {N, OptionalFAPList} = calc_optional_redirected_fap(Name, TNormalArgs,
+                                                          TOptionalParameters),
+      RedirectedFAPList = [{Name, N + 1, 'normal'} | OptionalFAPList],
       TArgs = TNonRestArgs ++ TRestArgs,
       PrepareBody = [],
-      add_rest_clause(Meta, Kind, Namespace, Name, TF, TNonRestArgs, CCtx),
-      add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, CCtx)
+      AddRedirctClauses = fun() ->
+                              add_rest_clause(Meta, Kind, Namespace, Name, TF, TNonRestArgs, CCtx),
+                              add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs,
+                                                   TOptionalParameters, CCtx)
+                          end
   end,
   Arity = length(TArgs),
-  Ctx6 = CCtx#{def_fap => {Name, Arity, ParameterType}},
-  %% TODO add def_fap for other clauses(maybe do this when impl delay compilation stuff?)
+  FAP = {Name, Arity, ParameterType},
+  Ctx6 = CCtx#{def_fap => FAP},
+  %% Check if there is any suspended def clause depends on this clause.
+  %% If there is, re-do the compilation of the suspended clauses.
+  AddedFAP = handle_suspended_def_clauses(Namespace, Kind, [FAP | RedirectedFAPList], Ctx),
+  %% TODO add def_fap for other clauses (maybe do this when impl delay compilation stuff?)
   {TGuard, TCtx7} = kapok_trans:translate_guard(Guard, Ctx6),
-  {TBody, TCtx8} = kapok_trans:translate_body(Meta, Body, TCtx7),
-  Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareMacroEnv ++ PrepareBody ++ TBody},
-  kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
-  kapok_ctx:pop_scope(TCtx8#{def_fap => FAP}).
+  try kapok_trans:translate_body(Meta, Body, TCtx7) of
+      {TBody, TCtx8} ->
+      %% add redirect FAPs and clauses
+      AddRedirctClauses(),
+      Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareMacroEnv ++ PrepareBody ++ TBody},
+      %% TODO add conflict checking for Namespace:Name/Arity and imported names.
+      kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
+      kapok_ctx:pop_scope(TCtx8#{def_fap => PreviousFAP})
+  catch
+    throw:{unknown_local_call, FA, FAMeta} ->
+      %% clean up added fap
+      lists:map(fun({F, A, P}) -> kapok_symbol_table:remove_def(Namespace, Kind, F, A, P) end,
+                ordsets:to_list(AddedFAP)),
+      %% record current def clause as suspended
+      kapok_symbol_table:add_suspended_def_clause(Namespace, FA,
+                                                  {FAMeta, {Meta, Kind, Name, Args, Guard, Body}}),
+      kapok_ctx:pop_scope(TCtx7#{def_fap => PreviousFAP})
+  end.
 
 %% parse parameters
 parse_parameters({Category, _, Args}, Ctx) when Category == literal_list ->
@@ -427,6 +464,16 @@ translate_parameter_with_default(Parameters, Ctx) ->
                           Parameters),
   {lists:reverse(L), TCtx}.
 
+calc_optional_redirected_fap(Name, TNormalArgs, TOptionalParameters) ->
+  Arity = length(TNormalArgs),
+  lists:foldl(fun(_X, {N, Acc0}) ->
+                  Acc1 = [{Name, Arity + N, 'normal'} | Acc0],
+                  {N + 1, Acc1}
+              end,
+              {0, []},
+              TOptionalParameters).
+
+
 add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, TOptionalParameters, Ctx) ->
   R = lists:reverse(TOptionalParameters),
   do_add_optional_clauses(Meta, Kind, Namespace, Name, TF, TNormalArgs, R, Ctx).
@@ -457,6 +504,28 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
   kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, 'normal',
                              {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
+handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
+  SuspendedClauses = kapok_symbol_table:namespace_suspended_def_clause(Namespace),
+  orddict:fold(fun(FA, S, Acc) ->
+                   case kapok_dispatch:filter_fa(FA, FAPList) of
+                     [] -> Acc;
+                     FAList ->
+                       lists:map(fun({F, A, P}) ->
+                                     kapok_symbol_table:add_fap(Namespace, CurrentKind, F, A, P)
+                                 end,
+                                 FAList),
+                       ToAdd = ordsets:from_list(FAList),
+                       lists:map(fun({_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}) ->
+                                     handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx)
+                                 end,
+                                 ordsets:to_list(S)),
+                       kapok_symbol_table:remove_suspended_def_clause(Namespace, FA),
+                       ordsets:union(ToAdd, Acc)
+                   end
+               end,
+               ordsets:new(),
+               SuspendedClauses).
+
 %% namespace
 build_namespace(Namespace, Ctx) ->
   %% Strip all private macros from the forms for the final compilation of the specified module.
@@ -464,8 +533,13 @@ build_namespace(Namespace, Ctx) ->
   %% no explicit call to it any more after its full expansion. We strip their definitions
   %% from the forms for the final compilation in order to avoid unused warnings caused by them.
   Options = [strip_private_macro],
-  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx, Options),
-  kapok_erl:module(Forms, [], Ctx1, fun write_compiled/2).
+  case kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx, Options) of
+    {suspended, [SuspendedDef | _T], Ctx1} ->
+      {FA, [{FAMeta, _} | _]} = SuspendedDef,
+      kapok_error:compile_error(FAMeta, ?m(Ctx1, file), "unknown local call: ~p", [FA]);
+    {ok, Forms, Ctx1} ->
+      kapok_erl:module(Forms, [], Ctx1, fun write_compiled/2)
+  end.
 
 write_compiled(Module, Binary) ->
   %% write compiled binary to dest file

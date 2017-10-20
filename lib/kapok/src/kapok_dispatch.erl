@@ -8,6 +8,7 @@
          find_imported_local_function/3,
          find_remote_function/4,
          is_macro_loaded/3,
+         filter_fa/2,
          format_error/1]).
 -include("kapok.hrl").
 
