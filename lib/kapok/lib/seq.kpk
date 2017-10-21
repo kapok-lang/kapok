@@ -42,6 +42,134 @@
            ;; maps
            sequential))
 
+(defn all?
+  """Invoke the given `fun` for each item in the `collection` and returns
+  `false` if at least one invocation returns `false` or `nil`. Otherwise
+  returns `true`."""
+
+  ([collection fun] (&when (list? collection))
+   (do-all? collection fun))
+
+  ([collection fun]
+   (elem (sequential.reduce collection
+                            {^cont :true}
+                            (fn [entry _]
+                              (if (fun entry)
+                                  {^cont :true}
+                                {^halt :false})))
+         1))
+  )
+
+(defn all? [collection]
+  (all? collection (fn [x] x)))
+
+(defn any?
+  """Invokes the given `fun` for each item in the `collection` and returns
+  `true` if at least one invocation returns a truthy value. Returns `false`
+  Otherwise."""
+
+  ([collection fun] (&when (list? collection))
+   (do-any? collection fun))
+
+  ([collection fun]
+   (elem (sequential.reduce collection
+                            {^cont :false}
+                            (fn [entry _]
+                              (if (fun entry)
+                                  {^halt :true}
+                                {^cont :false})))
+         1))
+  )
+
+(defn any? [collection]
+  (any? collection (fn [x] x)))
+
+(defn at [collection n &optional default]
+  """Finds the element at the given index (zero-based).
+  Returns `default` if index is out of bounds."""
+  (case (fetch collection n)
+    ({^ok e} e)
+    (^error default)))
+
+(defn fetch
+  """Finds the element at the given index (zero-based)."""
+
+  ([collection n] (&when (&and (list? collection)
+                               (integer? n)
+                               (>= n 0)))
+   (do-fetch collection n))
+
+  ([collection n] (&when (&and (integer? n)
+                               (>= n 0)))
+   (let [r (sequential.reduce collection
+             {^cont 0}
+             (fn [entry acc]
+               (case acc
+                 (n {^halt entry})
+                 (_ {^cont (+ acc 1)}))))]
+     (case r
+       ({^halt entry} {^ok entry})
+       ({^done _} ^error))))
+
+  ([collection n] (&when (&and (integer? n)
+                               (< n 0)))
+   (do-fetch (reverse collection) (abs (+ n 1))))
+  )
+
+(defn reduce
+  """Invokes `fun` for each element in the collection passing that element and the
+  accumulator `acc` as arguments."""
+
+  ([collection acc fun] (&when (list? collection))
+   (lists.foldl fun acc collection))
+
+  ([collection acc fun] (&when (map? collection))
+   (maps.fold (fn [k v acc0]
+                (fun {k v} acc0))
+              acc
+              collection))
+
+  ([collection acc fun]
+   (elem (sequential.reduce collection
+                            {^cont acc}
+                            (fn [x acc0]
+                              {^cont (fun x acc0)}))
+         1))
+  )
+
+(defn reverse
+  """Reverses the collection."""
+
+  ([collection] (&when (list? collection))
+   (lists.reverse collection))
+
+  ([collection]
+   (reverse collection [])))
+
+(defn reverse
+  """Reverses the collection and appends the tail."""
+
+  ([collection tail] (&when (&and (list? collection)
+                                  (list? tail)))
+   (lists.reverse collection tail))
+
+  ([collection tail]
+   (reduce collection
+           (to-list tail)
+           (fn [entry acc]
+             [entry & acc])))
+  )
+
+(defn to-list
+  """Converts `collection` to a list."""
+
+  ([collection] (&when (list? collection))
+   collection)
+
+  ([collection]
+   (lists.reverse (reverse collection))))
+
+;; Implementations
 
 (defn- do-all? [[h & t] fun]
   (if (fun h)
@@ -51,24 +179,6 @@
 (defn- do-all? [[] _]
   :true)
 
-(defn all? [collection fun] (&when (list? collection))
-  """Invoke the given `fun` for each item in the `collection` and returns
-  `false` if at least one invocation returns `false` or `nil`. Otherwise
-  returns `true`."""
-  (do-all? collection fun))
-
-(defn all? [collection fun]
-  (elem (sequential.reduce collection
-                           {^cont :true}
-                           (fn [entry _]
-                             (if (fun entry)
-                                 {^cont :true}
-                                 {^halt :false})))
-        1))
-
-(defn all? [collection]
-  (all? collection (fn [x] x)))
-
 (defn- do-any? [[h & t] fun]
   (if (fun h)
       :true
@@ -77,101 +187,14 @@
 (defn- do-any? [[] _]
   :false)
 
-(defn any? [collection fun] (&when (list? collection))
-  """Invokes the given `fun` for each item in the `collection` and returns
-  `true` if at least one invocation returns a truthy value. Returns `false`
-  Otherwise."""
-  (do-any? collection fun))
+(defn- do-fetch [[h & _] 0]
+  {^ok h})
 
-(defn any? [collection fun]
-  (elem (sequential.reduce collection
-                           {^cont :false}
-                           (fn [entry _]
-                             (if (fun entry)
-                                 {^halt :true}
-                               {^cont :false})))
-        1))
+(defn- do-fetch [[_ & t] n]
+  (do-fetch t (- n 1)))
 
-(defn any? [collection]
-  (any? collection (fn [x] x)))
-
-;; (defn reduce [collection acc fun] (&when (list? collection))
-;;   (lists.foldl fun acc collection))
-
-;; (defn reduce [collection acc fun] (&when (map? collection))
-;;   (maps.fold (fn [k v acc]
-;;                (fun {k v} acc))
-;;              acc
-;;              collection))
-
-;; (defn reduce [collection acc fun]
-;;   (elem (sequential.reduce collection
-;;                            {^cont acc}
-;;                            (fn [x acc]
-;;                              {^cont (fun x acc)}))
-;;         1))
-
-;; (defn to-list [collection] (&when (list? collection))
-;;   """Converts `collection` to a list."""
-;;   collection)
-
-;; (defn to-list [collection]
-;;   (lists.reverse (reverse collection)))
-
-;; (defn reverse [collection tail] (&when (&and (list? collection)
-;;                                              (list? tail)))
-;;   (lists.reverse collection tail))
-
-;; (defn reverse [collection tail]
-;;   (reduce collection
-;;           (to-list tail)
-;;           (fn [entry acc]
-;;             [entry & acc])))
-
-;; (defn reverse [collection] (&when (list? collection))
-;;   """Reverses the collection."""
-;;   (lists.reverse collection))
-
-;; (defn reverse [collection]
-;;   (reverse collection []))
-
-;; (defn- do-fetch [[h & _] 0]
-;;   {^ok h})
-
-;; (defn- do-fetch [[_ & t] n]
-;;   (do-fetch t (- n 1)))
-
-;; (defn- do-fetch [[] _]
-;;   ^error)
-
-;; (defn fetch [collection n] (&when (&and (list? collection)
-;;                                         (integer? n)
-;;                                         (>= n 0)))
-;;   (do-fetch collection n))
-
-;; (defn fetch [collection n] (&when (&and (integer? n)
-;;                                         (>= n 0)))
-;;   (let [r (sequential.reduce collection
-;;                              {^cont 0}
-;;                              (fn [entry acc]
-;;                                (case acc
-;;                                  (n {^halt entry})
-;;                                  (_ {^cont (+ acc 1)}))))]
-;;     (case r
-;;       ({^halt entry} {^ok entry})
-;;       ({^done _} ^error))))
-
-;; (defn fetch [collection n] (&when (&and (integer? n)
-;;                                         (< n 0)))
-;;   (do-fetch (reverse collection) (abs (+ n 1))))
-
-;; (defn at [collection n &optional default]
-;;   """Finds the element at the given index (zero-based).
-;;   Returns `default` if index is out of bounds.
-;;   """
-;;   (case (fetch collection n)
-;;     ({^ok e} e)
-;;     (^error default)))
+(defn- do-fetch [[] _]
+  ^error)
 
 ;; Implementations of sequential for built-in collections.
 

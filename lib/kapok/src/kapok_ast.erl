@@ -358,7 +358,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
   catch
     throw:{unknown_local_call, FA, FAMeta} ->
       %% clean up added fap
-      lists:map(fun({F, A, P}) -> kapok_symbol_table:remove_def(Namespace, Kind, F, A, P) end,
+      lists:map(fun({F, A, P}) -> kapok_symbol_table:remove_fap(Namespace, Kind, F, A, P) end,
                 ordsets:to_list(AddedFAP)),
       %% record current def clause as suspended
       kapok_symbol_table:add_suspended_def_clause(Namespace, FA,
