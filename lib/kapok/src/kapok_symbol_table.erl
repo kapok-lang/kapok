@@ -4,7 +4,7 @@
 -export([add_namespace/1,
          add_fap/5,
          remove_fap/5,
-         add_def/6,
+         add_def/7,
          add_alias/3,
          add_form/2,
          add_suspended_def_clause/3,
@@ -29,8 +29,8 @@ add_fap(Namespace, Kind, Fun, Arity, ParameterType) ->
 remove_fap(Namespace, Kind, Fun, Arity, ParameterType) ->
   gen_server:call(?MODULE, {remove_fap, Namespace, Kind, Fun, Arity, ParameterType}).
 
-add_def(Namespace, Kind, Fun, Arity, ParameterType, Clause) ->
-  gen_server:call(?MODULE, {add_def, Namespace, Kind, Fun, Arity, ParameterType, Clause}).
+add_def(Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause) ->
+  gen_server:call(?MODULE, {add_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}).
 
 add_alias(Namespace, Alias, Original) ->
   gen_server:call(?MODULE, {add_alias, Namespace, Alias, Original}).
@@ -85,17 +85,19 @@ handle_call({remove_fap, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map
   {reply, ok, Map2};
 
 %% def
-handle_call({add_def, Namespace, Kind, Fun, Arity, ParameterType, Clause}, _From, Map) ->
+handle_call({add_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}, _From, Map) ->
+  %% TODO check duplication and conflict for defs
   Map1 = add_namespace_if_missing(Namespace, Map),
   FAP = {Fun, Arity, ParameterType},
   Map2 = add_def(Namespace, Kind, FAP, Map1),
   Map3 = add_export(Namespace, Kind, FAP, Map2),
   FA = {Fun, Arity},
-  Map4 = add_def_clause(Namespace, Kind, FA, Clause, Map3),
+  Map4 = add_def_clause(Namespace, Kind, FA, Meta, Clause, Map3),
   {reply, ok, Map4};
 %% alias
 handle_call({add_alias, Namespace, Alias, Original}, _From, Map) ->
   Map1 = add_namespace_if_missing(Namespace, Map),
+  %% TODO check duplication and conflict among aliases and defs
   {R, Map2} = add_alias(Namespace, Alias, Original, Map1),
   {reply, R, Map2};
 %% form
@@ -227,17 +229,17 @@ is_exported(Namespace, 'funs', FAP, Map) ->
 is_exported(Namespace, 'macros', FAP, Map) ->
   ordsets:is_element(FAP, get_kv(Namespace, 'export_macros', Map)).
 
-add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defn-' ->
-  add_def_clause(Namespace, 'defn', FA, Clause, Map);
-add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defmacro-' ->
-  add_def_clause(Namespace, 'defmacro', FA, Clause, Map);
-add_def_clause(Namespace, Kind, FA, Clause, Map) when Kind == 'defn'; Kind == 'defmacro' ->
+add_def_clause(Namespace, Kind, FA, Meta, Clause, Map) when Kind == 'defn-' ->
+  add_def_clause(Namespace, 'defn', FA, Meta, Clause, Map);
+add_def_clause(Namespace, Kind, FA, Meta, Clause, Map) when Kind == 'defmacro-' ->
+  add_def_clause(Namespace, 'defmacro', FA, Meta, Clause, Map);
+add_def_clause(Namespace, Kind, FA, Meta, Clause, Map) when Kind == 'defn'; Kind == 'defmacro' ->
   Key = 'defs',
   NS = maps:get(Namespace, Map),
   Defs = maps:get(Key, NS),
   Clauses1 = case orddict:find(FA, Defs) of
-               {ok, Clauses} -> [Clause | Clauses];
-               error -> [Clause]
+               {ok, Clauses} -> orddict:store(Meta, Clause, Clauses);
+               error -> orddict:from_list([{Meta, Clause}])
              end,
   Defs1 = orddict:store(FA, Clauses1, Defs),
   NS1 = maps:update(Key, Defs1, NS),
@@ -329,13 +331,14 @@ namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->
   FunExports = namespace_exports(NS, Options),
   FunDefs = namespace_defs(NS, Options),
   Exports = InfoExports ++ FunExports,
-  Defs = InfoDefs ++ FunDefs,
-  TranslateFun = fun({{Fun, Arity}, Clauses}, Acc) ->
-                     [{function, 0, Fun, Arity, lists:reverse(Clauses)} | Acc]
+  Defs = orddict:merge(fun(_K, V1, _V2) -> V1 end, InfoDefs, FunDefs),
+  TranslateFun = fun({Fun, Arity}, {Line, Clauses}, Acc) ->
+                     [{function, Line, Fun, Arity, Clauses} | Acc]
                  end,
-  DefForms = lists:foldl(TranslateFun, [], Defs),
-  AttrModule = {attribute, 0, module, ModuleName},
-  AttrExport = {attribute, 0, export, Exports},
+  DefForms = orddict:fold(TranslateFun, [], Defs),
+  Line = 1,
+  AttrModule = {attribute, Line, module, ModuleName},
+  AttrExport = {attribute, Line, export, Exports},
   %% add other forms such as attributes
   OtherForms = get_kv(Namespace, 'forms', Map),
   %% The `module_info' functions definitions and exports are added automatically
@@ -361,9 +364,18 @@ private_macros(NS) ->
   ordsets:subtract(All, Exports).
 
 namespace_defs(NS, Options) ->
+  GetMetaClauses = fun(Meta, Clause, {nil, Clauses}) -> {Meta, [Clause | Clauses]};
+                      (_Meta, Clause, {Meta, Clauses}) -> {Meta, [Clause | Clauses]}
+                   end,
+  IterateDefs = fun(FA, MetaClauses, Acc) ->
+                    {Meta, ReversedClauses} = orddict:fold(GetMetaClauses, {nil, []}, MetaClauses),
+                    Line = ?line(Meta),
+                    Clauses = lists:reverse(ReversedClauses),
+                    orddict:store(FA, {Line, Clauses}, Acc)
+                end,
+  AllDefs = orddict:fold(IterateDefs, orddict:new(), maps:get('defs', NS)),
   Defs = case lists:member(strip_private_macro, Options) of
            true ->
-             AllDefs = maps:get('defs', NS),
              PrivateMacros = private_macros(NS),
              case PrivateMacros of
                [] ->
@@ -381,18 +393,18 @@ namespace_defs(NS, Options) ->
                  orddict:filter(Filter, AllDefs)
              end;
            false ->
-             maps:get('defs', NS)
+             AllDefs
          end,
   %% insert aliases defs
   Aliases = maps:get('aliases', NS),
   AliasesDefs = lists:foldl(fun({Alias, {F, A, _}}, Acc) ->
-                                {ok, Clauses} = orddict:find({F, A}, Defs),
-                                orddict:store({Alias, A}, Clauses, Acc)
+                                {ok, MetaClauses} = orddict:find({F, A}, Defs),
+                                orddict:store({Alias, A}, MetaClauses, Acc)
                             end,
                             orddict:new(),
                             Aliases),
   %% append aliases defs into head since it's much shorter in general.
-  AliasesDefs ++ Defs.
+  orddict:merge(fun(_K, V1, _V2) -> V1 end, Defs, AliasesDefs).
 
 %% generate the `__info__' function for kapok.
 gen_info_fun(Namespace, Ctx, Options, Map) ->
@@ -406,11 +418,12 @@ gen_info_fun(Namespace, Ctx, Options, Map) ->
              true -> maps:get(macros, NS);
              false -> maps:get(export_macros, NS)
            end,
-  {TFunctions, Ctx1} = kapok_trans:translate(kapok_trans:quote([], Functions), Ctx),
-  {TMacros, Ctx2} = kapok_trans:translate(kapok_trans:quote([], Macros), Ctx1),
+  Line = 1,
+  {TFunctions, Ctx1} = kapok_trans:translate(kapok_trans:quote([{line, Line}], Functions), Ctx),
+  {TMacros, Ctx2} = kapok_trans:translate(kapok_trans:quote([{line, Line}], Macros), Ctx1),
   FA = {'__info__', 1},
   Exports = [FA],
   Defs = orddict:from_list([{FA,
-                             [{clause, 0, [{atom,0,'functions'}], [], [TFunctions]},
-                              {clause, 0, [{atom,0,'macros'}], [], [TMacros]}]}]),
+                             {Line, [{clause, Line, [{atom, Line, 'functions'}], [], [TFunctions]},
+                                     {clause, Line, [{atom, Line, 'macros'}], [], [TMacros]}]}}]),
   {Exports, Defs, Ctx2}.

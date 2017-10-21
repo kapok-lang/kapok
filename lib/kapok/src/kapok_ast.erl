@@ -358,7 +358,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
       AddRedirctClauses(),
       Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareMacroEnv ++ PrepareBody ++ TBody},
       %% TODO add conflict checking for Namespace:Name/Arity and imported names.
-      kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Clause),
+      kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Meta, Clause),
       kapok_ctx:pop_scope(TCtx8#{def_fap => PreviousFAP})
   catch
     throw:{unknown_local_call, FA, FAMeta} ->
@@ -501,7 +501,7 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
   Arity = length(TNormalArgs),
   TArgs = TNormalArgs ++ [Extra],
   TBody = [{call, ?line(Meta), TF, TArgs}],
-  kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, 'normal',
+  kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, 'normal', Meta,
                              {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
 handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
