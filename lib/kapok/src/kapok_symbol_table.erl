@@ -363,15 +363,17 @@ namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->
                      [{function, Line, Fun, Arity, Clauses} | Acc]
                  end,
   DefForms = orddict:fold(TranslateFun, [], Defs),
+  File = ?m(Ctx, file),
   Line = 1,
   AttrModule = {attribute, Line, module, ModuleName},
+  AttrFile = {attribute, Line, file, {kapok_utils:characters_to_list(File), Line}},
   AttrExport = {attribute, Line, export, Exports},
   %% add other forms such as attributes
   OtherForms = get_kv(Map, Namespace, 'forms'),
   %% The `module_info' functions definitions and exports are added automatically
   %% by the erlang compiler, so it's not necessary to manually add them
   %% in kapok compiler.
-  Forms = [AttrModule, AttrExport] ++ OtherForms ++ DefForms,
+  Forms = [AttrModule, AttrFile, AttrExport] ++ OtherForms ++ DefForms,
   {Forms, Ctx1}.
 
 namespace_exports(NS, Options) ->
