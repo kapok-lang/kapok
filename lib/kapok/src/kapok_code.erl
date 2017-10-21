@@ -107,13 +107,12 @@ load_ns(Ns, Ctx, NsToModules) ->
                export_all_macro,
                %% ignore suspended def clauses
                ignore_suspended_def_clauses],
-  {ok, Forms, Ctx1} = kapok_symbol_table:namespace_forms(Ns, Next, Ctx, STOptions),
-  Callback = fun(_Module, _Binary) -> ok end,
   ErlOptions = [%% Turns off warnings for unused local functions.
                 %% It's possible that there are other functions rather than the
                 %% called macro definitions. No need to issue warnings in this case.
                 nowarn_unused_function],
-  kapok_erl:module(Forms, ErlOptions, Ctx1, Callback),
+  Callback = fun(_Module, _Binary) -> ok end,
+  kapok_ast:build_namespace(Ns, Next, Ctx, STOptions, ErlOptions, Callback),
   %% update internal state
   {Next, add_ns(Ns, Next, NsToModules)}.
 

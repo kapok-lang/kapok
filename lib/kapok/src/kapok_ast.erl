@@ -2,6 +2,7 @@
 -module(kapok_ast).
 -export([compile/2,
          add_default_uses/1,
+         build_namespace/6,
          format_error/1,
          empty_doc/0]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
@@ -220,13 +221,7 @@ handle_def_alias(Meta, _Kind, Alias, Ast, Ctx) ->
 
 do_handle_def_alias(Meta, Alias, Original, Ctx) ->
   Namespace = ?m(Ctx, namespace),
-  case kapok_symbol_table:add_alias(Namespace, Alias, Original) of
-    not_exist ->
-      Error = {nonexistent_original_for_alias, {Alias, Original}},
-      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
-    ok ->
-      ok
-  end,
+  kapok_symbol_table:add_suspended_alias(Namespace, Alias, Original, Meta),
   Ctx.
 
 handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{keyword_when, _, _} | _]} = Guard | T],
@@ -349,7 +344,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
   Ctx6 = CCtx#{def_fap => FAP},
   %% Check if there is any suspended def clause depends on this clause.
   %% If there is, re-do the compilation of the suspended clauses.
-  AddedFAP = handle_suspended_def_clauses(Namespace, Kind, [FAP | RedirectedFAPList], Ctx),
+  AddedFAP = handle_suspended_def_clauses(Namespace, false, Kind, [FAP | RedirectedFAPList], Ctx),
   %% TODO add def_fap for other clauses (maybe do this when impl delay compilation stuff?)
   {TGuard, TCtx7} = kapok_trans:translate_guard(Guard, Ctx6),
   try kapok_trans:translate_body(Meta, Body, TCtx7) of
@@ -504,16 +499,20 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
   kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, 'normal', Meta,
                              {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
-handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
+handle_suspended_def_clauses(Namespace, IsAlias, CurrentKind, FAPList, Ctx) ->
   SuspendedClauses = kapok_symbol_table:namespace_suspended_def_clause(Namespace),
   orddict:fold(fun(FA, S, Acc) ->
                    case kapok_dispatch:filter_fa(FA, FAPList) of
                      [] -> Acc;
                      FAList ->
-                       lists:map(fun({F, A, P}) ->
-                                     kapok_symbol_table:add_fap(Namespace, CurrentKind, F, A, P)
-                                 end,
-                                 FAList),
+                       case IsAlias of
+                         true -> ok;
+                         false ->
+                           lists:map(fun({F, A, P}) ->
+                                         kapok_symbol_table:add_fap(Namespace, CurrentKind, F, A, P)
+                                     end,
+                                     FAList)
+                       end,
                        ToAdd = ordsets:from_list(FAList),
                        lists:map(fun({_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}) ->
                                      handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx)
@@ -527,19 +526,32 @@ handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
                SuspendedClauses).
 
 %% namespace
+handle_aliases(Namespace, Ctx, Options) ->
+  case kapok_symbol_table:handle_aliases(Namespace, Options) of
+    {ok, Added} ->
+      %% try to re-try to compile all suspended def clauses
+      lists:map(fun({Kind, FAPList}) ->
+                    handle_suspended_def_clauses(Namespace, true, Kind, FAPList, Ctx)
+                end,
+                Added);
+    {error, [{AliasOriginal, Meta} | _T]} ->
+      Error = {inexistent_original_for_alias, AliasOriginal},
+      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error)
+  end.
+
+build_namespace(Namespace, ModuleName, Ctx, STOptions, ErlOptions, Callback) ->
+  handle_aliases(Namespace, Ctx, STOptions),
+  {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, ModuleName, Ctx, STOptions),
+  kapok_erl:module(Forms, ErlOptions, Ctx1, Callback).
+
 build_namespace(Namespace, Ctx) ->
   %% Strip all private macros from the forms for the final compilation of the specified module.
   %% A private macro is meant to be called only in current module. There will be
   %% no explicit call to it any more after its full expansion. We strip their definitions
   %% from the forms for the final compilation in order to avoid unused warnings caused by them.
-  Options = [strip_private_macro],
-  case kapok_symbol_table:namespace_forms(Namespace, Namespace, Ctx, Options) of
-    {suspended, [SuspendedDef | _T], Ctx1} ->
-      {FA, [{FAMeta, _} | _]} = SuspendedDef,
-      kapok_error:compile_error(FAMeta, ?m(Ctx1, file), "unknown local call: ~p", [FA]);
-    {ok, Forms, Ctx1} ->
-      kapok_erl:module(Forms, [], Ctx1, fun write_compiled/2)
-  end.
+  STOptions = [strip_private_macro],
+  ErlOptions = [],
+  build_namespace(Namespace, Namespace, Ctx, STOptions, ErlOptions, fun write_compiled/2).
 
 write_compiled(Module, Binary) ->
   %% write compiled binary to dest file
@@ -609,10 +621,10 @@ format_error({invalid_expression, {Ast}}) ->
   io_lib:format("invalid top level expression ~s", [token_text(Ast)]);
 format_error({invalid_body, {Form}}) ->
   io_lib:format("invalid body for form: ~p", [Form]);
-format_error({nonexistent_original_for_alias, {Alias, {Fun, Arity}}}) ->
+format_error({inexistent_original_for_alias, {Alias, {Fun, Arity}}}) ->
   io_lib:format("fail to define aliases ~s because original function (~s ~B) does not exist",
                 [Alias, Fun, Arity]);
-format_error({nonexistent_original_for_alias, {Alias, Fun}}) ->
+format_error({inexistent_original_for_alias, {Alias, Fun}}) ->
   io_lib:format("fail to define aliases ~s because original function ~s does not exist",
                 [Alias, Fun]);
 format_error({invalid_defalias_expression, {Alias, Ast}}) ->
