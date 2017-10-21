@@ -8,6 +8,9 @@
 
 ;; list operators
 
+(defalias head hd
+  """Alias to `hd`.""")
+
 (defn hd [list]
   """Returns the head of a list, that is, the first element.
 
@@ -21,8 +24,8 @@
   """
   (erlang.hd list))
 
-(defalias head hd
-  """Alias to `hd`.""")
+(defalias tail tl
+  """Alias to `tl`.""")
 
 (defn tl [list]
   """Returns the tail of a list, that is, the list minus the first element.
@@ -36,9 +39,6 @@
   """
   (erlang.tl list))
 
-(defalias tail tl
-  """Alias to `tl`.""")
-
 ;; special forms
 
 (defmacro define [name value]
@@ -49,14 +49,14 @@
 
 ;; the conditionals
 
+(defalias false? nil?)
+
 (defn nil?
   """Returns `:true` if `x` is nil, `:false` otherwise."""
   ([:nil] :true)
   ([[]] :true)
   ([:false] :true)
   ([_] :false))
-
-(defalias false? nil?)
 
 (defn true? [x]
   """Returns `:true` if `x` is the value true, `:false` otherwise."""
@@ -80,14 +80,14 @@
      (:true ~@body)
      (:false ^ok)))
 
+(defalias unless when-not
+  """Alias to `when-not`.""")
+
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
   `(case (core.true? ~test)
      (:true ^ok)
      (:false ~@body)))
-
-(defalias unless when-not
-  """Alias to `when-not`.""")
 
 ;; TODO move all these functions to protocol `seq`
 (defn first [list]
