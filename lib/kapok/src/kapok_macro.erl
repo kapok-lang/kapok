@@ -86,7 +86,7 @@ expand_1({Category, Meta, {Head, Tail}}, Ctx) when ?is_cons_list(Category) ->
   {EHead, ECtx1, Expanded1} = expand_1(Head, Ctx),
   {ETail, ECtx2, Expanded2} = expand_1(Tail, ECtx1),
   {{Category, Meta, {EHead, ETail}}, ECtx2, Expanded1 orelse Expanded2};
-%% non-list containers
+%% non-list collections
 expand_1({Category, Meta, Args}, Ctx)
     when Category == 'bitstring', is_list(Args);
          Category == 'tuple';

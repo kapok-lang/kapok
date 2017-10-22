@@ -240,7 +240,7 @@ These commas are considered whitespace and striped after source code is parsed. 
 #{:name new-username, :email email}
 ```
 
-### Containers
+### Collections
 
 #### Bitstring and Binary
 

@@ -1,5 +1,5 @@
-%% container
--module(kapok_trans_container).
+%% For translating collections.
+-module(kapok_trans_collection).
 -export([build_tuple/2,
          build_map_from/2,
          build_list/1,

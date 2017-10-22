@@ -12,14 +12,14 @@
          construct_new_args/5,
          format_error/1]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
--import(kapok_trans_container, [build_tuple/2,
-                                build_map_from/2,
-                                build_list/1,
-                                translate_tuple/3,
-                                translate_map/3,
-                                translate_set/3,
-                                translate_list/2,
-                                translate_cons_list/3
+-import(kapok_trans_collection, [build_tuple/2,
+                                 build_map_from/2,
+                                 build_list/1,
+                                 translate_tuple/3,
+                                 translate_map/3,
+                                 translate_set/3,
+                                 translate_list/2,
+                                 translate_cons_list/3
                                ]).
 -import(kapok_trans_special_form, [translate_attribute/4,
                                    translate_let/4,
@@ -84,7 +84,7 @@ translate({binary_string, _Meta, Binary}, Ctx) ->
 translate({list_string, Meta, Binary}, Ctx) ->
   {{string, ?line(Meta), binary_to_list(Binary)}, Ctx};
 
-%% Containers
+%% Collections
 
 %% bitstring
 translate({bitstring, Meta, Arg}, Ctx) ->
@@ -255,7 +255,7 @@ translate({quote, Meta, Arg}, Ctx) ->
   translate(quote(Meta, Arg), Ctx);
 
 %% backquote
-%% The backquote is pushed down into the containers(list, cons-list, map, etc.) elements.
+%% The backquote is pushed down into the collections(list, cons-list, map, etc.) elements.
 %% and then translated. We don't simply use backquote_level/unquote_level in macro_context
 %% to indicate backquote/unquote environment in order to avoid always checking
 %% backquote_level/unquote_level in other translate clauses for translating other types.
@@ -319,7 +319,7 @@ translate({backquote, _, {Category, Meta, {Head, Tail}}}, Ctx) when ?is_cons_lis
   {THead, TCtx2} = translate_list(Head, TCtx1),
   {TTail, TCtx3} = translate({backquote, token_meta(Tail), Tail}, TCtx2),
   {{tuple, ?line(Meta), [TC, TMeta, {tuple, ?line(Meta), [THead, TTail]}]}, TCtx3};
-%% backquote a container but not list
+%% backquote a collection but not list
 translate({backquote, _, {Category, Meta, Args}}, Ctx)
     when Category == 'bitstring', is_list(Args);
          Category == 'tuple';
@@ -330,7 +330,7 @@ translate({backquote, _, {Category, Meta, Args}}, Ctx)
   L = lists:map(fun(X) -> {backquote, token_meta(X), X} end, Args),
   {TArgs, TCtx2} = translate(L, TCtx1),
   {{tuple, ?line(Meta), [TC, TMeta, TArgs]}, TCtx2};
-%% backquote a non-container type, e.g. an atom.
+%% backquote a non-collection type, e.g. an atom.
 translate({backquote, Meta, Arg}, Ctx) ->
   translate({quote, Meta, Arg}, Ctx);
 

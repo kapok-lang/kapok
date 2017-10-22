@@ -268,7 +268,7 @@ scan([S, H|T], Line, Column, Scope, Tokens)
          end,
   handle_keyword_atom([H|T], Line, Column, Type, Scope, Tokens);
 
-%% Containers
+%% Collections
 
 %% Bitstring
 scan([H, H|T], Line, Column, Scope, Tokens) when H == $<; H == $< ->
@@ -663,7 +663,7 @@ check_terminator({C, {Line, Column}}, [{Open, {{OpenLine, _}, _}}|_])
     when C == ')'; C == ']'; C == '}'; C == '>>' ->
   Close = terminator(Open),
   {error, {{Line, Column}, ?MODULE,
-           {missing_container_terminator, atom_to_list(C), Open, OpenLine, Close}}};
+           {missing_collection_terminator, atom_to_list(C), Open, OpenLine, Close}}};
 check_terminator({C, {Line, Column}}, [])
     when C == ')'; C == ']'; C == '}'; C == '>>' ->
   {error, {{Line, Column}, ?MODULE, {unexpected_token, atom_to_list(C)}}};
@@ -707,7 +707,7 @@ format_error({invalid_codepoint, CodePoint}) ->
   io_lib:format("invalid or reserved unicode codepoint ~tc", [CodePoint]);
 format_error({empty_name, Char1, Char2, Line}) ->
   io_lib:format("empty name before ~tc~tc at line ~B", [Char1, Char2, Line]);
-format_error({missing_container_terminator, Token, Open, OpenLine, Close}) ->
+format_error({missing_collection_terminator, Token, Open, OpenLine, Close}) ->
   Format = "unexpected token: \"~ts\". \"~ts\" starting at line ~B \
 is missing terminator \"~ts\"",
   io_lib:format(Format, [Token, Open, OpenLine, Close]);

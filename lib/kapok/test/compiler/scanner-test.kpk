@@ -226,7 +226,7 @@
                                     (scan-1 l))))
                      cases)))
 
-  (test "scan container"
+  (test "scan collections"
     (let [cases [
                  ;; bitstring
                  {[{^'<<' [{^line 1} {^column 2}]}

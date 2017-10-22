@@ -107,11 +107,11 @@ The `print` expression will be evaluated and the result will be marked as unused
 
 In the binding list, it supports destructuring like Clojure. In Erlang, a similar concept of destructuring is called pattern matching. Destructuring is somewhat different from pattern matching. In Kapok, the semantics follows closer to Erlang, so we stick to the name pattern matching. The pattern matching works for two kinds of structure:
 
-#### 1. sequential container
+#### 1. sequential collection
 
-  Sequential containers include the types of lists, tuples, bitstring(and binary), list strings, binary strings.
+  Sequential collections include the types of lists, tuples, bitstring(and binary), list strings, binary strings.
   
-  For every element in the container, a local must be declared in the pattern part. For example, we could write this code to do pattern matching for a list:
+  For every element in the collection, a local must be declared in the pattern part. For example, we could write this code to do pattern matching for a list:
 
 ```
 (let [[x _y z] [42 "foo" 99.2]]
@@ -130,7 +130,7 @@ In the binding list, it supports destructuring like Clojure. In Erlang, a simila
 
 But it's illegal to omit `[5 12]` in `v` in the pattern part in Kapok.
 
-It shares the same syntax to pattern match a sequential container, and declare a sequential container. The syntax is consistent in this way. For example, the following code show how to pattern match each type of sequential containers:
+It shares the same syntax to pattern match a sequential collection, and declare a sequential collection. The syntax is consistent in this way. For example, the following code show how to pattern match each type of sequential collections:
 
 ```
 (let [;; list
@@ -151,9 +151,9 @@ It shares the same syntax to pattern match a sequential container, and declare a
 )
 ```
 
-#### 2. map container
+#### 2. map collection
 
-  We could do pattern matching for maps. Conceptually it's identical to pattern matching for sequential container. The difference is that we only have to write the key value pair in the pattern part for what we want to match. For example
+  We could do pattern matching for maps. Conceptually it's identical to pattern matching for sequential collection. The difference is that we only have to write the key value pair in the pattern part for what we want to match. For example
 
 ```
 (let  [;; map
@@ -166,5 +166,5 @@ It shares the same syntax to pattern match a sequential container, and declare a
 
 We omit `^k2` in the pattern and fetch whatever value of `^k1`, refer it as the local `value` and access it in the body of the let form.
 
-Please notice that set container is not supported in pattern matching.
+Please notice that set collection is not supported in pattern matching.
 

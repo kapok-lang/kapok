@@ -106,7 +106,7 @@ world!")))
     ;; Comments occur all over this file. It's uneccesary to make
     ;; an independent test case for it.
 
-    ;; containers
+    ;; collections
     ;; bitstring, binary
     (assert (=== <<#"hello">>
                  (erlang.list_to_binary #"hello")))

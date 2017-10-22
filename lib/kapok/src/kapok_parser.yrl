@@ -6,14 +6,14 @@ Nonterminals
     grammar
     expression expression_list expressions
     number signed_number keyword_expr atom_expr
-    bitstring_arg commas_bitstring_arg bitstring_arg_list bitstring_args bitstring_container
+    bitstring_arg commas_bitstring_arg bitstring_arg_list bitstring_args bitstring_collection
     quote_expr backquote_expr unquote_expr unquote_splicing_expr
-    value container_value comma_container_value container_value_list container_values
-    open_paren close_paren open_bracket close_bracket list_container cons_list
-    open_curly close_curly tuple_container
-    paired_comma_container_values paired_container_value_list paired_container_values
-    unpaired_container_value_list unpaired_container_values open_bang_curly map_container
-    open_percent_curly set_container
+    value collection_value comma_collection_value collection_value_list collection_values
+    open_paren close_paren open_bracket close_bracket list_collection cons_list
+    open_curly close_curly tuple_collection
+    paired_comma_collection_values paired_collection_value_list paired_collection_values
+    unpaired_collection_value_list unpaired_collection_values open_bang_curly map_collection
+    open_percent_curly set_collection
     dot_op dot_identifier dot_identifier_part
     .
 
@@ -77,13 +77,13 @@ value       -> unquote_splicing_expr : '$1'.
 %% strings
 value       -> binary_string : '$1'.
 value       -> list_string : '$1'.
-%% containers
-value       -> bitstring_container : '$1'.
-value       -> list_container : '$1'.
+%% collections
+value       -> bitstring_collection : '$1'.
+value       -> list_collection : '$1'.
 value       -> cons_list: '$1'.
-value       -> tuple_container : '$1'.
-value       -> map_container : '$1'.
-value       -> set_container : '$1'.
+value       -> tuple_collection : '$1'.
+value       -> map_collection : '$1'.
+value       -> set_collection : '$1'.
 
 %% signed number
 signed_number    -> '+' : build_signed_number('$1').
@@ -111,86 +111,86 @@ dot_identifier -> dot_identifier dot_op dot_identifier_part : build_dot('$2', '$
 quote_expr            -> quote value : build_quote('$1', '$2').
 backquote_expr        -> backquote value : build_backquote('$1', '$2').
 unquote_expr          -> unquote value : build_unquote('$1', '$2').
-unquote_splicing_expr -> unquote_splicing list_container : build_unquote_splicing('$1', '$2').
+unquote_splicing_expr -> unquote_splicing list_collection : build_unquote_splicing('$1', '$2').
 unquote_splicing_expr -> unquote_splicing identifier : build_unquote_splicing('$1', '$2').
 
-%%% Containers
+%%% Collections
 
 %% Bitstring
 
 bitstring_arg        -> number : build_bitstring_element('$1').
-bitstring_arg        -> list_container : '$1'.
+bitstring_arg        -> list_collection : '$1'.
 commas_bitstring_arg -> bitstring_arg  : '$1'.
 commas_bitstring_arg -> ',' bitstring_arg  : '$2'.
 bitstring_arg_list   -> bitstring_arg : ['$1'].
 bitstring_arg_list   -> bitstring_arg_list commas_bitstring_arg : ['$2' | '$1'].
 
-bitstring_args      -> bitstring_arg_list : lists:reverse('$1').
+bitstring_args       -> bitstring_arg_list : lists:reverse('$1').
 
-bitstring_container -> '<<' '>>' : build_bitstring('$1', []).
-bitstring_container -> '<<' bitstring_args '>>' : build_bitstring('$1', '$2').
-bitstring_container -> '<<' list_string '>>' : build_bitstring('$1', '$2').
-bitstring_container -> '<<' binary_string '>>' : build_bitstring('$1', '$2').
+bitstring_collection -> '<<' '>>' : build_bitstring('$1', []).
+bitstring_collection -> '<<' bitstring_args '>>' : build_bitstring('$1', '$2').
+bitstring_collection -> '<<' list_string '>>' : build_bitstring('$1', '$2').
+bitstring_collection -> '<<' binary_string '>>' : build_bitstring('$1', '$2').
 
 %% List
 
-container_value -> value: '$1'.
-container_value -> value keyword_as identifier: build_bind('$2', '$1', '$3').
+collection_value -> value: '$1'.
+collection_value -> value keyword_as identifier: build_bind('$2', '$1', '$3').
 
-comma_container_value -> container_value : '$1'.
-comma_container_value -> ',' container_value : '$2'.
+comma_collection_value -> collection_value : '$1'.
+comma_collection_value -> ',' collection_value : '$2'.
 
-container_value_list  -> container_value :  ['$1'].
-container_value_list  -> container_value_list comma_container_value : ['$2' | '$1'].
+collection_value_list  -> collection_value :  ['$1'].
+collection_value_list  -> collection_value_list comma_collection_value : ['$2' | '$1'].
 
-container_values      -> container_value_list : lists:reverse('$1').
+collection_values      -> collection_value_list : lists:reverse('$1').
 
 open_bracket  -> '[' : '$1'.
 close_bracket -> ']' : '$1'.
 open_paren  -> '(' : '$1'.
 close_paren -> ')' : '$1'.
 
-list_container -> open_bracket close_bracket : build_literal_list('$1', []).
-list_container -> open_bracket container_values close_bracket : build_literal_list('$1', '$2').
-list_container -> open_paren close_paren : build_list('$1', []).
-list_container -> open_paren container_values close_paren: build_list('$1', '$2').
+list_collection -> open_bracket close_bracket : build_literal_list('$1', []).
+list_collection -> open_bracket collection_values close_bracket : build_literal_list('$1', '$2').
+list_collection -> open_paren close_paren : build_list('$1', []).
+list_collection -> open_paren collection_values close_paren: build_list('$1', '$2').
 
-cons_list -> open_bracket container_values keyword_cons value close_bracket : build_cons_list('$3', '$2', '$4').
-cons_list -> open_paren container_values keyword_cons value close_paren : build_cons_list('$3', '$2', '$4').
+cons_list -> open_bracket collection_values keyword_cons value close_bracket : build_cons_list('$3', '$2', '$4').
+cons_list -> open_paren collection_values keyword_cons value close_paren : build_cons_list('$3', '$2', '$4').
 
 %% Tuple
 open_curly   -> '{' : '$1'.
 close_curly  -> '}' : '$1'.
 
-tuple_container -> open_curly close_curly : build_tuple('$1', []).
-tuple_container -> open_curly container_values close_curly: build_tuple('$1', '$2').
+tuple_collection -> open_curly close_curly : build_tuple('$1', []).
+tuple_collection -> open_curly collection_values close_curly: build_tuple('$1', '$2').
 
 %% Map
 
-paired_comma_container_values -> comma_container_value comma_container_value : ['$2', '$1'].
+paired_comma_collection_values -> comma_collection_value comma_collection_value : ['$2', '$1'].
 
-paired_container_value_list -> container_value comma_container_value : ['$2', '$1'].
-paired_container_value_list -> paired_container_value_list paired_comma_container_values : lists:append('$2', '$1').
+paired_collection_value_list -> collection_value comma_collection_value : ['$2', '$1'].
+paired_collection_value_list -> paired_collection_value_list paired_comma_collection_values : lists:append('$2', '$1').
 
-paired_container_values   -> paired_container_value_list : lists:reverse('$1').
+paired_collection_values   -> paired_collection_value_list : lists:reverse('$1').
 
-unpaired_container_value_list -> container_value : ['$1'].
-unpaired_container_value_list -> paired_container_value_list comma_container_value : ['$2' | '$1'].
+unpaired_collection_value_list -> collection_value : ['$1'].
+unpaired_collection_value_list -> paired_collection_value_list comma_collection_value : ['$2' | '$1'].
 
-unpaired_container_values -> unpaired_container_value_list : lists:reverse('$1').
+unpaired_collection_values -> unpaired_collection_value_list : lists:reverse('$1').
 
 open_bang_curly -> '#{' : '$1'.
 
-map_container -> open_bang_curly close_curly : build_map('$1', []).
-map_container -> open_bang_curly paired_container_values close_curly : build_map('$1', '$2').
-map_container -> open_bang_curly unpaired_container_values close_curly : throw_unpaired_map('$1').
+map_collection -> open_bang_curly close_curly : build_map('$1', []).
+map_collection -> open_bang_curly paired_collection_values close_curly : build_map('$1', '$2').
+map_collection -> open_bang_curly unpaired_collection_values close_curly : throw_unpaired_map('$1').
 
 %% Set
 
 open_percent_curly -> '%{' : '$1'.
 
-set_container -> open_percent_curly close_curly : build_set('$1', []).
-set_container -> open_percent_curly container_values close_curly : build_set('$1', '$2').
+set_collection -> open_percent_curly close_curly : build_set('$1', []).
+set_collection -> open_percent_curly collection_values close_curly : build_set('$1', '$2').
 
 Erlang code.
 
