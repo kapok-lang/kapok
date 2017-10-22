@@ -205,27 +205,37 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
       end
   end;
 %%  Remote call
-translate({list, Meta, [{dot, _, {Module, Fun}} | Args]}, Ctx) ->
+translate({list, Meta, [{dot, DotMeta, {Module, Fun}} | Args]}, Ctx) ->
   {TArgs, TCtx1} = translate_args(Args, Ctx),
   Arity = length(Args),
-  FunArity = {Fun, Arity},
-  Namespace = ?m(TCtx1, namespace),
-  case Module of
-    Namespace ->
-      %% call to local module
-      case kapok_dispatch:find_local_function(FunArity, TCtx1) of
-        {F2, A2, P2} ->
-          translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
+  case kapok_ctx:get_var(Meta, Ctx, Module) of
+    {ok, _} ->
+      M = {identifier, DotMeta, Module},
+      F = case kapok_ctx:get_var(Meta, TCtx1, Fun) of
+            {ok, _} -> {identifier, DotMeta, Fun};
+            error -> {atom, DotMeta, Fun}
+          end,
+      translate_remote_call(Meta, M, F, Arity, 'normal', Arity, TArgs, TCtx1);
+    error ->
+      FunArity = {Fun, Arity},
+      Namespace = ?m(TCtx1, namespace),
+      case Module of
+        Namespace ->
+          %% call to local module
+          case kapok_dispatch:find_local_function(FunArity, TCtx1) of
+            {F2, A2, P2} ->
+              translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
+            _ ->
+              throw({unknown_local_call, FunArity, Meta})
+          end;
         _ ->
-          throw({unknown_local_call, FunArity, Meta})
-      end;
-    _ ->
-      case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
-        {{M3, F3, A3, P3}, Ctx2} ->
-          translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
-        _ ->
-          kapok_error:compile_error(Meta, ?m(TCtx1, file),
-                                    "unknown remote call: ~p ~p", [Module, FunArity])
+          case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
+            {{M3, F3, A3, P3}, Ctx2} ->
+              translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
+            _ ->
+              kapok_error:compile_error(Meta, ?m(TCtx1, file),
+                                        "unknown remote call: ~p ~p", [Module, FunArity])
+          end
       end
   end;
 translate({list, Meta, [{list, _, _} = H | T]}, Ctx) ->

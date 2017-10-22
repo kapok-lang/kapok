@@ -38,8 +38,9 @@
   """Provides a set of algorithms to obtain and traverse collections according to
   the `sequential` protocol."""
   (use core)
-  (require ;; lists
-           ;; maps
+  (require erlang
+           lists
+           maps
            sequential))
 
 (defn all?
@@ -91,6 +92,57 @@
     ({^ok e} e)
     (^error default)))
 
+(defn chunk [collection n]
+  "Shortcut to `(chunk collection n n)`."
+  (chunk collection n n ^nil))
+
+(defn chunk [_collection n step &optional _pad] (&when (&and (> n 0)
+                                                             (> step 0)))
+  """Returns a collection of lists containing `n` items each, where
+  each new chunk starts `step` elements into the collection."""
+  ;; TODO add impl
+  ^todo
+  )
+
+(defn chunk_by [_collection _fun]
+  "Splits `collection` on every element for which `fun` returns a new value."
+  ;; TODO add impl
+  ^todo
+  )
+
+(defn concat [sequentials]
+  """Given a sequential of sequentials, concatenates the sequentials into
+  a single list."""
+  (do-concat sequentials))
+
+(defn concat
+  "Concatenates the enumerable on the right with the enumerable on the left."
+  ([left right] (&when (&and (list? left)
+                             (list? right)))
+   (lists.append left right))
+
+  ([left right]
+   (do-concat [left right]))
+  )
+
+(defn count
+  "Returns the collection's size."
+  ([collection] (&when (list? collection))
+   (erlang.length collection))
+
+  ([collection]
+   (case (sequential.count collection)
+     ({^ok value} (&when (integer? value))
+      value)
+     ({^error module}
+      (elem (module.reduce collection
+                     {^cont 0}
+                     (fn [_ acc]
+                       {^cont (inc acc)}))
+            1)))
+   )
+  )
+
 (defn fetch
   """Finds the element at the given index (zero-based)."""
 
@@ -106,14 +158,14 @@
              (fn [entry acc]
                (case acc
                  (n {^halt entry})
-                 (_ {^cont (+ acc 1)}))))]
+                 (_ {^cont (inc acc)}))))]
      (case r
        ({^halt entry} {^ok entry})
        ({^done _} ^error))))
 
   ([collection n] (&when (&and (integer? n)
                                (< n 0)))
-   (do-fetch (reverse collection) (abs (+ n 1))))
+   (do-fetch (reverse collection) (abs (inc n))))
   )
 
 (defn reduce
@@ -187,11 +239,20 @@
 (defn- do-any? [[] _]
   :false)
 
+(defn- do-concat [sequential]
+  (let [fun (fn [x l]
+              [x & l])]
+    (lists.reverse (reduce sequential
+                           []
+                           (fn [x acc]
+                             (reduce x acc fun)))))
+  )
+
 (defn- do-fetch [[h & _] 0]
   {^ok h})
 
 (defn- do-fetch [[_ & t] n]
-  (do-fetch t (- n 1)))
+  (do-fetch t (dec n)))
 
 (defn- do-fetch [[] _]
   ^error)
@@ -253,27 +314,5 @@
 ;;     If there are no more items, returns nil.""")
 
 ;;   ;; elixir enum protocol
-
-
-;;   (defn any? [collection fun]
-;;     """Invokes the given `fun` for each item in the `collection` and returns
-;;     `true` if at least one invocation returns a truthy value. Returns `false`
-;;     Otherwise.""")
-
-;;   (defn at [collection index &optional default]
-;;     """Finds the element at the given index (zero-based).
-
-;;     return `default` if index is out of bounds.
-;;     """)
-
-;;   (defn chunk [collection n]
-;;     "Shortcut to `(chunk collection n n)`.")
-
-;;   (defn chunk [collection n step &optional pad]
-;;     """Returns a collection of lists containing `n` items each, where
-;;     each new chunk starts `step` elements into the collection.""")
-
-;;   (defn chunk_by [collection fun]
-;;     """Splits `collection` on every element for which `fun` returns a new value.""")
 
 ;;   )
