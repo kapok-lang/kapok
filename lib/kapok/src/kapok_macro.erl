@@ -179,10 +179,7 @@ prune_stacktrace([], _MFA, Info, _Ctx) ->
 %% List building after evaluating macros.
 
 append(Ast1, Ast2) ->
-  Ctx = kapok_ctx:ctx_for_eval([{line, ?LINE}, {file, kapok_utils:to_binary(?FILE)}]),
-  {EAst1, _} = expand(Ast1, Ctx),
-  {EAst2, _} = expand(Ast2, Ctx),
-  RAst = do_append(EAst1, EAst2),
+  RAst = do_append(Ast1, Ast2),
   case get_compiler_opt(debug) of
     true -> io:format("--- call kapok_macro:append() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
                       [Ast1, Ast2, RAst]);
@@ -204,12 +201,13 @@ do_append(Ast1, Ast2) ->
 
 'list*'(Ast1, Ast2) ->
   Ctx = kapok_ctx:ctx_for_eval([{line, ?LINE}, {file, kapok_utils:to_binary(?FILE)}]),
-  {EAst1, _} = expand(Ast1, Ctx),
-  {EAst2, _} = expand(Ast2, Ctx),
-  RAst = 'do_list*'(EAst1, EAst2),
+  %% Expend just once for `Ast2', which is always `kapok_macro:append' for the tail
+  %% of a backquote list tail.
+  {EAst2, _} = expand_n(Ast2, Ctx, 1),
+  RAst = 'do_list*'(Ast1, EAst2),
   case get_compiler_opt(debug) of
     true -> io:format("--- call kapok_macro:list*() ---~nAst1: ~p~nAst2: ~p~nresult: ~p~n===~n",
-                      [Ast1, Ast2, RAst]);
+                      [Ast1, EAst2, RAst]);
     false -> ok
   end,
   RAst.

@@ -4,7 +4,10 @@
 ;; all functions here are imported for every ns by default.
 
 (ns core
-  (require erlang lists kapok_utils))
+  (require erlang
+           lists
+           kapok_scanner
+           kapok_utils))
 
 ;; list operators
 
@@ -1290,6 +1293,9 @@
 
 ;;; functions for macro programming
 
+(defn token-meta [token]
+  (kapok_scanner.token_meta token))
+
 (defn meta-line [meta]
   """Returns the line number of the specified `meta`."""
   (kapok_utils.meta_line meta))
@@ -1301,7 +1307,10 @@
 (defn empty-doc []
   (kapok_ast.empty_doc))
 
-;;; Others
+(defn macro-error [file meta format &rest args]
+  (kapok_error.compile_error meta file format args))
+
+;;; special macros
 
 (defmacro match? [{^identifier _ ^_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches
@@ -1312,3 +1321,26 @@
   `(case ~expr
      (~pattern :true)
      (_ :false)))
+
+
+(defmacro -> [x &rest forms]
+  "Threads the expr through the forms. Inserts `x` as the
+  second item in the first form, making a list of it if it is not
+  a list already. If there are more forms, inserts the first form as
+  the second item in second form, etc."
+  (case forms
+    ([] x)
+    (_
+     (let [form (first forms)
+           left (rest forms)
+           y (case form
+               ({^list meta []}
+                (macro-error (maps.get ^file _&ctx)
+                             meta
+                             "expected function call but got empty list"))
+               ({^list meta args}
+                {^list meta [(head args) x & (tail args)]})
+               (_
+                (let [meta (token-meta form)]
+                  {^list meta [form x]})))]
+       `(-> ~y ~@left)))))

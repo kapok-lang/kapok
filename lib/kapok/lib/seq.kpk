@@ -139,8 +139,7 @@
                      {^cont 0}
                      (fn [_ acc]
                        {^cont (inc acc)}))
-            1)))
-   )
+            1))))
   )
 
 (defn fetch
