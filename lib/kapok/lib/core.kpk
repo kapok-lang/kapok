@@ -752,6 +752,12 @@
   """
   (erlang.rem x y))
 
+(defalias minus-one dec
+  """Alias to `dec`.""")
+
+(defalias plus-one inc
+  """Alias to `inc`.""")
+
 (defn dec [n]
   """Returns a number one less than the argument `n`."""
   (- n 1))

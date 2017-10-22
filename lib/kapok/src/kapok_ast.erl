@@ -40,8 +40,8 @@ handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_dot_id(C1), 
   handle_ns(Meta, Ast, Doc, T, Ctx);
 handle_ns(Meta, [{C1, _, _} = Ast | T], Ctx) when ?is_dot_id(C1) ->
   handle_ns(Meta, Ast, T, Ctx);
-handle_ns(Meta, _T, Ctx) ->
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {'ns'}}).
+handle_ns(Meta, T, Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {'ns', T}}).
 
 handle_ns(Meta, Ast, Clauses, Ctx) ->
   handle_ns(Meta, Ast, empty_doc(), Clauses,  Ctx).
@@ -168,13 +168,13 @@ dot_id_name({'identifier', _, Arg}) ->
 %% defns
 handle_def_ns(Meta, Kind, [{C, _, _} = NameAst | T], Ctx) when ?is_dot_id(C) ->
   handle_def_ns(Meta, Kind, NameAst, T, Ctx);
-handle_def_ns(Meta, Kind, _T, Ctx) ->
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}}).
+handle_def_ns(Meta, Kind, T, Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind, T}}).
 
 handle_def_ns(Meta, Kind, NameAst, [{C, _, _} = DocAst | T], Ctx) when ?is_string(C) ->
   handle_def_ns(Meta, Kind, NameAst, DocAst, T, Ctx);
 handle_def_ns(Meta, Kind, _NameAst, [], Ctx) ->
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}});
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind, []}});
 handle_def_ns(Meta, Kind, NameAst, T, Ctx) ->
   handle_def_ns(Meta, Kind, NameAst, empty_doc(), T, Ctx).
 
@@ -188,11 +188,11 @@ handle_def_ns(Meta, _Kind, NameAst, DocAst, [{list, _, NSArgs} | T], #{namespace
 %% definitions
 handle_def(Meta, Kind, [{identifier, _, Name}  | T], Ctx) ->
   handle_def(Meta, Kind, Name, T, Ctx);
-handle_def(Meta, Kind, _T, Ctx) ->
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}}).
+handle_def(Meta, Kind, T, Ctx) ->
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind, T}}).
 
 handle_def(Meta, Kind, _Name, [], Ctx) ->
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind}});
+  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind, []}});
 handle_def(Meta, Kind, Name, T, Ctx) when ?is_def_alias(Kind) ->
   handle_def_alias(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, Name, [{C, _, _} = Args | T], Ctx) when ?is_parameter_list(C) ->
@@ -619,8 +619,8 @@ parse_function_aliases(Meta, Args, Ctx) ->
 %% Error
 format_error({invalid_expression, {Ast}}) ->
   io_lib:format("invalid top level expression ~s", [token_text(Ast)]);
-format_error({invalid_body, {Form}}) ->
-  io_lib:format("invalid body for form: ~p", [Form]);
+format_error({invalid_body, {Form, Left}}) ->
+  io_lib:format("invalid body for form: ~p, ~p~n", [Form, Left]);
 format_error({inexistent_original_for_alias, {Alias, {Fun, Arity}}}) ->
   io_lib:format("fail to define aliases ~s because original function (~s ~B) does not exist",
                 [Alias, Fun, Arity]);
