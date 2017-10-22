@@ -4,7 +4,7 @@
 
 
 (defn g [e]
-  (+ 1 e))
+  (inc e))
 
 (defn main []
   ;; there are several formats to define a lambda function(alias, fn):
@@ -42,12 +42,12 @@
 
   (test "test unnamed fn"
         (let [f1 (fn [e] (&when (integer? e))
-                     (+ 1 e))
+                   (inc e))
               f2 (fn [e]
-                   (+ 1 e))
+                   (inc e))
               f3 (fn
                    ([{x y}] (+ x y))
-                   ([e] (+ 1 e)))]
+                   ([e] (inc e)))]
           (assert (=== [2 3]
                        (lists.map f1 [1 2])))
           (assert (=== [2 3]

@@ -4,7 +4,7 @@
 (defn- child []
   (receive
     ({pid n}
-     (send pid (+ 1 n)))))
+     (send pid (inc n)))))
 
 (defn- calc-timeout []
   10)
@@ -21,6 +21,6 @@
 (defn main []
   (test "test send receive"
     (let [n 1]
-      (assert (=== (+ 1 n)
+      (assert (=== (inc n)
                    (plus-one n)))))
   )

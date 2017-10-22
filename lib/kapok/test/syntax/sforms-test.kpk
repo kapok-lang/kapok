@@ -6,10 +6,10 @@
   (test "test do"
     (assert (=== 1
                  (do
-                  (+ 1 0))))
+                  (inc 0))))
     (assert (=== 2
                  (do
-                  (let [_ (+ 1 0)]
+                  (let [_ (inc 0)]
                     ^ok)
-                  (+ 1 1)))))
+                  (inc 1)))))
   )

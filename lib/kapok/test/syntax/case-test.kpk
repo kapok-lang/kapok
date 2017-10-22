@@ -17,7 +17,7 @@
                      (_ (&when (atom? x))
                        ^match)
                      (_ (&when (integer? x))
-                       (let [_ (+ 1 1)]
+                       (let [_ (inc 1)]
                          ^ignore)
                        :true)
                      (_

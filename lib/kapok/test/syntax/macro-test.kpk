@@ -20,7 +20,7 @@
   (use macro-test.inner))
 
 (defn p [a]
-  (+ 1 a))
+  (inc a))
 
 (defmacro f [fun &rest args]
   `(~fun ~@args))

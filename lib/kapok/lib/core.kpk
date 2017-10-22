@@ -529,7 +529,7 @@
 
       (let [current (self)
             child (spawn (fn []
-                           (send current {(self), (+ 1 2)})))]
+                           (send current {(self), (inc 2)})))]
         (receive
           ({child, 3} (io.format "Received 3 back"))))
 
@@ -565,7 +565,7 @@
 
       (let [current (self)
             child (spawn_link (fn []
-                                (send current {(self), (+ 1 2)})))]
+                                (send current {(self), (inc 2)})))]
         (receive
           ({child, 3} (io.format "Received 3 back"))))
 
@@ -601,7 +601,7 @@
 
       (let [current (self)]
         (spawn-monitor (fn []
-                         (send current {(self), (+ 1 2)}))))
+                         (send current {(self), (inc 2)}))))
 
   """
   (erlang.spawn_monitor fun))
@@ -1100,7 +1100,7 @@
   ([x y &rest more]
    (let [{total set} (lists.foldl
                       (fn [n {count acc}]
-                        {(+ 1 count) (ordsets.add_element n acc)})
+                        {(inc count) (ordsets.add_element n acc)})
                       {0 (ordsets.new)}
                       [x y & more])]
      (== total (ordsets.size set)))))
@@ -1152,7 +1152,7 @@
   ([x y &rest more]
    (let [{total set} (lists.foldl
                       (fn [n {count acc}]
-                        {(+ 1 count) (sets.add_element n acc)})
+                        {(inc count) (sets.add_element n acc)})
                       {0 (sets.new)}
                       [x y & more])]
      (== total (sets.size set)))))
@@ -1272,7 +1272,7 @@
       ^bar
 
   """
-  (erlang.element (+ index 1) tuple))
+  (erlang.element (inc index) tuple))
 
 (defn set-elem [tuple index value]
   """Sets `value` at the given zero-based `index` in `tuple`,
@@ -1286,7 +1286,7 @@
       {^baz ^bar 3}
 
   """
-  (erlang.setelement (+ index 1) tuple value))
+  (erlang.setelement (inc index) tuple value))
 
 ;;; functions for macro programming
 
