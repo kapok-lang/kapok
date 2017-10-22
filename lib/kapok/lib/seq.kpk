@@ -52,13 +52,13 @@
    (do-all? collection fun))
 
   ([collection fun]
-   (elem (sequential.reduce collection
-                            {^cont :true}
-                            (fn [entry _]
-                              (if (fun entry)
-                                  {^cont :true}
-                                {^halt :false})))
-         1))
+   (-> (sequential.reduce collection
+                          {^cont :true}
+                          (fn [entry _]
+                            (if (fun entry)
+                                {^cont :true}
+                              {^halt :false})))
+       (elem 1)))
   )
 
 (defn all? [collection]
@@ -73,13 +73,13 @@
    (do-any? collection fun))
 
   ([collection fun]
-   (elem (sequential.reduce collection
-                            {^cont :false}
-                            (fn [entry _]
-                              (if (fun entry)
-                                  {^halt :true}
-                                {^cont :false})))
-         1))
+   (-> (sequential.reduce collection
+                          {^cont :false}
+                          (fn [entry _]
+                            (if (fun entry)
+                                {^halt :true}
+                              {^cont :false})))
+       (elem 1)))
   )
 
 (defn any? [collection]
@@ -135,11 +135,11 @@
      ({^ok value} (&when (integer? value))
       value)
      ({^error module}
-      (elem (module.reduce collection
-                     {^cont 0}
-                     (fn [_ acc]
-                       {^cont (inc acc)}))
-            1))))
+      (-> (module.reduce collection
+                         {^cont 0}
+                         (fn [_ acc]
+                           {^cont (inc acc)}))
+          (elem 1)))))
   )
 
 (defn fetch
@@ -181,11 +181,11 @@
               collection))
 
   ([collection acc fun]
-   (elem (sequential.reduce collection
-                            {^cont acc}
-                            (fn [x acc0]
-                              {^cont (fun x acc0)}))
-         1))
+   (-> (sequential.reduce collection
+                          {^cont acc}
+                          (fn [x acc0]
+                            {^cont (fun x acc0)}))
+       (elem 1)))
   )
 
 (defn reverse
