@@ -28,6 +28,16 @@ define get-files-in-dir
   $(patsubst %.$2,%,$(notdir $(wildcard $1/*.$2)))
 endef
 
+# filter out the specified word list from another word list
+# $(call filter-out-list,to-remove-list,word-list)
+define filter-out-list
+  $(strip                       \
+    $(foreach w,$2,             \
+      $(if $(findstring $w,$1)  \
+           ,,                   \
+         $w)))
+endef
+
 # calculate beam file from module
 # $(call modules-to-beams,destination,modules...)
 define modules-to-beams
@@ -101,10 +111,16 @@ $1_test_dir            := $$(lib_$1_dir)/test
 $1_beam_output_dir     := $$(lib_$1_dir)/ebin
 
 $1_modules             := $$(call get-files-in-dir,$$($1_src_dir),erl)
-$1_lib_files           := $$(call get-files-in-dir,$$($1_lib_dir),kpk)
-$1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
-$1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_files))
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
+$1_core_lib_files      := \
+  core.kpk \
+  protocol.kpk
+$1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
+$1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
+                              $$(call get-files-in-dir,$$($1_lib_dir),kpk))
+$1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
+$1_core_lib_beam_files := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_core_lib_modules))
+$1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_modules))
 
 else
 
@@ -126,7 +142,7 @@ define gen-build-rules
 
 ifeq "$(strip $1)" "kapok"
 
-.PHONY : $2$1 $2$1-compiler  $2$1-core-libs $2$1-libs $3$1 $4$1
+.PHONY : $2$1 $2$1-compiler $2$1-core-libs $2$1-libs $3$1 $4$1
 
 $2$1: $2$1-compiler $2$1-core-libs $2$1-libs
 
@@ -147,11 +163,17 @@ $($1_beam_files):
 	$(QUIET) echo "--- build source file ---"
 	$(QUIET) cd $(lib_$1_dir) && $(REBAR) compile
 
-$2$1-core-libs: $2$1-compiler
+$2$1-core-libs: $($1_core_lib_beam_files)
+
+$($1_core_lib_beam_files): $($1_beam_files)
+$($1_core_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
+
+$($1_core_lib_beam_files):
 	$(QUIET) echo "--- build core libs ---"
 	$(call erl,kapok_compiler,core)
 
-$2$1-libs: $2$1-compiler $2$1-core-libs $($1_lib_beam_files)
+$2$1-libs: $($1_lib_beam_files)
+$($1_lib_beam_files): $($1_beam_files) $($1_core_lib_beam_files)
 
 $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$(QUIET) printf "Compile '%s'\n" $$<
