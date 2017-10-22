@@ -167,12 +167,6 @@ translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, #{def_kind :
     when ?is_behaviour(Form), ?is_local_id(Category), ?is_attr(Kind) ->
   translate_attribute(Meta, Form, Id, Ctx);
 
-%% file
-translate({list, Meta, [{identifier, _, Form}, {C1, _, Binary}, {C2, _, Number}]},
-          #{def_kind := Kind} = Ctx)
-    when ?is_file(Form), ?is_string(C1), ?is_number(C2), ?is_attr(Kind) ->
-  translate_attribute(Meta, Form, {Binary, Number}, Ctx);
-
 %% user-defined attribute
 translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
           #{def_kind := Kind} = Ctx)

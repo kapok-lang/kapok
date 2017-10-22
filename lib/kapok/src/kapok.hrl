@@ -57,9 +57,8 @@
 -define(is_def_alias(Id), (Id == 'defalias' orelse Id == 'defalias-')).
 -define(is_def(Id), (?is_def_fn(Id) orelse ?is_def_macro(Id) orelse ?is_def_alias(Id))).
 -define(is_behaviour(Id), (Id == 'behavior' orelse Id == 'behaviour')).
--define(is_file(Id), (Id == 'file')).
 -define(is_attribute(Id), (Id == 'attribute')).
--define(is_attr(Id), (?is_behaviour(Id) orelse ?is_file(Id) orelse ?is_attribute(Id))).
+-define(is_attr(Id), (?is_behaviour(Id) orelse ?is_attribute(Id))).
 -define(is_special_form(Id), (Id == 'ns' orelse ?is_def(Id) orelse ?is_attr(Id))).
 
 %% default source file suffix
