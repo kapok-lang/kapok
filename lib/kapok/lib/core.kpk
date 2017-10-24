@@ -1341,6 +1341,26 @@
                ({^list meta args}
                 {^list meta [(head args) x & (tail args)]})
                (_
-                (let [meta (token-meta form)]
-                  {^list meta [form x]})))]
+                `(~form ~x)))]
        `(-> ~y ~@left)))))
+
+(defmacro ->> [x &rest forms]
+  "Threads the expr through the forms. Inserts `x` as the
+  last item in the first form, making a list of it if it is not
+  a list already. If there are more forms, inserts the first form as
+  the last item in second form, etc."
+  (case forms
+    ([] x)
+    (_
+     (let [form (first forms)
+           left (rest forms)
+           y (case form
+               ({^list meta []}
+                (macro-error (maps.get ^file _&ctx)
+                             meta
+                             "expected function call but got empty list"))
+               ({^list meta args}
+                {^list meta (lists.append args [x])})
+               (_
+                `(~form ~x)))]
+       `(->> ~y ~@left)))))

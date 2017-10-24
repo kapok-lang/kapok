@@ -619,13 +619,6 @@ scan_identifier(Line, Column, T) ->
   scan_identifier(Line, Column, T, []).
 scan_identifier(Line, Column, [], Acc) ->
   {ok, Line, Column, lists:reverse(Acc), []};
-%% bitstring terminators "<<" ">>" are always higher priority
-scan_identifier(Line, Column, [A, B|_], [])
-    when ((A == $<) andalso (B == $<)); ((A == $>) andalso (B == $>)) ->
-  {error, {{Line, Column}, ?MODULE, {empty_name, A, B, Line}}};
-scan_identifier(Line, Column, [A, B|_] = Rest, Acc)
-    when ((A == $<) andalso (B == $<)); ((A == $>) andalso (B == $>))->
-  {ok, Line, Column, lists:reverse(Acc), Rest};
 scan_identifier(Line, Column, [H|T], Acc) when ?is_identifier(H) ->
   scan_identifier(Line, Column + 1, T, [H|Acc]);
 scan_identifier(Line, Column, Rest, Acc) ->
@@ -705,8 +698,6 @@ format_error({missing_hex_sequence}) ->
   "missing hex sequence after \\x";
 format_error({invalid_codepoint, CodePoint}) ->
   io_lib:format("invalid or reserved unicode codepoint ~tc", [CodePoint]);
-format_error({empty_name, Char1, Char2, Line}) ->
-  io_lib:format("empty name before ~tc~tc at line ~B", [Char1, Char2, Line]);
 format_error({missing_collection_terminator, Token, Open, OpenLine, Close}) ->
   Format = "unexpected token: \"~ts\". \"~ts\" starting at line ~B \
 is missing terminator \"~ts\"",
