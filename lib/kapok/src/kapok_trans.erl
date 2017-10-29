@@ -316,7 +316,11 @@ translate({backquote, _, {Category, _, _} = Arg}, Ctx) when ?is_list(Category) -
 translate({backquote, _, {Category, Meta, {Head, Tail}}}, Ctx) when ?is_cons_list(Category) ->
   {TC, TCtx} = translate({atom, Meta, Category}, Ctx),
   {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
-  {THead, TCtx2} = translate_list(Head, TCtx1),
+  {THead, TCtx2} = lists:mapfoldl(fun (Ast, C) ->
+                                      translate({backquote, token_meta(Ast), Ast}, C)
+                                  end,
+                                  TCtx1,
+                                  Head),
   {TTail, TCtx3} = translate({backquote, token_meta(Tail), Tail}, TCtx2),
   {{tuple, ?line(Meta), [TC, TMeta, {tuple, ?line(Meta), [THead, TTail]}]}, TCtx3};
 %% backquote a collection but not list

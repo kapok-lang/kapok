@@ -1338,8 +1338,10 @@
                 (macro-error (maps.get ^file _&ctx)
                              meta
                              "expected function call but got empty list"))
-               ({^list meta args}
-                {^list meta [(head args) x & (tail args)]})
+               ({^list _ args}
+                (let [h (head args)
+                      t (tail args)]
+                  `(~h ~x ~@t)))
                (_
                 `(~form ~x)))]
        `(-> ~y ~@left)))))
@@ -1359,8 +1361,8 @@
                 (macro-error (maps.get ^file _&ctx)
                              meta
                              "expected function call but got empty list"))
-               ({^list meta args}
-                {^list meta (lists.append args [x])})
+               ({^list _ args}
+                `(~@args ~x))
                (_
                 `(~form ~x)))]
        `(->> ~y ~@left)))))
