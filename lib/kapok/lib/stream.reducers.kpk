@@ -1,0 +1,9 @@
+;; Collection of reducers shared by seq and stream.
+(ns stream.reducers)
+
+(defmacro dedup [callback &optional f]
+  `(fn [entry (acc h prev t) &as acc]
+     (let [value (~callback entry)]
+       (case prev
+         ({^value value} (skip acc))
+         (_ (next-with-acc ~f entry h {^value value} t))))))

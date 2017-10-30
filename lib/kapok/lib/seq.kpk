@@ -37,11 +37,23 @@
 (ns seq
   """Provides a set of algorithms to obtain and traverse collections according to
   the `sequential` protocol."""
-  (use core)
   (require erlang
            lists
            maps
-           sequential))
+           sequential
+           (stream.reducers :as reducers)))
+
+(defmacro skip [acc]
+  acc)
+
+(defmacro next [_ entry acc]
+  `[~entry & ~acc])
+
+(defmacro acc [h, n, _]
+  `{~h ~n})
+
+(defmacro next-with-acc [_f entry h n _]
+  `{[~entry & ~h] ~n})
 
 (defn all?
   """Invoke the given `fun` for each item in the `collection` and returns
@@ -141,6 +153,22 @@
                            {^cont (inc acc)}))
           (elem 1)))))
   )
+
+(defn dedup [collection]
+  """Enumerate the collection, returning a list where all consecutive
+  duplicated elements are collapsed to a single element."""
+  (dedup-by collection (fn [x] x)))
+
+(defn dedup-by [collection fun]
+  """Enumerates the collection, returning a list where all consecutive
+  duplicated elements are collapsed to a single element.
+
+  The function `fun` maps every element to a term which is used to
+  determine if two elements are duplicates."""
+  (let [{list _} (reduce collection
+                         {[] []}
+                         (reducers.dedup fun))]
+    (lists.reverse list)))
 
 (defn fetch
   """Finds the element at the given index (zero-based)."""

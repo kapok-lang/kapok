@@ -113,8 +113,9 @@ $1_beam_output_dir     := $$(lib_$1_dir)/ebin
 $1_modules             := $$(call get-files-in-dir,$$($1_src_dir),erl)
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
 $1_core_lib_files      := \
-  core.kpk \
-  protocol.kpk
+  core.kpk                \
+  protocol.kpk            \
+  stream.reducers.kpk
 $1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
                               $$(call get-files-in-dir,$$($1_lib_dir),kpk))

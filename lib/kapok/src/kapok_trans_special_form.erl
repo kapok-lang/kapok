@@ -83,11 +83,15 @@ translate_case_clause({C, Meta, _} = Ast, Ctx) when C /= list ->
 
 translate_case_clause(Meta, Pattern, Guard, Body, Ctx) ->
   Ctx1 = kapok_ctx:push_scope(Ctx),
-  {TPattern, TCtx1} = translate_def_arg(Pattern, Ctx1),
+  {TPattern, TCtx1} = translate_case_pattern(Pattern, Ctx1),
   {TGuard, TCtx2} = translate_guard(Guard, TCtx1),
   {TBody, TCtx3} = translate_body(Meta, Body, TCtx2),
   TCtx4 = kapok_ctx:pop_scope(TCtx3),
   {{clause, ?line(Meta), [TPattern], TGuard, TBody}, TCtx4}.
+
+translate_case_pattern(Arg, #{context := Context} = Ctx) ->
+  {TArg, TCtx} = translate(Arg, Ctx#{context => case_pattern}),
+  {TArg, TCtx#{context => Context}}.
 
 %% fn
 translate_fn(Meta, Exprs, Ctx) when is_list(Exprs) ->
@@ -263,11 +267,11 @@ translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Ctx)
       ok
   end,
   {TType, TCtx} = translate(Type, Ctx),
-  {TPattern, TCtx1} = translate_def_arg(Pattern, TCtx),
+  {TPattern, TCtx1} = translate_case_pattern(Pattern, TCtx),
   Line = ?line(Meta),
   {{tuple, Line, [TType, TPattern, {var, Line, '_'}]}, TCtx1};
 translate_exception(Pattern, Ctx) ->
-  {TPattern, TCtx} = translate_def_arg(Pattern, Ctx),
+  {TPattern, TCtx} = translate_case_pattern(Pattern, Ctx),
   Line = ?line(token_meta(Pattern)),
   {{tuple, Line, [{atom, Line, 'throw'}, TPattern, {var, Line, '_'}]}, TCtx}.
 

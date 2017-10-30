@@ -39,7 +39,7 @@ new_ctx() ->
     def_kind => nil,                       %% the kind of def*
     def_fap => nil,                        %% the {Fun, Arity, ParameterType} of def*
     def_ast => nil,                        %% the ast of def*
-    context => nil,                        %% can be pattern, let_pattern, guards, or nil
+    context => nil,                        %% can be fn_pattern, let_pattern, case_pattern, guards, or nil
     macro_context => new_macro_context(),  %%
     requires => [],           %% a dict of modules(and aliases) required in 'name -> original'
     uses => [],               %% a dict of modules used in 'module -> use arguments'

@@ -63,8 +63,13 @@ translate({identifier, Meta, Id}, #{context := Context} = Ctx) ->
   %% TODO if Id is a function name
   %% search ctx to check whether identifier is a variable
   {Name1, Ctx1} = case Context of
-                    pattern ->
+                    fn_pattern ->
                       kapok_ctx:add_var(Meta, Ctx, Id);
+                    case_pattern ->
+                      case kapok_ctx:get_var(Meta, Ctx, Id) of
+                        {ok, Name} -> {Name, Ctx};
+                        error -> kapok_ctx:add_var(Meta, Ctx, Id)
+                      end;
                     let_pattern ->
                       kapok_ctx:add_let_var(Meta, Ctx, Id);
                     _ ->
@@ -265,7 +270,7 @@ translate({backquote, _, {quote, Meta, Arg}}, Ctx) ->
   {TC, TCtx} = translate({atom, Meta, 'quote'}, Ctx),
   {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
   {TArg, TCtx2} = translate({backquote, Meta, Arg}, TCtx1),
-  {{tuple, ?line(Meta), [TC, TMeta, TArg]}, TCtx2};
+  {build_tuple(Meta, [TC, TMeta, TArg]), TCtx2};
 %% embedded backquote
 translate({backquote, _, {backquote, Meta, Arg}}, #{macro_context := Context} = Ctx) ->
   B = ?m(Context, backquote_level),
@@ -273,7 +278,7 @@ translate({backquote, _, {backquote, Meta, Arg}}, #{macro_context := Context} = 
   {TC, TCtx1} = translate({atom, Meta, 'backquote'}, Ctx#{macro_context => Context1}),
   {TMeta, TCtx2} = translate(quote(Meta, Meta), TCtx1),
   {TArg, TCtx3} = translate({backquote, Meta, Arg}, TCtx2),
-  {{tuple, ?line(Meta), [TC, TMeta, TArg]}, TCtx3#{macro_context => Context}};
+  {build_tuple(Meta, [TC, TMeta, TArg]), TCtx3#{macro_context => Context}};
 %% backquote an unquote expression
 translate({backquote, _, {unquote, Meta, Arg}}, #{macro_context := Context} = Ctx) ->
   B = ?m(Context, backquote_level),
@@ -287,7 +292,7 @@ translate({backquote, _, {unquote, Meta, Arg}}, #{macro_context := Context} = Ct
       {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
       Context1 = Context#{unquote_level => U + 1},
       {TArg, TCtx2} = translate({backquote, Meta, Arg}, TCtx1#{macro_context => Context1}),
-      {{tuple, ?line(Meta), [TC, TMeta, TArg]}, TCtx2#{macro_context => Context}};
+      {build_tuple(Meta, [TC, TMeta, TArg]), TCtx2#{macro_context => Context}};
     U > B ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "unquote doesn't match backquote")
   end;
@@ -305,7 +310,7 @@ translate({backquote, _, {unquote_splicing, Meta, Arg}}, #{macro_context := Cont
       {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
       Context1 = Context#{unquote_level => U + 1},
       {TArg, TCtx2} = translate({backquote, Meta, Arg}, TCtx1#{macro_context => Context1}),
-      {{tuple, ?line(Meta), [TC, TMeta, TArg]}, TCtx2#{macro_context => Context}};
+      {build_tuple(Meta, [TC, TMeta, TArg]), TCtx2#{macro_context => Context}};
     U > B ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "unquote_splicing doesn't match backquote")
   end;
@@ -322,7 +327,7 @@ translate({backquote, _, {Category, Meta, {Head, Tail}}}, Ctx) when ?is_cons_lis
                                   TCtx1,
                                   Head),
   {TTail, TCtx3} = translate({backquote, token_meta(Tail), Tail}, TCtx2),
-  {{tuple, ?line(Meta), [TC, TMeta, {tuple, ?line(Meta), [THead, TTail]}]}, TCtx3};
+  {build_tuple(Meta, [TC, TMeta, build_tuple(Meta, [build_list(THead), TTail])]), TCtx3};
 %% backquote a collection but not list
 translate({backquote, _, {Category, Meta, Args}}, Ctx)
     when Category == 'bitstring', is_list(Args);
@@ -331,9 +336,12 @@ translate({backquote, _, {Category, Meta, Args}}, Ctx)
          Category == 'set' ->
   {TC, TCtx} = translate({atom, Meta, Category}, Ctx),
   {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
-  L = lists:map(fun(X) -> {backquote, token_meta(X), X} end, Args),
-  {TArgs, TCtx2} = translate(L, TCtx1),
-  {{tuple, ?line(Meta), [TC, TMeta, TArgs]}, TCtx2};
+  {TArgs, TCtx2} = lists:mapfoldl(fun(Ast, C) ->
+                                      translate({backquote, token_meta(Ast), Ast}, C)
+                                  end,
+                                  TCtx1,
+                                  Args),
+  {build_tuple(Meta, [TC, TMeta, build_list(TArgs)]), TCtx2};
 %% backquote a non-collection type, e.g. an atom.
 translate({backquote, Meta, Arg}, Ctx) ->
   translate({quote, Meta, Arg}, Ctx);
@@ -347,7 +355,7 @@ translate({evaluated_unquote_splicing, Meta, _}, Ctx) ->
 %% bind
 translate({bind, Meta, {Arg, Id}} = Bind, #{context := Context} = Ctx) ->
   case Context of
-    C when C == pattern; C == let_pattern ->
+    C when C == fn_pattern; C == let_pattern; C == case_pattern ->
       {TArg, TCtx1} = translate(Arg, Ctx),
       {TId, TCtx2} = translate(Id, TCtx1),
       {{match, ?line(Meta), TArg, TId}, TCtx2};
@@ -579,7 +587,7 @@ var_to_keyword({var, Line, Id}) ->
 %% arguments
 
 translate_def_arg(Arg, #{context := Context} = Ctx) ->
-  {TArg, TCtx} = translate(Arg, Ctx#{context => pattern}),
+  {TArg, TCtx} = translate(Arg, Ctx#{context => fn_pattern}),
   {TArg, TCtx#{context => Context}}.
 
 translate_def_args({literal_list, _, Args}, Ctx) ->

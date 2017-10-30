@@ -95,6 +95,12 @@ expand_1({Category, Meta, Args}, Ctx)
   {EArgs, ECtx, Expanded} = expand_1(Args, Ctx),
   {{Category, Meta, EArgs}, ECtx, Expanded};
 
+%% bind
+expand_1({Category, Meta, {Arg, Id}}, Ctx) when Category == bind ->
+  {EArg, ECtx1, Expanded1} = expand_1(Arg, Ctx),
+  {EId, ECtx2, Expended2} = expand_1(Id, ECtx1),
+  {{Category, Meta, {EArg, EId}}, ECtx2, Expanded1 orelse Expended2};
+
 %% macro special forms
 
 %% quote
