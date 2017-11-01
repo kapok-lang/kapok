@@ -290,6 +290,17 @@
    (do-fetch (reverse collection) (abs (inc n))))
   )
 
+(defn filter
+  """Filters the collection, i.e. returns only those elements
+  for which `fun` returns a truthy value."""
+
+  ([collection fun] (&when (list? collection))
+   (lists.filter fun collection))
+
+  ([collection fun]
+   (-> (reduce collection [] (reducers.filter fun))
+       lists.reverse)))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""

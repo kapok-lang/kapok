@@ -39,4 +39,10 @@
      (if (and bool
               (~callback entry))
          (skip orig)
-       (next-with-acc ~f entry h :false t))))
+         (next-with-acc ~f entry h :false t))))
+
+(defmacro filter [callback &optional f]
+  `(fn [entry acc]
+     (if (~callback entry)
+         (next ~f entry acc)
+       (skip acc))))

@@ -43,6 +43,12 @@
     (assert (=== :false
                  (empty? [1 2 3]))))
 
+  (test "test filter"
+    (assert (=== [2]
+                 (filter [1 2 3] (fn [x]
+                                   (== (rem x 2)
+                                       0))))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))
