@@ -613,13 +613,13 @@ translate_args(Args, Ctx) when is_list(Args) ->
 translate_args([], {_Keys, Acc}, {Previous, Meta, Args}, Ctx) ->
   {[{Previous, Meta, lists:reverse(Args)} | Acc], Ctx};
 
-translate_args([{keyword, _, Value} = Token], Acc, {normal, Meta1, Args}, Ctx)
-    when Value == true; Value == false; Value == nil->
-  {TH, TCtx} = translate_arg(Token, Ctx),
-  translate_args([], Acc, {normal, Meta1, [TH | Args]}, TCtx);
 translate_args([{keyword, Meta, Value} = Token], _, {keyword, _, _}, Ctx)
-    when Value == true; Value == false; Value == nil->
+    when Value == true; Value == false; Value == nil ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_key, {Token}});
+translate_args([{keyword, _, Value} = Token | T], Acc, {normal, Meta1, Args}, Ctx)
+    when Value == true; Value == false; Value == nil ->
+  {TH, TCtx} = translate_arg(Token, Ctx),
+  translate_args(T, Acc, {normal, Meta1, [TH | Args]}, TCtx);
 translate_args([{keyword, Meta, _} = Token], _, {_Previous, _Meta, _Args}, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {dangling_keyword, {Token}});
 translate_args([{keyword, Meta, Atom} = Keyword, Expr | T], {Keys, Acc}, {normal, Meta1, Args},

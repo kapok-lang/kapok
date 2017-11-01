@@ -236,6 +236,23 @@
                          (reducers.drop-while fun))]
      (lists.reverse res))))
 
+(defn each
+  """Invokes the given `fun` for each item in the `collection`.
+  Returns `^ok`."""
+
+  ([collection fun] (&when (list? collection))
+   (lists.foreach fun collection)
+   ^ok)
+
+  ([collection fun]
+   (reduce collection
+           :nil
+           (fn [entry :nil]
+             (fun entry)
+             :nil))
+   ^ok))
+
+
 (defn fetch
   """Finds the element at the given index (zero-based)."""
 
