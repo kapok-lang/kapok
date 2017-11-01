@@ -356,6 +356,24 @@
                                 {^cont acc}))))
        (elem 1))))
 
+(defn find-index
+  """Similar to `find/3`, but returns the index (zero-based)
+  of the element instead of the element itself."""
+
+  ([collection fun] (&when (list? collection))
+   (do-find-index collection 0 fun))
+
+  ([collection fun]
+   (let [res (sequential.reduce collection
+                                {^cont 0}
+                                (fn [entry acc]
+                                  (if (fun entry)
+                                      {^halt acc}
+                                    {^cont (inc acc)})))]
+     (case res
+       ({^halted entry} entry)
+       ({^done _} :nil)))))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""
@@ -537,6 +555,16 @@
     (if value
         value
       (do-find-value t ifnone fun))))
+
+;; find-index
+
+(defn- do-find-index [[] _ _]
+  :nil)
+
+(defn- do-find-index [[h & t] counter fun]
+  (if (fun h)
+      counter
+    (do-find-index t (inc counter) fun)))
 
 ;; take
 

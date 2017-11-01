@@ -84,6 +84,16 @@
                              "no bools!"
                              (fn core boolean? 1)))))
 
+  (test "test find-index"
+    (assert (=== :nil
+                 (find-index [2 4 6]
+                             (fn [x]
+                               (== (rem x 2) 1)))))
+    (assert (=== 1
+                 (find-index [2 3 4]
+                             (fn [x]
+                               (== (rem x 2) 1))))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))
