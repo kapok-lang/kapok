@@ -18,8 +18,7 @@
     (assert (=== [[1] [2 2] [3] [4 4 6] [7 7]]
                  (chunk-by [1 2 2 3 4 4 6 7 7]
                            (fn [x]
-                             (== (rem x 2)
-                                 1))))))
+                             (== (rem x 2) 1))))))
 
   (test "test drop"
     (assert (=== [3]
@@ -46,8 +45,15 @@
   (test "test filter"
     (assert (=== [2]
                  (filter [1 2 3] (fn [x]
-                                   (== (rem x 2)
-                                       0))))))
+                                   (== (rem x 2) 0))))))
+
+  (test "test filter-map"
+    (assert (=== [4]
+                 (filter-map [1 2 3]
+                             (fn [x]
+                               (== (rem x 2) 0))
+                             (fn [x]
+                               (* x 2))))))
 
   (test "test take"
     (assert (=== [1 2]

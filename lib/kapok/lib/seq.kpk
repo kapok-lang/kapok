@@ -301,6 +301,22 @@
    (-> (reduce collection [] (reducers.filter fun))
        lists.reverse)))
 
+(defn filter-map
+  """Filters the collection and maps its values in one pass."""
+
+  ([collection filter mapper] (&when (list? collection))
+   (lists.filtermap (fn [x]
+                      (if (filter x)
+                          {:true (mapper x)}
+                        :false))
+                    collection))
+
+  ([collection filter mapper]
+   (-> (reduce collection
+               []
+               (reducers.filter-map filter mapper))
+       lists.reverse)))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""

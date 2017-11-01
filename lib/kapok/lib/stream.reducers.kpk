@@ -46,3 +46,9 @@
      (if (~callback entry)
          (next ~f entry acc)
        (skip acc))))
+
+(defmacro filter-map [filter mapper &optional f]
+  `(fn [entry acc]
+     (if (~filter entry)
+         (next ~f (~mapper entry) acc)
+       (skip acc))))
