@@ -108,13 +108,30 @@
   "Shortcut to `(chunk collection n n)`."
   (chunk collection n n ^nil))
 
-(defn chunk [_collection n step &optional _pad] (&when (&and (> n 0)
-                                                             (> step 0)))
+(defn chunk [collection n step &optional pad] (&when (&and (> n 0)
+                                                           (> step 0)))
   """Returns a collection of lists containing `n` items each, where
-  each new chunk starts `step` elements into the collection."""
+  each new chunk starts `step` elements into the collection.
+
+  `step` is optional and, if not passed, defaults to `n`, i.e.
+  chunks do not overlap. If the final chunk does not have `n`
+  elements to fill the chunk, elements are taken as necssary
+  from `pad` if it was passed. If `pad` is passed and does not
+  have engouh elements to fill the chuck, then the chunk is
+  returned anyway with less than `n` elements. If `pad` is not
+  passed at all or is `:nil`, then the partial chunk is discarded
+  from the result."""
   ;; TODO add impl
-  ^todo
-  )
+  (let [limit (erlang.max n step)
+        {acc {buf i}} (reduce collection
+                                 {[] {[] 0}}
+                                 (reducers.chunk n step limit))]
+    (if (or (nil? pad)
+            (=== i 0))
+        (lists.reverse acc)
+      (do
+       (let [buffer (lists.reverse buf (take pad (- n i)))]
+         (lists.reverse [buffer & acc]))))))
 
 (defn chunk_by [_collection _fun]
   "Splits `collection` on every element for which `fun` returns a new value."
@@ -239,6 +256,49 @@
              [entry & acc])))
   )
 
+(defn take
+  """Takes the first `count` items from the collection.
+
+  `count` must be an integer. If a negative `count` is given, the last `count`
+  values will be taken. For such, the collection is fully enumerated keeping up
+  to `2 * count` elements in memery. Once the end of the collection is reached,
+  the last `count` elements are returned."""
+  ([_collection 0]
+   [])
+
+  ([[] _count]
+   [])
+
+  ([collection n] (&when (&and (list? collection)
+                               (integer? n)
+                               (> n 0)))
+   (do-take collection n))
+
+  ([collection n] (&when (&and (integer? n)
+                               (> n 0)))
+   (let [{_ {res _}} (sequential.reduce collection
+                                        {:cont {[] n}}
+                                        (fn [entry {list count}]
+                                          (case count
+                                            (0 {^halt {list count}})
+                                            (1 {^halt {[entry & list] (dec count)}})
+                                            (_ {^cont {[entry & list] (dec count)}}))))]
+     (lists.reverse res)))
+
+  ([collection n] (&when (&and (integer? n)
+                               (< n 0)))
+   (let [m (abs n)
+         {_ buf1 buf2} (reduce collection
+                               {0 [] []}
+                               (fn [entry {c b1 b2}]
+                                 (let [buf1 [entry & b1]
+                                       count (inc c)]
+                                   (if (== count m)
+                                       {0 [] buf1}
+                                     {count buf1 b2}))))]
+     (do-take-last buf1 buf2 m [])))
+  )
+
 (defn to-list
   """Converts `collection` to a list."""
 
@@ -283,6 +343,32 @@
 
 (defn- do-fetch [[] _]
   ^error)
+
+;; take
+
+(defn- do-take [list counter]
+  (do-take list counter []))
+
+(defn- do-take [[] _counter acc]
+  (lists.reverse acc))
+
+(defn- do-take [_list 0 acc]
+  (lists.reverse acc))
+
+(defn- do-take [[h & t] counter acc] (&when (> counter 0))
+  (do-take t (dec counter) [h & acc]))
+
+(defn- do-take-last [_buf1 _buf2 0 acc]
+  acc)
+
+(defn- do-take-last [[] [] _ acc]
+  acc)
+
+(defn- do-take-last [[] [h & t] n acc]
+  (do-take-last [] t (dec n) [h & acc]))
+
+(defn- do-take-last [[h & t] buf2 n acc]
+  (do-take-last t buf2 (dec n) [h & acc]))
 
 ;; Implementations of sequential for built-in collections.
 

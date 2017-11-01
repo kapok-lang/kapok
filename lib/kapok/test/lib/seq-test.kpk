@@ -1,0 +1,25 @@
+(ns seq-test
+  (use seq)
+  (use kunit))
+
+(defn main []
+  (test "test chunk"
+    (assert (=== [[1 2] [3 4] [5 6]]
+                 (chunk [1 2 3 4 5 6] 2)))
+    (assert (=== [[1 2 3] [3 4 5]]
+                 (chunk [1 2 3 4 5 6] 3 2)))
+    (assert (=== [[1 2 3] [3 4 5] [5 6 7]]
+                 (chunk [1 2 3 4 5 6] 3 2 [7])))
+    (assert (=== [[1 2 3] [4 5 6]]
+                 (chunk [1 2 3 4 5 6] 3 3 [])))
+    )
+
+  (test "test take"
+    (assert (=== [1 2]
+                 (take [1 2 3] 2)))
+    (assert (=== [1 2 3]
+                 (take [1 2 3] 10)))
+    (assert (=== []
+                 (take [1 2 3] 0)))
+    (assert (=== [3]
+                 (take [1 2 3] -1)))))

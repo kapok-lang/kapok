@@ -1,5 +1,19 @@
 ;; Collection of reducers shared by seq and stream.
-(ns stream.reducers)
+(ns stream.reducers
+  (use core))
+
+(defmacro chunk [n step limit &optional f]
+  `(fn [entry (acc h {b c} t)]
+     (let [buffer [entry & b]
+           count (inc c)
+           new (if (>= count ~limit)
+                   (do
+                    (let [left (- count ~step)]
+                      {(seq.take buffer left) left}))
+                 {buffer count})]
+       (if (=== count ~n)
+           (next-with-acc ~f (lists.reverse buffer) h new t)
+         (skip (acc h new t))))))
 
 (defmacro dedup [callback &optional f]
   `(fn [entry (acc h prev t) &as acc]
