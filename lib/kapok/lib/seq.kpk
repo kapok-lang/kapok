@@ -106,7 +106,7 @@
 
 (defn chunk [collection n]
   "Shortcut to `(chunk collection n n)`."
-  (chunk collection n n ^nil))
+  (chunk collection n n :nil))
 
 (defn chunk [collection n step &optional pad] (&when (&and (> n 0)
                                                            (> step 0)))
@@ -133,11 +133,17 @@
        (let [buffer (lists.reverse buf (take pad (- n i)))]
          (lists.reverse [buffer & acc]))))))
 
-(defn chunk_by [_collection _fun]
+(defn chunk-by [collection fun]
   "Splits `collection` on every element for which `fun` returns a new value."
   ;; TODO add impl
-  ^todo
-  )
+  (let [{acc res} (reduce collection
+                          {[] :nil}
+                          (reducers.chunk-by fun))]
+    (case res
+      ({buffer _}
+       (lists.reverse [(lists.reverse buffer) & acc]))
+      (:nil
+       []))))
 
 (defn concat [sequentials]
   """Given a sequential of sequentials, concatenates the sequentials into

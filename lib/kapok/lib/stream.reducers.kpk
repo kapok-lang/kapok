@@ -13,7 +13,18 @@
                  {buffer count})]
        (if (=== count ~n)
            (next-with-acc ~f (lists.reverse buffer) h new t)
-         (skip (acc h new t))))))
+           (skip (acc h new t))))))
+
+(defmacro chunk-by [callback &optional f]
+  `(fn
+     ([entry (acc h {buffer value} t)]
+      (let [new-value (~callback entry)]
+        (if (== new-value value)
+            (skip (acc h {[entry & buffer] value} t))
+          (next-with-acc ~f (lists.reverse buffer) h {[entry] new-value} t))))
+     ([entry (acc h :nil t)]
+      (skip (acc h {[entry] (~callback entry)} t))))
+  )
 
 (defmacro dedup [callback &optional f]
   `(fn [entry (acc h prev t) &as acc]
