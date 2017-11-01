@@ -37,6 +37,12 @@
                              (fn [x]
                                (< x 3))))))
 
+  (test "test empty?"
+    (assert (=== :true
+                 (empty? [])))
+    (assert (=== :false
+                 (empty? [1 2 3]))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))

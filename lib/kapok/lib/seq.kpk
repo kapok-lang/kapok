@@ -252,6 +252,18 @@
              :nil))
    ^ok))
 
+(defn empty?
+  """Returns `:true` if the collection is empty, otherwise `:false`."""
+
+  ([collection] (&when (list? collection))
+   (== collection []))
+
+  ([collection]
+   (-> (sequential.reduce collection
+                          {^cont :true}
+                          (fn [_ _]
+                            {^halt :false}))
+       (elem 1))))
 
 (defn fetch
   """Finds the element at the given index (zero-based)."""
