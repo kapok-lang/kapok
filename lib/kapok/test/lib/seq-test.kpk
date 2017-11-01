@@ -70,6 +70,20 @@
                        (fn [x]
                          (== (rem x 2) 1))))))
 
+  (test "test find-value"
+    (assert (=== :nil
+                 (find-value [2 4 6]
+                             (fn [x]
+                               (== (rem x 2) 1)))))
+    (assert (=== :true
+                 (find-value [2 3 4]
+                             (fn [x]
+                               (== (rem x 2) 1)))))
+    (assert (=== "no bools!"
+                 (find-value [1 2 3]
+                             "no bools!"
+                             (fn core boolean? 1)))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))

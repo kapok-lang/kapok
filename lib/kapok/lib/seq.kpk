@@ -336,6 +336,26 @@
                               {^cont acc})))
        (elem 1))))
 
+(defn find-value
+  """Similar to `find/3`, but returns the value of the function
+  invocation instead of the element itself."""
+
+  ([collection fun]
+   (find-value collection :nil fun))
+
+  ([collection ifnone fun] (&when (list? collection))
+   (do-find-value collection ifnone fun))
+
+  ([collection ifnone fun]
+   (-> (sequential.reduce collection
+                          {^cont ifnone}
+                          (fn [entry acc]
+                            (let [fun-entry (fun entry)]
+                              (if fun-entry
+                                  {^halt fun-entry}
+                                {^cont acc}))))
+       (elem 1))))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""
@@ -506,6 +526,17 @@
   (if (fun h)
       h
     (do-find t ifnone fun)))
+
+;; find-value
+
+(defn- do-find-value [[] ifnone _]
+  ifnone)
+
+(defn- do-find-value [[h & t] ifnone fun]
+  (let [value (fun h)]
+    (if value
+        value
+      (do-find-value t ifnone fun))))
 
 ;; take
 
