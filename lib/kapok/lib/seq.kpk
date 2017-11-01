@@ -317,6 +317,25 @@
                (reducers.filter-map filter mapper))
        lists.reverse)))
 
+(defn find
+  """Returns the first item for which `fun` returns a truthy value. If no such
+  item is found, returns `ifnone`."""
+
+  ([collection fun]
+   (find collection :nil fun))
+
+  ([collection ifnone fun] (&when (list? collection))
+   (do-find collection ifnone fun))
+
+  ([collection ifnone fun]
+   (-> (sequential.reduce collection
+                          {^cont ifnone}
+                          (fn [entry acc]
+                            (if (fun entry)
+                                {^halt entry}
+                              {^cont acc})))
+       (elem 1))))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""
@@ -477,6 +496,16 @@
 
 (defn- do-fetch [[_ & t] n]
   (do-fetch t (dec n)))
+
+;; find
+
+(defn- do-find [[] ifnone _]
+  ifnone)
+
+(defn- do-find [[h & t] ifnone fun]
+  (if (fun h)
+      h
+    (do-find t ifnone fun)))
 
 ;; take
 

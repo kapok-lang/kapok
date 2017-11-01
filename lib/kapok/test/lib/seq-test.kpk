@@ -55,6 +55,21 @@
                              (fn [x]
                                (* x 2))))))
 
+  (test "test find"
+    (assert (=== :nil
+                 (find [2 4 6]
+                       (fn [x]
+                         (== (rem x 2) 1)))))
+    (assert (=== 0
+                 (find [2 4 6]
+                       0
+                       (fn [x]
+                         (== (rem x 2) 1)))))
+    (assert (=== 3
+                 (find [2 3 4]
+                       (fn [x]
+                         (== (rem x 2) 1))))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))
