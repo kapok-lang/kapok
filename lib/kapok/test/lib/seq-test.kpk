@@ -112,6 +112,17 @@
                            (fn [{x y}]
                              (range x y))))))
 
+  (test "test flat-map-reduce"
+    (let [r (range 1 100)
+          n 3]
+      (assert (=== {[1 2 3] n}
+                   (flat-map-reduce r
+                                    0
+                                    (fn [i acc]
+                                      (if (< acc n)
+                                          {[i] (inc acc)}
+                                        {^halt acc})))))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))

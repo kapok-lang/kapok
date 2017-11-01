@@ -387,6 +387,32 @@
                           [x & y]))))
       lists.reverse))
 
+(defn flat-map-reduce [collection acc fun]
+  """Maps and reduces a collection, flattening the given results.
+
+  It expects an accumulator and a function that receives each stream item
+  and an accumulator, and must return a tuple containing a new stream
+  (often a list) with the new accumulator or a tuple with `^halt` as first
+  element and the accumulator as second."""
+
+  (let [{_ {list acc2}} (sequential.reduce collection
+                                           {^cont {[] acc}}
+                                           (fn [entry {list0 acc0}]
+                                             (case (fun entry acc0)
+                                               ({^halt acc1}
+                                                {^halt {list0 acc1}})
+                                               ({[] acc1}
+                                                {^cont {list0 acc1}})
+                                               ({[entry] acc1}
+                                                {^cont {[entry & list0] acc1}})
+                                               ({entries acc1}
+                                                {^cont {(reduce entries
+                                                                list0
+                                                                (fn [x y]
+                                                                  [x & y]))
+                                                        acc1}}))))]
+    {(lists.reverse list) acc2}))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""
