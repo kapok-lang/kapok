@@ -193,6 +193,36 @@
                          (reducers.dedup fun))]
     (lists.reverse list)))
 
+(defn drop
+  """Drops the first `count` items from `collection`.
+
+  If a negative value `count` is given, the last `count`
+  values will be dropped. The collection is enumerated
+  once to retrieve the proper index and the remaining
+  calculation is performed from the end."""
+
+  ([collection count] (&when (&and (list? collection)
+                                   (>= count 0)))
+   (do-drop collection count))
+
+  ([collection count] (&when (>= count 0))
+   (let [res (reduce collection
+                     count
+                     (fn
+                       ([x acc] (&when (list? acc))
+                        [x & acc])
+                       ([x 0]
+                        [x])
+                       ([_ acc] (&when (> acc 0))
+                        (dec acc))))]
+     (if (list? res)
+         (lists.reverse res)
+       [])))
+
+  ([collection count] (&when (< count 0))
+   (-> (do-drop (reverse collection) (abs count))
+       lists.reverse)))
+
 (defn fetch
   """Finds the element at the given index (zero-based)."""
 
@@ -316,6 +346,8 @@
 
 ;; Implementations
 
+;; all?
+
 (defn- do-all? [[h & t] fun]
   (if (fun h)
       (do-all? t fun)
@@ -324,6 +356,8 @@
 (defn- do-all? [[] _]
   :true)
 
+;; any?
+
 (defn- do-any? [[h & t] fun]
   (if (fun h)
       :true
@@ -331,6 +365,8 @@
 
 (defn- do-any? [[] _]
   :false)
+
+;; concat
 
 (defn- do-concat [sequential]
   (let [fun (fn [x l]
@@ -341,14 +377,27 @@
                              (reduce x acc fun)))))
   )
 
+;; drop
+
+(defn- do-drop [[] _]
+  [])
+
+(defn- do-drop [list 0]
+  list)
+
+(defn- do-drop [[_ & t] counter] (&when (> counter 0))
+  (do-drop t (dec counter)))
+
+;; fetch
+
+(defn- do-fetch [[] _]
+  ^error)
+
 (defn- do-fetch [[h & _] 0]
   {^ok h})
 
 (defn- do-fetch [[_ & t] n]
   (do-fetch t (dec n)))
-
-(defn- do-fetch [[] _]
-  ^error)
 
 ;; take
 

@@ -21,6 +21,16 @@
                              (== (rem x 2)
                                  1))))))
 
+  (test "test drop"
+    (assert (=== [3]
+                 (drop [1 2 3] 2)))
+    (assert (=== []
+                 (drop [1 2 3] 10)))
+    (assert (=== [1 2 3]
+                 (drop [1 2 3] 0)))
+    (assert (=== [1 2]
+                 (drop [1 2 3] -1))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))
