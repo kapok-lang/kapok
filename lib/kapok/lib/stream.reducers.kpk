@@ -32,3 +32,11 @@
        (case prev
          ({^value value} (skip acc))
          (_ (next-with-acc ~f entry h {^value value} t))))))
+
+
+(defmacro drop-while [callback &optional f]
+  `(fn [entry (acc h bool t) &as orig]
+     (if (and bool
+              (~callback entry))
+         (skip orig)
+       (next-with-acc ~f entry h :false t))))

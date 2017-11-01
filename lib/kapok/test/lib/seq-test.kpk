@@ -31,6 +31,12 @@
     (assert (=== [1 2]
                  (drop [1 2 3] -1))))
 
+  (test "test drop-while"
+    (assert (=== [3 4 5]
+                 (drop-while [1 2 3 4 5]
+                             (fn [x]
+                               (< x 3))))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))

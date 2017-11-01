@@ -223,6 +223,19 @@
    (-> (do-drop (reverse collection) (abs count))
        lists.reverse)))
 
+(defn drop-while
+  """Drops items at the beginning of `collection` while `fun` returns
+  a truthy value."""
+
+  ([collection fun] (&when (list? collection))
+   (do-drop-while collection fun))
+
+  ([collection fun]
+   (let [{res _} (reduce collection
+                         {[] :true}
+                         (reducers.drop-while fun))]
+     (lists.reverse res))))
+
 (defn fetch
   """Finds the element at the given index (zero-based)."""
 
@@ -387,6 +400,16 @@
 
 (defn- do-drop [[_ & t] counter] (&when (> counter 0))
   (do-drop t (dec counter)))
+
+;; drop-while
+
+(defn- do-drop-while [[] _]
+  [])
+
+(defn- do-drop-while [[h & t] fun]
+  (if (fun h)
+      (do-drop-while t fun)
+    [h & t]))
 
 ;; fetch
 
