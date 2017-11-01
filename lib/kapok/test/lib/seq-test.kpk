@@ -2,6 +2,14 @@
   (use seq)
   (use kunit))
 
+(defn- range [begin end]
+  (range begin end []))
+
+(defn- range [current stop acc]
+  (if (> current stop)
+      (lists.reverse acc)
+    (range (inc current) stop [current & acc])))
+
 (defn main []
   (test "test chunk"
     (assert (=== [[1 2] [3 4] [5 6]]
@@ -93,6 +101,16 @@
                  (find-index [2 3 4]
                              (fn [x]
                                (== (rem x 2) 1))))))
+
+  (test "test flat-map"
+    (assert (=== [^a ^a ^b ^b ^c ^c]
+                 (flat-map [^a ^b ^c]
+                           (fn [x]
+                             [x x]))))
+    (assert (=== [1 2 3 4 5 6]
+                 (flat-map [{1 3} {4 6}]
+                           (fn [{x y}]
+                             (range x y))))))
 
   (test "test take"
     (assert (=== [1 2]

@@ -374,6 +374,19 @@
        ({^halted entry} entry)
        ({^done _} :nil)))))
 
+(defn flat-map [collection fun]
+  """Returns a new collection appending the result of invoking `fun`
+  on each corresponding item of `collection`."""
+
+  (-> (reduce collection
+              []
+              (fn [entry acc]
+                (reduce (fun entry)
+                        acc
+                        (fn [x y]
+                          [x & y]))))
+      lists.reverse))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""
