@@ -413,6 +413,18 @@
                                                         acc1}}))))]
     {(lists.reverse list) acc2}))
 
+(defn intersperse [collection element]
+  "Intersperses `element` between each element of the enumeration."
+  (let [list (-> (reduce collection
+                         []
+                         (fn [x acc]
+                           [x element & acc]))
+               lists.reverse)]
+    (case list
+      ([] [])
+      ([_ & t] t) ;; Head is a superfluous intersperser element
+      )))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""

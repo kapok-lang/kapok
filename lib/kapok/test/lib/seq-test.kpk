@@ -123,6 +123,14 @@
                                           {[i] (inc acc)}
                                         {^halt acc})))))))
 
+  (test "test intersperse"
+    (assert (=== [1 0 2 0 3]
+                 (intersperse [1 2 3] 0)))
+    (assert (=== [1]
+                 (intersperse [1] 0)))
+    (assert (=== []
+                 (intersperse [] 0))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))
