@@ -41,7 +41,8 @@
            lists
            maps
            sequential
-           (stream.reducers :as reducers)))
+           (stream.reducers :as reducers)
+           (collectable :as clt)))
 
 (defmacro skip [acc]
   acc)
@@ -425,6 +426,60 @@
       ([_ & t] t) ;; Head is a superfluous intersperser element
       )))
 
+(defn into
+  "Inserts the given sequential into a collectable."
+
+  ([collection list] (&when (list? list))
+   (lists.append list (to-list collection)))
+
+  ([collection collectable] (&when (&and (map? collection)
+                                         (map? collectable)))
+   (maps.merge collectable collection))
+
+  ([collection collectable] (&when (&and (list? collection)
+                                         (map? collectable)))
+   (maps.merge collectable (maps.from_list collection)))
+
+  ([collection collectable] (&when (map? collectable))
+   (reduce collection
+           collectable
+           (fn [{k v} acc]
+             (maps.put k v acc))))
+
+  ([collection collectable]
+   (do-into collection collectable)))
+
+(defn into
+  """Inserts the given sequential into a collectable
+  according to the transformation function."""
+
+  ([collection list transform] (&when (&and (list? list)
+                                            (function? transform 1)))
+   (lists.append list (map collection transform)))
+
+  ([collection collectable transform] (&when (function? transform 1))
+   (let [{initial fun} (clt.into collectable)]
+     (into collection
+           initial
+           fun
+           (fn [x acc]
+             (fun acc {^cont (transform x)}))))))
+
+(defn map
+  """Returns a new collection, where each item is the result
+  of invoking `fun` on each corresponding item of `collection`.
+
+  For dicts, the function expects a key-value tuple."""
+
+  ([collection fun] (&when (list? collection))
+   (lists.map fun collection))
+
+  ([collection fun]
+   (-> (reduce collection
+           []
+           (reducers.map fun))
+       lists.reverse)))
+
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
   accumulator `acc` as arguments."""
@@ -616,6 +671,26 @@
   (if (fun h)
       counter
     (do-find-index t (inc counter) fun)))
+
+;; into
+
+(defn- do-into [collection collectable]
+  (let [{initial fun} (clt.into collectable)]
+    (into collection
+          initial
+          fun
+          (fn [x acc]
+            (fun acc {^cont x})))))
+
+(defn- into [collection initial fun callback]
+  (case
+      (try (reduce collection initial callback)
+        (catch
+          ((kind reason)
+           (let [stacktrace (erlang.get_stacktrace)]
+             (fun initial ^halt)
+             (erlang.raise kind reason stacktrace)))))
+    (acc (fun acc ^done))))
 
 ;; take
 

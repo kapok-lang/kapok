@@ -131,6 +131,29 @@
     (assert (=== []
                  (intersperse [] 0))))
 
+  (test "test into/2"
+    (assert (=== [0 1 2]
+                 (into [1 2] [0])))
+    (assert (=== #{^a 1 ^b 2}
+                 (into [{^a 1} {^b 2}] #{}))))
+
+  (test "test into/3"
+    (assert (=== [3 6 9]
+                 (into [2 3]
+                       [3]
+                       (fn [x]
+                         (* x 3))))))
+
+  (test "test map"
+    (assert (=== [2 4 6]
+                 (map [1 2 3]
+                      (fn [x]
+                        (* x 2)))))
+    (assert (=== [{^a -1} {^b -2}]
+                 (map [{^a 1} {^b 2}]
+                      (fn [{k v}]
+                        {k (- 0 v)})))))
+
   (test "test take"
     (assert (=== [1 2]
                  (take [1 2 3] 2)))

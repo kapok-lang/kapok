@@ -105,5 +105,6 @@ core_libs() ->
    "protocol.kpk",
    "stream.reducers.kpk"
    %% TODO compiler cannot load protocol.beam when seq.kpk is compiled.
+   %% "collectable.kpk"
    %% "seq.kpk"
   ].

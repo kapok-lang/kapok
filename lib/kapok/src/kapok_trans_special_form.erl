@@ -257,7 +257,7 @@ translate_catch_clause(Meta, Exception, Guard, Body, Ctx) ->
   TCtx4 = kapok_ctx:pop_scope(TCtx3),
   {{clause, ?line(Meta), [TException], TGuard, TBody}, TCtx4}.
 
-translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Ctx)
+translate_exception({list, Meta, [{Category, _, Atom} = Kind, Pattern]}, Ctx)
     when Category == keyword; Category == atom ->
   case lists:any(fun(X) -> Atom == X end, ['throw', 'exit', 'error']) of
     false ->
@@ -266,10 +266,15 @@ translate_exception({list, Meta, [{Category, _, Atom} = Type, Pattern]}, Ctx)
     true ->
       ok
   end,
-  {TType, TCtx} = translate(Type, Ctx),
+  {TKind, TCtx} = translate(Kind, Ctx),
   {TPattern, TCtx1} = translate_case_pattern(Pattern, TCtx),
   Line = ?line(Meta),
-  {{tuple, Line, [TType, TPattern, {var, Line, '_'}]}, TCtx1};
+  {{tuple, Line, [TKind, TPattern, {var, Line, '_'}]}, TCtx1};
+translate_exception({list, Meta, [Kind, Pattern]}, Ctx) ->
+  {TKind, TCtx} = translate_case_pattern(Kind, Ctx),
+  {TPattern, TCtx1} = translate_case_pattern(Pattern, TCtx),
+  Line = ?line(Meta),
+  {{tuple, Line, [TKind, TPattern, {var, Line, '_'}]}, TCtx1};
 translate_exception(Pattern, Ctx) ->
   {TPattern, TCtx} = translate_case_pattern(Pattern, Ctx),
   Line = ?line(token_meta(Pattern)),

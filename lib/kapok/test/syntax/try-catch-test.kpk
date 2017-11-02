@@ -31,6 +31,12 @@
       (do-nothing)
       (do-nothing))))
 
+(defn- catcher-all [n]
+  (try (case (generate-exception n)
+         (val {n ^normal val}))
+    (catch
+        ((kind reason) {n kind reason}))))
+
 (defn main []
   (test "test try catch"
     (assert (=== {1 ^normal ^a}
@@ -42,5 +48,6 @@
     (assert (=== {4 ^normal {^EXIT ^a}}
                  (catcher 4)))
     (assert (=== {5 ^caught ^error ^a}
-                 (catcher 5))))
-  )
+                 (catcher 5)))
+    (assert (=== {2 :throw ^a}
+                 (catcher-all 2)))))
