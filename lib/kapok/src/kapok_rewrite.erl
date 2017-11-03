@@ -55,7 +55,7 @@
 %% term comparators
 ?inline_nfun('core', '<', 2) -> ?nfun(erlang, '<', 2);
 ?inline_nfun('core', '>', 2) -> ?nfun(erlang, '>', 2);
-?inline_nfun('core', '<=', 2) -> ?nfun(erlang, '<=', 2);
+?inline_nfun('core', '<=', 2) -> ?nfun(erlang, '=<', 2);
 ?inline_nfun('core', '>=', 2) -> ?nfun(erlang, '>=', 2);
 ?inline_nfun('core', '==', 2) -> ?nfun(erlang, '==', 2);
 ?inline_nfun('core', '!=', 2) -> ?nfun(erlang, '/=', 2);
@@ -85,6 +85,14 @@
 
 %% boolean operators
 ?inline_nfun('core', 'xor', 2) -> ?nfun(erlang, 'xor', 2);
+
+%% list
+?inline_nfun('list', 'to-atom', 1) -> ?nfun(erlang, list_to_atom, 1);
+?inline_nfun('list', 'to-existing-atom', 1) -> ?nfun(erlang, list_to_existing_atom, 1);
+?inline_nfun('list', 'to-float', 1) -> ?nfun(erlang, list_to_float, 1);
+?inline_nfun('list', 'to-integer', 1) -> ?nfun(erlang, list_to_integer, 1);
+?inline_nfun('list', 'to-integer', 2) -> ?nfun(erlang, list_to_integer, 2);
+?inline_nfun('list', 'to-tuple', 2) -> ?nfun(erlang, list_to_tuple, 1);
 
 %% tuple
 ?inline_nfun('tuple', 'append', 2) -> ?nfun(erlang, append_element, 2);

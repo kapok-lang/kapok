@@ -39,7 +39,8 @@ update(Key, Fun) ->
 
 update_in(Key, Orddict) when is_list(Orddict) ->
   Merge = fun(_, _, Value) -> Value end,
-  Update = fun(Old) -> orddict:merge(Merge, Old, Orddict) end,
+  Update = fun(undefined) -> Orddict ;
+              (Old) when is_list(Old) -> orddict:merge(Merge, Old, Orddict) end,
   kapok_env:update(Key, Update).
 
 get_and_put(Key, Value) ->

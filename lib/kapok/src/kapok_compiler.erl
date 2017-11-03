@@ -82,12 +82,20 @@ eval_ast(Ast, Ctx) ->
 %% CORE HANDLING
 
 core() ->
-  {ok, _} = application:ensure_all_started(kapok),
-  Options = orddict:from_list([{docs, false}, {internal, true}]),
-  kapok_env:update_in(compiler_options, Options),
-  [load_core_libs(list_to_binary(File)) || File <- core_libs()].
+  compile_libs([{internal, true}], fun core_libs/0),
+  %% reset compiler options
+  kapok_env:put(compiler_options, []),
+  compile_libs([], fun extended_libs/0).
 
-load_core_libs(File) ->
+compile_libs(Options, Fun) ->
+  {ok, _} = application:ensure_all_started(kapok),
+  AllOptions = orddict:merge(fun (_K, V1, _V2) -> V1 end,
+                             orddict:from_list(Options),
+                             orddict:from_list([{docs, false}])),
+  kapok_env:update_in(compiler_options, AllOptions),
+  lists:foreach(fun (F) -> load_lib(list_to_binary(F)) end, Fun()).
+
+load_lib(File) ->
   InDir = "lib/kapok/lib",
   OutDir = <<"lib/kapok/ebin">>,
   kapok_env:put(outdir, OutDir),
@@ -102,9 +110,12 @@ load_core_libs(File) ->
 
 core_libs() ->
   ["core.kpk",
-   "protocol.kpk",
-   "stream.reducers.kpk"
-   %% TODO compiler cannot load protocol.beam when seq.kpk is compiled.
-   %% "collectable.kpk"
-   %% "seq.kpk"
+   "protocol.kpk"].
+
+extended_libs() ->
+  ["stream.reducers.kpk",
+   "tuple.kpk",
+   "list.kpk",
+   "collectable.kpk",
+   "seq.kpk"
   ].

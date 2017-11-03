@@ -1,0 +1,584 @@
+(ns list
+  """Implements functions that only make sense for lists
+  and cannot be part of the seq protocol. In general,
+  favor using the seq API instead of list.
+
+  Some functions in this module expect an index. Index
+  access for list is linear. Negative indexes are also
+  supported but they imply the list will be iterated twice,
+  one to calculate the proper index and another to the
+  operation.
+
+  A decision was taken to delegate most functions to
+  Erlang's standard library but follow Kapok convention
+  of receiving the target (in this case, a list) as the
+  first argument."""
+
+  (require erlang
+           lists
+           unicode
+           tuple))
+
+(defn delete [list item]
+  """Deletes the given item from the list. Returns a list without
+  the item. If the item occurs more than once in the list, just
+  the first occurrence is removed.
+
+  ## Examples
+
+      kapok> (list.delete [1 2 3] 1)
+      [2 3]
+
+      kapok> (list.delete [1 2 2 3] 2)
+      [1 2 3]
+
+  """
+  (lists.delete item list))
+
+(defn duplicate [elem n]
+  """duplicates the given element `n` times in a list.
+
+  ## Examples
+
+      kapok> (list.duplicate "hello" 3)
+      ["hello" "hello" "hello"]
+
+      kapok> (list.duplicate [1 2] 2)
+      [[1 2] [1 2]]
+
+  """
+  (lists.duplicate n elem))
+
+(defn flatten [list]
+  """Flattens the given `list` of nested lists.
+
+  ## Examples
+
+      kapok> (list.flatten [1 [[2] 3]])
+      [1 2 3]
+
+  """
+  (lists.flatten list))
+
+(defn flatten [list tail]
+  """Flattens the given `list` of nested lists.
+  The list `tail` will be added at the end of the flattened list.
+
+  ## Examples
+
+      kapok> (list.flatten [1 [[2] 3]] [4 5])
+      [1 2 3 4 5]
+
+  """
+  (lists.flatten list tail))
+
+(defn foldl [list acc function]
+  """Folds (reduces) the given list from the left with a function.
+  Requires an accumulator.
+
+  ## Examples
+
+      kapok> (list.foldl [5 5] 10 (fn [x acc] (+ x acc)))
+      20
+
+      kapok> (list.foldl [1 2 3 4] 0 (fn [x acc] (- x acc)))
+      2
+
+  """
+  (lists.foldl function acc list))
+
+(defn foldr [list acc function]
+  """Folds (reduces) the given list from the right with a function.
+  Requires an accumulator.
+
+  ## Examples
+
+      kapok> (list.foldr [1 2 3 4] 0 (fn [x acc] (- x acc)))
+      -2
+
+  """
+  (lists.foldr function acc list))
+
+(defn first
+  """Returns the first element in `list` or `:nil` if `list` is empty.
+
+  ## Examples
+
+      kapok> (list.first [])
+      :nil
+
+      kapok> (list.first [1])
+      1
+
+      kapok> (list.first [1 2 3])
+      1
+
+  """
+  ([[]]
+   :nil)
+  ([h & _]
+   h))
+
+(defn last
+  """Returns the last element in `list` or `:nil` if `list` is empty.
+
+  ## Examples
+
+      kapok> (list.last [])
+      :nil
+
+      kapok> (list.last [1])
+      1
+
+      kapok> (list.last [1 2 3])
+      3
+
+  """
+  ([[]]
+   :nil)
+  ([[h]]
+   h)
+  ([[_ & t]]
+   (last t)))
+
+(defn keyfind [list key position default]
+  """Receives a list of tuples and returns the first tuple
+  where the item at `position` the tuple matches the given `key`.
+
+  ## Examples
+
+      kapok> (list.keyfind [{^a 1} {^b 2}] ^a 0)
+      {^a 1}
+
+      kapok> (list.keyfind [{^a 1} {^b 2}] 2 1)
+      {^b 2}
+
+      kapok> (list.keyfind [{^a 1} {^b 2}] ^c 0)
+      :nil
+
+  """
+  (let [v (lists.keyfind key (inc position) list)]
+    (if v
+        v
+      default)))
+
+(defn keymember? [list key position]
+  """Receives a list of tuples and returns `:true` if there is a tuple
+  where the item at `position` in the tuple matches the given `key`.
+
+  ## Examples
+
+      kapok> (list.keymember? [{^a 1} {^b 2}] ^a 0)
+      :true
+
+      kapok> (list.keymember? [{^a 1} {^b 2}] 2 1)
+      :true
+
+      kapok> (list.keymember? [{^a 1} {^b 2}] ^c 0)
+      :false
+
+  """
+  (lists.keymember key (inc position) list))
+
+(defn keyreplace [list key position new-tuple]
+  """Receives a list of tuples and replaces the item
+  identified by `key` at `position` if it exists.
+
+  ## Examples
+
+      kapok> (list.keyreplace [{^a 1} {^b 2}] ^a 0 {^a 3})
+      [{^a 3} {^b 2}]
+
+  """
+  (lists.keyreplace key (inc position) list new-tuple))
+
+(defn keysort [list position]
+  """Receives a list of tuples and sorts the items
+  at `position` of the tuples. The sort is stable.
+
+  ## Examples
+
+      kapok> (list.keysort [{^a 5} {^b 1} {^c 3}] 1)
+      [{^b 1} {^c 3} {^a 5}]
+
+      kapok> (list.keysort [{^a 5} {^c 1} {^b 3}] 0)
+      [{^a 5} {^b 3} {^c 1}]
+
+  """
+  (lists.keysort (inc position) list))
+
+(defn keystore [list key position new-tuple]
+  """Receives a list of tuples and replaces the item
+  identified by `key` at `position`. If the item does not exist,
+  it is added to the end of the list.
+
+  ## Examples
+
+      kapok> (list.keystore [{^a 1} {^b 2}] ^a 0 {^a 3})
+      [{^a 3} {^b 2}]
+
+      kapok> (list.keystore [{^a 1} {^b 2}] ^c 0 {^c 3})
+      [{^a 1} {^b 2} {^c 3}]
+
+  """
+  (lists.keystore key (inc position) list new-tuple))
+
+(defn keydelete [list key position]
+  """Receives a list of tuples and deletes the first tuple
+  where the item at `position` matches the given `key`.
+  Return the new list.
+
+  ## Examples
+
+      kapok> (list.keydelete [{^a 1} {^b 2}] ^a 0)
+      [{^b 2}]
+
+      kapok> (list.keydelete [{^a 1} {^b 2}] 2 1)
+      [{^a 1}]
+
+      kapok> (list.keydelete [{^a 1} {^b 2}] ^c 0)
+      [{^a 1} {^b 2}]
+
+  """
+  (lists.keydelete key (inc position) list))
+
+(defn wrap
+  """Wraps the argument in a list.
+  If the argument is already a list, returns the list.
+  If the argument is `:nil`, returns an empty list.
+
+  ## Examples
+
+      kapok> (list.wrap "hello")
+      ["hello"]
+
+      kapok> (list.wrap [1 2 3])
+      [1 2 3]
+
+      kapok> (list.wrap :nil)
+      []
+
+  """
+  ([list] (&when (list? list))
+   list)
+  ([:nil]
+   [])
+  ([other]
+   [other]))
+
+(defn zip
+  """Zips corresponding elements from each list in `list-of-lists`.
+
+  The zipping finishes as soon as any list terminates.
+
+  ## Examples
+
+      kapok> (list.zip [[1 2] [3 4] [5 6]])
+      [{1 3 5} {2 4 6}]
+
+      kapok> (list.zip [[1 2] [3] [5 6]])
+      [{1 3 5}]
+
+  """
+  ([[]]
+   [])
+  ([list-of-lists] (&when (list? list-of-lists))
+   (do-zip list-of-lists [])))
+
+(defn insert-at [list index value]
+  """Returns a list with `value` inserted at the specified `index`.
+  Note that `index` is capped at the list length. Negative indices
+  indicate ane offset from the end of the list.
+
+  ## Examples
+
+      kapok> (list.insert-at [1 2 3 4] 2 0)
+      [1 2 0 3 4]
+
+      kapok> (list.insert-at [1 2 3] 10 0)
+      [1 2 3 0]
+
+      kapok> (list.insert-at [1 2 3] -1 0)
+      [1 2 3 0]
+
+      kapok> (list.insert-at [1 2 3] -10 0)
+      [0 1 2 3]
+
+  """
+  (if (< index 0)
+      (do-insert-at list (+ (length list) index 1) value)
+    (do-insert-at list index value)))
+
+(defn replace-at [list index value]
+  """Returns a list with a replaced value at the specified `index`.
+  Negative indices indicate an offset from the end of the list.
+  If `index` is out of bounds, the original `list` is returned.
+
+  ## Examples
+
+      kapok> (list.replace-at [1 2 3] 0 0)
+      [0 2 3]
+
+      kapok> (list.replace-at [1 2 3] 10 0)
+      [1 2 3]
+
+      kapok> (list.replace-at [1 2 3] -1 0)
+      [1 2 0]
+
+      kapok> (list.replace-at [1 2 3] -10 0)
+      [1 2 3]
+
+  """
+  (if (< index 0)
+      (do-replace-at list (+ (length list) index) value)
+    (do-replace-at list index value)))
+
+(defn update-at [list index fun]
+  """Returns a list with an updated value at the specified `index`.
+  Negative indices indicate an offset from the end of the list.
+  If `index` is out of bounds, the original `list` is returned.
+
+  ## Examples
+
+      kapok> (list.update-at [1 2 3] 0 (fn [x] (+ x 10)))
+      [11 2 3]
+
+      kapok> (list.update-at [1 2 3] 10 (fn [x] (+ x 10)))
+      [1 2 3]
+
+      kapok> (list.update-at [1 2 3] -1 (fn [x] (+ x 10)))
+      [1 2 13]
+
+      kapok> (list.update-at [1 2 3] -10 (fn [x] (+ x 10)))
+      [1 2 3]
+
+  """
+  (if (< index 0)
+      (do-update-at list (+ (length list) index) fun)
+    (do-update-at list index fun)))
+
+
+(defn delete-at [list index]
+  """Produces a new list by removing the value at the specified `index`.
+  Negative indices indicate an offset from the end of the list.
+  If `index` is out of bounds, the original `list` is returned.
+
+  ## Examples
+
+      kapok> (list.delete-at [1 2 3] 0)
+      [2 3]
+
+      kapok> (list.delete-at [1 2 3] 10)
+      [1 2 3]
+
+      kapok> (list.delete-at [1 2 3] -1)
+      [1 2]
+
+  """
+  (if (< index 0)
+      (do-delete-at list (+ (length list) index))
+      (do-delete-at list index)))
+
+(defn to-atom [char-list]
+  """Converts a char list to an atom.
+
+  Currently Kapok does not support conversions from char lists
+  which contains Unicode codepoints greater than 0xFF.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (list.to-atom #"kapok")
+      ^kapok
+
+  """
+  (erlang.list_to_atom char-list))
+
+(defn to-existing-atom [char-list]
+  """Converts a char list to an existing atom. Raises an ArgumentError
+  if the atom does not exist.
+
+  Currently Kapok does not support conversions from char lists
+  which contains Unicode codepoints greater than 0xFF.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (let [a ^barney]
+               (list.to-existing-atom #"barney"))
+      ^barney
+
+  """
+  (erlang.list_to_existing_atom char-list))
+
+(defn to-float [char-list]
+  """Returns the float whose text representation is `char-list`.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (list.to-float #"2.2017764e+0")
+      2.2017764
+
+  """
+  (erlang.list_to_float char-list))
+
+(defn to-integer [char-list]
+  """Returns the integer whose text representation is `char-list`.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (list.to-integer #"123")
+      123
+
+  """
+  (erlang.list_to_integer char-list))
+
+(defn to-integer [char-list base]
+  """Returns an integer whose text representation is `char-list` in base `base`.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (list.to-integer #"3FF" 16)
+      2013
+
+  """
+  (erlang.list_to_integer char-list base))
+
+(defn to-tuple [list]
+  """Converts a list to a tuple.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (list.to-tuple [^share [^kapok 163]])
+      {^share, [^kapok 163]}
+
+  """
+  (erlang.list_to_tuple list))
+
+(defn to-string [list] (&when (list? list))
+  """Converts a list of integers representing codepoints, lists or
+  strings into a string.
+
+  Notice that this function expects a list of integers representing
+  UTF-8 codepoints. If you have a list of bytes, you must instead use
+  [the `binary` module](http://erlang.org/doc/man/binary.html).
+
+  ## Examples
+
+      kapok> (list.to-string [0x00E6, 0x00DF])
+      "æß"
+
+      kapok> (list.to-string [0x0061, "bc"])
+      "abc"
+  """
+  (case (unicode.characters_to_binary list)
+    (result (&when (binary? result))
+     result)
+    ({^error _encoded _rest}
+     ;; todo revise to use exception
+     (throw "unicode conversion error"))
+    ({^incomplete _encoded _rest}
+     ;; todo revise to use exception
+     (throw "unicode conversion incomplete error"))))
+
+;; Helpers
+
+;; insert-at
+
+(defn- do-insert-at [list index value]
+  (do-insert-at list index value []))
+
+(defn- do-insert-at [list index value acc] (&when (&or (== list [])
+                                                       (<= index 0)))
+  (lists.reverse acc [value & list]))
+
+(defn- do-insert-at [[h & t] index value acc]
+  (do-insert-at t (dec index) value [h & acc]))
+
+;; replace-at
+
+(defn- do-replace-at [list index value]
+  (do-replace-at list index value []))
+
+(defn- do-replace-at [[] _index _value acc]
+  (lists.reverse acc))
+
+(defn- do-replace-at [list index _value acc] (&when (< index 0))
+  (lists.reverse acc list))
+
+(defn- do-replace-at [list 0 value acc]
+  (list.reverse acc [value & list]))
+
+(defn- do-replace-at [[h & t] index value acc]
+  (do-replace-at t (dec index) value [h & acc]))
+
+;; update-at
+
+(defn- do-update-at [list index fun]
+  (do-update-at list index fun []))
+
+(defn- do-update-at [[] _index _fun acc]
+  (lists.reverse acc))
+
+(defn- do-update-at [[value & list] 0 fun acc]
+  (lists.reverse acc [(fun value) & list]))
+
+(defn- do-update-at [list index _fun acc] (&when (< index 0))
+  (lists.reverse acc list))
+
+(defn- do-update-at [[h & t] index fun acc]
+  (do-update-at t (dec index) fun [h & acc]))
+
+;; delete-at
+
+(defn- do-delete-at [list index]
+  (do-delete-at list index []))
+
+(defn- do-delete-at [[] _index acc]
+  (lists.reverse acc))
+
+(defn- do-delete-at [[_ & t] 0 acc]
+  (lists.reverse acc t))
+
+(defn- do-delete-at [list index acc] (&when (< index 0))
+  (lists.reverse acc list))
+
+(defn- do-delete-at [[h & t] index acc]
+  (do-delete-at t (dec index) [h & acc]))
+
+;; zip
+
+(defn- do-zip [list acc]
+  (let [converter (fn [x acc0]
+                    (do-zip-each (to-list x) acc0))
+        {mlist heads} (lists.mapfoldl converter [] list)]
+    (case heads
+      (:nil
+       (lists.reverse acc))
+      (_
+       (do-zip mlist [(erlang.list_to_tuple (lists.reverse heads)) & acc])))))
+
+(defn- do-zip-each [_ :nil]
+  {:nil :nil})
+
+(defn- do-zip-each [[h & t] acc]
+  {t [h & acc]})
+
+(defn- do-zip-each [[] _]
+  {:nil :nil})
+
+(defn- to-list [t] (&when (tuple? t))
+  (tuple.to-list t))
+
+(defn- to-list [l] (&when (list? l))
+  l)
