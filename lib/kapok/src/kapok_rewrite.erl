@@ -86,6 +86,10 @@
 %% boolean operators
 ?inline_nfun('core', 'xor', 2) -> ?nfun(erlang, 'xor', 2);
 
+%% tuple
+?inline_nfun('tuple', 'append', 2) -> ?nfun(erlang, append_element, 2);
+?inline_nfun('tuple', 'to-list', 1) -> ?nfun(erlang, tuple_to_list, 1);
+
 inline(_M, _F, _A, _P) ->
   %% TODO add impl
   false.
@@ -111,6 +115,12 @@ rewrite('core', 'elem', [Tuple, Index]) ->
   {erlang, element, [increment(Index), Tuple]};
 rewrite('core', 'set-elem', [Tuple, Index, Value]) ->
   {erlang, setelement, [increment(Index), Tuple, Value]};
+rewrite('tuple', 'duplicate', [Data, Size]) ->
+  {erlang, make_tuple, [Size, Data]};
+rewrite('tuple', 'insert-at', [Tuple, Index, Term]) ->
+  {erlang, insert_element, [increment(Index), Tuple, Term]};
+rewrite('tuple', 'delete-at', [Tuple, Index]) ->
+  {erlang, delete_element, [increment(Index), Tuple]};
 rewrite(_Receiver, _Fun, _Args) ->
   false.
 

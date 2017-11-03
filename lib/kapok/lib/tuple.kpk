@@ -1,0 +1,92 @@
+(ns tuple
+  """Functions for working with tuples.
+
+  See also `core.elem/2`, `core.tuple?/1`, `core.set-elem/3` and
+  `core.tuple-size/1`."""
+  (require erlang))
+
+(defn duplicate [data size]
+  """Creates a new tuple.
+
+  Creates a tuple of size `size` containing the given `data`
+  at every position.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (tuple.duplicate ^hello 3)
+      {^hello ^hello ^hello}
+
+  """
+  (erlang.make_tuple size data))
+
+(defn insert-at [tuple index value]
+  """Inserts an element into a tuple.
+
+  Inserts `value` into `tuple` at the given zero-based `index`.
+  Raises an `ArgumentError` if `index` is negative or greater than
+  the length of `tuple`.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (let [t {^bar ^baz}]
+               (tuple.insert-at t 0 ^foo))
+      {^foo ^bar ^baz}
+
+      kapok> (let [t {^bar ^baz}]
+               (tuple.insert-at t 2 ^bong))
+      {^bar ^baz ^bong}
+
+  """
+  (erlang.insert_element (inc index) tuple value))
+
+(defn append [tuple value]
+  """Inserts an element into the end of a tuple.
+
+  Returns a new tuple which has one element more than `tuple`, and contains
+  the elements in `tuple` followed by `value` as the last element.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (let [t {^foo ^bar}]
+               (tuple.append t ^baz))
+      {^foo ^bar ^baz}
+  """
+  (erlang.append_element tuple value))
+
+(defn delete-at [tuple index]
+  """Removes an element from a tuple.
+
+  Deletes the element at the zero-based `index` from `tuple`.
+  Raises an `ArgumentError` if `index` is negative or greater than
+  or equal to the length of `tuple`.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (let [t {^foo ^bar ^baz}]
+               (tuple.delete-at t 0))
+      {^bar ^baz}
+
+  """
+  (erlang.delete_element (inc index) tuple))
+
+(defn to-list [tuple]
+  """Converts a tuple to a list.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (let [t {^foo ^bar ^baz}]
+               (tuple.to-list t))
+      [^foo ^bar ^baz]
+
+  """
+  (erlang.tuple_to_list tuple))
