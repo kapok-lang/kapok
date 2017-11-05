@@ -310,6 +310,8 @@ format_error({after_clause_not_the_last}) ->
   io_lib:format("after clause should be the last expression of receive or try catch", []);
 format_error({empty_try_expr}) ->
   io_lib:format("empty try expression", []);
+format_error({try_without_body}) ->
+  io_lib:format("try expression without body", []);
 format_error({try_without_catch_or_after}) ->
   io_lib:format("try expression without catch or after clause", []);
 format_error({invalid_catch_after_clause, {Exprs}}) ->
