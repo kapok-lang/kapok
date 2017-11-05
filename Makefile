@@ -21,6 +21,11 @@ lib_dir                := $(CURDIR)/lib
 lib_names              := $(patsubst $(lib_dir)/%,%,$(wildcard $(lib_dir)/*))
 other_files            := $(CURDIR)/erl_crash.dump
 
+# strip the CURDIR prefix and get the related path for output absolute path
+# $(call related-path,absolute-path)
+define related-path
+  $(patsubst $(CURDIR)/%,%,$1)
+endef
 
 # get files with specified suffix in specified directory
 # $(call get-files-in-dir,dir-name,suffix)
@@ -177,7 +182,7 @@ $2$1-libs: $($1_lib_beam_files)
 $($1_lib_beam_files): $($1_beam_files) $($1_core_lib_beam_files)
 
 $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
-	$(QUIET) printf "Compile '%s'\n" $$<
+	$(QUIET) printf "Compile '%s'\n" $$(call related-path,$$<)
 	$$(call kapokc,$$<,$$(dir $$@))
 
 $3$1: $2$1
@@ -195,7 +200,7 @@ $2$1: $2$1-libs
 $2$1-libs: $($1_lib_beam_files)
 
 $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
-	$(QUIET) printf "Compile '%s'\n" $$<
+	$(QUIET) printf "Compile '%s'\n" $$(call related-path,$$<)
 	$$(call kapokc,$$<,$$(dir $$@))
 
 $3$1:

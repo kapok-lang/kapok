@@ -101,6 +101,7 @@ load_lib(File) ->
   kapok_env:put(outdir, OutDir),
   F = list_to_binary(filename:join(InDir, binary_to_list(File))),
   try
+    io:format("Compile '~s'~n", [F]),
     _Ctx = file(F)
   catch
     Kind:Reason ->
