@@ -197,7 +197,7 @@ Erlang code.
 -import(kapok_scanner, [token_category/1,
                         token_meta/1,
                         token_symbol/1]).
--export([dot_fullname/1]).
+-export([dot_id_name/1]).
 -include("kapok.hrl").
 
 %% Build token
@@ -273,6 +273,11 @@ build_set(Marker, Args) ->
 
 dot_fullname({dot, _, {Left, Right}}) ->
   list_to_atom(string:join([atom_to_list(Left), atom_to_list(Right)], ".")).
+
+dot_id_name({'dot', _, _} = Ast) ->
+  dot_fullname(Ast);
+dot_id_name({'identifier', _, Arg}) ->
+  Arg.
 
 %% Errors
 throw(Line, Error, Token) ->

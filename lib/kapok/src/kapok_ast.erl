@@ -46,7 +46,7 @@ handle_ns(Meta, T, Ctx) ->
 handle_ns(Meta, Ast, Clauses, Ctx) ->
   handle_ns(Meta, Ast, empty_doc(), Clauses,  Ctx).
 handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
-  Name = dot_id_name(Ast),
+  Name = kapok_parser:dot_id_name(Ast),
   Ctx1 = case ?m(Ctx, namespace) of
            nil ->
              Ctx#{namespace => Name};
@@ -75,7 +75,7 @@ handle_require_clause(List, Ctx) when is_list(List) ->
 handle_require_element({Category, Meta, Id}, Ctx) when ?is_local_id(Category) ->
   {Id, kapok_ctx:add_require(Meta, Ctx, Id)};
 handle_require_element({dot, Meta, _} = Dot, Ctx) ->
-  Name = kapok_parser:dot_fullname(Dot),
+  Name = kapok_parser:dot_id_name(Dot),
   {Name, kapok_ctx:add_require(Meta, Ctx, Name)};
 handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
@@ -98,7 +98,7 @@ handle_use_element({Category, Meta, Id}, Ctx) when ?is_local_id(Category) ->
   Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Id),
   {Id, Ctx2};
 handle_use_element({dot, Meta, _} = Dot, Ctx) ->
-  Name = kapok_parser:dot_fullname(Dot),
+  Name = kapok_parser:dot_id_name(Dot),
   Ctx1 = kapok_ctx:add_require(Meta, Ctx, Name),
   Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Name),
   {Name, Ctx2};
@@ -160,10 +160,6 @@ add_default_uses(Ctx) ->
               Ctx,
               kapok_dispatch:default_uses()).
 
-dot_id_name({'dot', _, _} = Ast) ->
-  kapok_parser:dot_fullname(Ast);
-dot_id_name({'identifier', _, Arg}) ->
-  Arg.
 
 %% defns
 handle_def_ns(Meta, Kind, [{C, _, _} = NameAst | T], Ctx) when ?is_dot_id(C) ->
@@ -179,7 +175,7 @@ handle_def_ns(Meta, Kind, NameAst, T, Ctx) ->
   handle_def_ns(Meta, Kind, NameAst, empty_doc(), T, Ctx).
 
 handle_def_ns(Meta, _Kind, NameAst, DocAst, [{list, _, NSArgs} | T], #{namespace := NS} = Ctx) ->
-  Name = dot_id_name(NameAst),
+  Name = kapok_parser:dot_id_name(NameAst),
   Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx#{namespace => Name}),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
   build_namespace(Name, Ctx2),

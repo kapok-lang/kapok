@@ -1,0 +1,45 @@
+(ns integer
+  """Functions for working with integers."""
+
+
+  )
+
+
+(defmacro is-odd [n]
+  """Determines if an integer is odd.
+
+  Returns `true` if `n` is an odd number, otherwise `false`.
+
+  Allowed in guard clauses."""
+
+  `(== (bit-and ~n 1) 1))
+
+;; TODO add functions
+
+(defn to-string [some-integer]
+  """Returns a binary which corresponding to the text representation
+  of `some-integer`.
+
+  Inlined by the compiler.
+
+  ## Examples
+
+      kapok> (integer.to-string 123)
+      "123"
+
+  """
+  (erlang.integer_to_binary some-integer))
+
+(defn to-string [some-integer base]
+  """Returns a binary which corresponding to the text representation
+  of `some-integer` in base `base`.
+
+  Inlined by the complier.
+
+  ## Examples
+
+      kapok> (integer.to-string 100 16)
+      "64"
+
+  """
+  (erlang.integer_to_binary some-integer base))

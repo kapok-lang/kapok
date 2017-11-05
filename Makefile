@@ -120,7 +120,13 @@ $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
 $1_core_lib_files      := \
   core.kpk                \
   protocol.kpk            \
-  stream.reducers.kpk
+  stream.reducers.kpk     \
+  integer.kpk             \
+  tuple.kpk               \
+  list.kpk                \
+  collectable.kpk         \
+  string.chars.kpk        \
+  seq.kpk
 $1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
                               $$(call get-files-in-dir,$$($1_lib_dir),kpk))

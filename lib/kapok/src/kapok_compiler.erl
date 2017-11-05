@@ -115,8 +115,10 @@ core_libs() ->
 
 extended_libs() ->
   ["stream.reducers.kpk",
+   "integer.kpk",
    "tuple.kpk",
    "list.kpk",
    "collectable.kpk",
+   "string.chars.kpk",
    "seq.kpk"
   ].

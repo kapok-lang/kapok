@@ -5,11 +5,19 @@
   ;; need to use `core' explicitly since core libs
   ;; are not automatically imported or used when compiled.
   (use core)
-  (require kapok_error maps erlang lists))
+  (require kapok_error
+           kapok_parser
+           erlang
+           maps
+           lists))
 
 (defmacro string? [category]
   `(&or (=== ~category ^list_string)
         (=== ~category ^binary_string)))
+
+(defmacro dot-id? [category]
+  `(&or (=== ~category ^dot)
+        (=== ~category ^identifier)))
 
 (defmacro struct-field? [category]
   `(&or (=== ~category ^keyword)
@@ -103,7 +111,7 @@
   (let [meta (maps.get ^meta _&ctx)
         file (maps.get ^file _&ctx)]
     (case id
-      ({c _ _} (&when (=== c ^identifier))
+      ({c _ _} (&when (dot-id? c))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
          ([{c1 _ _} &as doc & t] (&when (&or (=== c1 ^list_string)
@@ -123,13 +131,13 @@
     (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))
 
 (defn- handle-defimpl [file meta protocol type doc defs {ns-acc defn-acc}]
-  (let [{_ protocol-meta protocol-name} protocol
+  (let [{_ protocol-meta _} protocol
         {_ _ type-name} type]
     (case defs
       ([]
        (let [ns-all (lists.reverse ns-acc)
              defn-all (lists.reverse defn-acc)
-             p-name (erlang.atom_to_list protocol-name)
+             p-name (erlang.atom_to_list (kapok_parser.dot_id_name protocol))
              t-name (erlang.atom_to_list type-name)
              module-name (erlang.list_to_atom
                           (lists.append p-name (lists.append #"." t-name)))]
@@ -155,7 +163,7 @@
   (let [meta (maps.get ^meta _&ctx)
         file (maps.get ^file _&ctx)]
     (case protocol
-      ({c _ _} (&when (=== c ^identifier))
+      ({c _ _} (&when (dot-id? c))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to implement protocol"))
          ([{c _ _} &as doc & t] (&when (&or (=== c ^list_string)
