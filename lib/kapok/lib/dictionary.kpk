@@ -1,18 +1,18 @@
-(ns kdict
+(ns dictionary
   ;; TODO add more docs
-  """This module specifies the dict API expected to be
+  """This module specifies the dictionary API expected to be
   implemented by different dictionaries. It also provides
-  functions that redirect to the underlying dict, allowing
-  a developer to work with different dict implementations
+  functions that redirect to the underlying dictionary, allowing
+  a developer to work with different dictionary implementations
   using one API.
 
-  To Create a new dict, use the `new` functions defined
-  by each dict type:
+  To Create a new dictionary, use the `new` functions defined
+  by each dictionary type:
 
-      (hashdict.new)  ;;=> creates an empty hash dict
+      (hashdict.new)  ;;=> creates an empty hash dictionary
 
   In the examples below, `dict-impl` means a specific
-  `dict` implementation, for example `hashdict` or `map`.
+  `dictionary` implementation, for example `hashdict` or `map`.
 
   ## Protocols
 

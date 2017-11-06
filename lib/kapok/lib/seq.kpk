@@ -44,7 +44,7 @@
            (stream.reducers :as reducers)
            (collectable :as clt)
            (string.chars :as chars)
-           (kdict :as dict)))
+           (dictionary :as dict)))
 
 (defmacro skip [acc]
   acc)

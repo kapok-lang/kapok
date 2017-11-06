@@ -124,7 +124,7 @@ $1_core_lib_files      := \
   integer.kpk             \
   tuple.kpk               \
   list.kpk                \
-  kdict.kpk               \
+  dictionary.kpk          \
   collectable.kpk         \
   string.chars.kpk        \
   seq.kpk
