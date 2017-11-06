@@ -118,6 +118,7 @@ extended_libs() ->
    "integer.kpk",
    "tuple.kpk",
    "list.kpk",
+   "kdict.kpk",
    "collectable.kpk",
    "string.chars.kpk",
    "seq.kpk"

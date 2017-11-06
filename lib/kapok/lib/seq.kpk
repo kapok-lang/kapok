@@ -43,7 +43,8 @@
            sequential
            (stream.reducers :as reducers)
            (collectable :as clt)
-           (string.chars :as chars)))
+           (string.chars :as chars)
+           (kdict :as dict)))
 
 (defmacro skip [acc]
   acc)
@@ -688,6 +689,40 @@
   """Returns the sum of all values."""
 
   (reduce collection 0 (fn core + 2)))
+
+(defn partition [collection fun]
+  """Partitions `collcetion` into two collections, where the first one
+  contains elements for which `fun` returns a truthy value, and
+  the second one -- for which `fun` returns `:false` or `:nil`."""
+
+  (let [{acc3 acc4} (reduce collection
+                            {[] []}
+                            (fn [entry {acc1 acc2}]
+                              (if (fun entry)
+                                  {[entry & acc1] acc2}
+                                {acc1 [entry & acc2]})))]
+    {(lists.reverse acc3) (lists.reverse acc4)}))
+
+(defn group-by
+  """Splits `collection` into groups based on `fun`.
+
+  The result is a dict (by default a map) where each key is
+  a group and each value is a list of elements from `collection`
+  for which `fun` returned that group. Ordering is not necessarily
+  preserved."""
+
+  ([collection fun]
+   (group-by collection #{} fun))
+
+  ([collection dict fun]
+   (reduce collection
+           dict
+           (fn [entry categories]
+             (dict.update categories
+                          (fun entry)
+                          [entry]
+                          (fn [v]
+                            [entry & v]))))))
 
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the

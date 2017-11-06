@@ -124,6 +124,7 @@ $1_core_lib_files      := \
   integer.kpk             \
   tuple.kpk               \
   list.kpk                \
+  kdict.kpk               \
   collectable.kpk         \
   string.chars.kpk        \
   seq.kpk
@@ -195,7 +196,8 @@ $3$1: $2$1
 	$$(call kdt-test,$$(lib_$1_dir))
 
 $4$1:
-	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) $($1_lib_beam_files)
+	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) \
+  $($1_core_lib_beam_files) $($1_lib_beam_files)
 
 else
 
