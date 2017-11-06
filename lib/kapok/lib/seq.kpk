@@ -42,7 +42,8 @@
            maps
            sequential
            (stream.reducers :as reducers)
-           (collectable :as clt)))
+           (collectable :as clt)
+           (string.chars :as chars)))
 
 (defmacro skip [acc]
   acc)
@@ -50,7 +51,7 @@
 (defmacro next [_ entry acc]
   `[~entry & ~acc])
 
-(defmacro acc [h, n, _]
+(defmacro acc [h n _]
   `{~h ~n})
 
 (defmacro next-with-acc [_f entry h n _]
@@ -122,7 +123,7 @@
   returned anyway with less than `n` elements. If `pad` is not
   passed at all or is `:nil`, then the partial chunk is discarded
   from the result."""
-  ;; TODO add impl
+
   (let [limit (erlang.max n step)
         {acc {buf i}} (reduce collection
                                  {[] {[] 0}}
@@ -136,7 +137,7 @@
 
 (defn chunk-by [collection fun]
   "Splits `collection` on every element for which `fun` returns a new value."
-  ;; TODO add impl
+
   (let [{acc res} (reduce collection
                           {[] :nil}
                           (reducers.chunk-by fun))]
@@ -465,6 +466,24 @@
            (fn [x acc]
              (fun acc {^cont (transform x)}))))))
 
+(defn join [collection &optional (joiner "")] (&when (binary? joiner))
+  """Joins the given `collection` into a binary using `joiner` as a separator.
+  If `joiner` is not passed at all, it defaults to the empty binary.
+
+  All items in the collection must be convertible
+  to a binary, otherwise an error is raised."""
+
+  (let [reduced (reduce collection
+                        ^first
+                        (fn
+                          ([entry ^first]
+                           (seq-to-string entry))
+                          ([entry acc]
+                           [acc joiner & (seq-to-string entry)])))]
+    (if (== reduced ^first)
+        ""
+      (erlang.iolist_to_binary reduced))))
+
 (defn map
   """Returns a new collection, where each item is the result
   of invoking `fun` on each corresponding item of `collection`.
@@ -479,6 +498,196 @@
            []
            (reducers.map fun))
        lists.reverse)))
+
+(defn map-join
+  """Maps and joins the given `collection` in one pass.
+  `joiner` can be either a binary or a list and the result
+  will be of the same type as `joiner`. If `joiner` is no passed at all,
+  it defaults to an empty binary.
+
+  All items in the collection must be convertible to a binary,
+  otherwise an error is raised."""
+
+  ([collection mapper]
+   (map-join collection "" mapper))
+
+  ([collection joiner mapper] (&when (binary? joiner))
+   (let [reduced (reduce collection
+                   ^first
+                   (fn
+                     ([entry ^first]
+                      (seq-to-string entry))
+                     ([entry acc]
+                      (acc joiner & (seq-to-string (mapper entry))))))]
+     (if (== reduced ^first)
+         ""
+       (erlang.iolist_to_binary reduced)))))
+
+(defn map-reduce
+  """Invokes the given `fun` for each item in the `collection`
+  while also keeping an accumulator. Returns a tuple where the first element
+  is mapped collection and the second one is the final accumulator.
+
+  For dicts, the first tuple element must be a `{key, value}` tuple."""
+  ([collection acc fun] (&when (list? collection))
+   (lists.mapfoldl fun acc collection))
+
+  ([collection acc fun]
+   (let [{list acc2} (reduce collection
+                            {[] acc}
+                            (fn [entry {list0 acc0}]
+                              (let [{new-entry acc1} (fun entry acc0)]
+                                {[new-entry & list0] acc1})))]
+     {(lists.reverse list) acc2})))
+
+(defn max [collection]
+  """Returns the maximum value."""
+  (reduce collection (fn [x acc] (core.max x acc))))
+
+(defn max-by
+  """Returns the maximum value as calculated by the given function."""
+
+  ([[h & t] fun]
+   (-> (reduce t
+               {h (fun h)}
+               (fn [entry {_ fun-max} &as old]
+                 (let [fun-entry (fun entry)]
+                   (if (> fun-entry fun-max)
+                       {entry fun-entry}
+                     old))))
+       (elem 0)))
+
+  ([[] _fun]
+   ;; TODO revise to use exception
+   (throw "empty error"))
+
+  ([collection fun]
+   (let [result (reduce collection
+                        ^first
+                        (fn
+                          ([entry ^first]
+                           {entry (fun entry)})
+                          ([entry {_ fun-max} &as old]
+                           (let [fun-entry (fun entry)]
+                             (if (> fun-entry fun-max)
+                                 {entry fun-entry}
+                               old)))))]
+     (case result
+       (^first
+        ;; TODO revise to use exception
+        (throw "empty error"))
+       ({entry _}
+        entry)))))
+
+(defn member?
+  """Checks if `value` exists within the `collection`.
+
+  Membership is tested with the match (`===`) operator."""
+
+  ([collection value] (&when (list? collection))
+   (lists.member value collection))
+
+  ([collection value]
+   (case (sequential.member? collection value)
+     ({^ok value} (&when (boolean? value))
+      value)
+     ({^error module}
+      (-> (module.reduce collection
+                         {^cont :false}
+                         (fn
+                           ([v _] (&when (=== v value))
+                            {^halt :true})
+                           ([_ _]
+                            {^cont :false})))
+          (elem 1))))))
+
+(defn min [collection]
+  """Returns the minimum value as calculated by the given function."""
+  (reduce collection (fn [x acc] (core.min x acc))))
+
+(defn min-by
+  """Returns the minimum value as calculated by the given function."""
+
+  ([[h & t] fun]
+   (-> (reduce t
+               {h (fun h)}
+               (fn [entry {_ fun-min} &as old]
+                 (let [fun-entry (fun entry)]
+                   (if (< fun-entry fun-min)
+                       {entry fun-entry}
+                     old))))
+       (elem 0)))
+
+  ([[] _fun]
+   ;; TODO revise to use exception
+   (throw "empty error"))
+
+  ([collection fun]
+   (let [result (reduce collection
+                        ^first
+                        (fn
+                          ([entry ^first]
+                           {entry (fun entry)})
+                          ([entry {_ fun-min} &as old]
+                           (let [fun-entry (fun entry)]
+                             (if (< fun-entry fun-min)
+                                 {entry fun-entry}
+                                 old)))))]
+     (case result
+       (^first
+        ;; TODO revise to use exception
+        (throw "empty error"))
+       ({entry _}
+        entry)))))
+
+(defn minmax [collection]
+  """Returns a tuple with the minimum and maximum values."""
+
+  (let [result (reduce collection
+                       ^first
+                       (fn
+                         ([entry ^first]
+                          {entry entry})
+                         ([entry {min-value, max-value}]
+                          {(core.min entry min-value)
+                           (core.max entry max-value)})))]
+    (case result
+      (^first
+       ;; TODO revise to use exception
+       (throw "empty error"))
+      (result
+       result))))
+
+(defn minmax-by [collection fun]
+  """Returns a tuple with the minmum and maximum values as
+  calculated by the given function."""
+
+  (let [result (reduce collection
+                 ^first
+                 (fn
+                   ([entry ^first]
+                    (let [fun-entry (fun entry)]
+                      {{entry fun-entry} {entry fun-entry}}))
+                   ([entry {{_ fun-min} &as acc-min {_ fun-max} &as acc-max}]
+                    (let [fun-entry (fun entry)
+                          new-min (if (< fun-entry fun-min)
+                                      {entry fun-entry}
+                                    acc-min)
+                          new-max (if (> fun-entry fun-max)
+                                      {entry fun-entry}
+                                    acc-max)]
+                      {new-min new-max}))))]
+    (case result
+      (^first
+       ;; TODO revise to use exception
+       (throw "empty error"))
+      ({{min-entry _} {max-entry _}}
+       {min-entry max-entry}))))
+
+(defn sum [collection]
+  """Returns the sum of all values."""
+
+  (reduce collection 0 (fn core + 2)))
 
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
@@ -500,6 +709,35 @@
                             {^cont (fun x acc0)}))
        (elem 1)))
   )
+
+(defn reduce
+  """Invokes `fun` for each element in the collection passing that element
+  and the accumulator `acc` as arguments. `fun`'s return value is stored
+  in `acc`. The first element of the collection is used as the initial value
+  of `acc`. Returns the accumulator."""
+
+  ([[h & t] fun]
+   (reduce t h fun))
+
+  ([[] _fun]
+   ;; TODO revise to use exception
+   (throw "empty list error"))
+
+  ([collection fun]
+   (let [result (-> (sequential.reduce collection
+                                       {^cont ^first}
+                                       (fn
+                                         ([x ^first]
+                                          {^cont {^acc x}})
+                                         ([x {^acc acc}]
+                                          {^cont {^acc (fun x acc)}})))
+                    (elem 1))]
+     (case result
+       (^first
+        ;; TODO revise to use exception
+        (throw "empty error"))
+       ({^acc acc}
+        acc)))))
 
 (defn reverse
   """Reverses the collection."""
@@ -575,6 +813,14 @@
 
   ([collection]
    (lists.reverse (reverse collection))))
+
+;; Helpers
+
+(defn- seq-to-string
+  ([entry] (&when (binary? entry))
+   entry)
+  ([entry]
+   (chars.to-string entry)))
 
 ;; Implementations
 
@@ -724,14 +970,14 @@
 
   (defn reduce [_ {^halt acc} _fun]
     {^halted acc})
-  (defn reduce [list {^suspend, acc} fun]
+  (defn reduce [list {^suspend acc} fun]
     {^suspended acc (fn [acc1] (reduce list acc1 fun))})
   (defn reduce [[] {^cont acc} _fun]
     {^done acc})
   (defn reduce [[h & t] {^cont acc} fun]
     (reduce t (fun h acc) fun))
 
-  (defn member? [_list, _value]
+  (defn member? [_list _value]
     ;; TODO add macro `__MODULE__`
     {^error ^"sequential.list"})
   (defn count [_list]
