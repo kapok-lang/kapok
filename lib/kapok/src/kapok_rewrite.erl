@@ -86,6 +86,12 @@
 %% boolean operators
 ?inline_nfun('core', 'xor', 2) -> ?nfun(erlang, 'xor', 2);
 
+%% integer
+?inline_nfun('integer', 'to-string', 1) -> ?nfun(erlang, integer_to_binary, 1);
+?inline_nfun('integer', 'to-string', 2) -> ?nfun(erlang, integer_to_binary, 2);
+?inline_nfun('integer', 'to-char-list', 1) -> ?nfun(erlang, integer_to_list, 1);
+?inline_nfun('integer', 'to-char-list', 2) -> ?nfun(erlang, integer_to_list, 2);
+
 %% list
 ?inline_nfun('list', 'to-atom', 1) -> ?nfun(erlang, list_to_atom, 1);
 ?inline_nfun('list', 'to-existing-atom', 1) -> ?nfun(erlang, list_to_existing_atom, 1);
