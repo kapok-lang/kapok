@@ -774,6 +774,22 @@
        ({^acc acc}
         acc)))))
 
+(defn reject
+  """Returns elements of `collection` for which `fun` returns
+  `:false` or `:nil`."""
+
+  ([collection fun] (&when (list? collection))
+   (lists.filter (fn [x] (not (fun x)))
+                 collection))
+
+  ([collection fun]
+   (-> (reduce collection
+               []
+               (reducers.reject fun))
+       lists.reverse)))
+
+;; TODO add functions
+
 (defn reverse
   """Reverses the collection."""
 

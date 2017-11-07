@@ -56,3 +56,9 @@
 (defmacro map [callback &optional f]
   `(fn [entry acc]
      (next ~f (~callback entry) acc)))
+
+(defmacro reject [callback &optional f]
+  `(fn [entry acc]
+     (if-not (~callback entry)
+             (next ~f entry acc)
+       (skip acc))))

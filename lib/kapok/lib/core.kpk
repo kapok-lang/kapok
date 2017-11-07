@@ -77,6 +77,15 @@
      (:true ~then)
      (:false ~else)))
 
+(defmacro if-not [test then &optional else]
+  """Evaluates test. If logical false, evaluates and return then expr,
+  otherwise else expr.
+  If else is not supplied it defaults to nil."""
+
+  `(case (core.false? ~test)
+     (:true ~then)
+     (:false ~else)))
+
 (defmacro when [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
   `(case (core.true? ~test)

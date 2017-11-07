@@ -121,6 +121,7 @@ $1_core_lib_files      := \
   core.kpk                \
   protocol.kpk            \
   stream.reducers.kpk     \
+  atom.kpk                \
   integer.kpk             \
   tuple.kpk               \
   list.kpk                \
