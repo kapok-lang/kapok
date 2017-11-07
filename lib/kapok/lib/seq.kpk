@@ -692,7 +692,7 @@
   (reduce collection 0 (fn core + 2)))
 
 (defn partition [collection fun]
-  """Partitions `collcetion` into two collections, where the first one
+  """Partitions `collection` into two collections, where the first one
   contains elements for which `fun` returns a truthy value, and
   the second one -- for which `fun` returns `:false` or `:nil`."""
 
@@ -887,6 +887,42 @@
                              [{(rand.uniform) x} & acc]))]
     (unwrap (lists.keysort 1 randomized) [])))
 
+(defn slice
+  """Returns a subset list of the given collection. Drops elements
+  until element position `start` , then takes `count` elements.
+
+  If the count is greater than collection length, it returns as
+  much as possible. If zero, then it returns `[]`."""
+
+  ([_collection _start 0]
+   [])
+
+  ([collection start count] (&when (< start 0))
+   (let [{list new-start} (traverse-and-count collection start)]
+     (if (>= new-start 0)
+         (slice list new-start count)
+         [])))
+
+  ([collection start count] (&when (&and (list? collection)
+                                         (>= start 0)
+                                         (> count 0)))
+   (do-slice collection start count))
+
+  ([collection start count] (&when (&and (>= start 0)
+                                         (> count 0)))
+   (let [{_ _ list} (-> (sequential.reduce
+                         collection
+                         {^cont {start count []}}
+                         (fn
+                           ([_entry {start0 count0 _list0}] (&when (> start0 0))
+                            {^cont {(dec start0) count0 []}})
+                           ([entry {start0 count0 list0}] (&when (> count0 1))
+                            {^cont {start0 (dec count0) [entry & list0]}})
+                           ([entry {start0 count0 list0}]
+                            {^halt {start0 count0 [entry & list0]}})))
+                        (elem 1))]
+     (lists.reverse list))))
+
 (defn take
   """Takes the first `count` items from the collection.
 
@@ -940,6 +976,15 @@
    (lists.reverse (reverse collection))))
 
 ;; Helpers
+
+(defn- traverse-and-count [collection count] (&when (list? collection))
+  {collection (- (length collection) (abs count))})
+
+(defn- traverse-and-count [collection count]
+  (map-reduce collection
+              (- (abs count))
+              (fn [x acc]
+                {x (inc acc)})))
 
 (defn- seq-to-string
   ([entry] (&when (binary? entry))
@@ -1088,6 +1133,23 @@
 
 (defn- unwrap [[] acc]
   acc)
+
+;; slice
+
+(defn- do-slice [list start count]
+  (do-slice list start count []))
+
+(defn- do-slice [[] _start _count acc]
+  (lists.reverse acc))
+
+(defn- do-slice [_list _start 0 acc]
+  (lists.reverse acc))
+
+(defn- do-slice [[h & t] 0 count acc]
+  (do-slice t 0 (dec count) [h & acc]))
+
+(defn- do-slice [[_ & t] start count acc]
+  (do-slice t (dec start) count acc))
 
 ;; take
 
