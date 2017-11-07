@@ -38,6 +38,7 @@
   """Provides a set of algorithms to obtain and traverse collections according to
   the `sequential` protocol."""
   (require erlang
+           random
            lists
            maps
            sequential
@@ -788,8 +789,6 @@
                (reducers.reject fun))
        lists.reverse)))
 
-;; TODO add functions
-
 (defn reverse
   """Reverses the collection."""
 
@@ -810,8 +809,83 @@
    (reduce collection
            (to-list tail)
            (fn [entry acc]
-             [entry & acc])))
-  )
+             [entry & acc]))))
+
+(defn reverse-slice [collection start count] (&when (&and (>= start 0)
+                                                          (>= count 0)))
+  """Reverses the collection in the range from initial position `start`
+  through `count` elements. If `count` is greater than the size of
+  the rest of the collection, then this function will reverse the rest
+  of the collection."""
+  (let [list (reverse collection)
+        length (length list)
+        count1 (min count (- length start))]
+    (if (> count1 0)
+        (reverse-slice list length (+ start count1) count1 [])
+      (lists.reverse list))))
+
+(defn random [collection]
+  """Returns a random element of a collection."""
+
+  (case (random collection 1)
+    ([]
+     ;; TODO revise to use exception
+     (throw "empty error"))
+    ([e]
+     e)))
+
+(defn random
+  """Returns a random sublist of a collection."""
+
+  ([collection count] (&when (> count 0))
+   ;; TODO
+   (let [sample (tuple.duplicate :nil count)
+                reducer (fn [x {i sample0}]
+                          (let [j (random-index i)]
+                            (if (< i count)
+                                (let [swapped (elem sample j)]
+                                  {(inc i)
+                                   (-> sample0
+                                       (set-elem i swapped)
+                                       (set-elem j x))})
+                              (if (< j count)
+                                  {(inc i)
+                                   (-> sample0
+                                       (set-elem j x))}))))
+                {n sample1} (reduce collection {0 sample} reducer)]
+     (-> sample1
+         tuple.to-list
+         (take (min count n)))))
+
+  ([_collection 0]
+   []))
+
+(defn scan [seq fun]
+  """Applies the given function to each element in the collection,
+  storing the result in a list and passing it as the accumulator
+  for the next computation."""
+
+  (let [{res _} (reduce seq
+                        {[] ^first}
+                        (reducers.scan-2 fun))]
+    (lists.reverse res)))
+
+(defn scan [seq acc fun]
+  """Applies the given function to each element in the collection,
+  storing the result in a list and passing it as the accumulator
+  for the next computation. Uses the given `acc` as the staring value."""
+  (let [{res _} (reduce seq
+                        {[] acc}
+                        (reducers.scan-3 fun))]
+    (lists.reverse res)))
+
+(defn shuffle [collection]
+  """Returns a list of collection elements shuffled."""
+  (let [randomized (reduce collection
+                           []
+                           (fn [x acc]
+                             [{(rand.uniform) x} & acc]))]
+    (unwrap (lists.keysort 1 randomized) [])))
 
 (defn take
   """Takes the first `count` items from the collection.
@@ -872,6 +946,9 @@
    entry)
   ([entry]
    (chars.to-string entry)))
+
+(defn- random-index [n]
+  (dec (rand.uniform (inc n))))
 
 ;; Implementations
 
@@ -988,6 +1065,29 @@
              (fun initial ^halt)
              (erlang.raise kind reason stacktrace)))))
     (acc (fun acc ^done))))
+
+;; reverse-slice
+
+(defn- reverse-slice [rest index index count acc]
+  (let [{slice rest1} (head-slice rest count [])]
+    (lists.reverse rest1 (lists.reverse slice acc))))
+
+(defn- reverse-slice [[elem & rest] index start count acc]
+  (reverse-slice rest (dec index) start count [elem & acc]))
+
+(defn- head-slice [rest 0 acc]
+  {acc rest})
+
+(defn- head-slice [[elem & rest] count acc]
+  (head-slice rest (dec count) [elem & acc]))
+
+;; shuffle
+
+(defn- unwrap [[{_ h} & t] acc]
+  (unwrap t [h & acc]))
+
+(defn- unwrap [[] acc]
+  acc)
 
 ;; take
 

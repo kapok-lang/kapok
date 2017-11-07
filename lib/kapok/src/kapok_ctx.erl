@@ -14,6 +14,7 @@
          add_let_var/3,
          add_bindings/2,
          get_var/3,
+         get_var_current_scope/3,
          ctx_for_eval/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
@@ -158,14 +159,26 @@ add_bindings(Ctx, Bindings) ->
   lists:mapfoldl(fun({K, _V}, C) -> add_var([], C, K) end, Ctx, Bindings).
 
 get_var(Meta, #{scope := Scope} = Ctx, Var) ->
-  get_var(Meta, Ctx, Scope, Var).
-get_var(_Meta, _Ctx, nil, _Var) ->
+  get_var_at_scope(Meta, Ctx, Scope, Var, true).
+
+get_var_current_scope(Meta, #{scope := Scope} = Ctx, Var) ->
+  get_var_at_scope(Meta, Ctx, Scope, Var, false).
+
+get_var_at_scope(_Meta, _Ctx, nil, _Var, _Recursive) ->
   error;
-get_var(Meta, Ctx, Scope, Var) ->
+get_var_at_scope(Meta, Ctx, Scope, Var, Recursive) ->
   Vars = maps:get(vars, Scope),
   case orddict:find(Var, Vars) of
-    {ok, _Name} = R -> R;
-    error -> get_var(Meta, Ctx, maps:get(parent, Scope), Var)
+    {ok, _Name} = R ->
+      R;
+    error ->
+      case Recursive of
+        true ->
+          Parent = maps:get(parent, Scope),
+          get_var_at_scope(Meta, Ctx, Parent, Var, Recursive);
+        false ->
+          error
+      end
   end.
 
 %% EVAL HOOKS

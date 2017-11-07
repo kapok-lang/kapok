@@ -62,3 +62,16 @@
      (if-not (~callback entry)
              (next ~f entry acc)
        (skip acc))))
+
+(defmacro scan-2 [callback &optional f]
+  `(fn
+     ([entry (acc h ^first t)]
+      (next-with-acc ~f entry h {^ok entry} t))
+     ([entry (acc h {^ok acc} t)]
+      (let [value (~callback entry acc)]
+        (next-with-acc ~f value h {^ok value} t)))))
+
+(defmacro scan-3 [callback &optional f]
+  `(fn [entry (acc h acc0 t)]
+     (let [value (~callback entry acc0)]
+       (next-with-acc ~f value h value t))))

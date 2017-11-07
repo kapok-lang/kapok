@@ -64,7 +64,10 @@ translate({identifier, Meta, Id}, #{context := Context} = Ctx) ->
   %% search ctx to check whether identifier is a variable
   {Name1, Ctx1} = case Context of
                     fn_pattern ->
-                      kapok_ctx:add_var(Meta, Ctx, Id);
+                      case kapok_ctx:get_var_current_scope(Meta, Ctx, Id) of
+                        {ok, Name} -> {Name, Ctx};
+                        error -> kapok_ctx:add_var(Meta, Ctx, Id)
+                      end;
                     case_pattern ->
                       case kapok_ctx:get_var(Meta, Ctx, Id) of
                         {ok, Name} -> {Name, Ctx};
