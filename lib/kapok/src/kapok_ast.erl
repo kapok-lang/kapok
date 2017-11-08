@@ -29,7 +29,7 @@ handle({list, Meta, [{identifier, _, Id} | T]} = Ast, Ctx) when ?is_def(Id) ->
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) ->
   {TAttr, TCtx} = kapok_trans:translate(Ast, Ctx#{def_kind => Id}),
   Namespace = ?m(Ctx, namespace),
-  kapok_symbol_table:add_form(Namespace, TAttr),
+  kapok_symbol_table:new_form(Namespace, TAttr),
   TCtx;
 handle(Ast, Ctx) ->
   kapok_error:form_error(token_meta(Ast), ?m(Ctx, file), ?MODULE, {invalid_expression, {Ast}}).
@@ -59,7 +59,7 @@ handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
              File = maps:get(file, Ctx),
              kapok_ctx:ctx_for_eval([{namespace, Name}, {file, File}, {line, 1}])
          end,
-  kapok_symbol_table:add_namespace(Name),
+  kapok_symbol_table:new_namespace(Name),
   {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),
   TCtx1.
 
@@ -217,7 +217,7 @@ handle_def_alias(Meta, _Kind, Alias, Ast, Ctx) ->
 
 do_handle_def_alias(Meta, Alias, Original, Ctx) ->
   Namespace = ?m(Ctx, namespace),
-  kapok_symbol_table:add_suspended_alias(Namespace, Alias, Original, Meta),
+  kapok_symbol_table:new_alias(Namespace, Alias, Original, Meta),
   Ctx.
 
 handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{keyword_when, _, _} | _]} = Guard | T],
@@ -340,7 +340,8 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
   Ctx6 = CCtx#{def_fap => FAP},
   %% Check if there is any suspended def clause depends on this clause.
   %% If there is, re-do the compilation of the suspended clauses.
-  AddedFAP = handle_suspended_def_clauses(Namespace, false, Kind, [FAP | RedirectedFAPList], Ctx),
+  FAPList = [FAP | RedirectedFAPList],
+  {R, NewAliasFAPList} = handle_suspended_def_clauses(Namespace, Kind, FAPList, Ctx),
   %% TODO add def_fap for other clauses (maybe do this when impl delay compilation stuff?)
   {TGuard, TCtx7} = kapok_trans:translate_guard(Guard, Ctx6),
   try kapok_trans:translate_body(Meta, Body, TCtx7) of
@@ -349,15 +350,19 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
       AddRedirctClauses(),
       Clause = {clause, ?line(Meta), TArgs, TGuard, PrepareMacroEnv ++ PrepareBody ++ TBody},
       %% TODO add conflict checking for Namespace:Name/Arity and imported names.
-      kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, ParameterType, Meta, Clause),
+      kapok_symbol_table:new_def(Namespace, Kind, Name, Arity, ParameterType, Meta, Clause),
       kapok_ctx:pop_scope(TCtx8#{def_fap => PreviousFAP})
   catch
     throw:{unknown_local_call, FA, FAMeta} ->
       %% clean up added fap
-      lists:map(fun({F, A, P}) -> kapok_symbol_table:remove_fap(Namespace, Kind, F, A, P) end,
-                ordsets:to_list(AddedFAP)),
+      case R of
+        handled ->
+          kapok_symbol_table:cleanup_fap_alias(Namespace, Kind, FAPList, NewAliasFAPList);
+        skip ->
+          ok
+      end,
       %% record current def clause as suspended
-      kapok_symbol_table:add_suspended_def_clause(Namespace, FA,
+      kapok_symbol_table:new_suspended_def_clause(Namespace, FA,
                                                   {FAMeta, {Meta, Kind, Name, Args, Guard, Body}}),
       kapok_ctx:pop_scope(TCtx7#{def_fap => PreviousFAP})
   end.
@@ -492,51 +497,28 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
   Arity = length(TNormalArgs),
   TArgs = TNormalArgs ++ [Extra],
   TBody = [{call, ?line(Meta), TF, TArgs}],
-  kapok_symbol_table:add_def(Namespace, Kind, Name, Arity, 'normal', Meta,
+  kapok_symbol_table:new_def(Namespace, Kind, Name, Arity, 'normal', Meta,
                              {clause, ?line(Meta), TNormalArgs, [], TBody}).
 
-handle_suspended_def_clauses(Namespace, IsAlias, CurrentKind, FAPList, Ctx) ->
-  SuspendedClauses = kapok_symbol_table:namespace_suspended_def_clause(Namespace),
-  orddict:fold(fun(FA, S, Acc) ->
-                   case kapok_dispatch:filter_fa(FA, FAPList) of
-                     [] -> Acc;
-                     FAList ->
-                       case IsAlias of
-                         true -> ok;
-                         false ->
-                           lists:map(fun({F, A, P}) ->
-                                         kapok_symbol_table:add_fap(Namespace, CurrentKind, F, A, P)
-                                     end,
-                                     FAList)
-                       end,
-                       ToAdd = ordsets:from_list(FAList),
-                       lists:map(fun({_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}) ->
-                                     handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx)
-                                 end,
-                                 ordsets:to_list(S)),
-                       kapok_symbol_table:remove_suspended_def_clause(Namespace, FA),
-                       ordsets:union(ToAdd, Acc)
-                   end
-               end,
-               ordsets:new(),
-               SuspendedClauses).
-
-%% namespace
-handle_aliases(Namespace, Ctx, Options) ->
-  case kapok_symbol_table:handle_aliases(Namespace, Options) of
-    {ok, Added} ->
-      %% try to re-try to compile all suspended def clauses
-      lists:map(fun({Kind, FAPList}) ->
-                    handle_suspended_def_clauses(Namespace, true, Kind, FAPList, Ctx)
-                end,
-                Added);
-    {error, [{AliasOriginal, Meta} | _T]} ->
-      Error = {inexistent_original_for_alias, AliasOriginal},
-      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error)
-  end.
+handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
+  {ToHandle, AliasFAPList} = kapok_symbol_table:check_suspended_def_clauses(
+                                 Namespace, CurrentKind, FAPList),
+  orddict:map(fun(_, S) ->
+                  lists:map(fun({_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}) ->
+                                handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx)
+                            end,
+                            ordsets:to_list(S))
+              end,
+              ToHandle),
+  R = case ToHandle of
+        [] ->
+          skip;
+        _ ->
+          handled
+      end,
+  {R, AliasFAPList}.
 
 build_namespace(Namespace, ModuleName, Ctx, STOptions, ErlOptions, Callback) ->
-  handle_aliases(Namespace, Ctx, STOptions),
   {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, ModuleName, Ctx, STOptions),
   kapok_erl:module(Forms, ErlOptions, Ctx1, Callback).
 
@@ -617,12 +599,6 @@ format_error({invalid_expression, {Ast}}) ->
   io_lib:format("invalid top level expression ~s", [token_text(Ast)]);
 format_error({invalid_body, {Form, Left}}) ->
   io_lib:format("invalid body for form: ~p, ~p~n", [Form, Left]);
-format_error({inexistent_original_for_alias, {Alias, {Fun, Arity}}}) ->
-  io_lib:format("fail to define aliases ~s because original function (~s ~B) does not exist",
-                [Alias, Fun, Arity]);
-format_error({inexistent_original_for_alias, {Alias, Fun}}) ->
-  io_lib:format("fail to define aliases ~s because original function ~s does not exist",
-                [Alias, Fun]);
 format_error({invalid_defalias_expression, {Alias, Ast}}) ->
   io_lib:format("invalid expression ~p to define alias ~s", [Ast, Alias]);
 format_error({dangling_parameter_keyword, {Token}}) ->

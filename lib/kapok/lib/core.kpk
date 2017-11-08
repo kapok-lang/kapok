@@ -63,7 +63,7 @@
 
 (defn true? [x]
   """Returns `:true` if `x` is the value true, `:false` otherwise."""
-  (erlang.not (nil? x)))
+  (erlang.not (false? x)))
 
 (defmacro if [test then &optional else]
   """Evaluates test. If logical true, evaluates and yields then, otherwise,
@@ -131,11 +131,11 @@
   (unless (nil? clauses)
     `(core.if ~(first clauses)
               ~(case (next clauses)
-                 (:false
+                 (:nil
                   (erlang.throw "cond requires an even number of forms"))
                  (_
                   (second clauses)))
-       (core.cond ~(rest (rest clauses))))))
+       (core.cond ~@(rest (rest clauses))))))
 
 ;; macro
 

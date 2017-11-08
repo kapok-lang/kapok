@@ -1,19 +1,15 @@
 %% symbol table for compilation
 -module(kapok_symbol_table).
 -behaviour(gen_server).
--export([add_namespace/1,
-         add_fap/5,
-         remove_fap/5,
-         add_def/7,
-         handle_aliases/2,
-         add_suspended_alias/4,
-         add_form/2,
-         add_suspended_def_clause/3,
-         remove_suspended_def_clause/2,
-         namespace_suspended_def_clause/1,
-         namespace_locals/1,
-         namespace_funs/1,
+-export([new_namespace/1,
+         new_def/7,
+         new_alias/4,
+         new_form/2,
+         new_suspended_def_clause/3,
+         check_suspended_def_clauses/3,
+         cleanup_fap_alias/4,
          namespace_macros/1,
+         namespace_locals/1,
          namespace_forms/4]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -21,48 +17,43 @@
 
 %% Public API
 
-add_namespace(Namespace) ->
-  gen_server:call(?MODULE, {add_ns, Namespace}).
+new_namespace(Namespace) ->
+  gen_server:call(?MODULE, {new_ns, Namespace}).
 
-add_fap(Namespace, Kind, Fun, Arity, ParameterType) ->
-  gen_server:call(?MODULE, {add_fap, Namespace, Kind, Fun, Arity, ParameterType}).
+new_def(Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause) ->
+  gen_server:call(?MODULE, {new_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}).
 
-remove_fap(Namespace, Kind, Fun, Arity, ParameterType) ->
-  gen_server:call(?MODULE, {remove_fap, Namespace, Kind, Fun, Arity, ParameterType}).
+new_alias(Namespace, Alias, Original, Meta) ->
+  gen_server:call(?MODULE, {new_alias, Namespace, Alias, Original, Meta}).
 
-add_def(Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause) ->
-  gen_server:call(?MODULE, {add_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}).
+new_form(Namespace, Form) ->
+  gen_server:call(?MODULE, {new_form, Namespace, Form}).
 
-handle_aliases(Namespace, Options) ->
-  gen_server:call(?MODULE, {handle_aliases, Namespace, Options}).
+new_suspended_def_clause(Namespace, FA, ClauseArgs) ->
+  gen_server:call(?MODULE, {new_suspended_def_clause, Namespace, FA, ClauseArgs}).
 
-add_suspended_alias(Namespace, Alias, Original, Meta) ->
-  gen_server:call(?MODULE, {add_suspended_alias, Namespace, Alias, Original, Meta}).
+check_suspended_def_clauses(Namespace, Kind, FAPList) ->
+  gen_server:call(?MODULE, {check_suspended_def_clauses, Namespace, Kind, FAPList}).
 
-add_form(Namespace, Form) ->
-  gen_server:call(?MODULE, {add_form, Namespace, Form}).
-
-add_suspended_def_clause(Namespace, FA, ClauseArgs) ->
-  gen_server:call(?MODULE, {add_suspended_def_clause, Namespace, FA, ClauseArgs}).
-
-remove_suspended_def_clause(Namespace, FA) ->
-  gen_server:call(?MODULE, {remove_suspended_def_clause, Namespace, FA}).
-
-namespace_suspended_def_clause(Namespace) ->
-  gen_server:call(?MODULE, {namespace_suspended_def_clause, Namespace}).
-
-%% TODO remove this
-namespace_locals(Namespace) ->
-  gen_server:call(?MODULE, {namespace_locals, Namespace}).
-
-namespace_funs(Namespace) ->
-  gen_server:call(?MODULE, {namespace_funs, Namespace}).
+cleanup_fap_alias(Namespace, Kind, FAPList, AliasFAPList) ->
+  gen_server:call(?MODULE, {cleanup_fap_alias, Namespace, Kind, FAPList, AliasFAPList}).
 
 namespace_macros(Namespace) ->
   gen_server:call(?MODULE, {namespace_macros, Namespace}).
 
+namespace_locals(Namespace) ->
+  gen_server:call(?MODULE, {namespace_locals, Namespace}).
+
 namespace_forms(Namespace, ModuleName, Ctx, Options) ->
   case gen_server:call(?MODULE, {namespace_forms, Namespace, ModuleName, Ctx, Options}) of
+    {invalid_alias, [{{Alias, Original}, Meta} | _T], Ctx1}  ->
+      AliasDesc = case Original of
+                    {Fun, Arity} -> io_lib:format("(~s ~B)", [Fun, Arity]);
+                    Fun -> io_lib:format("~s", [Fun])
+                  end,
+      kapok_error:compile_error(Meta, ?m(Ctx1, file),
+                                "invalid alias ~s because the original ~s does not exist",
+                                [Alias, AliasDesc]);
     {suspended, [SuspendedDef | _T], Ctx1} ->
       {FA, [{FAMeta, _} | _]} = SuspendedDef,
       kapok_error:compile_error(FAMeta, ?m(Ctx1, file), "unknown local call: ~p", [FA]);
@@ -79,117 +70,117 @@ init([]) ->
   {ok, maps:new()}.
 
 %% namespace
-handle_call({add_ns, Namespace}, _From, Map) ->
+handle_call({new_ns, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
   {reply, ok, Map1};
-%% fap
-handle_call({add_fap, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  FAP = {Fun, Arity, ParameterType},
-  Map2 = add_def(Map1, Namespace, Kind, FAP),
-  {reply, ok, Map2};
-handle_call({remove_fap, Namespace, Kind, Fun, Arity, ParameterType}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  FAP = {Fun, Arity, ParameterType},
-  Map2 = remove_def(Map1, Namespace, Kind, FAP),
-  {reply, ok, Map2};
 
 %% def
-handle_call({add_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}, _From, Map) ->
+handle_call({new_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}, _From, Map) ->
   %% TODO check duplication and conflict for defs
   Map1 = add_namespace_if_missing(Map, Namespace),
   FAP = {Fun, Arity, ParameterType},
   Map2 = add_def(Map1, Namespace, Kind, FAP),
   Map3 = add_export(Map2, Namespace, Kind, FAP),
+  Map4 = check_and_add_alias(Map3, Namespace, Kind, FAP),
   FA = {Fun, Arity},
-  Map4 = add_def_clause(Map3, Namespace, Kind, FA, Meta, Clause),
-  {reply, ok, Map4};
-%% alias
-handle_call({handle_aliases, Namespace, _Options}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  SuspendedAliases = get_kv(Map, Namespace, 'suspended_aliases'),
-  Iterate = fun({Alias, Original}, _Meta, {Acc, M}) ->
-                case gen_aliases(M, Namespace, 'funs', Alias, Original) of
-                  {[], _, M1} ->
-                    case gen_aliases(M1, Namespace, 'macros', Alias, Original) of
-                      {[], _, M2}->
-                        {Acc, M2};
-                      {Match, Kind, M2} ->
-                        {[{Kind, Match} | Acc], M2}
-                    end;
-                  {Match, Kind, M1} ->
-                    {[{Kind, Match} | Acc], M1}
-                end
-            end,
-  {Added, Map2} = orddict:fold(Iterate, {[], Map1}, SuspendedAliases),
-  %% delete matched aliases from suspended aliases
-  R = case get_kv(Map2, Namespace, 'suspended_aliases') of
-        [] ->
-          {ok, Added};
-        InvalidAliases ->
-          {error, orddict:to_list(InvalidAliases)}
-      end,
-  {reply, R, Map2};
+  Map5 = add_def_clause(Map4, Namespace, Kind, FA, Meta, Clause),
+  {reply, ok, Map5};
 
-handle_call({add_suspended_alias, Namespace, Alias, Original, Meta}, _From, Map) ->
+%% alias
+handle_call({new_alias, Namespace, Alias, Original, Meta}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
   %% TODO check duplication and conflict among aliases and defs
   %% TODO check duplication for AliasKey
-  Map2 = add_into_kv_dict(Map1, Namespace, 'suspended_aliases', {Alias, Original}, Meta),
-  {reply, ok, Map2};
+  Map2 = add_into_kv_dict(Map1, Namespace, 'aliases', {Alias, Original}, Meta),
+  %% check whether there is any the existing function or macro which matches
+  %% this alias
+  Map3 = gen_aliases(Map2, Namespace, Alias, Original, Meta),
+  {reply, ok, Map3};
 
 %% form
-handle_call({add_form, Namespace, Form}, _From, Map) ->
+handle_call({new_form, Namespace, Form}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
   Map2 = add_into_kv_set(Map1, Namespace, 'forms', Form),
   {reply, ok, Map2};
 
-%% pending def clause
-handle_call({add_suspended_def_clause, Namespace, FA, ClauseArgs}, _From, Map) ->
+%% suspended def clause
+handle_call({new_suspended_def_clause, Namespace, FA, ClauseArgs}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
-  Fun = fun(Clauses) ->
-            Args = case orddict:find(FA, Clauses) of
-                     {ok, V} -> ordsets:add_element(ClauseArgs, V);
-                     error -> ordsets:from_list([ClauseArgs])
-                   end,
-            orddict:store(FA, Args, Clauses)
+  Map2 = add_suspended_def_clause(Map1, Namespace, FA, ClauseArgs),
+  {reply, ok, Map2};
+
+handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Map, Namespace),
+  Match = match_aliases(FAPList, get_kv(Map1, Namespace, 'aliases')),
+  Key = case Kind of
+          K1 when K1 == 'defn'; K1 == 'defn-' -> 'fun_aliases';
+          K2 when K2 == 'defmacro'; K2 == 'defmacro-' -> 'macro_aliases'
         end,
-  Map2 = update_kv(Map1, Namespace, 'suspended_def_clauses', Fun),
-  {reply, ok, Map2};
+  NewAliasFAPList = filter_aliases(Match, get_kv(Map1, Namespace, Key)),
+  AllFAPList = NewAliasFAPList ++ FAPList,
+  SuspendedClauses = get_kv(Map1, Namespace, 'suspended_def_clauses'),
+  Folder = fun(FA, S, {Suspended, M} = Acc) ->
+               case kapok_dispatch:filter_fa(FA, AllFAPList) of
+                 [] ->
+                   Acc;
+                 _ ->
+                   M1 = remove_suspended_def_clause(M, Namespace, FA),
+                   {orddict:store(FA, S, Suspended), M1}
+               end
+           end,
+  {ToHandle, Map2} = orddict:fold(Folder,
+                                  {orddict:new(), Map1},
+                                  SuspendedClauses),
+  Map4 = case ToHandle of
+           [] ->
+             Map2;
+           _ ->
+             Map3 = lists:foldl(fun(FAP, M) -> add_def(M, Namespace, Kind, FAP) end,
+                                Map2,
+                                FAPList),
+             lists:foldl(fun(AliasFAP, M) -> add_alias(M, Namespace, Kind, AliasFAP) end,
+                         Map3,
+                         NewAliasFAPList)
+         end,
+  {reply, {ToHandle, NewAliasFAPList}, Map4};
+%% fap alias
+handle_call({cleanup_fap_alias, Namespace, Kind, FAPList, AliasFAPList}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Map, Namespace),
+  Map2 = lists:foldl(fun(FAP, M) -> remove_def(M, Namespace, Kind, FAP) end,
+                     Map1,
+                     FAPList),
+  Map3 = lists:foldl(fun(AliasFAP, M) -> remove_alias(M, Namespace, Kind, AliasFAP) end,
+                    Map2,
+                    AliasFAPList),
+  {reply, ok, Map3};
 
-handle_call({remove_suspended_def_clause, Namespace, FA}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  Fun = fun(Clauses) -> orddict:erase(FA, Clauses) end,
-  Map2 = update_kv(Map1, Namespace, 'suspended_def_clauses', Fun),
-  {reply, ok, Map2};
-
-handle_call({namespace_suspended_def_clause, Namespace}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  Suspended = get_kv(Map1, Namespace, 'suspended_def_clauses'),
-  {reply, Suspended, Map1};
-
-%% local functions and macros
-handle_call({namespace_locals, Namespace}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  Aliases = get_kv(Map1, Namespace, 'aliases'),
-  Macros = get_kv(Map1, Namespace, 'macros'),
-  Funs = get_kv(Map1, Namespace, 'funs'),
-  {reply, ordsets:union([Aliases, Macros, Funs]), Map1};
-handle_call({namespace_funs, Namespace}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  FAList = get_kv(Map1, Namespace, 'funs'),
-  {reply, FAList, Map1};
 handle_call({namespace_macros, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
-  FAList = get_kv(Map1, Namespace, 'macros'),
-  {reply, FAList, Map1};
+  %% direct macro definitions
+  Macros = get_kv(Map1, Namespace, 'macros'),
+  Aliases = get_kv(Map1, Namespace, 'macro_aliases'),
+  {reply, Aliases ++ Macros, Map1};
+
+handle_call({namespace_locals, Namespace}, _From, Map) ->
+  Map1 = add_namespace_if_missing(Map, Namespace),
+  Funs = get_kv(Map1, Namespace, 'funs'),
+  FunAliases = get_kv(Map1, Namespace, 'fun_aliases'),
+  Macros = get_kv(Map1, Namespace, 'macros'),
+  MacroAliases = get_kv(Map1, Namespace, 'macro_aliases'),
+  {reply, ordsets:union([Funs, Macros, FunAliases, MacroAliases]), Map1};
+
 handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) ->
   R = case lists:member(ignore_suspended_def_clauses, Options) of
         false ->
           case get_kv(Map, Namespace, 'suspended_def_clauses') of
             [] ->
-              {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
-              {ok, Forms, Ctx1};
+              case validate_aliases(Map, Namespace) of
+                {invalid_alias, _} = V ->
+                  V;
+                ok ->
+                  {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
+                  {ok, Forms, Ctx1}
+              end;
             Suspended ->
               {suspended, orddict:to_list(Suspended), Ctx}
           end;
@@ -219,10 +210,11 @@ new_namespace() ->
     funs => [],
     macros => [],
     aliases => [],
+    fun_aliases => [],
+    macro_aliases => [],
     defs => [],
     locals => [],
     forms => [],
-    suspended_aliases => [],
     suspended_def_clauses => []}.
 
 add_namespace_if_missing(Map, Namespace) ->
@@ -249,6 +241,24 @@ remove_def(Map, Namespace, Kind, FAP) when Kind == 'defmacro-' ->
 remove_def(Map, Namespace, Kind, FAP) when Kind == 'defmacro' ->
   remove_from_kv_set(Map, Namespace, 'macros', FAP).
 
+add_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defn-' ->
+  add_alias(Map, Namespace, 'defn', AliasFAP);
+add_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defn' ->
+  add_into_kv_set(Map, Namespace, 'fun_aliases', AliasFAP);
+add_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defmacro-' ->
+  add_alias(Map, Namespace, 'defmacro', AliasFAP);
+add_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defmacro' ->
+  add_into_kv_set(Map, Namespace, 'macro_aliases', AliasFAP).
+
+remove_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defn-' ->
+  remove_alias(Map, Namespace, 'defn', AliasFAP);
+remove_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defn' ->
+  remove_alias(Map, Namespace, 'fun_aliases', AliasFAP);
+remove_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defmacro-' ->
+  remove_alias(Map, Namespace, 'defmacro', AliasFAP);
+remove_alias(Map, Namespace, Kind, AliasFAP) when Kind == 'defmacro' ->
+  remove_alias(Map, Namespace, 'macro_aliases', AliasFAP).
+
 add_export(Map, _Namespace, Kind, _FAP) when Kind == 'defn-' ->
   Map;
 add_export(Map, Namespace, Kind, FAP) when Kind == 'defn' ->
@@ -271,14 +281,13 @@ add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn-' ->
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defmacro-' ->
   add_def_clause(Map, Namespace, 'defmacro', FA, Meta, Clause);
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn'; Kind == 'defmacro' ->
-  Fun = fun(Defs) ->
-            Clauses1 = case orddict:find(FA, Defs) of
-                         {ok, Clauses} -> orddict:store(Meta, Clause, Clauses);
-                         error -> orddict:from_list([{Meta, Clause}])
-                       end,
-            orddict:store(FA, Clauses1, Defs)
-        end,
-  update_kv(Map, Namespace, 'defs', Fun).
+  add_into_kv_dict_dict(Map, Namespace, 'defs', FA, Meta, Clause).
+
+add_suspended_def_clause(Map, Namespace, FA, ClauseArgs) ->
+  add_into_kv_dict_set(Map, Namespace, 'suspended_def_clauses', FA, ClauseArgs).
+
+remove_suspended_def_clause(Map, Namespace, FA) ->
+  remove_from_kv_dict(Map, Namespace, 'suspended_def_clauses', FA).
 
 get_kv(Map, Namespace, Key) ->
   NS = maps:get(Namespace, Map),
@@ -313,43 +322,103 @@ remove_from_kv_dict(Map, Namespace, Key, DictKey) ->
   Fun = fun(V) -> orddict:erase(DictKey, V) end,
   update_kv(Map, Namespace, Key, Fun).
 
-%% TODO The impl is similar with kapok_dispatch:filter_exports_by('rename').
-gen_aliases(Map, Namespace, Key, Alias, Original) ->
-  Kind = case Key of
-           'funs' -> 'defn';
-           'macros' -> 'defmacro'
-         end,
-  Match = fun({F, A, P} = FAP, {Acc, M}) ->
-              case Original of
-                {Fun, Arity} ->
-                  if F == Fun andalso A == Arity ->
-                      M1 = solve_alias(M, Namespace, Kind, Alias, Original, FAP),
-                      {[{Alias, A, P} | Acc], M1};
-                     true ->
-                      {Acc, M}
-                  end;
-                Fun ->
-                  if F == Fun ->
-                      M1 = solve_alias(M, Namespace, Kind, Alias, Original, FAP),
-                      {[{Alias, A, P} | Acc], M1};
-                     true ->
-                      {Acc, M}
-                  end
-              end
-          end,
-  {Added, Map1} = lists:foldl(Match, {[], Map}, get_kv(Map, Namespace, Key)),
-  {Added, Kind, Map1}.
+add_into_kv_dict_set(Map, Namespace, Key, DictKey, SetValue) ->
+  Fun = fun(Dict) ->
+            NewSet = case orddict:find(DictKey, Dict) of
+                       {ok, Set} -> ordsets:add_element(SetValue, Set);
+                       error -> ordsets:from_list([SetValue])
+                     end,
+            orddict:store(DictKey, NewSet, Dict)
+        end,
+  update_kv(Map, Namespace, Key, Fun).
 
-solve_alias(Map, Namespace, Kind, Alias, Original, {_, A, P} = FAP) ->
-  Map1 = add_into_kv_set(Map, Namespace, 'aliases', {Alias, FAP}),
-  Map2 = remove_from_kv_dict(Map1, Namespace, 'suspended_aliases', {Alias, Original}),
+add_into_kv_dict_dict(Map, Namespace, Key, Dict1Key, Dict2Key, Dict2Value) ->
+  Fun = fun(Dict1) ->
+            NewDict2 = case orddict:find(Dict1Key, Dict1) of
+                         {ok, Dict2} -> orddict:store(Dict2Key, Dict2Value, Dict2);
+                         error -> orddict:from_list([{Dict2Key, Dict2Value}])
+                       end,
+            orddict:store(Dict1Key, NewDict2, Dict1)
+        end,
+  update_kv(Map, Namespace, Key, Fun).
+
+
+alias_matcher({F, A, _} = FAP) ->
+  fun({Alias, Original}, _Meta, Acc) ->
+      case Original of
+        {Fun, Arity} when F == Fun andalso A == Arity ->
+          [{Alias, FAP} | Acc];
+        Fun when F == Fun ->
+          [{Alias, FAP} | Acc];
+        _ ->
+          Acc
+      end
+  end.
+
+match_aliases(FAPList, AliasDict) ->
+  lists:foldl(fun(FAP, Acc) ->
+                  Match = orddict:fold(alias_matcher(FAP), [], AliasDict),
+                  Match ++ Acc
+              end,
+              [],
+              FAPList).
+
+filter_aliases(ToFilter, Aliases) ->
+  lists:foldl(fun(AliasFAP, Acc) ->
+                  case orddict:is_key(AliasFAP, Aliases) of
+                    true -> Acc;
+                    false -> [AliasFAP | Acc]
+                  end
+              end,
+              [],
+              ToFilter).
+
+add_aliases(Map, Namespace, Kind, AliasFAPList) ->
+  lists:foldl(fun({Alias0, FAP0}, M) -> add_alias(M, Namespace, Kind, Alias0, FAP0) end,
+              Map,
+              AliasFAPList).
+
+check_and_add_alias(Map, Namespace, Kind, FAP) ->
+  Aliases = match_aliases([FAP], get_kv(Map, Namespace, 'aliases')),
+  add_aliases(Map, Namespace, Kind, Aliases).
+
+gen_aliases(Map, Namespace, Alias, Original, Meta) ->
+  L = [{'defn', 'funs'}, {'defmacro', 'macros'}],
+  lists:foldl(fun ({Kind, Key}, M) ->
+                  Aliases = match_aliases(get_kv(M, Namespace, Key), [{{Alias, Original}, Meta}]),
+                  add_aliases(M, Namespace, Kind, Aliases)
+              end,
+              Map,
+              L).
+
+add_alias(Map, Namespace, Kind, Alias, {_, A, P} = FAP) ->
+  Map1 = add_alias(Map, Namespace, Kind, {Alias, FAP}),
   %% Check whether this FAP is exported.
   %% Export Alias when the original name is exported.
-  case is_exported(Map2, Namespace, Kind, FAP) of
+  case is_exported(Map1, Namespace, Kind, FAP) of
     true ->
-      add_export(Map2, Namespace, Kind, {Alias, A, P});
+      add_export(Map1, Namespace, Kind, {Alias, A, P});
     false ->
-      Map
+      Map1
+  end.
+
+alias_exist(Map, Namespace, Alias) ->
+  NameMatch = fun({A, _FAP}) -> A == Alias end,
+  lists:any(NameMatch, get_kv(Map, Namespace, 'fun_aliases')) orelse
+    lists:any(NameMatch, get_kv(Map, Namespace, 'macro_aliases')).
+
+validate_aliases(Map, Namespace) ->
+  Invalid = orddict:fold(fun({Alias, _Original} = AliasOriginal, Meta, Acc) ->
+                             case alias_exist(Map, Namespace, Alias) of
+                               true -> Acc;
+                               false -> [{AliasOriginal, Meta} | Acc]
+                             end
+                         end,
+                         [],
+                         get_kv(Map, Namespace, 'aliases')),
+  case Invalid of
+    [] -> ok;
+    _ -> {invalid_alias, Invalid}
   end.
 
 namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->
@@ -432,7 +501,7 @@ namespace_defs(NS, Options) ->
 %% generate the aliases definitions.
 gen_alias_defs(NS, _Options, Defs) ->
   %% insert aliases defs
-  Aliases = maps:get('aliases', NS),
+  Aliases = maps:get('fun_aliases', NS) ++ maps:get('macro_aliases', NS),
   lists:foldl(fun({Alias, {F, A, _}}, Acc) ->
                   case orddict:find({F, A}, Defs) of
                     {ok, MetaClauses} -> orddict:store({Alias, A}, MetaClauses, Acc);
