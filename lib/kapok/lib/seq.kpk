@@ -948,8 +948,25 @@
                []
                (fn [x y]
                  (sort-reducer x y fun)))
-       (sort-terminator fun)))
-  )
+       (sort-terminator fun))))
+
+(defn sort-by [collection mapper &optional (sorter (fn core <= 2))]
+  """Sorts the mapped results of the `collection` according to
+  the `sorter` function.
+
+  This function maps each element of the collection using the `mapper`
+  function. The collection is then sorted by the mapped elements using
+  the `sorter` function, which defaults to `(core.<= 2)`.
+
+  `(sort-by 3)` differs from `(sort 2)` in that it only calculates the
+  comparison value for each element in the collection once instead of
+  once for each element in each comparison. If the same function is
+  being called on both element, it's also more compact to use `(sort-by 3)`."""
+
+  (-> collection
+      (map (fn [x] {x (mapper x)}))
+      (sort (fn [x y] (sorter (elem x 1) (elem y 1))))
+      (map (fn [x] (elem x 0)))))
 
 (defn take
   """Takes the first `count` items from the collection.
