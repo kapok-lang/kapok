@@ -60,15 +60,14 @@
   )
 
 (defn- struct-constructor [meta name no-tag-fields]
-  (let [{list1 list2} (lists.foldl (fn [{k v} {args-acc vars-acc}]
-                                     (let [k-meta (token-meta k)
-                                           k-name (token-symbol k)
-                                           var {^identifier k-meta k-name}
-                                           arg-pair {^list k-meta [var v]}]
-                                       {[arg-pair & args-acc]
-                                        [var k & vars-acc]}))
-                                   {[] []}
-                                   no-tag-fields)
+  (let [{list1 list2} (lists.foldl
+                       (fn [{{_ k-meta k-name} &as k v} {args-acc vars-acc}]
+                         (let [var {^identifier k-meta k-name}
+                               arg-pair {^list k-meta [var v]}]
+                           {[arg-pair & args-acc]
+                            [var k & vars-acc]}))
+                       {[] []}
+                       no-tag-fields)
         key-args (lists.reverse list1)
         map-fields (lists.reverse list2)
         arguments [{^keyword_key meta ^'&key'} & key-args]]
