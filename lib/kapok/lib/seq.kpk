@@ -1075,6 +1075,22 @@
                          (reducers.take-every nth))]
      (lists.reverse res))))
 
+(defn take-while
+  """Takes the items from the beginning of `collection` while
+  `fun` returns a truthy value."""
+
+  ([collection fun] (&when (list? collection))
+   (do-take-while collection fun))
+
+  ([collection fun]
+   (let [{_ res} (sequential.reduce collection
+                                    {^cont []}
+                                    (fn [entry acc]
+                                      (if (fun entry)
+                                          {^cont [entry & acc]}
+                                        {^halt acc})))]
+     (lists.reverse res))))
+
 (defn to-list
   """Converts `collection` to a list."""
 
@@ -1402,6 +1418,19 @@
 
 (defn- do-take-last [[h & t] buf2 n acc]
   (do-take-last t buf2 (dec n) [h & acc]))
+
+;; take-while
+
+(defn- do-take-while [list fun]
+  (do-take-while list fun []))
+
+(defn- do-take-while [[h & t] fun acc]
+  (if (fun h)
+      (do-take-while t fun [h & acc])
+    (lists.reverse acc)))
+
+(defn- do-take-while [[] _ acc]
+  (lists.reverse acc))
 
 ;; Implementations of sequential for built-in collections.
 
