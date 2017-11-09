@@ -1305,6 +1305,9 @@
 (defn token-meta [token]
   (kapok_scanner.token_meta token))
 
+(defn token-symbol [token]
+  (kapok_scanner.token_symbol token))
+
 (defn meta-line [meta]
   """Returns the line number of the specified `meta`."""
   (kapok_utils.meta_line meta))

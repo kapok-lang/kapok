@@ -52,24 +52,42 @@
              {^list meta [{^identifier meta ^__MODULE__}]}}]
     [tag & fields]))
 
-(defn- struct-constructor [meta name fields-list]
+(defn- elixir-struct-constructor [meta name fields-list]
   {^list meta [{^identifier meta ^defn}
                {^identifier meta name}
                {^literal_list meta []}
                {^map meta fields-list}]}
   )
 
+(defn- struct-constructor [meta name no-tag-fields]
+  (let [{list1 list2} (lists.foldl (fn [{k v} {args-acc vars-acc}]
+                                     (let [k-meta (token-meta k)
+                                           k-name (token-symbol k)
+                                           var {^identifier k-meta k-name}
+                                           arg-pair {^list k-meta [var v]}]
+                                       {[arg-pair & args-acc]
+                                        [var k & vars-acc]}))
+                                   {[] []}
+                                   no-tag-fields)
+        key-args (lists.reverse list1)
+        map-fields (lists.reverse list2)
+        arguments [{^keyword_key meta ^'&key'} & key-args]]
+    {^list meta [{^identifier meta ^defn}
+                 {^identifier meta name}
+                 {^literal_list meta arguments}
+                 {^map meta map-fields}]}))
+
 (defn- handle-defstruct [file meta _doc args]
   (let [fields (handle-defstruct-fields file meta args)
-        fields-list (lists.reverse (lists.foldl (fn [{k, v} acc]
+        fields-list (lists.reverse (lists.foldl (fn [{k v} acc]
                                                   [v k & acc])
                                                 []
                                                 fields))]
     ;; Returns a list of asts since we need two duplicate functions,
     ;; 1. '__struct__' is for being compactible with elixir protocol
     ;; 2. 'new' is for the kapok struct constructor
-    [(struct-constructor meta ^'__struct__' fields-list)
-     (struct-constructor meta ^'new' fields-list)]))
+    [(elixir-struct-constructor meta ^'__struct__' fields-list)
+     (struct-constructor meta ^'new' (next fields))]))
 
 (defmacro defstruct [&rest args]
   """Define a struct."""
@@ -167,7 +185,7 @@
        (kapok_error.compile_error clause-meta file "invalid clause for defimpl: ~p" [def])))))
 
 (defn- handle-defimpl [file meta protocol type doc defs]
-  (handle-defimpl file meta protocol type doc defs {[], []}))
+  (handle-defimpl file meta protocol type doc defs {[] []}))
 
 (defmacro defimpl [protocol type &rest args]
   """Implement a protocol for the specified type."""
