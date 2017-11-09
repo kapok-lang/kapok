@@ -968,6 +968,32 @@
       (sort (fn [x y] (sorter (elem x 1) (elem y 1))))
       (map (fn [x] (elem x 0)))))
 
+(defn split
+  """Splits the sequential into two collections, leaving `count`
+  elements in the first one. If `count` is a negative number,
+  it starts counting from the back to the beginning of the collection.
+
+  Be aware that a negative `count` implies the collcetion
+  will be enumerated twice: once to calculate the posittion, and
+  a second time to do the actual splitting."""
+
+  ([collection count] (&when (&and (list? collection)
+                                   (>= count 0)))
+   (do-split collection count []))
+
+  ([collection count] (&when (>= count 0))
+   (let [{_ list1 list2} (reduce collection
+                           {count [] []}
+                           (fn [entry {counter acc1 acc2}]
+                             (if (> counter 0)
+                                 {(dec counter) [entry & acc1] acc2}
+                               {counter acc1 [entry & acc2]})))]
+     {(lists.reverse list1) (lists.reverse list2)}))
+
+   ([collection count] (&when (< count 0))
+    (do-split-reverse (reverse collection) (abs count) []))
+  )
+
 (defn take
   """Takes the first `count` items from the collection.
 
@@ -1282,6 +1308,26 @@
 
 (defn- sort-merge-2 [h1 t1 [] m _fun _bool]
   (lists.reverse t1 [h1 & m]))
+
+;; split
+
+(defn- do-split [[h & t] counter acc] (&when (> counter 0))
+  (do-split t (dec counter) [h & acc]))
+
+(defn- do-split [list 0 acc]
+  {(lists.reverse acc) list})
+
+(defn- do-split [[] _ acc]
+  {(lists.reverse acc) []})
+
+(defn- do-split-reverse [[h & t] counter acc] (&when (> counter 0))
+  (do-split-reverse t (dec counter) [h & acc]))
+
+(defn- do-split-reverse [list 0 acc]
+  {(lists.reverse list) acc})
+
+(defn- do-split-reverse [[] _ acc]
+  {[] acc})
 
 ;; take
 
