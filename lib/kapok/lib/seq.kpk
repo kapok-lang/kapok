@@ -41,6 +41,7 @@
            random
            lists
            maps
+           gb_sets
            sequential
            (stream.reducers :as reducers)
            (collectable :as clt)
@@ -1100,6 +1101,27 @@
   ([collection]
    (lists.reverse (reverse collection))))
 
+(defn uniq [collection]
+  """Traverse the collection, removing all duplicated elements."""
+
+  (uniq-by collection (fn [x] x)))
+
+(defn uniq-by
+  """Traverse the collection, removing all duplicated elements."""
+
+  ([collection fun] (&when (list? collection))
+   (do-uniq collection
+            ;; TODO revise to add hash set
+            %{}
+            fun))
+
+  ([collection fun]
+   (let [{list _} (reduce collection
+                          ;; TODO revise to add hash set
+                          {[] %{}}
+                          (reducers.uniq fun))]
+     (lists.reverse list))))
+
 ;; Helpers
 
 (defn- traverse-and-count [collection count] (&when (list? collection))
@@ -1431,6 +1453,21 @@
 
 (defn- do-take-while [[] _ acc]
   (lists.reverse acc))
+
+;; uniq-by
+
+(defn- do-uniq [list value-set fun]
+  (do-uniq list [] value-set fun))
+
+(defn- do-uniq [[h & t] elem-list value-set fun]
+  (let [value (fun h)]
+    ;; TODO revise to add hash set
+    (if (gb_sets.is_member value value-set)
+        (do-uniq t elem-list value-set fun)
+      (do-uniq t [h & elem-list] (gb_sets.add value value-set) fun))))
+
+(defn- do-uniq [[] elem-list _value-set _fun]
+  (lists.reverse elem-list))
 
 ;; Implementations of sequential for built-in collections.
 

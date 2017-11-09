@@ -1,5 +1,6 @@
 ;; Collection of reducers shared by seq and stream.
 (ns stream.reducers
+  (require gb_sets)
   (use core))
 
 (defmacro chunk [n step limit &optional f]
@@ -83,3 +84,11 @@
       (next-with-acc ~f entry h 1 t))
      ([_entry (acc h n t)]
       (skip (acc h (inc n) t)))))
+
+(defmacro uniq [callback &optional f]
+  `(fn [entry (acc h prev t) &as acc]
+     (let [value (~callback entry)]
+       ;; TODO revise to use hash set
+       (if (gb_sets.is_member value prev)
+           (skip acc)
+         (next-with-acc ~f entry h (gb_sets.add value prev) t)))))
