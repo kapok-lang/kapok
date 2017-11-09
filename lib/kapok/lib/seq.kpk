@@ -1122,6 +1122,69 @@
                           (reducers.uniq fun))]
      (lists.reverse list))))
 
+(defn usort
+  """Sorts the collection, eliminating duplicate elements (one element is kept
+  from each group of duplicates)."""
+
+  ([collection] (&when (list? collection))
+   (lists.sort collection))
+
+  ([collection]
+   (-> collection
+       sort
+       dedup)))
+
+(defn usort-by [collection fun]
+  """Sorts the collection, eliminating duplicate elements (one element is kept
+  from each group of duplicates).
+
+  The function `fun` maps every element to a term which is used to
+  sort and dedup by."""
+
+  (-> collection
+      (sort-by fun)
+      (dedup-by fun)))
+
+(defn unzip [collection]
+  """Opposite of `(seq.zip 2)`; takes a list of two-element tuples and returns
+  a tuple with two lists, each of which is formed by the first and second element
+  of each tuple, respectively.
+
+  This function fails unless `collection` is or can be converted into a list of
+  tuples with *exactly* two elements in each tuple."""
+
+  (let [{list3 list4} (reduce collection
+                              {[] []}
+                              (fn [{el1 el2} {list1 list2}]
+                                {[el1 & list1] [el2 & list2]}))]
+    {(lists.reverse list3) (lists.reverse list4)}))
+
+(defn zip
+  """Zips corresponding elements from two collections into one list
+  of tuples.
+
+  The zipping finishes as soon as any sequential completes."""
+
+  ([collection1 collection2] (&when (&and (list? collection1)
+                                          (list? collection2)))
+   (do-zip collection1 collection2))
+
+  ([_collection1 _collection2]
+   ;; TODO add impl
+   (throw "unimplemented")))
+
+(defn with-index [collection]
+  """Returns the collection with each element wrapped in a tuple
+  alongside its index."""
+
+  (-> (map-reduce collection
+                  0
+                  (fn [x acc]
+                    {{x acc} (inc acc)}))
+      (elem 0))
+  )
+
+
 ;; Helpers
 
 (defn- traverse-and-count [collection count] (&when (list? collection))
@@ -1457,7 +1520,7 @@
 ;; uniq-by
 
 (defn- do-uniq [list value-set fun]
-  (do-uniq list [] value-set fun))
+  (lists.reverse (do-uniq list [] value-set fun)))
 
 (defn- do-uniq [[h & t] elem-list value-set fun]
   (let [value (fun h)]
@@ -1467,7 +1530,21 @@
       (do-uniq t [h & elem-list] (gb_sets.add value value-set) fun))))
 
 (defn- do-uniq [[] elem-list _value-set _fun]
-  (lists.reverse elem-list))
+  elem-list)
+
+;; zip
+
+(defn- do-zip [list1 list2]
+  (lists.reverse (do-zip list1 list2 [])))
+
+(defn- do-zip [[h1 & next1] [h2 & next2] acc]
+  (do-zip next1 next2 [{h1 h2} & acc]))
+
+(defn- do-zip [_ [] acc]
+  acc)
+
+(defn- do-zip [[] _ acc]
+  acc)
 
 ;; Implementations of sequential for built-in collections.
 
