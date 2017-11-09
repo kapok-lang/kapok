@@ -923,6 +923,34 @@
                         (elem 1))]
      (lists.reverse list))))
 
+(defn sort
+  """Sorts the collection according to Kapok's term orderng.
+
+  Uses the merge sort algorithm."""
+
+  ([collection] (&when (list? collection))
+   (lists.sort collection))
+
+  ([collection]
+   (sort collection (fn core <= 2))))
+
+(defn sort
+  """Sorts the collection by the given function.
+
+  This function uses the merge sort algorithm. The given function
+  must return `:false` if the first argument is less than right one."""
+
+  ([collection fun] (&when (list? collection))
+   (lists.sort fun collection))
+
+  ([collection fun]
+   (-> (reduce collection
+               []
+               (fn [x y]
+                 (sort-reducer x y fun)))
+       (sort-terminator fun)))
+  )
+
 (defn take
   """Takes the first `count` items from the collection.
 
@@ -1150,6 +1178,93 @@
 
 (defn- do-slice [[_ & t] start count acc]
   (do-slice t (dec start) count acc))
+
+;; sort
+
+(defn- sort-reducer [entry {^split y x r rs bool} fun]
+  (cond
+    (== (fun y entry) bool) {^split entry y [x & r] rs bool}
+    (== (fun x entry) bool) {^split y entry [x & r] rs bool}
+    (== r []) {^split y x [entry] rs bool}
+    :true {^pivot y x r rs entry bool}))
+
+(defn- sort-reducer [entry {^pivot y x r rs s bool} fun]
+  (cond
+    (== (fun y entry) bool) {^pivot entry y [x & r] rs s bool}
+    (== (fun x entry) bool) {^pivot y entry [x & r] rs s bool}
+    (== (fun s entry) bool) {^split entry s [] [[y x & r] & rs] bool}
+    :true {^split s entry [] [[y x & r] & rs] bool}))
+
+(defn- sort-reducer [entry [x] fun]
+  {^split entry x [] [] (fun x entry)})
+
+(defn- sort-reducer [entry acc _fun]
+  [entry & acc])
+
+(defn- sort-terminator [{^split y x r rs bool} fun]
+  (sort-merge [[y x & r] & rs] fun bool))
+
+(defn- sort-terminator [{^pivot y x r rs s bool} fun]
+  (sort-merge [[s] [y x & r] & rs] fun bool))
+
+(defn- sort-terminator [acc _fun]
+  acc)
+
+(defn- sort-merge [list fun :true]
+  (reverse-sort-merge list [] fun :true))
+
+(defn- sort-merge [list fun :false]
+  (sort-merge list [] fun :false))
+
+(defn- sort-merge [[t1 [h2 & t2] & l] acc fun :true]
+  (sort-merge l [(sort-merge-1 t1 h2 t2 [] fun :false) & acc] fun :true))
+
+(defn- sort-merge [[[h2 & t2] t1 & l] acc fun :false]
+  (sort-merge l [(sort-merge-1 t1 h2 t2 [] fun :false) & acc] fun :false))
+
+(defn- sort-merge [[l] [] _fun _bool]
+  l)
+
+(defn- sort-merge [[l] acc fun bool]
+  (reverse-sort-merge [(lists.reverse l []) & acc] [] fun bool))
+
+(defn- sort-merge [[] acc fun bool]
+  (reverse-sort-merge acc [] fun bool))
+
+(defn- reverse-sort-merge [[[h2 & t2] t1 & l] acc fun :true]
+  (reverse-sort-merge l
+                      [(sort-merge-1 t1 h2 t2 [] fun :true) & acc]
+                      fun
+                      :true))
+
+(defn- reverse-sort-merge [[t1 [h2 & t2] & l] acc fun :false]
+  (reverse-sort-merge l
+                      [(sort-merge-1 t1 h2 t2 [] fun :false) & acc]
+                      fun
+                      :false))
+
+(defn- reverse-sort-merge [[l] acc fun bool]
+  (sort-merge [(lists.reverse l []) & acc] [] fun bool))
+
+(defn- reverse-sort-merge [[] acc fun bool]
+  (sort-merge acc [] fun bool))
+
+
+(defn- sort-merge-1 [[h1 & t1] h2 t2 m fun bool]
+  (if (== (fun h1 h2) bool)
+      (sort-merge-2 h1 t1 t2 [h2 & m] fun bool)
+    (sort-merge-1 t1 h2 t2 [h1 & m] fun bool)))
+
+(defn- sort-merge-1 [[] h2 t2 m _fun _bool]
+  (lists.reverse t2 [h2 & m]))
+
+(defn- sort-merge-2 [h1 t1 [h2 & t2] m fun bool]
+  (if (== (fun h1 h2) bool)
+      (sort-merge-2 h1 t1 t2 [h2 & m] fun bool)
+    (sort-merge-1 t1 h2 t2 [h1 & m] fun bool)))
+
+(defn- sort-merge-2 [h1 t1 [] m _fun _bool]
+  (lists.reverse t1 [h1 & m]))
 
 ;; take
 
