@@ -1012,8 +1012,6 @@
                                   {acc1 [entry & acc2]})))]
      {(lists.reverse list1) (lists.reverse list2)})))
 
-;; TODO add functions
-
 (defn take
   """Takes the first `count` items from the collection.
 
@@ -1056,6 +1054,26 @@
                                      {count buf1 b2}))))]
      (do-take-last buf1 buf2 m [])))
   )
+
+(defn take-every
+  """Returns a collection of every `nth` item in the collection,
+  starting with the first element.
+
+  The second argument specifying every `nth` item must be
+  a non-negative integer."""
+
+  ([_collection 0]
+   [])
+
+  ([[] _nth]
+   [])
+
+  ([collection nth] (&when (&and (integer? nth)
+                                 (> nth 0)))
+   (let [{res _} (reduce collection
+                         {[] ^first}
+                         (reducers.take-every nth))]
+     (lists.reverse res))))
 
 (defn to-list
   """Converts `collection` to a list."""

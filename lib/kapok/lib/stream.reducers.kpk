@@ -75,3 +75,11 @@
   `(fn [entry (acc h acc0 t)]
      (let [value (~callback entry acc0)]
        (next-with-acc ~f value h value t))))
+
+(defmacro take-every [nth &optional f]
+  `(fn
+     ([entry (acc h n t)] (&when (&or (=== n ^first)
+                                      (=== n ~nth)))
+      (next-with-acc ~f entry h 1 t))
+     ([_entry (acc h n t)]
+      (skip (acc h (inc n) t)))))
