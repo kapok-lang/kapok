@@ -39,11 +39,15 @@ expand_n(Ast, Ctx, N) when N > 0 ->
 expand_1(List, Ctx) when is_list(List) ->
   expand_list(List, Ctx);
 
-%% list
+%% special forms
+expand_1({list, Meta, [{identifier, _, '__MODULE__'}]}, Ctx) ->
+  {{atom, Meta, ?m(Ctx, namespace)}, Ctx, true};
+
 expand_1({list, Meta, [{identifier, _, Id} = Def | T]}, Ctx) when ?is_def(Id) ->
   %% TODO move defs into `core' as predefined macros
   {ET, ECtx, Expanded} = expand_1(T, Ctx),
   {{list, Meta, [Def | ET]}, ECtx, Expanded};
+
 expand_1({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
   Arity = length(Args),
   {R, Ctx1} = kapok_dispatch:find_local_macro(Meta, {Id, Arity}, IdMeta, Args, Ctx),

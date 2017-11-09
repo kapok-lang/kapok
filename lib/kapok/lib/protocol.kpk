@@ -30,15 +30,27 @@
         (=== ~id ^defalias)
         (=== ~id ^defalias-)))
 
-(defn- handle-defstruct-fields [file args]
-  (lists.map (fn
-               ([{c id-meta id-name}] (&when (struct-field? c))
-                {{^keyword id-meta id-name} {^atom id-meta ^nil}})
-               ([{^list _ [{c id-meta id-name} expr]}] (&when (struct-field? c))
-                {{^keyword id-meta id-name} expr})
-               ([{_ meta _}]
-                (kapok_error.compile_error meta file "invalid field arg for defstruct")))
-             args))
+(defn- validate-field-name [file meta name]
+  (case name
+    (^__struct__
+     (kapok_error.compile_error meta file "invalid field name \"__struct__\""))
+    (_
+     name)))
+
+(defn- handle-defstruct-fields [file meta args]
+  (let [handler (fn
+                  ([{c id-meta id-name}] (&when (struct-field? c))
+                   (let [name (validate-field-name file id-meta id-name)]
+                     {{^keyword id-meta name} {^atom id-meta ^nil}}))
+                  ([{^list _ [{c id-meta id-name} expr]}] (&when (struct-field? c))
+                   (let [name (validate-field-name file id-meta id-name)]
+                     {{^keyword id-meta name} expr}))
+                  ([{_ ast-meta _}]
+                   (kapok_error.compile_error ast-meta file "invalid field arg for defstruct")))
+        fields (lists.map handler args)
+        tag {{^keyword meta ^__struct__}
+             {^list meta [{^identifier meta ^__MODULE__}]}}]
+    [tag & fields]))
 
 (defn- struct-constructor [meta name fields-list]
   {^list meta [{^identifier meta ^defn}
@@ -48,7 +60,7 @@
   )
 
 (defn- handle-defstruct [file meta _doc args]
-  (let [fields (handle-defstruct-fields file args)
+  (let [fields (handle-defstruct-fields file meta args)
         fields-list (lists.reverse (lists.foldl (fn [{k, v} acc]
                                                   [v k & acc])
                                                 []
