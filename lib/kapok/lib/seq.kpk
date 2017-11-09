@@ -983,16 +983,36 @@
 
   ([collection count] (&when (>= count 0))
    (let [{_ list1 list2} (reduce collection
-                           {count [] []}
-                           (fn [entry {counter acc1 acc2}]
-                             (if (> counter 0)
-                                 {(dec counter) [entry & acc1] acc2}
-                               {counter acc1 [entry & acc2]})))]
+                                 {count [] []}
+                                 (fn [entry {counter acc1 acc2}]
+                                   (if (> counter 0)
+                                       {(dec counter) [entry & acc1] acc2}
+                                     {counter acc1 [entry & acc2]})))]
      {(lists.reverse list1) (lists.reverse list2)}))
 
    ([collection count] (&when (< count 0))
-    (do-split-reverse (reverse collection) (abs count) []))
-  )
+    (do-split-reverse (reverse collection) (abs count) [])))
+
+(defn split-while
+  """Splits `collection` in two at the position of the element for which
+  `fun` returns `false` for the first time."""
+
+  ([collection fun] (&when (list? collection))
+   (do-split-while collection fun []))
+
+  ([collection fun]
+   (let [{list1 list2} (reduce collection
+                               {[] []}
+                               (fn
+                                 ([entry {acc1 []}]
+                                  (if (fun entry)
+                                      {[entry & acc1] []}
+                                    {acc1 [entry]}))
+                                 ([entry {acc1 acc2}]
+                                  {acc1 [entry & acc2]})))]
+     {(lists.reverse list1) (lists.reverse list2)})))
+
+;; TODO add functions
 
 (defn take
   """Takes the first `count` items from the collection.
@@ -1328,6 +1348,16 @@
 
 (defn- do-split-reverse [[] _ acc]
   {[] acc})
+
+;; split-while
+
+(defn- do-split-while [[h & t] fun acc]
+  (if (fun h)
+      (do-split-while t fun [h & acc])
+    {(lists.reverse acc) [h & t]}))
+
+(defn- do-split-while [[] _ acc]
+  {(lists.reverse acc) []})
 
 ;; take
 
