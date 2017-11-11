@@ -76,6 +76,14 @@
                  {^literal_list meta arguments}
                  {^map meta map-fields}]}))
 
+(defn- struct-get []
+  `(defn get [self key &optional (default :nil)]
+     (maps.get key self default)))
+
+(defn- struct-accessors [_meta _no-tag-fields]
+  [(struct-get)]
+  )
+
 (defn- handle-defstruct [file meta _doc args]
   (let [fields (handle-defstruct-fields file meta args)
         fields-list (lists.reverse (lists.foldl (fn [{k v} acc]
@@ -86,7 +94,8 @@
     ;; 1. '__struct__' is for being compactible with elixir protocol
     ;; 2. 'new' is for the kapok struct constructor
     [(elixir-struct-constructor meta ^'__struct__' fields-list)
-     (struct-constructor meta ^'new' (next fields))]))
+     (struct-constructor meta ^'new' (next fields)) &
+     (struct-accessors meta (next fields))]))
 
 (defmacro defstruct [&rest args]
   """Define a struct."""
