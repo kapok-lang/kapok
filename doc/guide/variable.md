@@ -22,11 +22,11 @@ like symbols in other Lisp dialects, the valid characters for identifiers are fa
 ```clojure
 ~ ~@                    ;; is macro unquote, unquote splicing keyword
 &optional &rest &key    ;; function argument specification
-#""                     ;; list string
-^                       ;; atom
+#"string"               ;; list string
+#'atom' #atom           ;; atom
 ```
 
-It would not work using `~ & # ^` as the start of an identifier. But you could use them in any position after the first char in an identifier, as long as it would not cause confusion with the preserved literal types.
+It would not work using `~ & #` as the start of an identifier. But you could use them in any position after the first char in an identifier, as long as it would not cause confusion with the preserved literal types.
 
 Also notice that identifiers in other Erlang VM based programming languages have fewer valid characters. For example, identifiers in Elixir contain only alphanumeric characters and underscore. If you need to write a Kapok module for Elixir code to call, please make sure the identifier name to be compactible.
 
@@ -157,14 +157,14 @@ It shares the same syntax to pattern match a sequential collection, and declare 
 
 ```
 (let  [;; map
-       #{^k1 value} #{^k1 100 
-                      ^k2 200}]
+       #{:k1 value} #{:k1 100 
+                      :k2 200}]
   ;; body
   (+ 1 value)
 )
 ```
 
-We omit `^k2` in the pattern and fetch whatever value of `^k1`, refer it as the local `value` and access it in the body of the let form.
+We omit `:k2` in the pattern and fetch whatever value of `:k1`, refer it as the local `value` and access it in the body of the let form.
 
 Please notice that set collection is not supported in pattern matching.
 

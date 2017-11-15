@@ -68,12 +68,12 @@
 
     ;; string
     ;; list string
-    (assert (=== #"hello, world!" (erlang.atom_to_list ^'hello, world!')))
+    (assert (=== #"hello, world!" (erlang.atom_to_list #'hello, world!')))
     (assert (=== #"hello,
 world!"
-                 (erlang.atom_to_list ^'hello,\nworld!')))
+                 (erlang.atom_to_list #'hello,\nworld!')))
     (assert (=== #"hello, \"world\"!"
-                 (erlang.atom_to_list ^'hello, "world"!')))
+                 (erlang.atom_to_list #'hello, "world"!')))
     ;; binary string
     (assert (=== "hello, world!" (erlang.list_to_binary #"hello, world!")))
     (assert (=== "hello,
@@ -88,13 +88,12 @@ world!")))
                  "hello, \"world\"!"))
 
     ;; atom
-    (assert (=== ^atom (erlang.list_to_atom #"atom")))
-    (assert (=== ^'atom has space' (erlang.list_to_atom #"atom has space")))
-    (assert (=== ^"atom has space" (erlang.list_to_atom #"atom has space")))
+    (assert (=== #atom (erlang.list_to_atom #"atom")))
+    (assert (=== #'atom has space' (erlang.list_to_atom #"atom has space")))
+
     ;; keyword
     (assert (=== :atom (erlang.list_to_atom #"atom")))
     (assert (=== :'atom has space' (erlang.list_to_atom #"atom has space")))
-    (assert (=== :"atom has space" (erlang.list_to_atom #"atom has space")))
 
     ;; boolean
     (assert (=== :true (true? :true)))
@@ -136,8 +135,8 @@ world!")))
     (assert (=== {1 2 3}
                  (erlang.list_to_tuple [1 2 3])))
     ;; map
-    (assert (=== #{^a 1 ^b 2}
-                 (maps.from_list [{^a 1} {^b 2}])))
+    (assert (=== #{#a 1 #b 2}
+                 (maps.from_list [{#a 1} {#b 2}])))
     ;; set
     (assert (=== %{1 2 3}
                  (gb_sets.from_list [1 2 3])))

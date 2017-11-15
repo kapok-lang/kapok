@@ -27,8 +27,8 @@
           ;; binary string
           <<(f), (_) (_) (_) (_)>> "hello"
           ;; map
-          #{^k1 value} #{^k1 100
-                         ^k2 200}
+          #{#k1 value} #{#k1 100
+                         #k2 200}
           ]
       (assert (=== a 1))
       (assert (=== b 4))

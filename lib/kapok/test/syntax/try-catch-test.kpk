@@ -3,51 +3,51 @@
 
 (defn- generate-exception [1]
   """dummy doc for this function"""
-  ^a)
+  #a)
 
 (defn- generate-exception [2]
-  (erlang.throw ^a))
+  (erlang.throw #a))
 
 (defn- generate-exception [3]
-  (erlang.exit ^a))
+  (erlang.exit #a))
 
 (defn- generate-exception [4]
-  {^EXIT, ^a})
+  {#EXIT, #a})
 
 (defn- generate-exception [5]
-  (erlang.error ^a))
+  (erlang.error #a))
 
 (defn- do-nothing []
-  ^ok)
+  #ok)
 
 (defn- catcher [n]
   (try (case (generate-exception n)
-         (val {n ^normal val}))
+         (val {n #normal val}))
     (catch
-      ((:throw x) {n ^caught ^thrown x})
-      ((:exit x) {n ^caught ^exited x})
-      ((:error x) {n ^caught ^error x}))
+      ((:throw x) {n #caught #thrown x})
+      ((:exit x) {n #caught #exited x})
+      ((:error x) {n #caught #error x}))
     (after
       (do-nothing)
       (do-nothing))))
 
 (defn- catcher-all [n]
   (try (case (generate-exception n)
-         (val {n ^normal val}))
+         (val {n #normal val}))
     (catch
         ((kind reason) {n kind reason}))))
 
 (defn main []
   (test "test try catch"
-    (assert (=== {1 ^normal ^a}
+    (assert (=== {1 #normal #a}
                  (catcher 1)))
-    (assert (=== {2 ^caught ^thrown ^a}
+    (assert (=== {2 #caught #thrown #a}
                  (catcher 2)))
-    (assert (=== {3 ^caught ^exited ^a}
+    (assert (=== {3 #caught #exited #a}
                  (catcher 3)))
-    (assert (=== {4 ^normal {^EXIT ^a}}
+    (assert (=== {4 #normal {#EXIT #a}}
                  (catcher 4)))
-    (assert (=== {5 ^caught ^error ^a}
+    (assert (=== {5 #caught #error #a}
                  (catcher 5)))
-    (assert (=== {2 :throw ^a}
+    (assert (=== {2 :throw #a}
                  (catcher-all 2)))))

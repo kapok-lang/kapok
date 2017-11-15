@@ -2,21 +2,21 @@
   (require erlang io io_lib maps))
 
 (defn error [file line message]
-  (let [stacktrace (try (erlang.throw ^ok)
-                     (catch (^ok (erlang.get_stacktrace))))
+  (let [stacktrace (try (erlang.throw #ok)
+                     (catch (#ok (erlang.get_stacktrace))))
         exception {file line message}]
-    (erlang.raise ^error exception (erlang.tl stacktrace))))
+    (erlang.raise #error exception (erlang.tl stacktrace))))
 
 (defn error [file line format args]
   (error file line (io_lib.format format args)))
 
 (defmacro assert [args]
-  (let [file (maps.get ^file _&ctx)
-        line (meta-line (maps.get ^meta _&ctx))]
+  (let [file (maps.get #file _&ctx)
+        line (meta-line (maps.get #meta _&ctx))]
     (case args
-      ({^list _ [op left right]}
+      ({#list _ [op left right]}
        `(case ~args
-          (:true ^ok)
+          (:true #ok)
           (_
            (io.format "~nassert failed~n   op: ~p~n left: ~p~n eval: ~p~nright: ~p~n eval: ~p~n~n"
                       ['~op '~left ~left '~right ~right])

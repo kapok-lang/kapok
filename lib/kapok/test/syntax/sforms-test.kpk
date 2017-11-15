@@ -10,6 +10,6 @@
     (assert (=== 2
                  (do
                   (let [_ (inc 0)]
-                    ^ok)
+                    #ok)
                   (inc 1)))))
   )

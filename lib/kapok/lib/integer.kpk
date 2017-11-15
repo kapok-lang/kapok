@@ -70,7 +70,7 @@
   If the base `base` is not given, base 10 will be used.
 
   If successful, returns a tuple of the form `{integer, remainder-of-binary}`.
-  Otherwise `^error`.
+  Otherwise `#error`.
 
   Raises an error if `base` is less than 2 or more than 36.
 
@@ -191,8 +191,8 @@
 
   ([<< (\-) (bin) >> base] (&when (binary? bin))
    (case (do-parse bin base)
-     (^error
-      ^error)
+     (#error
+      #error)
      ({number remainder}
       {(- number) remainder})))
 
@@ -209,10 +209,10 @@
   ([<< (char) (bin) >> base] (&when (binary? bin))
    (if (valid-digit-in-base? char base)
        (do-parse bin base (parse-digit char base))
-     ^error))
+     #error))
 
   ([_ _]
-   ^error)
+   #error)
 
   ([<< (char) (rest) >> base acc] (&when (binary? rest))
    (if (valid-digit-in-base? char base)

@@ -8,4 +8,4 @@
   (test "kunit test case"
         (assert (=== 1 (f)))
         (try (assert (=== 2 (f)))
-             (catch ((^error _) ^ok)))))
+             (catch ((#error _) #ok)))))

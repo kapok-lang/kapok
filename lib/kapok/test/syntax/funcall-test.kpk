@@ -29,7 +29,7 @@
 (defn n [a &optional b &rest c]
   [a b c])
 
-(defn p [a &key (b 100) c (d ^none)]
+(defn p [a &key (b 100) c (d #none)]
   [a b c d])
 
 (defmacro gen-test [message]
@@ -62,9 +62,9 @@
      (assert (=== (n 1 2 3)
                   [1 2 [3]]))
      (assert (=== (p 1)
-                  [1 100 :nil ^none]))
-     (assert (=== (p 1 :c ^world :b "hello" :d 2017)
-                  [1 "hello" ^world 2017])))
+                  [1 100 :nil #none]))
+     (assert (=== (p 1 :c #world :b "hello" :d 2017)
+                  [1 "hello" #world 2017])))
   )
 
 (defn main []

@@ -14,12 +14,12 @@
   (defn into [original]
     {[]
      (fn
-       ([list {^cont x}]
+       ([list {#cont x}]
         [x & list])
-       ([list ^done]
+       ([list #done]
         (lists.append original (lists.reverse list)))
-       ([_ ^halt]
-        ^ok))}))
+       ([_ #halt]
+        #ok))}))
 
 (defimpl collectable bitstring
   (require erlang)
@@ -27,12 +27,12 @@
   (defn into [original]
     {original
      (fn
-       ([acc {^cont x}] (&when (bitstring? x))
+       ([acc {#cont x}] (&when (bitstring? x))
         [acc & x])
-       ([acc ^done]
+       ([acc #done]
         (erlang.iolist_to_binary acc))
-       ([_ ^halt]
-        ^ok))}))
+       ([_ #halt]
+        #ok))}))
 
 (defimpl collectable map
   (require maps)
@@ -40,9 +40,9 @@
   (defn into [original]
     {original
      (fn
-       ([map {^cont {k v}}]
+       ([map {#cont {k v}}]
         (maps.put k v map))
-       ([map ^done]
+       ([map #done]
         map)
-       ([_ ^halt]
-        ^ok))}))
+       ([_ #halt]
+        #ok))}))

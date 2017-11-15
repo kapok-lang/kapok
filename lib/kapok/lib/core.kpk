@@ -37,8 +37,8 @@
 
   ## Examples
 
-      kapok> (tl [1 2 3 ^go])
-      [2, 3, ^go]
+      kapok> (tl [1 2 3 #go])
+      [2, 3, #go]
   """
   (erlang.tl list))
 
@@ -90,7 +90,7 @@
   """Evaluates test. If logical true, evaluates body in an implicit do."""
   `(case (core.true? ~test)
      (:true ~@body)
-     (:false ^ok)))
+     (:false #ok)))
 
 (defalias unless when-not
   """Alias to `when-not`.""")
@@ -98,7 +98,7 @@
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
   `(case (core.true? ~test)
-     (:true ^ok)
+     (:true #ok)
      (:false ~@body)))
 
 ;; TODO move all these functions to protocol `seq`
@@ -126,7 +126,7 @@
   """Takes a set of test/expr pairs. It evaluates each test one at a time.
   If a test returns logical true, cond evaluates and returns the value of
   the corresponding expr and doesn't evaluate any of the other tests or exprs.
-  (cond) returns `^ok`.
+  (cond) returns `#ok`.
   """
   (unless (nil? clauses)
     `(core.if ~(first clauses)
@@ -147,10 +147,10 @@
   """
   ([]
    (let [name (kapok_utils.gensym)]
-     {^identifier [] name}))
+     {#identifier [] name}))
   ([prefix]
    (let [name (kapok_utils.gensym prefix)]
-     {^identifier [] name})))
+     {#identifier [] name})))
 
 ;; functions and operators
 
@@ -248,7 +248,7 @@
 
   ## Examples
 
-      kapok> (tuple-size {^a ^b ^c})
+      kapok> (tuple-size {#a #b #c})
       3
 
   """
@@ -455,8 +455,8 @@
       kapok> (max 1 2)
       2
 
-      kapok> (max ^a ^b)
-      ^b
+      kapok> (max #a #b)
+      #b
 
   """
   ([x] x)
@@ -490,7 +490,7 @@
 
 (defn node []
   """Returns an atom representing the name of the local node.
-  If the node is not alive, `^nonode@nohost` is returned instead.
+  If the node is not alive, `#nonode@nohost` is returned instead.
 
   Allowed in guard tests. Inlined by the compiler.
   """
@@ -499,7 +499,7 @@
 (defn node [arg]
   """Returns the node where the given argument `arg` originates.
   The argument can be a pid, a reference, or a port.
-  If the local node is not alive, `^nonode@nohost` is returned.
+  If the local node is not alive, `#nonode@nohost` is returned.
 
   Allowed in guard tests. Inlined by the compiler.
   """
@@ -523,8 +523,8 @@
 
   ## Examples
 
-      kapok> (send (self) ^hello)
-      ^hello
+      kapok> (send (self) #hello)
+      #hello
 
   """
   (erlang.send dest message))
@@ -1139,7 +1139,7 @@
 
   """
   ([_x] :true)
-  ([x y &rest more] (all (fn [n acc] (erlang.^'=:=' acc n))
+  ([x y &rest more] (all (fn [n acc] (erlang.#'=:=' acc n))
                          x
                          [y & more])))
 
@@ -1183,8 +1183,8 @@
 
   """
   `(case ~x
-     (bool (&when (&or (erlang.^'=:=' bool :false)
-                       (erlang.^'=:=' bool :nil)))
+     (bool (&when (&or (erlang.#'=:=' bool :false)
+                       (erlang.#'=:=' bool :nil)))
        :true)
      (_ :false)))
 
@@ -1280,8 +1280,8 @@
 
   ## Examples
 
-      kapok> (elem {^foo ^bar 3} 1)
-      ^bar
+      kapok> (elem {#foo #bar 3} 1)
+      #bar
 
   """
   (erlang.element (inc index) tuple))
@@ -1294,8 +1294,8 @@
 
   ## Examples
 
-      kapok> (set-elem {^foo ^bar 3} 0 ^baz)
-      {^baz ^bar 3}
+      kapok> (set-elem {#foo #bar 3} 0 #baz)
+      {#baz #bar 3}
 
   """
   (erlang.setelement (inc index) tuple value))
@@ -1324,7 +1324,7 @@
 
 ;;; special macros
 
-(defmacro match? [{^identifier _ ^_} &as _pattern _expr]
+(defmacro match? [{#identifier _ #_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches
   the left side (a pattern)."""
   :true)
@@ -1346,11 +1346,11 @@
      (let [form (first forms)
            left (rest forms)
            y (case form
-               ({^list meta []}
-                (macro-error (maps.get ^file _&ctx)
+               ({#list meta []}
+                (macro-error (maps.get #file _&ctx)
                              meta
                              "expected function call but got empty list"))
-               ({^list _ args}
+               ({#list _ args}
                 (let [h (head args)
                       t (tail args)]
                   `(~h ~x ~@t)))
@@ -1369,11 +1369,11 @@
      (let [form (first forms)
            left (rest forms)
            y (case form
-               ({^list meta []}
-                (macro-error (maps.get ^file _&ctx)
+               ({#list meta []}
+                (macro-error (maps.get #file _&ctx)
                              meta
                              "expected function call but got empty list"))
-               ({^list _ args}
+               ({#list _ args}
                 `(~@args ~x))
                (_
                 `(~form ~x)))]

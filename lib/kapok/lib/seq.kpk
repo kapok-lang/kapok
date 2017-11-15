@@ -70,11 +70,11 @@
 
   ([collection fun]
    (-> (sequential.reduce collection
-                          {^cont :true}
+                          {#cont :true}
                           (fn [entry _]
                             (if (fun entry)
-                                {^cont :true}
-                              {^halt :false})))
+                                {#cont :true}
+                              {#halt :false})))
        (elem 1)))
   )
 
@@ -91,11 +91,11 @@
 
   ([collection fun]
    (-> (sequential.reduce collection
-                          {^cont :false}
+                          {#cont :false}
                           (fn [entry _]
                             (if (fun entry)
-                                {^halt :true}
-                              {^cont :false})))
+                                {#halt :true}
+                              {#cont :false})))
        (elem 1)))
   )
 
@@ -106,8 +106,8 @@
   """Finds the element at the given index (zero-based).
   Returns `default` if index is out of bounds."""
   (case (fetch collection n)
-    ({^ok e} e)
-    (^error default)))
+    ({#ok e} e)
+    (#error default)))
 
 (defn chunk [collection n]
   "Shortcut to `(chunk collection n n)`."
@@ -172,13 +172,13 @@
 
   ([collection]
    (case (sequential.count collection)
-     ({^ok value} (&when (integer? value))
+     ({#ok value} (&when (integer? value))
       value)
-     ({^error module}
+     ({#error module}
       (-> (module.reduce collection
-                         {^cont 0}
+                         {#cont 0}
                          (fn [_ acc]
-                           {^cont (inc acc)}))
+                           {#cont (inc acc)}))
           (elem 1)))))
   )
 
@@ -243,11 +243,11 @@
 
 (defn each
   """Invokes the given `fun` for each item in the `collection`.
-  Returns `^ok`."""
+  Returns `#ok`."""
 
   ([collection fun] (&when (list? collection))
    (lists.foreach fun collection)
-   ^ok)
+   #ok)
 
   ([collection fun]
    (reduce collection
@@ -255,7 +255,7 @@
            (fn [entry :nil]
              (fun entry)
              :nil))
-   ^ok))
+   #ok))
 
 (defn empty?
   """Returns `:true` if the collection is empty, otherwise `:false`."""
@@ -265,9 +265,9 @@
 
   ([collection]
    (-> (sequential.reduce collection
-                          {^cont :true}
+                          {#cont :true}
                           (fn [_ _]
-                            {^halt :false}))
+                            {#halt :false}))
        (elem 1))))
 
 (defn fetch
@@ -281,14 +281,14 @@
   ([collection n] (&when (&and (integer? n)
                                (>= n 0)))
    (let [r (sequential.reduce collection
-             {^cont 0}
+             {#cont 0}
              (fn [entry acc]
                (case acc
-                 (n {^halt entry})
-                 (_ {^cont (inc acc)}))))]
+                 (n {#halt entry})
+                 (_ {#cont (inc acc)}))))]
      (case r
-       ({^halt entry} {^ok entry})
-       ({^done _} ^error))))
+       ({#halt entry} {#ok entry})
+       ({#done _} #error))))
 
   ([collection n] (&when (&and (integer? n)
                                (< n 0)))
@@ -334,11 +334,11 @@
 
   ([collection ifnone fun]
    (-> (sequential.reduce collection
-                          {^cont ifnone}
+                          {#cont ifnone}
                           (fn [entry acc]
                             (if (fun entry)
-                                {^halt entry}
-                              {^cont acc})))
+                                {#halt entry}
+                              {#cont acc})))
        (elem 1))))
 
 (defn find-value
@@ -353,12 +353,12 @@
 
   ([collection ifnone fun]
    (-> (sequential.reduce collection
-                          {^cont ifnone}
+                          {#cont ifnone}
                           (fn [entry acc]
                             (let [fun-entry (fun entry)]
                               (if fun-entry
-                                  {^halt fun-entry}
-                                {^cont acc}))))
+                                  {#halt fun-entry}
+                                {#cont acc}))))
        (elem 1))))
 
 (defn find-index
@@ -370,14 +370,14 @@
 
   ([collection fun]
    (let [res (sequential.reduce collection
-                                {^cont 0}
+                                {#cont 0}
                                 (fn [entry acc]
                                   (if (fun entry)
-                                      {^halt acc}
-                                    {^cont (inc acc)})))]
+                                      {#halt acc}
+                                    {#cont (inc acc)})))]
      (case res
-       ({^halted entry} entry)
-       ({^done _} :nil)))))
+       ({#halted entry} entry)
+       ({#done _} :nil)))))
 
 (defn flat-map [collection fun]
   """Returns a new collection appending the result of invoking `fun`
@@ -397,21 +397,21 @@
 
   It expects an accumulator and a function that receives each stream item
   and an accumulator, and must return a tuple containing a new stream
-  (often a list) with the new accumulator or a tuple with `^halt` as first
+  (often a list) with the new accumulator or a tuple with `#halt` as first
   element and the accumulator as second."""
 
   (let [{_ {list acc2}} (sequential.reduce collection
-                                           {^cont {[] acc}}
+                                           {#cont {[] acc}}
                                            (fn [entry {list0 acc0}]
                                              (case (fun entry acc0)
-                                               ({^halt acc1}
-                                                {^halt {list0 acc1}})
+                                               ({#halt acc1}
+                                                {#halt {list0 acc1}})
                                                ({[] acc1}
-                                                {^cont {list0 acc1}})
+                                                {#cont {list0 acc1}})
                                                ({[entry] acc1}
-                                                {^cont {[entry & list0] acc1}})
+                                                {#cont {[entry & list0] acc1}})
                                                ({entries acc1}
-                                                {^cont {(reduce entries
+                                                {#cont {(reduce entries
                                                                 list0
                                                                 (fn [x y]
                                                                   [x & y]))
@@ -467,7 +467,7 @@
            initial
            fun
            (fn [x acc]
-             (fun acc {^cont (transform x)}))))))
+             (fun acc {#cont (transform x)}))))))
 
 (defn join [collection &optional (joiner "")] (&when (binary? joiner))
   """Joins the given `collection` into a binary using `joiner` as a separator.
@@ -477,13 +477,13 @@
   to a binary, otherwise an error is raised."""
 
   (let [reduced (reduce collection
-                        ^first
+                        #first
                         (fn
-                          ([entry ^first]
+                          ([entry #first]
                            (seq-to-string entry))
                           ([entry acc]
                            [acc joiner & (seq-to-string entry)])))]
-    (if (== reduced ^first)
+    (if (== reduced #first)
         ""
       (erlang.iolist_to_binary reduced))))
 
@@ -516,13 +516,13 @@
 
   ([collection joiner mapper] (&when (binary? joiner))
    (let [reduced (reduce collection
-                   ^first
+                   #first
                    (fn
-                     ([entry ^first]
+                     ([entry #first]
                       (seq-to-string entry))
                      ([entry acc]
                       (acc joiner & (seq-to-string (mapper entry))))))]
-     (if (== reduced ^first)
+     (if (== reduced #first)
          ""
        (erlang.iolist_to_binary reduced)))))
 
@@ -566,9 +566,9 @@
 
   ([collection fun]
    (let [result (reduce collection
-                        ^first
+                        #first
                         (fn
-                          ([entry ^first]
+                          ([entry #first]
                            {entry (fun entry)})
                           ([entry {_ fun-max} &as old]
                            (let [fun-entry (fun entry)]
@@ -576,7 +576,7 @@
                                  {entry fun-entry}
                                old)))))]
      (case result
-       (^first
+       (#first
         ;; TODO revise to use exception
         (throw "empty error"))
        ({entry _}
@@ -592,16 +592,16 @@
 
   ([collection value]
    (case (sequential.member? collection value)
-     ({^ok value} (&when (boolean? value))
+     ({#ok value} (&when (boolean? value))
       value)
-     ({^error module}
+     ({#error module}
       (-> (module.reduce collection
-                         {^cont :false}
+                         {#cont :false}
                          (fn
                            ([v _] (&when (=== v value))
-                            {^halt :true})
+                            {#halt :true})
                            ([_ _]
-                            {^cont :false})))
+                            {#cont :false})))
           (elem 1))))))
 
 (defn min [collection]
@@ -627,9 +627,9 @@
 
   ([collection fun]
    (let [result (reduce collection
-                        ^first
+                        #first
                         (fn
-                          ([entry ^first]
+                          ([entry #first]
                            {entry (fun entry)})
                           ([entry {_ fun-min} &as old]
                            (let [fun-entry (fun entry)]
@@ -637,7 +637,7 @@
                                  {entry fun-entry}
                                  old)))))]
      (case result
-       (^first
+       (#first
         ;; TODO revise to use exception
         (throw "empty error"))
        ({entry _}
@@ -647,15 +647,15 @@
   """Returns a tuple with the minimum and maximum values."""
 
   (let [result (reduce collection
-                       ^first
+                       #first
                        (fn
-                         ([entry ^first]
+                         ([entry #first]
                           {entry entry})
                          ([entry {min-value, max-value}]
                           {(core.min entry min-value)
                            (core.max entry max-value)})))]
     (case result
-      (^first
+      (#first
        ;; TODO revise to use exception
        (throw "empty error"))
       (result
@@ -666,9 +666,9 @@
   calculated by the given function."""
 
   (let [result (reduce collection
-                 ^first
+                 #first
                  (fn
-                   ([entry ^first]
+                   ([entry #first]
                     (let [fun-entry (fun entry)]
                       {{entry fun-entry} {entry fun-entry}}))
                    ([entry {{_ fun-min} &as acc-min {_ fun-max} &as acc-max}]
@@ -681,7 +681,7 @@
                                     acc-max)]
                       {new-min new-max}))))]
     (case result
-      (^first
+      (#first
        ;; TODO revise to use exception
        (throw "empty error"))
       ({{min-entry _} {max-entry _}}
@@ -741,9 +741,9 @@
 
   ([collection acc fun]
    (-> (sequential.reduce collection
-                          {^cont acc}
+                          {#cont acc}
                           (fn [x acc0]
-                            {^cont (fun x acc0)}))
+                            {#cont (fun x acc0)}))
        (elem 1)))
   )
 
@@ -762,18 +762,18 @@
 
   ([collection fun]
    (let [result (-> (sequential.reduce collection
-                                       {^cont ^first}
+                                       {#cont #first}
                                        (fn
-                                         ([x ^first]
-                                          {^cont {^acc x}})
-                                         ([x {^acc acc}]
-                                          {^cont {^acc (fun x acc)}})))
+                                         ([x #first]
+                                          {#cont {#acc x}})
+                                         ([x {#acc acc}]
+                                          {#cont {#acc (fun x acc)}})))
                     (elem 1))]
      (case result
-       (^first
+       (#first
         ;; TODO revise to use exception
         (throw "empty error"))
-       ({^acc acc}
+       ({#acc acc}
         acc)))))
 
 (defn reject
@@ -867,7 +867,7 @@
   for the next computation."""
 
   (let [{res _} (reduce seq
-                        {[] ^first}
+                        {[] #first}
                         (reducers.scan-2 fun))]
     (lists.reverse res)))
 
@@ -913,14 +913,14 @@
                                          (> count 0)))
    (let [{_ _ list} (-> (sequential.reduce
                          collection
-                         {^cont {start count []}}
+                         {#cont {start count []}}
                          (fn
                            ([_entry {start0 count0 _list0}] (&when (> start0 0))
-                            {^cont {(dec start0) count0 []}})
+                            {#cont {(dec start0) count0 []}})
                            ([entry {start0 count0 list0}] (&when (> count0 1))
-                            {^cont {start0 (dec count0) [entry & list0]}})
+                            {#cont {start0 (dec count0) [entry & list0]}})
                            ([entry {start0 count0 list0}]
-                            {^halt {start0 count0 [entry & list0]}})))
+                            {#halt {start0 count0 [entry & list0]}})))
                         (elem 1))]
      (lists.reverse list))))
 
@@ -1037,9 +1037,9 @@
                                         {:cont {[] n}}
                                         (fn [entry {list count}]
                                           (case count
-                                            (0 {^halt {list count}})
-                                            (1 {^halt {[entry & list] (dec count)}})
-                                            (_ {^cont {[entry & list] (dec count)}}))))]
+                                            (0 {#halt {list count}})
+                                            (1 {#halt {[entry & list] (dec count)}})
+                                            (_ {#cont {[entry & list] (dec count)}}))))]
      (lists.reverse res)))
 
   ([collection n] (&when (&and (integer? n)
@@ -1072,7 +1072,7 @@
   ([collection nth] (&when (&and (integer? nth)
                                  (> nth 0)))
    (let [{res _} (reduce collection
-                         {[] ^first}
+                         {[] #first}
                          (reducers.take-every nth))]
      (lists.reverse res))))
 
@@ -1085,11 +1085,11 @@
 
   ([collection fun]
    (let [{_ res} (sequential.reduce collection
-                                    {^cont []}
+                                    {#cont []}
                                     (fn [entry acc]
                                       (if (fun entry)
-                                          {^cont [entry & acc]}
-                                        {^halt acc})))]
+                                          {#cont [entry & acc]}
+                                        {#halt acc})))]
      (lists.reverse res))))
 
 (defn to-list
@@ -1262,10 +1262,10 @@
 ;; fetch
 
 (defn- do-fetch [[] _]
-  ^error)
+  #error)
 
 (defn- do-fetch [[h & _] 0]
-  {^ok h})
+  {#ok h})
 
 (defn- do-fetch [[_ & t] n]
   (do-fetch t (dec n)))
@@ -1309,7 +1309,7 @@
           initial
           fun
           (fn [x acc]
-            (fun acc {^cont x})))))
+            (fun acc {#cont x})))))
 
 (defn- into [collection initial fun callback]
   (case
@@ -1317,9 +1317,9 @@
         (catch
           ((kind reason)
            (let [stacktrace (erlang.get_stacktrace)]
-             (fun initial ^halt)
+             (fun initial #halt)
              (erlang.raise kind reason stacktrace)))))
-    (acc (fun acc ^done))))
+    (acc (fun acc #done))))
 
 ;; reverse-slice
 
@@ -1363,30 +1363,30 @@
 
 ;; sort
 
-(defn- sort-reducer [entry {^split y x r rs bool} fun]
+(defn- sort-reducer [entry {#split y x r rs bool} fun]
   (cond
-    (== (fun y entry) bool) {^split entry y [x & r] rs bool}
-    (== (fun x entry) bool) {^split y entry [x & r] rs bool}
-    (== r []) {^split y x [entry] rs bool}
-    :true {^pivot y x r rs entry bool}))
+    (== (fun y entry) bool) {#split entry y [x & r] rs bool}
+    (== (fun x entry) bool) {#split y entry [x & r] rs bool}
+    (== r []) {#split y x [entry] rs bool}
+    :true {#pivot y x r rs entry bool}))
 
-(defn- sort-reducer [entry {^pivot y x r rs s bool} fun]
+(defn- sort-reducer [entry {#pivot y x r rs s bool} fun]
   (cond
-    (== (fun y entry) bool) {^pivot entry y [x & r] rs s bool}
-    (== (fun x entry) bool) {^pivot y entry [x & r] rs s bool}
-    (== (fun s entry) bool) {^split entry s [] [[y x & r] & rs] bool}
-    :true {^split s entry [] [[y x & r] & rs] bool}))
+    (== (fun y entry) bool) {#pivot entry y [x & r] rs s bool}
+    (== (fun x entry) bool) {#pivot y entry [x & r] rs s bool}
+    (== (fun s entry) bool) {#split entry s [] [[y x & r] & rs] bool}
+    :true {#split s entry [] [[y x & r] & rs] bool}))
 
 (defn- sort-reducer [entry [x] fun]
-  {^split entry x [] [] (fun x entry)})
+  {#split entry x [] [] (fun x entry)})
 
 (defn- sort-reducer [entry acc _fun]
   [entry & acc])
 
-(defn- sort-terminator [{^split y x r rs bool} fun]
+(defn- sort-terminator [{#split y x r rs bool} fun]
   (sort-merge [[y x & r] & rs] fun bool))
 
-(defn- sort-terminator [{^pivot y x r rs s bool} fun]
+(defn- sort-terminator [{#pivot y x r rs s bool} fun]
   (sort-merge [[s] [y x & r] & rs] fun bool))
 
 (defn- sort-terminator [acc _fun]
@@ -1550,21 +1550,21 @@
 
 (defimpl sequential list
 
-  (defn reduce [_ {^halt acc} _fun]
-    {^halted acc})
-  (defn reduce [list {^suspend acc} fun]
-    {^suspended acc (fn [acc1] (reduce list acc1 fun))})
-  (defn reduce [[] {^cont acc} _fun]
-    {^done acc})
-  (defn reduce [[h & t] {^cont acc} fun]
+  (defn reduce [_ {#halt acc} _fun]
+    {#halted acc})
+  (defn reduce [list {#suspend acc} fun]
+    {#suspended acc (fn [acc1] (reduce list acc1 fun))})
+  (defn reduce [[] {#cont acc} _fun]
+    {#done acc})
+  (defn reduce [[h & t] {#cont acc} fun]
     (reduce t (fun h acc) fun))
 
   (defn member? [_list _value]
     ;; TODO add macro `__MODULE__`
-    {^error ^"sequential.list"})
+    {#error #'sequential.list'})
   (defn count [_list]
     ;; TODO add macro `__MODULE__`
-    {^error ^"sequential.list"})
+    {#error #'sequential.list'})
   )
 
 (defimpl sequential map
@@ -1576,14 +1576,14 @@
                        fun))
 
   (defn member? [map {key value}]
-    {^ok (match? {^ok value}
+    {#ok (match? {#ok value}
                  (maps.find key map))})
 
   (defn member? [_map _other]
-    {^ok :false})
+    {#ok :false})
 
   (defn count [map]
-    {^ok (map-size map)}))
+    {#ok (map-size map)}))
 
 ;; TODO
 

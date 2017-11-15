@@ -21,12 +21,12 @@
 -define(is_downcase(S), (S >= $a andalso S =< $z)).
 
 %% Quotes
--define(is_quote(S), (S == $" orelse S == $')).
+-define(is_single_quote(S), (S == $')).
 
 %% Identifiers
 -define(is_identifier_start(S),
-        (?is_upcase(S) orelse ?is_downcase(S) orelse (S == $!) orelse (S == $$) orelse (S == $%) orelse (S == $*) orelse (S == $+) orelse (S == $-) orelse (S == $/) orelse (S == $<) orelse (S == $=) orelse (S == $>) orelse (S == $?) orelse (S == $@) orelse (S == $_) orelse (S == $|))).
--define(is_identifier(S), (?is_identifier_start(S) orelse ?is_digit(S) orelse (S == $~) orelse (S == $&) orelse (S == $#) orelse (S == $^))).
+        (?is_upcase(S) orelse ?is_downcase(S) orelse (S == $!) orelse (S == $$) orelse (S == $%) orelse (S == $*) orelse (S == $+) orelse (S == $-) orelse (S == $/) orelse (S == $<) orelse (S == $=) orelse (S == $>) orelse (S == $?) orelse (S == $@) orelse (S == $^) orelse (S == $_) orelse (S == $|))).
+-define(is_identifier(S), (?is_identifier_start(S) orelse ?is_digit(S) orelse (S == $~) orelse (S == $&) orelse (S == $#))).
 
 %% Spaces
 -define(is_horizontal_space(S), (S == $\s orelse S == $\t)).

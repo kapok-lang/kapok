@@ -30,9 +30,9 @@
   (test "test attribute"
     (assert (=== 2
                  (attribute 1)))
-    (let [attributes (attr.module_info ^attributes)
-          {_, vsn} (lists.keyfind ^vsn, 1, attributes)
-          {_, date} (lists.keyfind ^date, 1, attributes)]
+    (let [attributes (attr.module_info #attributes)
+          {_, vsn} (lists.keyfind #vsn, 1, attributes)
+          {_, date} (lists.keyfind #date, 1, attributes)]
       (assert (=== [1050] vsn))
       (assert (=== [20170927] date))))
   )

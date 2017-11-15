@@ -15,8 +15,8 @@
 
   ## Examples
 
-      kapok> (tuple.duplicate ^hello 3)
-      {^hello ^hello ^hello}
+      kapok> (tuple.duplicate #hello 3)
+      {#hello #hello #hello}
 
   """
   (erlang.make_tuple size data))
@@ -32,13 +32,13 @@
 
   ## Examples
 
-      kapok> (let [t {^bar ^baz}]
-               (tuple.insert-at t 0 ^foo))
-      {^foo ^bar ^baz}
+      kapok> (let [t {#bar #baz}]
+               (tuple.insert-at t 0 #foo))
+      {#foo #bar #baz}
 
-      kapok> (let [t {^bar ^baz}]
-               (tuple.insert-at t 2 ^bong))
-      {^bar ^baz ^bong}
+      kapok> (let [t {#bar #baz}]
+               (tuple.insert-at t 2 #bong))
+      {#bar #baz #bong}
 
   """
   (erlang.insert_element (inc index) tuple value))
@@ -53,9 +53,9 @@
 
   ## Examples
 
-      kapok> (let [t {^foo ^bar}]
-               (tuple.append t ^baz))
-      {^foo ^bar ^baz}
+      kapok> (let [t {#foo #bar}]
+               (tuple.append t #baz))
+      {#foo #bar #baz}
   """
   (erlang.append_element tuple value))
 
@@ -70,9 +70,9 @@
 
   ## Examples
 
-      kapok> (let [t {^foo ^bar ^baz}]
+      kapok> (let [t {#foo #bar #baz}]
                (tuple.delete-at t 0))
-      {^bar ^baz}
+      {#bar #baz}
 
   """
   (erlang.delete_element (inc index) tuple))
@@ -84,9 +84,9 @@
 
   ## Examples
 
-      kapok> (let [t {^foo ^bar ^baz}]
+      kapok> (let [t {#foo #bar #baz}]
                (tuple.to-list t))
-      [^foo ^bar ^baz]
+      [#foo #bar #baz]
 
   """
   (erlang.tuple_to_list tuple))

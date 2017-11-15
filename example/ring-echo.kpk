@@ -27,20 +27,20 @@
      (case pidlist
        ([h & t] (send h {{first left} t c message}))
        ([] (case c
-             (m (send first {^exit left}))
+             (m (send first {#exit left}))
              (_ (send first {{first, left}, left, (+ 1 c) message})))))
      (process m main))
-    ({^exit, pidlist}
+    ({#exit, pidlist}
      (case pidlist
-       ([h & t] (send h {^exit, t}))
-       ([] ^ok))
+       ([h & t] (send h {#exit, t}))
+       ([] #ok))
      (format #"process exit.~n" [])
-     (send main ^ok))
+     (send main #ok))
     (other
      (format #"oh no, something goes wrong! receiving ~p~n" [other]))
     (after 1000
      (format #"unexpected timeout")
-     (throw ^'unexpected timeout')))
+     (throw #'unexpected timeout')))
   )
 
 (defn main []
@@ -60,5 +60,5 @@
     ;; make sure all processes are exit
     (do-times p (fn []
                   (receive
-                    (_message ^ok))))))
+                    (_message #ok))))))
 

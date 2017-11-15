@@ -8,17 +8,17 @@
 
 (defn erl-to-abstract-format [string]
   (case (erl_scan.string string)
-    ({^ok tokens _end-location}
-     (let [{^ok expr_list} (erl_parse.parse_exprs tokens)]
+    ({#ok tokens _end-location}
+     (let [{#ok expr_list} (erl_parse.parse_exprs tokens)]
        expr_list))
-    ({^error error_info error_location}
+    ({#error error_info error_location}
      (erlang.throw {"scan error, location: ~w, error: ~s~n"
                     [error_location error_info]}))))
 
 (defn eval-erlang-expr [string]
   (let [eaf (erl-to-abstract-format string)
         [expr] eaf
-        {^value, value, _new-bindings} (erl_eval.expr expr [])]
+        {#value, value, _new-bindings} (erl_eval.expr expr [])]
     value))
 
 (defn eval-kapok-expr [string]

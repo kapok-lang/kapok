@@ -31,8 +31,8 @@
   `(fn [entry (acc h prev t) &as acc]
      (let [value (~callback entry)]
        (case prev
-         ({^value value} (skip acc))
-         (_ (next-with-acc ~f entry h {^value value} t))))))
+         ({#value value} (skip acc))
+         (_ (next-with-acc ~f entry h {#value value} t))))))
 
 
 (defmacro drop-while [callback &optional f]
@@ -66,11 +66,11 @@
 
 (defmacro scan-2 [callback &optional f]
   `(fn
-     ([entry (acc h ^first t)]
-      (next-with-acc ~f entry h {^ok entry} t))
-     ([entry (acc h {^ok acc} t)]
+     ([entry (acc h #first t)]
+      (next-with-acc ~f entry h {#ok entry} t))
+     ([entry (acc h {#ok acc} t)]
       (let [value (~callback entry acc)]
-        (next-with-acc ~f value h {^ok value} t)))))
+        (next-with-acc ~f value h {#ok value} t)))))
 
 (defmacro scan-3 [callback &optional f]
   `(fn [entry (acc h acc0 t)]
@@ -79,7 +79,7 @@
 
 (defmacro take-every [nth &optional f]
   `(fn
-     ([entry (acc h n t)] (&when (&or (=== n ^first)
+     ([entry (acc h n t)] (&when (&or (=== n #first)
                                       (=== n ~nth)))
       (next-with-acc ~f entry h 1 t))
      ([_entry (acc h n t)]

@@ -3,7 +3,7 @@
 
   Records are simply tuples where the first element is an atom:
 
-      kapok> (is_record {^user, "john", 27})
+      kapok> (is_record {#user, "john", 27})
       true
 
   This namespace provides conveniences for working with records at
@@ -28,7 +28,7 @@
 
   ## Examples
 
-      kapok> (is_record {^user, "john", 27})
+      kapok> (is_record {#user, "john", 27})
       :true
 
       kapok> (is_record {})
@@ -47,7 +47,7 @@
 
   ## Examples
 
-      kapok> (is_record {^user, "john", 27} ^user)
+      kapok> (is_record {#user, "john", 27} #user)
       :true
 
   """

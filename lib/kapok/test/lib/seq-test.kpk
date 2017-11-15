@@ -103,8 +103,8 @@
                                (== (rem x 2) 1))))))
 
   (test "test flat-map"
-    (assert (=== [^a ^a ^b ^b ^c ^c]
-                 (flat-map [^a ^b ^c]
+    (assert (=== [#a #a #b #b #c #c]
+                 (flat-map [#a #b #c]
                            (fn [x]
                              [x x]))))
     (assert (=== [1 2 3 4 5 6]
@@ -121,7 +121,7 @@
                                     (fn [i acc]
                                       (if (< acc n)
                                           {[i] (inc acc)}
-                                        {^halt acc})))))))
+                                        {#halt acc})))))))
 
   (test "test intersperse"
     (assert (=== [1 0 2 0 3]
@@ -134,8 +134,8 @@
   (test "test into/2"
     (assert (=== [0 1 2]
                  (into [1 2] [0])))
-    (assert (=== #{^a 1 ^b 2}
-                 (into [{^a 1} {^b 2}] #{}))))
+    (assert (=== #{#a 1 #b 2}
+                 (into [{#a 1} {#b 2}] #{}))))
 
   (test "test into/3"
     (assert (=== [3 6 9]
@@ -149,8 +149,8 @@
                  (map [1 2 3]
                       (fn [x]
                         (* x 2)))))
-    (assert (=== [{^a -1} {^b -2}]
-                 (map [{^a 1} {^b 2}]
+    (assert (=== [{#a -1} {#b -2}]
+                 (map [{#a 1} {#b 2}]
                       (fn [{k v}]
                         {k (- 0 v)})))))
 

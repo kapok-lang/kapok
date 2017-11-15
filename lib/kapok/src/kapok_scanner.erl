@@ -236,14 +236,14 @@ scan([$"|T], Line, Column, Scope, Tokens) ->
 %% Keywords and Atoms
 
 scan([S, H|T] = Original, Line, Column, Scope, Tokens)
-    when (S == $: orelse S == $^), ?is_quote(H) ->
+    when (S == $: orelse S == $#), ?is_single_quote(H) ->
   case scan_string(Line, Column + 2, T, [H]) of
     {ok, NewLine, NewColumn, Bin, Rest} ->
       case unescape_token(Bin) of
         {ok, Unescaped} ->
           Type = case S of
                    $: -> keyword;
-                   $^ -> atom
+                   $# -> atom
                  end,
           Suffix = case Scope#kapok_scanner_scope.existing_atoms_only of
                      true -> safe;
@@ -261,10 +261,10 @@ scan([S, H|T] = Original, Line, Column, Scope, Tokens)
        Original, lists:reverse(Tokens)}
   end;
 scan([S, H|T], Line, Column, Scope, Tokens)
-    when (S == $: orelse S == $^), ?is_identifier(H) ->
+    when (S == $: orelse S == $#), ?is_identifier(H) ->
   Type = case S of
            $: -> keyword;
-           $^ -> atom
+           $# -> atom
          end,
   handle_keyword_atom([H|T], Line, Column, Type, Scope, Tokens);
 

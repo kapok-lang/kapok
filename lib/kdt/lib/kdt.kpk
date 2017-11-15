@@ -15,12 +15,12 @@
     (exit message)))
 
 (defn- blank-arguements []
-  #{^command []
-    ^dir ""})
+  #{#command []
+    #dir ""})
 
 (defn- parse-args [[_program #"test" dir & _t] acc]
-  (let [acc1 (maps.put ^command ^test acc)
-        acc2 (maps.put ^dir dir acc1)]
+  (let [acc1 (maps.put #command #test acc)
+        acc2 (maps.put #dir dir acc1)]
     acc2))
 
 (defn- parse-args [args _acc]
@@ -33,20 +33,20 @@
   (case (filelib.is_file path)
     (:true
      (case (re.run (filename.basename path) ".*-test.kpk")
-       (^match :true)
-       ({^match, _} :true)
-       (^nomatch :false)))
+       (#match :true)
+       ({#match, _} :true)
+       (#nomatch :false)))
     (:false
      :false)))
 
 (defn iterate-dir [dir fun]
   (case (file.list_dir dir)
-    ({^ok filenames}
+    ({#ok filenames}
      (lists.foreach fun
                     (lists.map (fn [file]
                                  (filename.join dir file))
                                filenames)))
-    ({^error reason}
+    ({#error reason}
      (exit "fail to iterate dir: ~p, reason: ~p~n" [dir reason]))))
 
 (defn test-project [dir]
@@ -64,10 +64,10 @@
   )
 
 (defn- process-args [args]
-  (let [command (maps.get ^command args)]
+  (let [command (maps.get #command args)]
     (case command
-      (^test
-       (let [dir (maps.get ^dir args)]
+      (#test
+       (let [dir (maps.get #dir args)]
          (test-project dir))))))
 
 (defn main []

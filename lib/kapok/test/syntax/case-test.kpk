@@ -5,8 +5,8 @@
   (case i
     (0 :false)
     (1 :true)
-    (2 ^match)
-    (3 ^error)
+    (2 #match)
+    (3 #error)
     (_ i)))
 
 (defn main []
@@ -15,10 +15,10 @@
                  (let [x (f 4)]
                    (case x
                      (_ (&when (atom? x))
-                       ^match)
+                       #match)
                      (_ (&when (integer? x))
                        (let [_ (inc 1)]
-                         ^ignore)
+                         #ignore)
                        :true)
                      (_
                        :false))))))

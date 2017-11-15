@@ -147,13 +147,13 @@
 
   ## Examples
 
-      kapok> (list.keyfind [{^a 1} {^b 2}] ^a 0)
-      {^a 1}
+      kapok> (list.keyfind [{#a 1} {#b 2}] #a 0)
+      {#a 1}
 
-      kapok> (list.keyfind [{^a 1} {^b 2}] 2 1)
-      {^b 2}
+      kapok> (list.keyfind [{#a 1} {#b 2}] 2 1)
+      {#b 2}
 
-      kapok> (list.keyfind [{^a 1} {^b 2}] ^c 0)
+      kapok> (list.keyfind [{#a 1} {#b 2}] #c 0)
       :nil
 
   """
@@ -168,13 +168,13 @@
 
   ## Examples
 
-      kapok> (list.keymember? [{^a 1} {^b 2}] ^a 0)
+      kapok> (list.keymember? [{#a 1} {#b 2}] #a 0)
       :true
 
-      kapok> (list.keymember? [{^a 1} {^b 2}] 2 1)
+      kapok> (list.keymember? [{#a 1} {#b 2}] 2 1)
       :true
 
-      kapok> (list.keymember? [{^a 1} {^b 2}] ^c 0)
+      kapok> (list.keymember? [{#a 1} {#b 2}] #c 0)
       :false
 
   """
@@ -186,8 +186,8 @@
 
   ## Examples
 
-      kapok> (list.keyreplace [{^a 1} {^b 2}] ^a 0 {^a 3})
-      [{^a 3} {^b 2}]
+      kapok> (list.keyreplace [{#a 1} {#b 2}] #a 0 {#a 3})
+      [{#a 3} {#b 2}]
 
   """
   (lists.keyreplace key (inc position) list new-tuple))
@@ -198,11 +198,11 @@
 
   ## Examples
 
-      kapok> (list.keysort [{^a 5} {^b 1} {^c 3}] 1)
-      [{^b 1} {^c 3} {^a 5}]
+      kapok> (list.keysort [{#a 5} {#b 1} {#c 3}] 1)
+      [{#b 1} {#c 3} {#a 5}]
 
-      kapok> (list.keysort [{^a 5} {^c 1} {^b 3}] 0)
-      [{^a 5} {^b 3} {^c 1}]
+      kapok> (list.keysort [{#a 5} {#c 1} {#b 3}] 0)
+      [{#a 5} {#b 3} {#c 1}]
 
   """
   (lists.keysort (inc position) list))
@@ -214,11 +214,11 @@
 
   ## Examples
 
-      kapok> (list.keystore [{^a 1} {^b 2}] ^a 0 {^a 3})
-      [{^a 3} {^b 2}]
+      kapok> (list.keystore [{#a 1} {#b 2}] #a 0 {#a 3})
+      [{#a 3} {#b 2}]
 
-      kapok> (list.keystore [{^a 1} {^b 2}] ^c 0 {^c 3})
-      [{^a 1} {^b 2} {^c 3}]
+      kapok> (list.keystore [{#a 1} {#b 2}] #c 0 {#c 3})
+      [{#a 1} {#b 2} {#c 3}]
 
   """
   (lists.keystore key (inc position) list new-tuple))
@@ -230,14 +230,14 @@
 
   ## Examples
 
-      kapok> (list.keydelete [{^a 1} {^b 2}] ^a 0)
-      [{^b 2}]
+      kapok> (list.keydelete [{#a 1} {#b 2}] #a 0)
+      [{#b 2}]
 
-      kapok> (list.keydelete [{^a 1} {^b 2}] 2 1)
-      [{^a 1}]
+      kapok> (list.keydelete [{#a 1} {#b 2}] 2 1)
+      [{#a 1}]
 
-      kapok> (list.keydelete [{^a 1} {^b 2}] ^c 0)
-      [{^a 1} {^b 2}]
+      kapok> (list.keydelete [{#a 1} {#b 2}] #c 0)
+      [{#a 1} {#b 2}]
 
   """
   (lists.keydelete key (inc position) list))
@@ -390,7 +390,7 @@
   ## Examples
 
       kapok> (list.to-atom #"kapok")
-      ^kapok
+      #kapok
 
   """
   (erlang.list_to_atom char-list))
@@ -406,9 +406,9 @@
 
   ## Examples
 
-      kapok> (let [a ^barney]
+      kapok> (let [a #barney]
                (list.to-existing-atom #"barney"))
-      ^barney
+      #barney
 
   """
   (erlang.list_to_existing_atom char-list))
@@ -459,8 +459,8 @@
 
   ## Examples
 
-      kapok> (list.to-tuple [^share [^kapok 163]])
-      {^share, [^kapok 163]}
+      kapok> (list.to-tuple [#share [#kapok 163]])
+      {#share, [#kapok 163]}
 
   """
   (erlang.list_to_tuple list))
@@ -484,10 +484,10 @@
   (case (unicode.characters_to_binary list)
     (result (&when (binary? result))
      result)
-    ({^error _encoded _rest}
+    ({#error _encoded _rest}
      ;; todo revise to use exception
      (throw "unicode conversion error"))
-    ({^incomplete _encoded _rest}
+    ({#incomplete _encoded _rest}
      ;; todo revise to use exception
      (throw "unicode conversion incomplete error"))))
 

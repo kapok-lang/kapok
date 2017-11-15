@@ -21,9 +21,9 @@
   protocol:
 
       kapok> (let [dict (dict-impl.new)]
-                   dict1 (dict.put dict ^hello world)]
-               (dict.get dict ^hello))
-      ^world
+                   dict1 (dict.put dict #hello world)]
+               (dict.get dict #hello))
+      #world
 
   As well as the `sequential` and `collectable` protocols.
 
@@ -35,12 +35,12 @@
 
 (defmacro target [dict]
   `(case ~dict
-     (#{^'__struct__' x} (&when (atom? x))
+     (#{#'__struct__' x} (&when (atom? x))
       x)
      (m (&when (map? m))
-      ^map)
+      #map)
      (l (&when (list? l))
-      ^keyword)
+      #keyword)
      (x
       (unsupported-dict x))))
 

@@ -120,12 +120,11 @@ Atoms are used to represent constant values in Erlang. They are global constants
 In Kapok, there are a few ways to write a literal atom:
 
 ```clojure
-^atom
-^'this atom have space, so we have to use single-quotes as terminators'
-^"this atom uses double-quotes instead of single-quotes as terminators"
+#atom
+#'this atom have space, so we have to use single-quotes as terminators'
 ```
 
-Each of them starts with a ^ character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes or double-quotes as terminators. It is not recommanded that using a complex combination of non-printable characters or lots of non-printable characters for atoms, since that would be hard to read and write.
+Each of them starts with a # character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes as terminators. It is not recommanded that using a complex combination of non-printable characters or lots of non-printable characters for atoms, since that would be hard to read and write.
 
 #### Keyword
 
@@ -135,7 +134,6 @@ Keywords have different prefix comparing to atoms, you could write keywords as b
 ```clojure
 :name
 :'this keyword have space, so we have to use single-quotes as terminators'
-:"this keyword uses double-quotes instead of single-quotes as terminators"
 ```
 
 Each of them starts with a : character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes or double-quotes as terminators. That same recommandation for atoms applies to keyword as well. It is not good to use a complex combination of non-printable characters or lots of non-printable characters for keywords.
@@ -183,8 +181,8 @@ Notice that Clojure supports namespaced keywords, which gives the same keyword d
 Boolean type in Kapok is the same with Erlang. There is no distinct boolean type; instead, the atoms true and false are given a special interpretation and are used to represent boolean literals.
 
 ```clojure
-^true  ;=> evaluate to boolean true
-^false ;=> boolean false
+#true  ;=> evaluate to boolean true
+#false ;=> boolean false
 ;; or write them in keywords
 :true  ;=> boolean true
 :false ;=> boolean false
@@ -196,12 +194,12 @@ Please notice in most Lisp dialects, `nil` is logically false in conditionals. B
 
 ```clojure
 ;; use `nil?`
-(nil? :nil)       ;=> ^true
-(nil? [])         ;=> ^true
-(nil? :false)     ;=> ^true
-(nil? ^abc)       ;=> ^false
+(nil? :nil)       ;=> #true
+(nil? [])         ;=> #true
+(nil? :false)     ;=> #true
+(nil? #abc)       ;=> #false
 ;; `true?` reverses the result of calling `nil?` 
-(true? :nil)      ;=> ^false
+(true? :nil)      ;=> #false
 ```
 
 Please notice in these occasions only the Erlang strict version booleans are allowed:
@@ -384,7 +382,7 @@ Maps in Kapok are just maps in Erlang, which are associative collections of key-
 
 ```clojure
 ;; a map in Kapok
-#{^a 1 ^b 2}
+#{#a 1 #b 2}
 ```
 
 The surrounding `#{}` comes from Erlang. And the key-value pairs are matched by their positions, which is like Clojure. Also notice that `#{}` are used for literal set in Clojure.
