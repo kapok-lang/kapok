@@ -1,7 +1,7 @@
 (defprotocol collectable
   """A protocol to traverse data structures.
 
-  The `seq.into/2` function uses this protocol to insert an
+  The `(seq.into 2)` function uses this protocol to insert an
   sequential into a collection."""
 
   (into [collection]

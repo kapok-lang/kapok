@@ -1,8 +1,8 @@
 (ns tuple
   """Functions for working with tuples.
 
-  See also `core.elem/2`, `core.tuple?/1`, `core.set-elem/3` and
-  `core.tuple-size/1`."""
+  See also `(core.elem 2)`, `(core.tuple? 1)`, `(core.set-elem 3)` and
+  `(core.tuple-size 1)`."""
   (require erlang))
 
 (defn duplicate [data size]

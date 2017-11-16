@@ -131,13 +131,13 @@
     (assert (=== []
                  (intersperse [] 0))))
 
-  (test "test into/2"
+  (test "test (into 2)"
     (assert (=== [0 1 2]
                  (into [1 2] [0])))
     (assert (=== #{#a 1 #b 2}
                  (into [{#a 1} {#b 2}] #{}))))
 
-  (test "test into/3"
+  (test "test (into 3)"
     (assert (=== [3 6 9]
                  (into [2 3]
                        [3]
