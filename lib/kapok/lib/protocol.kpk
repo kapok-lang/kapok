@@ -154,7 +154,7 @@
     ([{#identifier _ id} & _t] (&when (&or (=== id #require)
                                            (=== id #use)))
      {#ns {#list meta clause}})
-    ([{#identifier _ id} {#identifier _ _} {#literal_list _ _} & _t] (&when (def? id))
+    ([{#identifier _ id} {#identifier _ _} & _t] (&when (def? id))
      ;; TODO check the impl defn matches the defprotocol declaration
      {#def {#list meta clause}})
     (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))

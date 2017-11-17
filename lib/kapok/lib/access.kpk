@@ -18,5 +18,117 @@
     "Gets the collection's value for the given key.")
 
   (get-and-update [collection key fun]
-    "Gets and updates the collection's value for the given key, in a single pass.")
+    """Gets and updates the collection's value for the given key,
+    in a single pass.
+
+    The argument function `fun` must receive the value for the given `key`
+    (or `:nil` if the key doesn't exist in `collection`). It must return
+    a tuple containing the `get` value and the new value to be stored
+    in the `collection`.
+
+    This function returns a two-element tuple.
+    The first element is the `get` value, as returned by `fun`.
+    The second element is the collection, updated with the value
+    returned by `fun`.""")
+  )
+
+
+(defimpl access list
+  (require lists)
+
+  (defn get
+
+    ([dict key] (&when (atom? key))
+     (case (lists.keyfind key 1 dict)
+       ({key value}
+        value)
+       (:false
+        :nil)))
+
+    ([_dict _key]
+     ;; TODO revise to use exception
+     (throw "the access protocol for list expect the key to be an atom"))
+    )
+
+  (defn get-and-update [dict key fun] (&when (atom? key))
+    (get-and-update dict [] key fun))
+
+  (defn- get-and-update [[{key value} & t] acc key fun]
+    (let [{get update} (fun value)]
+      {get (lists.reverse acc [{key update} & t])}))
+
+  (defn- get-and-update [[h & t] acc key fun]
+    (get-and-update t [h & acc] key fun))
+
+  (defn- get-and-update [[] acc key fun]
+    (let [{get update} (fun :nil)]
+      {get [{key update} & (lists.reverse acc)]}))
+
+  )
+
+(defimpl access map
+  (require maps)
+
+  (defn get [map key]
+    (case (maps.find key map)
+      ({#ok value}
+       value)
+      (#error
+       :nil)))
+
+  (defn get-and-update [map key fun]
+    (let [v (case (maps.find key map)
+                  ({#ok value}
+                   value)
+                  (#error
+                   :nil))
+          {get update} (fun v)]
+      {get (maps.put key update map)}))
+
+  (defn get! [map key] (&when (map? map))
+    (case (maps.find key map)
+      ({#ok value}
+       value)
+      (#error
+       ;; TODO revise to use exception
+       (throw "key not found"))))
+
+  (defn get! [_other _key]
+    ;; TODO revise to use exception
+    (throw "could not get key from data other than map/struct"))
+
+  (defn get-and-update! [map key fun] (&when (map? map))
+    (case (maps.find key map)
+      ({#ok value}
+       (let [{get update} (fun value)]
+         {get (maps.put key update map)}))
+      (#error
+       ;; TODO revise to use exception
+       (throw "key not found"))))
+
+  (defn get-and-update! [_other _key _fun]
+    ;; TODO revise to use exception
+    (throw "could not put key-value into data other than map/struct"))
+  )
+
+(defimpl access atom
+  (require io_lib)
+
+  (defn get [:nil _]
+    :nil)
+
+  (defn get [atom _]
+    (undefined atom))
+
+  (defn get-and-update [:nil _key _fun]
+    ;; TODO revise to use exception
+    (throw "could not put/update key on :nil"))
+
+  (defn get-and-update [atom _key _fun]
+    (undefined atom))
+
+  (defn- undefined [atom]
+    ;; TODO revise to use exception
+    (let [message (io_lib.format "do not support access atom ~p" [atom])]
+      (throw message)))
   )
