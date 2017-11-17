@@ -128,7 +128,9 @@ $1_core_lib_files      := \
   dictionary.kpk          \
   collectable.kpk         \
   string.chars.kpk        \
-  seq.kpk
+  seq.kpk                 \
+  alist.kpk               \
+  access.kpk
 $1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
                               $$(call get-files-in-dir,$$($1_lib_dir),kpk))

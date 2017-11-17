@@ -1,0 +1,22 @@
+;;
+
+(defprotocol access
+  """Dictionary-like access to data structures via the `(get ds)` syntax.
+
+  This module also empowers `core`'s nested update functions
+  `(core.get-in 2)`, `(core.put-in 3)`, `(core.update-in 3)` and
+  `(core.get-and-update-in 3)`.
+
+  ## Examples
+
+  Out of the box, `access` works all built-in dictionaries: `alist`,
+  `map` and `hashdict`.
+
+  """
+
+  (get [collection key]
+    "Gets the collection's value for the given key.")
+
+  (get-and-update [collection key fun]
+    "Gets and updates the collection's value for the given key, in a single pass.")
+  )

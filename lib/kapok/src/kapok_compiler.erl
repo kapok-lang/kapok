@@ -122,5 +122,7 @@ extended_libs() ->
    "dictionary.kpk",
    "collectable.kpk",
    "string.chars.kpk",
-   "seq.kpk"
+   "seq.kpk",
+   "alist.kpk",
+   "access.kpk"
   ].
