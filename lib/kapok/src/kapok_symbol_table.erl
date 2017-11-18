@@ -281,7 +281,7 @@ add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn-' ->
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defmacro-' ->
   add_def_clause(Map, Namespace, 'defmacro', FA, Meta, Clause);
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn'; Kind == 'defmacro' ->
-  add_into_kv_dict_dict(Map, Namespace, 'defs', FA, Meta, Clause).
+  add_into_kv_dict_dict_set(Map, Namespace, 'defs', FA, Meta, Clause).
 
 add_suspended_def_clause(Map, Namespace, FA, ClauseArgs) ->
   add_into_kv_dict_set(Map, Namespace, 'suspended_def_clauses', FA, ClauseArgs).
@@ -332,16 +332,22 @@ add_into_kv_dict_set(Map, Namespace, Key, DictKey, SetValue) ->
         end,
   update_kv(Map, Namespace, Key, Fun).
 
-add_into_kv_dict_dict(Map, Namespace, Key, Dict1Key, Dict2Key, Dict2Value) ->
+add_into_kv_dict_dict_set(Map, Namespace, Key, Dict1Key, Dict2Key, SetValue) ->
   Fun = fun(Dict1) ->
             NewDict2 = case orddict:find(Dict1Key, Dict1) of
-                         {ok, Dict2} -> orddict:store(Dict2Key, Dict2Value, Dict2);
-                         error -> orddict:from_list([{Dict2Key, Dict2Value}])
+                         {ok, Dict2} ->
+                           NewSet = case orddict:find(Dict2Key, Dict2) of
+                                      {ok, Set} -> ordsets:add_element(SetValue, Set);
+                                      error -> ordsets:from_list([SetValue])
+                                    end,
+                           orddict:store(Dict2Key, NewSet, Dict2);
+                         error ->
+                           Set = ordsets:from_list([SetValue]),
+                           orddict:from_list([{Dict2Key, Set}])
                        end,
             orddict:store(Dict1Key, NewDict2, Dict1)
         end,
   update_kv(Map, Namespace, Key, Fun).
-
 
 alias_matcher({F, A, _} = FAP) ->
   fun({Alias, Original}, _Meta, Acc) ->
@@ -462,8 +468,8 @@ private_macros(NS) ->
   ordsets:subtract(All, Exports).
 
 namespace_defs(NS, Options) ->
-  GetMetaClauses = fun(Meta, Clause, {nil, Clauses}) -> {Meta, [Clause | Clauses]};
-                      (_Meta, Clause, {Meta, Clauses}) -> {Meta, [Clause | Clauses]}
+  GetMetaClauses = fun(Meta, Clauses, {nil, Acc}) -> {Meta, Clauses ++ Acc};
+                      (_Meta, Clauses, {Meta, Acc}) -> {Meta, Clauses ++ Acc}
                    end,
   IterateDefs = fun(FA, MetaClauses, Acc) ->
                     {Meta, ReversedClauses} = orddict:fold(GetMetaClauses, {nil, []}, MetaClauses),

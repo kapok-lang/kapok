@@ -76,7 +76,37 @@
                  {#literal_list meta arguments}
                  {#map meta map-fields}]}))
 
-(defn- handle-defstruct [file meta _doc args]
+(defn- handle-defstruct-derive [[]]
+  [])
+
+(defn- handle-defstruct-derive [derives ]
+  ;; TODO add impl
+  (let [acc (lists.foldl (fn [d acc0]
+                           (let [r (derive d (__MODULE__) [])]
+                             [r & acc0]))
+                         []
+                         derives)]
+    (lists.reverse acc)
+    []))
+
+(defn- derive [protocol for options]
+  (assert-protocol! protocol)
+  (assert-impl! protocol #map)
+  ;; TODO add impl
+  #ok
+  )
+
+(defn- assert-protocol! [protocol]
+  ;; TODO add impl
+  #ok
+  )
+
+(defn- assert-impl! [protocol for]
+  ;; TODO add impl
+  #ok
+  )
+
+(defn- handle-defstruct [file meta _doc derives args]
   (let [fields (handle-defstruct-fields file meta args)
         fields-list (lists.reverse (lists.foldl (fn [{k v} acc]
                                                   [v k & acc])
@@ -86,7 +116,8 @@
     ;; 1. '__struct__' is for being compactible with elixir protocol
     ;; 2. 'new' is for the kapok struct constructor
     [(elixir-struct-constructor meta #'__struct__' fields-list)
-     (struct-constructor meta #'new' (next fields))]))
+     (struct-constructor meta #'new' (next fields))
+     & (handle-defstruct-derive derives)]))
 
 (defmacro defstruct [&rest args]
   """Define a struct."""
@@ -94,19 +125,24 @@
         file (maps.get #file _&ctx)]
     (case args
       ([] (kapok_error.compile_error meta file "not enough arguments to define struct"))
-      ([{c _ _} &as doc & t] (&when (string? c))
-       (handle-defstruct file meta doc t))
-      (t (handle-defstruct file meta (empty-doc) t)))))
+      ([{c _ _} &as doc {#literal_list _ derives} & t] (&when (string? c))
+       (handle-defstruct file meta doc derives t))
+      ([{#literal_list _ derives} & t]
+       (handle-defstruct file meta (empty-doc) derives t))
+      (t (handle-defstruct file meta (empty-doc) [] t)))))
 
 (defn- handle-defprotocol-clause [meta
-                          {_ protocol-meta protocol-name}
-                          {_ id-meta id-name} &as id
-                          {_ _ args-list} &as args]
-  {#list meta [{#identifier id-meta #defn} id args
-               {#list meta [{#dot meta {#protocol #protocol-impl}}
-                            {#atom protocol-meta protocol-name}
-                            {#atom id-meta id-name}
-                            & args-list]}]})
+                                  protocol
+                                  {_ id-meta id-name} &as id
+                                  {_ _ args-list} &as args]
+  (let [fa {#tuple id-meta [{#atom id-meta id-name} {#number id-meta (length args-list)}]}
+        def {#list meta [{#identifier id-meta #defn} id args
+                         {#list meta [{#dot meta {#protocol #protocol-impl}}
+                                      {#atom (token-meta protocol) (kapok_parser.dot_id_name protocol)}
+                                      {#atom id-meta id-name}
+                                      & args-list]}]}]
+    {fa def})
+  )
 
 (defn- handle-defprotocol-clause [{file meta} protocol clause]
   (case clause
@@ -118,22 +154,41 @@
      (handle-defprotocol-clause meta protocol id args))
     (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol: ~p" [clause]))))
 
-(defn- handle-defprotocol [file meta id doc clauses acc]
+(defn- handle-defprotocol [file meta id doc clauses {fa-acc def-acc}]
   (case clauses
     ([]
-     (let [defs (lists.reverse acc)]
+     (let [fa-list (lists.reverse fa-acc)
+           def-list (lists.reverse def-acc)
+           ;; Reflection on protocol implementation of Elixir:
+           ;; Any protocol module contains three extra functions:
+           ;;
+           ;;   * `(__protocol__ 1)` - returns the protocol name when `#name` is given,
+           ;;     and a alist with the protocol functions and their arities when `#functions`
+           ;;     is given
+           protocol-name-def {#list meta [{#identifier meta #defn}
+                                          {#identifier meta #__protocol__}
+                                          {#literal_list meta [{#atom meta #name}]}
+                                          {#atom meta (kapok_parser.dot_id_name id)}]}
+           protocol-functions-def {#list meta [{#identifier meta #defn}
+                                               {#identifier meta #__protocol__}
+                                               {#literal_list meta [{#atom meta #functions}]}
+                                               {#literal_list meta fa-list}]}
+           ]
        {#list meta [{#identifier meta #defns}
                     id
                     doc
-                    {#list meta []} & defs]}))
+                    {#list meta []}
+                    protocol-name-def
+                    protocol-functions-def
+                    & def-list]}))
     ([{#list clause-meta clause} & t]
-     (let [handled (handle-defprotocol-clause {file clause-meta} id clause)]
-       (handle-defprotocol file meta id doc t [handled & acc])))
+     (let [{fa def} (handle-defprotocol-clause {file clause-meta} id clause)]
+       (handle-defprotocol file meta id doc t {[fa & fa-acc] [def & def-acc]})))
     ([{_c clause-meta _} & _t]
      (kapok_error.compile_error clause-meta file "invalid clause for defprotocol: ~p" [clauses]))))
 
 (defn- handle-defprotocol [file meta id doc clauses]
-  (handle-defprotocol file meta id doc clauses []))
+  (handle-defprotocol file meta id doc clauses {[] []}))
 
 (defmacro defprotocol [id &rest args]
   """Define a protocol."""
