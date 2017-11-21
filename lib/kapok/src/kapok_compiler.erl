@@ -120,6 +120,8 @@ extended_libs() ->
    "tuple.kpk",
    "list.kpk",
    "dictionary.kpk",
+   "module.kpk",
+   "code-server.kpk",
    "collectable.kpk",
    "string.chars.kpk",
    "seq.kpk",

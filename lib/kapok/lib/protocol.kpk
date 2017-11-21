@@ -9,7 +9,10 @@
            kapok_parser
            erlang
            maps
-           lists))
+           lists
+           code-server
+           module
+           ))
 
 (defmacro string? [category]
   `(&or (=== ~category #list_string)
@@ -79,7 +82,7 @@
 (defn- handle-defstruct-derive [[]]
   [])
 
-(defn- handle-defstruct-derive [derives ]
+(defn- handle-defstruct-derive [derives]
   ;; TODO add impl
   (let [acc (lists.foldl (fn [d acc0]
                            (let [r (derive d (__MODULE__) [])]
@@ -154,7 +157,65 @@
      (handle-defprotocol-clause meta protocol id args))
     (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol: ~p" [clause]))))
 
-(defn- handle-defprotocol [file meta id doc clauses {fa-acc def-acc}]
+
+(defn- builtin []
+  [{'atom? #atom}
+   {'bitstring? #bitstring}
+   {'integer? #integer}
+   {'float? #float}
+   {'function? #function}
+   {'tuple? #tuple}
+   {'list? #list}
+   {'map? #map}
+   {'pid? #pid}
+   {'port? #port}
+   {'reference? #reference}
+   ])
+
+(defn- after-defprotocol [fallback-to-any builtin]
+  [
+   `(defn impl-for [#{#__struct__ struct}] (&when (atom? struct))
+      (struct-impl-for struct))
+
+    `(defn- struct-impl-for [struct]
+      (let [target (module.concat (__MODULE__) struct)]
+        (case (impl-for? target)
+          (:true
+           (target.__impl__ #target))
+          (:false
+           (any-impl-for)))))
+
+    (if fallback-to-any
+        `(defn- any-impl-for []
+          (case (impl-for? (__MODULE__) #any)
+            (:true
+             (let [m (module.concat (__MODULE__) #any)]
+               (m.__impl__ #target)))
+            (:false :nil)))
+      `(defn- any-impl-for []
+        :nil))
+
+    `(defn- impl-for? [target]
+      (and (code-server.ensure-compiled? target)
+           (function-exported? target #__impl__ 1)))
+
+    &
+
+    (lists.map (fn [{guard mod}]
+                 (let [target (module.concat (__MODULE__) mod)]
+                   `(defn impl-for [data] (&when (~guard data))
+                          (case (impl-for? ~target)
+                            (:true
+                             (let [m ~target]
+                               (m.__impl__ #target)))
+                            (:false
+                             (any-impl-for))))))
+               builtin)
+    ]
+  )
+
+
+(defn- handle-defprotocol [file meta id doc fallback-to-any clauses {fa-acc def-acc}]
   (case clauses
     ([]
      (let [fa-list (lists.reverse fa-acc)
@@ -173,33 +234,41 @@
                                                {#identifier meta #__protocol__}
                                                {#literal_list meta [{#atom meta #functions}]}
                                                {#literal_list meta fa-list}]}
+           after (after-defprotocol fallback-to-any (builtin))
            ]
-       {#list meta [{#identifier meta #defns}
-                    id
-                    doc
-                    {#list meta []}
-                    protocol-name-def
-                    protocol-functions-def
-                    & def-list]}))
+       {#list meta (lists.append
+                    [{#identifier meta #defns}
+                     id
+                     doc
+                     `((require module))
+                     ;; {#list meta [{identifier meta #require}
+                     ;;              {identifier meta #module}]}
+                     protocol-name-def
+                     protocol-functions-def
+                     & after]
+                    def-list)}))
     ([{#list clause-meta clause} & t]
      (let [{fa def} (handle-defprotocol-clause {file clause-meta} id clause)]
-       (handle-defprotocol file meta id doc t {[fa & fa-acc] [def & def-acc]})))
+       (handle-defprotocol file meta id doc fallback-to-any t {[fa & fa-acc] [def & def-acc]})))
     ([{_c clause-meta _} & _t]
      (kapok_error.compile_error clause-meta file "invalid clause for defprotocol: ~p" [clauses]))))
 
+(defn- handle-defprotocol [file meta id doc [{#list _ [{#identifier _ #fallback-to-any}]} & clauses]]
+  (handle-defprotocol file meta id doc :true clauses {[] []}))
+
 (defn- handle-defprotocol [file meta id doc clauses]
-  (handle-defprotocol file meta id doc clauses {[] []}))
+  (handle-defprotocol file meta id doc :false clauses {[] []}))
 
 (defmacro defprotocol [id &rest args]
   """Define a protocol."""
   (let [meta (maps.get #meta _&ctx)
         file (maps.get #file _&ctx)]
     (case id
-      ({c _ _} (&when (dot-id? c))
+      ({c1 _ _} (&when (dot-id? c1))
        (case args
          ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
-         ([{c1 _ _} &as doc & t] (&when (&or (=== c1 #list_string)
-                                             (=== c1 #binary_string)))
+         ([{c2 _ _} &as doc & t] (&when (=== c2 #binary_string))
+          ;;(&when (string? c))
           (handle-defprotocol file meta id doc t))
          (t (handle-defprotocol file meta id (empty-doc) t))))
       (_ (kapok_error.compile_error meta file "invalid id for defprotocol: ~p" [id])))))
@@ -261,16 +330,25 @@
   #atom)
 (defn- type-of [self] (&when (bitstring? self))
   #bitstring)
-(defn- type-of [self] (&when (float? self))
-  #float)
 (defn- type-of [self] (&when (integer? self))
   #integer)
+(defn- type-of [self] (&when (float? self))
+  #float)
+(defn- type-of [self] (&when (function? self))
+  #function)
+(defn- type-of [self] (&when (tuple? self))
+  #tuple)
 (defn- type-of [self] (&when (list? self))
   #list)
 (defn- type-of [self] (&when (map? self))
   #map)
-(defn- type-of [self] (&when (tuple? self))
-  #tuple)
+(defn- type-of [self] (&when (pid? self))
+  #pid)
+(defn- type-of [self] (&when (port? self))
+  #port)
+(defn- type-of [self] (&when (reference? self))
+  #reference)
+
 ;; TODO add clause for struct
 
 (defn protocol-impl [protocol f self &rest args]

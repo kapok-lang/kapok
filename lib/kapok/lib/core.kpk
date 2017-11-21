@@ -6,6 +6,7 @@
 (ns core
   (require erlang
            lists
+           code
            kapok_scanner
            kapok_utils))
 
@@ -1322,7 +1323,44 @@
 (defn macro-error [file meta format &rest args]
   (kapok_error.compile_error meta file format args))
 
-;;; special macros
+;;; special functions and macros
+
+(defn function-exported? [module function arity]
+  """Returns `:true` if `module` is loaded and contains
+  a public `function` with given `arity`, otherwise `:false`.
+
+  Note that this function does not load the module in case
+  it is not loaded. Check `(code-server.ensure-loaded 1)` for more
+  information.
+
+  ## Examples
+
+      kapok> (function-exported? seq member? 1)
+      :true
+
+  """
+  (erlang.function_exported module function arity))
+
+(defn macro-exported? [module macro arity]
+  """Returns `:true` if `module` is loaded and cantains
+  a public `macro` with the given `arity`, otherwise `:false`.
+
+  Note that this function does not load the module in case
+  it is not loaded. Check `(code-server.ensure-loaded 1)` for more
+  information.
+
+  ## Examples
+
+      kapok> (macro-exported? core if 3)
+      :true
+
+  """
+  (case (code.is_loaded module)
+    ({#file _}
+     (lists.member {macro arity}
+                   (module.__info__ #macros)))
+    (_
+     :false)))
 
 (defmacro match? [{#identifier _ #_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches

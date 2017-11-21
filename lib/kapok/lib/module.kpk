@@ -1,0 +1,43 @@
+(ns module
+  """This module provides many functions to deal with modules during
+  compilation time."""
+  (require erlang))
+
+(defn concat [args] (&when (list? args))
+  (binary-to-atom (do-concat args) #utf8))
+
+(defn concat [left right]
+  (concat [left right]))
+
+(defn safe-concat [args] (&when (list? args))
+  (binary-to-existing-atom (do-concat args) #utf8))
+
+(defn- atom-to-binary [atom encoding]
+  (erlang.atom_to_binary atom encoding))
+
+(defn- binary-to-atom [binary encoding]
+  (erlang.binary_to_atom binary encoding))
+
+(defn- binary-to-existing-atom [binary encoding]
+  (erlang.binary_to_existing_atom binary encoding))
+
+(defn- do-concat [args]
+  (do-concat args <<"">>))
+
+(defn- do-concat [[h & t] acc] (&when (&and (atom? h)
+                                            (!== h :nil)))
+  (do-concat [(atom-to-binary h #utf8) & t] acc))
+
+(defn- do-concat [[:nil & t] acc]
+  (do-concat t acc))
+
+(defn- do-concat [[h & t] acc] (&when (binary? h))
+  (let [new-acc (case acc
+                  (<<"">>
+                   <<(h :binary)>>)
+                  (_
+                   <<(acc :binary) (".") (h :binary)>>))]
+    (do-concat t new-acc)))
+
+(defn- do-concat [[] acc]
+  acc)

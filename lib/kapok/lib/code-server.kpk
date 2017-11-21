@@ -1,0 +1,58 @@
+(ns code-server
+  (require erlang
+           code)
+  )
+
+(defn ensure-loaded [module] (&when (atom? module))
+  """Ensure the given module is loaded.
+
+  If the module is already loaded, this works as no-op. If the module
+  was not yet loaded, it tries to load it.
+
+  If it succeeds loading the module, it returns `{#module module}`.
+  If not, returns `{#error reason}` with the error reason."""
+  (code.ensure_loaded module))
+
+(defn ensure-loaded? [module]
+  """Ensures the given module is loaded.
+
+  Similar to `(ensure-loaded 1)`, but returns `:true`if the module
+  is already loaded or was successfully loaded. Returns `:false` otherwise.
+
+  ## Examples
+
+      kapok> (code-server.ensure-loaded? atom)
+      :true
+
+  """
+  (match? {#module module}
+          (ensure-loaded module)))
+
+(defn ensure-compiled [module] (&when (atom? module))
+  """Ensures the given module is compiled and loaded.
+
+  If the module is already loaded, it works as no-op. If the module was
+  not loaded yet, it checks if it needs to be compiled first then
+  tries to load it.
+
+  If it succeeds loading the module, it returns `{#module module}`.
+  If not, returns `{#error reason}` with the error reason."""
+  (case (code.ensure_loaded module)
+    ({#error #nofile}
+     (try (do
+           (module.__info__ #module)
+           {#module module})
+          (catch
+              ((#throw error) error))))
+    (other
+     other)))
+
+(defn ensure-compiled? [module]
+  """Ensures the given module is compiled and loaded.
+
+  Similar to `(ensure-compiled 1)`, but returns `:true` if the module
+  is already loaded or was successfully loaded and compiled.
+  Return `:false` otherwise.
+  """
+  (match? {#module module}
+          (ensure-compiled module)))
