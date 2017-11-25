@@ -119,6 +119,7 @@ $1_modules             := $$(call get-files-in-dir,$$($1_src_dir),erl)
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
 $1_core_lib_files      := \
   core.kpk                \
+  module.kpk              \
   protocol.kpk            \
   stream.reducers.kpk     \
   atom.kpk                \
@@ -126,7 +127,6 @@ $1_core_lib_files      := \
   tuple.kpk               \
   list.kpk                \
   dictionary.kpk          \
-  module.kpk              \
   code-server.kpk         \
   collectable.kpk         \
   string.chars.kpk        \

@@ -111,7 +111,9 @@ load_lib(File) ->
 
 core_libs() ->
   ["core.kpk",
-   "protocol.kpk"].
+   "module.kpk",
+   "protocol.kpk"
+  ].
 
 extended_libs() ->
   ["stream.reducers.kpk",
@@ -120,7 +122,6 @@ extended_libs() ->
    "tuple.kpk",
    "list.kpk",
    "dictionary.kpk",
-   "module.kpk",
    "code-server.kpk",
    "collectable.kpk",
    "string.chars.kpk",

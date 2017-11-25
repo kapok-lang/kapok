@@ -1,7 +1,8 @@
 (ns module
   """This module provides many functions to deal with modules during
   compilation time."""
-  (require erlang))
+  (require erlang)
+  (use core))
 
 (defn concat [args] (&when (list? args))
   (binary-to-atom (do-concat args) #utf8))
