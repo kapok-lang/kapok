@@ -212,12 +212,11 @@
     &
 
     (lists.map (fn [{guard mod}]
-                 (let [target (module.concat (__MODULE__) mod)]
-                   `(defn impl-for [data] (&when (~guard data))
-                          (case (impl-for? ~target)
+                 `(defn impl-for [data] (&when (~guard data))
+                    (let [target (module.concat (__MODULE__) ~mod)]
+                      (case (impl-for? target)
                             (:true
-                             (let [m ~target]
-                               (m.__impl__ #target)))
+                             (target.__impl__ #target))
                             (:false
                              (any-impl-for))))))
                builtin)
@@ -292,6 +291,19 @@
      {#def {#list meta clause}})
     (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))
 
+(defn- after-defimpl [{_ protocol-meta protocol-name}
+                      {_ for-meta for-name}]
+  [
+   `(defn __impl__ [#for]
+      ~{#atom for-meta for-name})
+
+   `(defn __impl__ [#target]
+      (__MODULE__))
+
+   `(defn __impl__ [#protocol]
+      ~{#atom protocol-meta protocol-name})
+   ])
+
 (defn- handle-defimpl [file meta protocol type doc defs {ns-acc defn-acc}]
   (let [{_ protocol-meta _} protocol
         {_ _ type-name} type]
@@ -302,11 +314,15 @@
              p-name (erlang.atom_to_list (kapok_parser.dot_id_name protocol))
              t-name (erlang.atom_to_list type-name)
              module-name (erlang.list_to_atom
-                          (lists.append p-name (lists.append #"." t-name)))]
-         {#list meta [{#identifier meta #defns}
-                      {#identifier protocol-meta module-name}
-                      doc
-                      {#list protocol-meta ns-all} & defn-all]}))
+                          (lists.append p-name (lists.append #"." t-name)))
+             after (after-defimpl protocol type)]
+         {#list meta (lists.append
+                      [{#identifier meta #defns}
+                       {#identifier protocol-meta module-name}
+                       doc
+                       {#list protocol-meta ns-all}
+                       & after]
+                      defn-all)}))
       ([{#list clause-meta clause} & t]
        (case (handle-defimpl-clause {file clause-meta} clause)
          ({#ns handled-ns}

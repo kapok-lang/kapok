@@ -40,8 +40,10 @@ expand_1(List, Ctx) when is_list(List) ->
   expand_list(List, Ctx);
 
 %% special forms
-expand_1({list, Meta, [{identifier, _, '__MODULE__'}]}, Ctx) ->
-  {{atom, Meta, ?m(Ctx, namespace)}, Ctx, true};
+%% TODO restore this __MODULE__ to macro after `ns`, `defn` is refactored to macros.
+%% expand_1({list, Meta, [{identifier, _, '__MODULE__'}]}, Ctx) ->
+%%   io:format("*** expend __MODULE__ to: ~p ***~n", [?m(Ctx, namespace)]),
+%%   {{atom, Meta, ?m(Ctx, namespace)}, Ctx, true};
 
 expand_1({list, Meta, [{identifier, _, Id} = Def | T]}, Ctx) when ?is_def(Id) ->
   %% TODO move defs into `core' as predefined macros

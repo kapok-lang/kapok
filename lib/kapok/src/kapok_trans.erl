@@ -207,8 +207,14 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
             {M3, F3, A3, P3} ->
               translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TCtx2);
             _ ->
-              throw({unknown_local_call, FunArity, Meta})
-              %% kapok_error:compile_error(Meta, ?m(TCtx2, file), "unknown local call: ~p", [FunArity])
+              %% TODO revise __MODULE__ to be macro, which is expended during compilation.
+              case Id of
+                '__MODULE__' ->
+                  translate({atom, Meta, ?m(Ctx, namespace)}, Ctx);
+                _ ->
+                  throw({unknown_local_call, FunArity, Meta})
+                  %% kapok_error:compile_error(Meta, ?m(TCtx2, file), "unknown local call: ~p", [FunArity])
+              end
           end
       end
   end;
