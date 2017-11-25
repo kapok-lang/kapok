@@ -112,6 +112,7 @@ load_lib(File) ->
 core_libs() ->
   ["core.kpk",
    "module.kpk",
+   "code-server.kpk",
    "protocol.kpk"
   ].
 
@@ -122,7 +123,6 @@ extended_libs() ->
    "tuple.kpk",
    "list.kpk",
    "dictionary.kpk",
-   "code-server.kpk",
    "collectable.kpk",
    "string.chars.kpk",
    "seq.kpk",

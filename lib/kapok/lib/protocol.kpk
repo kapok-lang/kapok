@@ -12,7 +12,7 @@
            lists
            code-server
            module
-           ))
+           io_lib))
 
 (defmacro string? [category]
   `(&or (=== ~category #list_string)
@@ -84,7 +84,7 @@
 
 (defn- handle-defstruct-derive [derives]
   ;; TODO add impl
-  (let [acc (lists.foldl (fn [d acc0]
+  (let [acc (lists.foldl (fn [{_ _ d} acc0]
                            (let [r (derive d (__MODULE__) [])]
                              [r & acc0]))
                          []
@@ -92,21 +92,59 @@
     (lists.reverse acc)
     []))
 
-(defn- derive [protocol for options]
+(defn- derive [protocol for _options]
   (assert-protocol! protocol)
   (assert-impl! protocol #map)
-  ;; TODO add impl
-  #ok
+
+  ;; TODO add checking for whether __deriving__ function exists in module impl.
+  ;; refer to `protocol.derive' in Elixir for more info.
+
+  (let [impl (module.concat protocol #map)]
+    `(defns ~impl
+       (defn __impl__ [#protocol]
+         ~{#atom [] protocol})
+
+       (defn __impl__ [#for]
+         ~{#atom [] for})
+
+       (defn __impl__ [#target]
+         ~{#atom [] impl})))
   )
 
-(defn- assert-protocol! [protocol]
-  ;; TODO add impl
-  #ok
-  )
+(defn- assert-protocol! [module]
+  (case (code-server.ensure-compiled module)
+    ({#module module}
+     #ok)
+    (_
+     ;; TODO revise to use exception
+     (throw (io_lib.format #"module ~p is not available" [module]))))
+  (try (module.#__protocol__ #name)
+    (catch
+      ((#throw _)
+       ;; TODO revise to use exception
+       (throw (io_lib.format #"module ~p is no a protocol" [module])))))
+  #ok)
 
-(defn- assert-impl! [protocol for]
-  ;; TODO add impl
-  #ok
+(defn- assert-impl! [protocol base]
+  (let [impl (module.concat protocol base)]
+    (case (code-server.ensure-compiled impl)
+      ({#module impl}
+       #ok)
+      (_
+       ;; TODO revise to use exception
+       (throw (io_lib.format #"impl ~p is not available" [impl]))))
+
+    (try (impl.#__impl__ #protocol)
+      ((protocol
+        #ok)
+       (other
+        ;; TODO revise to use exception
+        (throw (io_lib.format #"expected impl ~p to be an implementation of protocol ~p, but got ~p"
+                              [impl protocol other]))))
+      (catch
+          ((#throw _)
+           ;; TODO revise to use exception
+           (throw (io_lib.format #"impl ~p is not an implementation of a protocol" [impl]))))))
   )
 
 (defn- handle-defstruct [file meta _doc derives args]
@@ -138,8 +176,9 @@
   ;; TODO revise to use exception
   (kapok_error.compile_error meta file "protocol functions expect at least one argument"))
 
-(defn- handle-defprotocol-clause [file meta
-                                  protocol
+(defn- handle-defprotocol-clause [_file
+                                  _meta
+                                  _protocol
                                   {_ id-meta id-name} &as id
                                   {_ _ [t & _] &as args-list} &as args]
   (let [arity (length args-list)
@@ -148,8 +187,7 @@
                (let [m (impl-for! ~t)
                      f ~{#atom id-meta id-name}]
                  (m.f ~@args-list)))]
-    {fa def})
-  )
+    {fa def}))
 
 (defn- handle-defprotocol-clause [file meta protocol clause]
   (case clause
@@ -294,14 +332,14 @@
 (defn- after-defimpl [{_ protocol-meta protocol-name}
                       {_ for-meta for-name}]
   [
+   `(defn __impl__ [#protocol]
+      ~{#atom protocol-meta protocol-name})
+
    `(defn __impl__ [#for]
       ~{#atom for-meta for-name})
 
    `(defn __impl__ [#target]
       (__MODULE__))
-
-   `(defn __impl__ [#protocol]
-      ~{#atom protocol-meta protocol-name})
    ])
 
 (defn- handle-defimpl [file meta protocol type doc defs {ns-acc defn-acc}]

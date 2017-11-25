@@ -120,6 +120,7 @@ $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
 $1_core_lib_files      := \
   core.kpk                \
   module.kpk              \
+  code-server.kpk         \
   protocol.kpk            \
   stream.reducers.kpk     \
   atom.kpk                \
@@ -127,7 +128,6 @@ $1_core_lib_files      := \
   tuple.kpk               \
   list.kpk                \
   dictionary.kpk          \
-  code-server.kpk         \
   collectable.kpk         \
   string.chars.kpk        \
   seq.kpk                 \

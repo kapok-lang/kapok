@@ -213,7 +213,7 @@ translate_try(Meta, [Expr|Left], Ctx) ->
 
 translate_try_body(Meta, [], Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {try_without_body});
-translate_try_body(Meta, [{list, _, [{list, _, _} | _]} = Clauses | Left], Ctx) ->
+translate_try_body(Meta, [{list, _, [{list, _, _} | _] = Clauses} | Left], Ctx) ->
   {TClauses, TCtx} = lists:mapfoldl(fun translate_case_clause/2, Ctx, Clauses),
   {TCatchClauses, AfterBody, TCtx1} = translate_try_catch_after(Meta, Left, TCtx),
   {TClauses, TCatchClauses, AfterBody, TCtx1};
