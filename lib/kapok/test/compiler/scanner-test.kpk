@@ -10,7 +10,7 @@
   (let [tokens (scan string)]
     (case tokens
       ([token] token)
-      (erlang.throw "expect only one token"))))
+      (_ (erlang.throw "expect only one token")))))
 
 (defn scan-error [string]
   (let [{#error error_info _ _} (kapok_scanner.scan string 1 [])
