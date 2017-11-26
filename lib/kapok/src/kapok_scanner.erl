@@ -29,13 +29,8 @@ token_category(Token) ->
 token_meta(Token) ->
   element(2, Token).
 -spec token_symbol(Token :: token()) -> Return :: symbol().
-token_symbol(Token) ->
-  case Token of
-    {_, _, Symbol} ->
-      Symbol;
-    {_, _} ->
-      nil
-  end.
+token_symbol({_, _, Symbol}) ->
+  Symbol.
 
 build_meta(Line, Column) ->
   [{line, Line}, {column, Column}].

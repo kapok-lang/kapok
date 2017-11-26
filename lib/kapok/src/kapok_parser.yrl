@@ -14,7 +14,7 @@ Nonterminals
     paired_comma_collection_values paired_collection_value_list paired_collection_values
     unpaired_collection_value_list unpaired_collection_values open_bang_curly map_collection
     open_percent_curly set_collection
-    dot_op dot_identifier dot_identifier_part
+    dot_op dot
     .
 
 Terminals
@@ -61,7 +61,7 @@ value       -> keyword_expr : '$1'.
 value       -> atom_expr : '$1'.
 %% identifier
 value       -> identifier : '$1'.
-value       -> dot_identifier : '$1'.
+value       -> dot : '$1'.
 %% function argument and pattern guard keywords
 value       -> keyword_optional : '$1'.
 value       -> keyword_rest : '$1'.
@@ -99,13 +99,10 @@ atom_expr      -> atom : build_keyword_atom('$1').
 atom_expr      -> atom_safe : build_quoted_keyword_atom('$1', true).
 atom_expr      -> atom_unsafe : build_quoted_keyword_atom('$1', false).
 
-%% identifier
+%% dot
 dot_op         -> '.' : '$1'.
 
-dot_identifier_part -> atom_expr : '$1'.
-dot_identifier_part -> identifier : '$1'.
-dot_identifier -> dot_identifier_part dot_op dot_identifier_part : build_dot('$2', '$1', '$3').
-dot_identifier -> dot_identifier dot_op dot_identifier_part : build_dot('$2', '$1', '$3').
+dot -> value dot_op value : build_dot('$2', '$1', '$3').
 
 %% Macro syntaxs
 quote_expr            -> quote value : build_quote('$1', '$2').
@@ -197,7 +194,7 @@ Erlang code.
 -import(kapok_scanner, [token_category/1,
                         token_meta/1,
                         token_symbol/1]).
--export([dot_id_name/1]).
+-export([is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
 -include("kapok.hrl").
 
 %% Build token
@@ -220,10 +217,8 @@ build_quoted_keyword_atom(Token, Safe) ->
 binary_to_atom_op(true)  -> binary_to_existing_atom;
 binary_to_atom_op(false) -> binary_to_atom.
 
-build_dot(Dot, {Category, _, Id} = _Left, Right) when ?is_local_id(Category) ->
-  {dot, token_meta(Dot), {Id, token_symbol(Right)}};
-build_dot(Dot, {dot, _, _} = Left, Right) ->
-  {dot, token_meta(Dot), {dot_fullname(Left), token_symbol(Right)}}.
+build_dot(Dot, Left, Right) ->
+  {dot, token_meta(Dot), {Left, Right}}.
 
 build_bitstring_element(Token) ->
   Symbol = token_symbol(Token),
@@ -271,13 +266,24 @@ build_set(Marker, Args) ->
 
 %% Helper Functions
 
-dot_fullname({dot, _, {Left, Right}}) ->
-  list_to_atom(string:join([atom_to_list(Left), atom_to_list(Right)], ".")).
+is_plain_dot({C, _, {Left, Right}}) when ?is_dot(C) ->
+  is_plain_dot(Left) andalso is_plain_dot(Right);
+is_plain_dot({C, _, _}) when ?is_id(C); ?is_keyword_or_atom(C) ->
+  true;
+is_plain_dot(_) ->
+  false.
 
-dot_id_name({'dot', _, _} = Ast) ->
-  dot_fullname(Ast);
-dot_id_name({'identifier', _, Arg}) ->
+plain_dot_name({C, _, {Left, Right}}) when ?is_dot(C) ->
+  NameLeft = plain_dot_name(Left),
+  NameRight = plain_dot_name(Right),
+  list_to_atom(string:join([atom_to_list(NameLeft), atom_to_list(NameRight)], "."));
+plain_dot_name({C, _, Arg}) when ?is_id(C); ?is_keyword_or_atom(C) ->
   Arg.
+
+plain_dot_mf({C, _, {Left, Right}}) when ?is_dot(C) ->
+  NameLeft = plain_dot_name(Left),
+  NameRight = plain_dot_name(Right),
+  {NameLeft, NameRight}.
 
 %% Errors
 throw(Line, Error, Token) ->

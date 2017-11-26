@@ -6,6 +6,7 @@
          format_error/1,
          empty_doc/0]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
+-import(kapok_parser, [is_plain_dot/1, plain_dot_name/1]).
 -include("kapok.hrl").
 
 compile(Ast, Ctx) when is_list(Ast) ->
@@ -36,9 +37,9 @@ handle(Ast, Ctx) ->
 
 %% namespace
 
-handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_dot_id(C1), ?is_string(C2) ->
+handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_id_or_dot(C1), ?is_string(C2) ->
   handle_ns(Meta, Ast, Doc, T, Ctx);
-handle_ns(Meta, [{C1, _, _} = Ast | T], Ctx) when ?is_dot_id(C1) ->
+handle_ns(Meta, [{C1, _, _} = Ast | T], Ctx) when ?is_id_or_dot(C1) ->
   handle_ns(Meta, Ast, T, Ctx);
 handle_ns(Meta, T, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {'ns', T}}).
@@ -46,7 +47,14 @@ handle_ns(Meta, T, Ctx) ->
 handle_ns(Meta, Ast, Clauses, Ctx) ->
   handle_ns(Meta, Ast, empty_doc(), Clauses,  Ctx).
 handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
-  Name = kapok_parser:dot_id_name(Ast),
+  case is_plain_dot(Ast) of
+    true ->
+      ok;
+    false ->
+      kapok_error:compile_error(token_meta(Ast), ?m(Ctx, file),
+                                "invalid dot expression ~p for ns", [Ast])
+  end,
+  Name = plain_dot_name(Ast),
   Ctx1 = case ?m(Ctx, namespace) of
            nil ->
              Ctx#{namespace => Name};
@@ -72,14 +80,19 @@ handle_ns_clause({list, _, [{identifier, _, 'use'} | T]}, Ctx) ->
 handle_require_clause(List, Ctx) when is_list(List) ->
   lists:mapfoldl(fun handle_require_element/2, Ctx, List).
 
-handle_require_element({Category, Meta, Id}, Ctx) when ?is_local_id(Category) ->
+handle_require_element({Category, Meta, Id}, Ctx) when ?is_id(Category) ->
   {Id, kapok_ctx:add_require(Meta, Ctx, Id)};
 handle_require_element({dot, Meta, _} = Dot, Ctx) ->
-  Name = kapok_parser:dot_id_name(Dot),
-  {Name, kapok_ctx:add_require(Meta, Ctx, Name)};
+  case is_plain_dot(Dot) of
+    true ->
+      Name = plain_dot_name(Dot),
+      {Name, kapok_ctx:add_require(Meta, Ctx, Name)};
+    false ->
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for require", [Dot])
+  end;
 handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
-    [{C, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] when ?is_local_id(C) ->
+    [{identifier, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
       {Name, TCtx} = handle_require_element(Ast, Ctx),
       {Name, kapok_ctx:add_require(Meta, TCtx, Id, Name)};
     [{dot, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
@@ -93,18 +106,23 @@ handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
 handle_use_clause(List, Ctx) when is_list(List) ->
   lists:mapfoldl(fun handle_use_element/2, Ctx, List).
 
-handle_use_element({Category, Meta, Id}, Ctx) when ?is_local_id(Category) ->
+handle_use_element({Category, Meta, Id}, Ctx) when ?is_id(Category) ->
   Ctx1 = kapok_ctx:add_require(Meta, Ctx, Id),
   Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Id),
   {Id, Ctx2};
 handle_use_element({dot, Meta, _} = Dot, Ctx) ->
-  Name = kapok_parser:dot_id_name(Dot),
-  Ctx1 = kapok_ctx:add_require(Meta, Ctx, Name),
-  Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Name),
-  {Name, Ctx2};
+  case is_plain_dot(Dot) of
+    true ->
+      Name = plain_dot_name(Dot),
+      Ctx1 = kapok_ctx:add_require(Meta, Ctx, Name),
+      Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Name),
+      {Name, Ctx2};
+    false ->
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for use", [Dot])
+  end;
 handle_use_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
-    [{C, _, _} = Ast | T] when ?is_local_id(C) ->
+    [{C, _, _} = Ast | T] when ?is_id(C) ->
       {Name, Ctx1} = handle_use_element(Ast, Ctx),
       handle_use_element_arguments(Meta, Name, T, Ctx1);
     [{dot, _, _} = Ast | T] ->
@@ -162,10 +180,13 @@ add_default_uses(Ctx) ->
 
 
 %% defns
-handle_def_ns(Meta, Kind, [{C, _, _} = NameAst | T], Ctx) when ?is_dot_id(C) ->
-  handle_def_ns(Meta, Kind, NameAst, T, Ctx);
-handle_def_ns(Meta, Kind, T, Ctx) ->
-  kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind, T}}).
+handle_def_ns(Meta, Kind, [NameAst | T], Ctx) ->
+  case is_plain_dot(NameAst) of
+    true ->
+      handle_def_ns(Meta, Kind, NameAst, T, Ctx);
+    false ->
+      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {Kind, T}})
+  end.
 
 handle_def_ns(Meta, Kind, NameAst, [{C, _, _} = DocAst | T], Ctx) when ?is_string(C) ->
   handle_def_ns(Meta, Kind, NameAst, DocAst, T, Ctx);
@@ -175,7 +196,7 @@ handle_def_ns(Meta, Kind, NameAst, T, Ctx) ->
   handle_def_ns(Meta, Kind, NameAst, empty_doc(), T, Ctx).
 
 handle_def_ns(Meta, _Kind, NameAst, DocAst, [{list, _, NSArgs} | T], #{namespace := NS} = Ctx) ->
-  Name = kapok_parser:dot_id_name(NameAst),
+  Name = plain_dot_name(NameAst),
   Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx#{namespace => Name}),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
   build_namespace(Name, Ctx2),
@@ -572,7 +593,7 @@ group_arguments(Meta, Args, _Acc, Ctx) ->
 parse_functions(Meta, Args, Ctx) ->
   Fun = fun({list, _, [{identifier, _, Id}, {number, _, Integer}]}) when is_integer(Integer) ->
             {Id, Integer};
-           ({Category, _, Id}) when ?is_local_id(Category) ->
+           ({Category, _, Id}) when ?is_id(Category) ->
             Id;
            (Other) ->
             kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid function: ~p", [Other])
@@ -587,7 +608,7 @@ parse_function_aliases(Meta, Args, Ctx) ->
               when ?is_list(Category), is_integer(Integer) ->
             {Alias, {Id, Integer}};
            ({Category, _, [{C1, _, Id}, {C2, _, Alias}]})
-              when ?is_list(Category), ?is_local_id(C1), ?is_local_id(C2) ->
+              when ?is_list(Category), ?is_id(C1), ?is_id(C2) ->
             {Alias, Id};
            (Other) ->
             kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid rename arguments: ~p", [Other])

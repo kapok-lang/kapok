@@ -359,7 +359,8 @@ match_fa(Name, {Fun, _Arity, _ParaType}) when is_atom(Name) ->
 rewrite_function(Meta, Module, Fun, FunMeta, Arity, ParaType, Args) ->
   case kapok_rewrite:inline(Module, Fun, Arity, ParaType) of
     {M, F, _A, _P} ->
-      Ast = {list, Meta, [{dot, FunMeta, {M, F}} | Args]},
+      Dot = {dot, FunMeta, {{identifier, FunMeta, M}, {identifier, FunMeta, F}}},
+      Ast = {list, Meta, [Dot | Args]},
       {rewrite, Ast};
     false ->
       case kapok_rewrite:rewrite(Meta, Module, Fun, FunMeta, Arity, ParaType, Args) of

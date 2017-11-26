@@ -12,6 +12,7 @@
          pop_scope/1,
          add_var/3,
          add_let_var/3,
+         add_dot_let_var/3,
          add_bindings/2,
          get_var/3,
          get_var_current_scope/3,
@@ -139,6 +140,10 @@ add_let_var(Meta, Ctx, Var) ->
            end,
   Name = kapok_utils:gensym_plain(io_lib:format("~s_~s_", [Prefix, V])),
   add_var(Meta, Ctx, Var, Name).
+
+add_dot_let_var(Meta, Ctx, Prefix) ->
+  Name = kapok_utils:gensym_plain(io_lib:format("~s_", [Prefix])),
+  add_var(Meta, Ctx, Name, Name).
 
 add_var(Meta, #{scope := Scope} = Ctx, Var, Name) ->
   case is_valid_var_name(Var) of

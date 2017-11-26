@@ -6,6 +6,7 @@
          append/2,
          'list*'/2]).
 -import(kapok_scanner, [token_meta/1, token_text/1]).
+-import(kapok_parser, [is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
@@ -71,24 +72,30 @@ expand_1({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
     false ->
       expand_list(Ast, Ctx)
   end;
-expand_1({list, Meta, [{dot, DotMeta, {Module, Fun}} | Args]} = Ast, Ctx) ->
-  Arity = length(Args),
-  {R, Ctx1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, DotMeta, Args, Ctx),
-  case R of
-    {remote, {M, F, A, P}} ->
-      NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
-      {EAst, ECtx} = expand_macro_named(Meta, M, F, A, NewArgs, Ctx1),
-      {EAst, ECtx, true};
-    {rewrite, Ast1} ->
-      {Ast1, Ctx1, true};
+expand_1({list, Meta, [{dot, DotMeta, _} = Dot | Args]} = Ast, Ctx) ->
+  case is_plain_dot(Dot) of
+    true ->
+      {Module, Fun} = plain_dot_mf(Dot),
+      Arity = length(Args),
+      {R, Ctx1} = kapok_dispatch:find_remote_macro(Meta, Module, {Fun, Arity}, DotMeta, Args, Ctx),
+      case R of
+        {remote, {M, F, A, P}} ->
+          NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
+          {EAst, ECtx} = expand_macro_named(Meta, M, F, A, NewArgs, Ctx1),
+          {EAst, ECtx, true};
+        {rewrite, Ast1} ->
+          {Ast1, Ctx1, true};
+        false ->
+          expand_list(Ast, Ctx1)
+      end;
     false ->
-      expand_list(Ast, Ctx1)
+      expand_list(Ast, Ctx)
   end;
 %% list and literal list
 expand_1({Category, _, _} = Ast, Ctx) when ?is_list(Category) ->
   expand_list(Ast, Ctx);
-%% cons_list
-expand_1({Category, Meta, {Head, Tail}}, Ctx) when ?is_cons_list(Category) ->
+%% cons_list and dot
+expand_1({Category, Meta, {Head, Tail}}, Ctx) when ?is_cons_list(Category); ?is_dot(Category) ->
   {EHead, ECtx1, Expanded1} = expand_1(Head, Ctx),
   {ETail, ECtx2, Expanded2} = expand_1(Tail, ECtx1),
   {{Category, Meta, {EHead, ETail}}, ECtx2, Expanded1 orelse Expanded2};

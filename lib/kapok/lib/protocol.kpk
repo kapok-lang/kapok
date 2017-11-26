@@ -184,9 +184,8 @@
   (let [arity (length args-list)
         fa {#tuple id-meta [{#atom id-meta id-name} {#number id-meta arity}]}
         def `(defn ~id ~args
-               (let [m (impl-for! ~t)
-                     f ~{#atom id-meta id-name}]
-                 (m.f ~@args-list)))]
+               ((impl-for! ~t).~{#atom id-meta id-name} ~@args-list)
+               )]
     {fa def}))
 
 (defn- handle-defprotocol-clause [file meta protocol clause]
@@ -276,7 +275,7 @@
            protocol-name-def {#list meta [{#identifier meta #defn}
                                           {#identifier meta #__protocol__}
                                           {#literal_list meta [{#atom meta #name}]}
-                                          {#atom meta (kapok_parser.dot_id_name id)}]}
+                                          {#atom meta (kapok_parser.plain_dot_name id)}]}
            protocol-functions-def {#list meta [{#identifier meta #defn}
                                                {#identifier meta #__protocol__}
                                                {#literal_list meta [{#atom meta #functions}]}
@@ -349,7 +348,7 @@
       ([]
        (let [ns-all (lists.reverse ns-acc)
              defn-all (lists.reverse defn-acc)
-             p-name (erlang.atom_to_list (kapok_parser.dot_id_name protocol))
+             p-name (erlang.atom_to_list (kapok_parser.plain_dot_name protocol))
              t-name (erlang.atom_to_list type-name)
              module-name (erlang.list_to_atom
                           (lists.append p-name (lists.append #"." t-name)))

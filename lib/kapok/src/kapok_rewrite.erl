@@ -118,7 +118,8 @@ inline(_M, _F, _A, _P) ->
 rewrite(Meta, Module, Fun, FunMeta, _Arity, _ParaType, Args) ->
   case rewrite(Module, Fun, Args) of
     {M, F, Args1} ->
-      {list, Meta, [{dot, FunMeta, {M, F}} | Args1]};
+      Dot = {dot, FunMeta, {{identifier, FunMeta, M}, {identifier, FunMeta, F}}},
+      {list, Meta, [Dot | Args1]};
     false ->
       false
   end.
@@ -141,11 +142,7 @@ rewrite(_Receiver, _Fun, _Args) ->
 %% Helpers
 
 increment(Expr) ->
-  {list, [], [{dot, [], {'core', '+'}},
-               {number, [], 1},
-               Expr]}.
-
-
-
+  Dot = {dot, [], {{identifier, [], 'core'}, {identifier, [], '+'}}},
+  {list, [], [Dot, {number, [], 1}, Expr]}.
 
 %% rewrite core.set-elem/3, index + 1

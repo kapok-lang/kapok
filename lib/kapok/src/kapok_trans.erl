@@ -11,7 +11,8 @@
          eval/2,
          construct_new_args/5,
          format_error/1]).
--import(kapok_scanner, [token_meta/1, token_text/1]).
+-import(kapok_scanner, [token_meta/1, token_symbol/1, token_text/1]).
+-import(kapok_parser, [is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
 -import(kapok_trans_collection, [build_tuple/2,
                                  build_map_from/2,
                                  build_list/1,
@@ -23,6 +24,7 @@
                                ]).
 -import(kapok_trans_special_form, [translate_attribute/4,
                                    translate_let/4,
+                                   translate_dot_let/4,
                                    translate_do/3,
                                    translate_case/5,
                                    translate_fn/3,
@@ -75,6 +77,8 @@ translate({identifier, Meta, Id}, #{context := Context} = Ctx) ->
                       end;
                     let_pattern ->
                       kapok_ctx:add_let_var(Meta, Ctx, Id);
+                    dot_let_pattern ->
+                      kapok_ctx:add_dot_let_var(Meta, Ctx, Id);
                     _ ->
                       case kapok_ctx:get_var(Meta, Ctx, Id) of
                         {ok, Name} -> {Name, Ctx};
@@ -132,12 +136,18 @@ translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Ctx) ->
 
 %% fn
 translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Ctx)
-    when ?is_local_id(C) ->
+    when ?is_id(C) ->
   translate_fn(Meta, Id, Number, Ctx);
-translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, Id1}, {C2, _, Id2}, {number, _, Number}]},
+translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, _} = Dot, {C2, _, Id2}, {number, _, Number}]},
           Ctx)
-    when ?is_local_id(C1), ?is_local_id(C2) ->
-  translate_fn(Meta, Id1, Id2, Number, Ctx);
+    when ?is_id_or_dot(C1), ?is_id(C2) ->
+  case is_plain_dot(Dot) of
+    true ->
+      Id1 = plain_dot_name(Dot),
+      translate_fn(Meta, Id1, Id2, Number, Ctx);
+    false ->
+      kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for fn", [Dot])
+  end;
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id, {literal_list, _, _} = Args,
                         {list, _, [{keyword_when, _, _} | _]} = Guard | Body]}, Ctx) ->
   translate_fn(Meta, Id, Args, Guard, Body, Ctx);
@@ -172,13 +182,13 @@ translate({list, Meta, [{identifier, _, 'try'} | Exprs]}, Ctx) ->
 
 %% behaviour
 translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, #{def_kind := Kind} = Ctx)
-    when ?is_behaviour(Form), ?is_local_id(Category), ?is_attr(Kind) ->
+    when ?is_behaviour(Form), ?is_id(Category), ?is_attr(Kind) ->
   translate_attribute(Meta, Form, Id, Ctx);
 
 %% user-defined attribute
 translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
           #{def_kind := Kind} = Ctx)
-    when ?is_attribute(Form), ?is_local_id(C1), ?is_attr(Kind) ->
+    when ?is_attribute(Form), ?is_id(C1), ?is_attr(Kind) ->
   {EValue, ECtx} = kapok_compiler:eval_ast(Value, Ctx),
   translate_attribute(Meta, Attribute, EValue, ECtx);
 
@@ -219,38 +229,44 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
       end
   end;
 %%  Remote call
-translate({list, Meta, [{dot, DotMeta, {Module, Fun}} | Args]}, Ctx) ->
-  {TArgs, TCtx1} = translate_args(Args, Ctx),
-  Arity = length(Args),
-  case kapok_ctx:get_var(Meta, Ctx, Module) of
-    {ok, _} ->
-      M = {identifier, DotMeta, Module},
-      F = case kapok_ctx:get_var(Meta, TCtx1, Fun) of
-            {ok, _} -> {identifier, DotMeta, Fun};
-            error -> {atom, DotMeta, Fun}
-          end,
-      translate_remote_call(Meta, M, F, Arity, 'normal', Arity, TArgs, TCtx1);
-    error ->
-      FunArity = {Fun, Arity},
-      Namespace = ?m(TCtx1, namespace),
-      case Module of
-        Namespace ->
-          %% call to local module
-          case kapok_dispatch:find_local_function(FunArity, TCtx1) of
-            {F2, A2, P2} ->
-              translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
+translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
+  case is_plain_dot(Dot) of
+    true ->
+      {Module, Fun} = plain_dot_mf(Dot),
+      {TArgs, TCtx1} = translate_args(Args, Ctx),
+      Arity = length(Args),
+      case kapok_ctx:get_var(Meta, Ctx, Module) of
+        {ok, _} ->
+          M = {identifier, DotMeta, Module},
+          F = case kapok_ctx:get_var(Meta, TCtx1, Fun) of
+                {ok, _} -> {identifier, DotMeta, Fun};
+                error -> {atom, DotMeta, Fun}
+              end,
+          translate_remote_call(Meta, M, F, Arity, 'normal', Arity, TArgs, TCtx1);
+        error ->
+          FunArity = {Fun, Arity},
+          Namespace = ?m(TCtx1, namespace),
+          case Module of
+            Namespace ->
+              %% call to local module
+              case kapok_dispatch:find_local_function(FunArity, TCtx1) of
+                {F2, A2, P2} ->
+                  translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
+                _ ->
+                  throw({unknown_local_call, FunArity, Meta})
+              end;
             _ ->
-              throw({unknown_local_call, FunArity, Meta})
-          end;
-        _ ->
-          case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
-            {{M3, F3, A3, P3}, Ctx2} ->
-              translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
-            _ ->
-              kapok_error:compile_error(Meta, ?m(TCtx1, file),
-                                        "unknown remote call: ~p ~p", [Module, FunArity])
+              case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
+                {{M3, F3, A3, P3}, Ctx2} ->
+                  translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
+                _ ->
+                  kapok_error:compile_error(Meta, ?m(TCtx1, file),
+                                            "unknown remote call: ~p ~p", [Module, FunArity])
+              end
           end
-      end
+      end;
+    false ->
+      translate_dot_let(Meta, tuple_to_list(token_symbol(Dot)), Args, Ctx)
   end;
 translate({list, Meta, [{list, _, _} = H | T]}, Ctx) ->
   {TH, TCtx1} = translate(H, Ctx),
@@ -351,6 +367,12 @@ translate({backquote, _, {Category, Meta, Args}}, Ctx)
                                   TCtx1,
                                   Args),
   {build_tuple(Meta, [TC, TMeta, build_list(TArgs)]), TCtx2};
+translate({backquote, _, {Category, Meta, {Module, Fun}}}, Ctx) when ?is_dot(Category) ->
+  {TC, TCtx} = translate({atom, Meta, Category}, Ctx),
+  {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
+  {TModule, TCtx2} = translate({backquote, token_meta(Module), Module}, TCtx1),
+  {TFun, TCtx3} = translate({backquote, token_meta(Fun), Fun}, TCtx2),
+  {build_tuple(Meta, [TC, TMeta, build_tuple(Meta, [TModule, TFun])]), TCtx3};
 %% backquote a non-collection type, e.g. an atom.
 translate({backquote, Meta, Arg}, Ctx) ->
   translate({quote, Meta, Arg}, Ctx);
@@ -360,6 +382,10 @@ translate({Category, Meta, _}, Ctx) when Category == unquote; Category == unquot
   kapok_error:compile_error(Meta, ?m(Ctx, file), "~s outside backquote", [Category]);
 translate({evaluated_unquote_splicing, Meta, _}, Ctx) ->
   kapok_error:compile_error(Meta, ?m(Ctx, file), "unquote_splicing outside a list");
+
+%% standalone dot
+translate({dot, Meta, _} = Dot, Ctx) ->
+  kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot: ~p", [Dot]);
 
 %% bind
 translate({bind, Meta, {Arg, Id}} = Bind, #{context := Context} = Ctx) ->
@@ -528,23 +554,29 @@ translate_backquote_list(Category, Meta, [H|T], Atoms, Acc, Ctx) ->
   {TC, TCtx} = translate({atom, Meta, Category}, Ctx),
   {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
   {TListC, TCtx2} = translate({atom, Meta, 'list'}, TCtx1),
-  {TDot, TCtx3} = translate({atom, Meta, 'dot'}, TCtx2),
+  {TDotC, TCtx3} = translate({atom, Meta, 'dot'}, TCtx2),
   {TM, TCtx4} = translate({atom, Meta, 'kapok_macro'}, TCtx3),
   {TF, TCtx5} = translate({atom, Meta, 'list*'}, TCtx4),
-  TListDot = build_tuple(Meta, [TDot, TMeta, build_tuple(Meta, [TM, TF])]),
+  {TIdentifierC, TCtx6} = translate({atom, Meta, 'identifier'}, TCtx5),
+  TModule = build_tuple(Meta, [TIdentifierC, TMeta, TM]),
+  TFun = build_tuple(Meta, [TIdentifierC, TMeta, TF]),
+  TListDot = build_tuple(Meta, [TDotC, TMeta, build_tuple(Meta, [TModule, TFun])]),
   TAtoms = build_tuple(Meta, [TC, TMeta, build_list(Atoms)]),
   TAst = build_tuple(Meta, [TListC, TMeta, build_list([TListDot, TAtoms, Tail])]),
-  {TAst, TCtx5}.
+  {TAst, TCtx6}.
 
 build_macro_append(Meta, THead, Tail, Ctx) ->
   {TListC, TCtx} = translate({atom, Meta, 'list'}, Ctx),
   {TMeta, TCtx1} = translate(quote(Meta, Meta), TCtx),
-  {TDot, TCtx2} = translate({atom, Meta, 'dot'}, TCtx1),
+  {TDotC, TCtx2} = translate({atom, Meta, 'dot'}, TCtx1),
   {TM, TCtx3} = translate({atom, Meta, 'kapok_macro'}, TCtx2),
   {TF, TCtx4} = translate({atom, Meta, 'append'}, TCtx3),
-  TAppend = build_tuple(Meta, [TDot, TMeta, build_tuple(Meta, [TM, TF])]),
+  {TIdentifierC, TCtx5} = translate({atom, Meta, 'identifier'}, TCtx4),
+  TModule = build_tuple(Meta, [TIdentifierC, TMeta, TM]),
+  TFun = build_tuple(Meta, [TIdentifierC, TMeta, TF]),
+  TAppend = build_tuple(Meta, [TDotC, TMeta, build_tuple(Meta, [TModule, TFun])]),
   TAst = build_tuple(Meta, [TListC, TMeta, build_list([TAppend, THead, Tail])]),
-  {TAst, TCtx4}.
+  {TAst, TCtx5}.
 
 %% local call
 translate_local_call(Meta, F, A, P, Arity, TArgs, Ctx) ->

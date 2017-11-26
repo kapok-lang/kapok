@@ -2,6 +2,7 @@
 -module(kapok_trans_special_form).
 -export([translate_attribute/4,
          translate_let/4,
+         translate_dot_let/4,
          translate_let_args/2,
          translate_do/3,
          translate_case/5,
@@ -14,7 +15,7 @@
          translate_try/3,
          format_error/1
         ]).
--import(kapok_scanner, [token_meta/1]).
+-import(kapok_scanner, [token_meta/1, token_symbol/1]).
 -import(kapok_trans, [translate/2,
                       translate_def_arg/2,
                       translate_def_args/2,
@@ -35,9 +36,23 @@ translate_let(Meta, Args, Body, Ctx) ->
   TCtx3 = kapok_ctx:pop_scope(TCtx2),
   {build_block(Meta, TArgs ++ [BodyBlock]), TCtx3}.
 
+%% dot let
+translate_dot_let(Meta, Args, Tail, Ctx) ->
+  Ctx1 = kapok_ctx:push_scope(Ctx),
+  {TArgs, TCtx1, [Module, Fun]} = translate_dot_let_args(Args, Ctx1),
+  Dot = {dot, Meta, {Module, Fun}},
+  Body = [{list, Meta, [Dot | Tail]}],
+  {TBody, TCtx2} = translate_body(Meta, Body, TCtx1),
+  TCtx3 = kapok_ctx:pop_scope(TCtx2),
+  {build_block(Meta, TArgs ++ TBody), TCtx3}.
+
 translate_let_pattern(Arg, #{context := Context} = Ctx) ->
   {TArg, TCtx} = translate(Arg, Ctx#{context => let_pattern}),
   {TArg, TCtx#{context => Context}}.
+
+translate_dot_let_pattern(Arg, #{context := Context} = Ctx) ->
+  {TArg, TCtx} = translate(Arg, Ctx#{context => dot_let_pattern}),
+  {TArg, TCtx#{context => Context}, token_symbol(TArg)}.
 
 translate_let_args(Args, Ctx) ->
   translate_let_args(Args, [], Ctx).
@@ -45,11 +60,36 @@ translate_let_args([], Acc, Ctx) ->
   {lists:reverse(Acc), Ctx#{context => nil}};
 translate_let_args([H], _Acc, Ctx) ->
   Error = {let_odd_forms, {H}},
-  kapok_error:form_error(kapok_scanner:token_meta(H), ?m(Ctx, file), ?MODULE, Error);
+  kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
 translate_let_args([P1, P2 | T], Acc, Ctx) ->
   {TP1, TCtx} = translate_let_pattern(P1, Ctx),
   {TP2, TCtx1} = translate(P2, TCtx),
-  translate_let_args(T, [{match, ?line(kapok_scanner:token_meta(P1)), TP1, TP2} | Acc], TCtx1).
+  translate_let_args(T, [{match, ?line(token_meta(P1)), TP1, TP2} | Acc], TCtx1).
+
+translate_dot_let_arg({C, Meta, Name}, Ctx) when ?is_id(C) ->
+  case kapok_ctx:get_var(Meta, Ctx, Name) of
+    {ok, _} ->
+      {[], Ctx, {identifier, Meta, Name}};
+    _ ->
+      {[], Ctx, {atom, Meta, Name}}
+  end;
+translate_dot_let_arg({C, Meta, Name}, Ctx) when ?is_keyword_or_atom(C) ->
+  {[], Ctx, {atom, Meta, Name}};
+translate_dot_let_arg({_, Meta, _} = Dot, Ctx) ->
+  {TName, TCtx, Name} = translate_dot_let_pattern({identifier, Meta, 'DOT'}, Ctx),
+  {TDot, TCtx1} = translate(Dot, TCtx),
+  Ast = {match, ?line(Meta), TName, TDot},
+  Id = {identifier, Meta, Name},
+  {[Ast], TCtx1, Id}.
+
+translate_dot_let_args(Args, Ctx) ->
+  {AstList, Ctx1, IdList} = lists:foldl(fun (Ast, {AstAcc, C, IdAcc}) ->
+                                            {Ast1, C1, Id1} = translate_dot_let_arg(Ast, C),
+                                            {Ast1 ++ AstAcc, C1, [Id1 | IdAcc]}
+                                        end,
+                                        {[], Ctx, []},
+                                        Args),
+  {lists:reverse(AstList), Ctx1, lists:reverse(IdList)}.
 
 %% do
 translate_do(Meta, Exprs, Ctx) ->
