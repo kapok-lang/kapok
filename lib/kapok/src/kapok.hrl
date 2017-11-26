@@ -44,8 +44,9 @@
 -define(is_number(C), (C == 'number')).
 -define(is_keyword_or_atom(C), (C == 'keyword' orelse C == 'atom')).
 -define(is_id(C), (C == 'identifier')).
+-define(is_local_id(C), (?is_id(C) orelse ?is_keyword_or_atom(C))).
 -define(is_dot(C), (C == 'dot')).
--define(is_id_or_dot(C), (?is_id(C) orelse ?is_dot(C))).
+-define(is_local_id_or_dot(C), (?is_local_id(C) orelse ?is_dot(C))).
 -define(is_list(C), (C == 'list' orelse C == 'literal_list')).
 -define(is_cons_list(C), (C == 'cons_list')).
 -define(is_parameter_list(C), (C == 'literal_list' orelse C == 'cons_list')).

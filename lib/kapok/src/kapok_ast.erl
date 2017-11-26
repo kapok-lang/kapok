@@ -37,9 +37,9 @@ handle(Ast, Ctx) ->
 
 %% namespace
 
-handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_id_or_dot(C1), ?is_string(C2) ->
+handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_local_id_or_dot(C1), ?is_string(C2) ->
   handle_ns(Meta, Ast, Doc, T, Ctx);
-handle_ns(Meta, [{C1, _, _} = Ast | T], Ctx) when ?is_id_or_dot(C1) ->
+handle_ns(Meta, [{C1, _, _} = Ast | T], Ctx) when ?is_local_id_or_dot(C1) ->
   handle_ns(Meta, Ast, T, Ctx);
 handle_ns(Meta, T, Ctx) ->
   kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {invalid_body, {'ns', T}}).

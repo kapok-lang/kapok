@@ -140,7 +140,7 @@ translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}
   translate_fn(Meta, Id, Number, Ctx);
 translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, _} = Dot, {C2, _, Id2}, {number, _, Number}]},
           Ctx)
-    when ?is_id_or_dot(C1), ?is_id(C2) ->
+    when ?is_local_id_or_dot(C1), ?is_local_id(C2) ->
   case is_plain_dot(Dot) of
     true ->
       Id1 = plain_dot_name(Dot),

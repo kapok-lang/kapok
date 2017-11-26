@@ -268,7 +268,7 @@ build_set(Marker, Args) ->
 
 is_plain_dot({C, _, {Left, Right}}) when ?is_dot(C) ->
   is_plain_dot(Left) andalso is_plain_dot(Right);
-is_plain_dot({C, _, _}) when ?is_id(C); ?is_keyword_or_atom(C) ->
+is_plain_dot({C, _, _}) when ?is_local_id(C) ->
   true;
 is_plain_dot(_) ->
   false.
@@ -277,7 +277,7 @@ plain_dot_name({C, _, {Left, Right}}) when ?is_dot(C) ->
   NameLeft = plain_dot_name(Left),
   NameRight = plain_dot_name(Right),
   list_to_atom(string:join([atom_to_list(NameLeft), atom_to_list(NameRight)], "."));
-plain_dot_name({C, _, Arg}) when ?is_id(C); ?is_keyword_or_atom(C) ->
+plain_dot_name({C, _, Arg}) when ?is_local_id(C) ->
   Arg.
 
 plain_dot_mf({C, _, {Left, Right}}) when ?is_dot(C) ->
