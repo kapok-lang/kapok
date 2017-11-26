@@ -287,8 +287,6 @@
                      id
                      doc
                      `((require module))
-                     ;; {#list meta [{identifier meta #require}
-                     ;;              {identifier meta #module}]}
                      protocol-name-def
                      protocol-functions-def
                      & after]
