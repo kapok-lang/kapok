@@ -485,10 +485,10 @@
     (result (&when (binary? result))
      result)
     ({#error _encoded _rest}
-     ;; todo revise to use exception
+     ;; TODO revise to use exception
      (throw "unicode conversion error"))
     ({#incomplete _encoded _rest}
-     ;; todo revise to use exception
+     ;; TODO revise to use exception
      (throw "unicode conversion incomplete error"))))
 
 ;; Helpers
