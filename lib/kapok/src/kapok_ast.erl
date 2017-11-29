@@ -90,6 +90,39 @@ handle_require_element({dot, Meta, _} = Dot, Ctx) ->
     false ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for require", [Dot])
   end;
+handle_require_element({C1, _, [{identifier, _, Id}, {C2, _, Args}]}, Ctx)
+    when ?is_list(C1), Id == ?STDLIB_NS, ?is_list(C2) ->
+  Fun = fun({C3, C3Meta, _} = A, Ctx0) when ?is_id_or_dot(C3) ->
+            case is_plain_dot(A) of
+              true ->
+                Name = plain_dot_name(A),
+                Alias = {list, C3Meta, [{dot, C3Meta, {{identifier, C3Meta, ?STDLIB_NS},
+                                                       {identifier, C3Meta, Name}}},
+                                        {keyword, C3Meta, 'as'},
+                                        {identifier, C3Meta, Name}]},
+                {Name1, Ctx1} = handle_require_element(Alias, Ctx0),
+                {Name1, Ctx1};
+              false ->
+                kapok_error:compile_error(C3Meta, ?m(Ctx, file), "invalid expression ~p for require", [A])
+            end;
+           ({C3, C3Meta, C3Args} = A, Ctx0) when ?is_list(C3) ->
+            case C3Args of
+              [{C4, C4Meta, _} = Id1 | T] when ?is_id_or_dot(C4) ->
+                Name = plain_dot_name(Id1),
+                Dot = {dot, C4Meta, {{identifier, C4Meta, ?STDLIB_NS},
+                                     {identifier, C4Meta, Name}}},
+                {_, Ctx1} = handle_require_element({C3, C3Meta, [Dot | T]}, Ctx0),
+                Alias = {list, C3Meta, [Dot,
+                                        {keyword, C3Meta, 'as'},
+                                        {identifier, C3Meta, Name}]},
+                handle_require_element(Alias, Ctx1);
+              _ ->
+                kapok_error:compile_error(C3Meta, ?m(Ctx, file), "invalid require expression ~p", [A])
+            end
+        end,
+  lists:mapfoldl(Fun,
+                 Ctx,
+                 Args);
 handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
     [{identifier, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
@@ -120,6 +153,39 @@ handle_use_element({dot, Meta, _} = Dot, Ctx) ->
     false ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for use", [Dot])
   end;
+handle_use_element({C1, _, [{identifier, _, Id}, {C2, _, Args}]}, Ctx)
+    when ?is_list(C1), Id == ?STDLIB_NS, ?is_list(C2) ->
+  Fun = fun({C3, C3Meta, _} = A, Ctx0) when ?is_id_or_dot(C3) ->
+            case is_plain_dot(A) of
+              true ->
+                Name = plain_dot_name(A),
+                Alias = {list, C3Meta, [{dot, C3Meta, {{identifier, C3Meta, ?STDLIB_NS},
+                                                       {identifier, C3Meta, Name}}},
+                                        {keyword, C3Meta, 'as'},
+                                        {identifier, C3Meta, Name}]},
+                {Name1, Ctx1} = handle_use_element(Alias, Ctx0),
+                {Name1, Ctx1};
+              false ->
+                kapok_error:compile_error(C3Meta, ?m(Ctx, file), "invalid expression ~p for require", [A])
+            end;
+           ({C3, C3Meta, C3Args} = A, Ctx0) when ?is_list(C3) ->
+            case C3Args of
+              [{C4, C4Meta, _} = Id1 | T] when ?is_id_or_dot(C4) ->
+                Name = plain_dot_name(Id1),
+                Dot = {dot, C4Meta, {{identifier, C4Meta, ?STDLIB_NS},
+                                     {identifier, C4Meta, Name}}},
+                {_, Ctx1} = handle_use_element({C4, C4Meta, [Dot | T]}, Ctx0),
+                Alias = {list, C3Meta, [Dot,
+                                        {keyword, C3Meta, 'as'},
+                                        {identifier, C3Meta, Name}]},
+                handle_require_element(Alias, Ctx1);
+              _ ->
+                kapok_error:compile_error(C3Meta, ?m(Ctx, file), "invalid use expression ~p", [A])
+            end
+        end,
+  lists:mapfoldl(Fun,
+                 Ctx,
+                 Args);
 handle_use_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
     [{C, _, _} = Ast | T] when ?is_id(C) ->

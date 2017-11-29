@@ -21,20 +21,20 @@
 -include("kapok.hrl").
 
 new_macro_context() ->
-  #{'__struct__' => 'Kapok.MacroContext',
+  #{'__struct__' => 'kapok.macro-context',
     backquote_level => 0,                  %% the level in backquote form (probably embedded)
     unquote_level => 0,                    %% the level in unquote form (probably embedded)
     form => nil                            %% the body of current macro
    }.
 
 new_scope() ->
-  #{'__struct__' => 'Kapok.Scope',
+  #{'__struct__' => 'kapok.scope',
     parent => nil,                         %% parent scope
     vars => []                             %% a set of defined variables
    }.
 
 new_ctx() ->
-  #{'__struct__' => 'Kapok.Ctx',
+  #{'__struct__' => 'kapok.ctx',
     namespace => nil,                      %% the current namespace
     file => <<"nofile">>,                  %% the current filename
     line => 1,                             %% the current line

@@ -1,7 +1,7 @@
-(ns code-server
+(ns kapok.code-server
   (require erlang
            code)
-  (use core))
+  (use (kapok.core)))
 
 (defn ensure-loaded [module] (&when (atom? module))
   """Ensure the given module is loaded.

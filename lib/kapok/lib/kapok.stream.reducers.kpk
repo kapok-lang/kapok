@@ -1,7 +1,6 @@
 ;; Collection of reducers shared by seq and stream.
-(ns stream.reducers
-  (require gb_sets)
-  (use core))
+(ns kapok.stream.reducers
+  (require gb_sets))
 
 (defmacro chunk [n step limit &optional f]
   `(fn [entry (acc h {b c} t)]
@@ -10,7 +9,7 @@
            new (if (>= count ~limit)
                    (do
                     (let [left (- count ~step)]
-                      {(seq.take buffer left) left}))
+                      {(kapok.seq.take buffer left) left}))
                  {buffer count})]
        (if (=== count ~n)
            (next-with-acc ~f (lists.reverse buffer) h new t)

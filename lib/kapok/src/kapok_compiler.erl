@@ -110,22 +110,22 @@ load_lib(File) ->
   end.
 
 core_libs() ->
-  ["core.kpk",
-   "module.kpk",
-   "code-server.kpk",
-   "protocol.kpk"
+  ["kapok.core.kpk",
+   "kapok.module.kpk",
+   "kapok.code-server.kpk",
+   "kapok.protocol.kpk"
   ].
 
 extended_libs() ->
-  ["stream.reducers.kpk",
-   "atom.kpk",
-   "integer.kpk",
-   "tuple.kpk",
-   "list.kpk",
-   "dictionary.kpk",
-   "collectable.kpk",
-   "string.chars.kpk",
-   "seq.kpk",
-   "alist.kpk",
-   "access.kpk"
+  ["kapok.stream.reducers.kpk",
+   "kapok.atom.kpk",
+   "kapok.integer.kpk",
+   "kapok.tuple.kpk",
+   "kapok.list.kpk",
+   "kapok.dict.kpk",
+   "kapok.collectable.kpk",
+   "kapok.string.chars.kpk",
+   "kapok.seq.kpk",
+   "kapok.alist.kpk",
+   "kapok.access.kpk"
   ].

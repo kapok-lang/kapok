@@ -3,7 +3,7 @@
 
 ;; all functions here are imported for every ns by default.
 
-(ns core
+(ns kapok.core
   (require erlang
            lists
            code
@@ -74,7 +74,7 @@
   ;; the `core` namespace may be unimported where this macro is used,
   ;; so we'd better write the calling to `true?` in dot-identifier form
   ;; to specify its namespace.
-  `(case (core.true? ~test)
+  `(case (kapok.core.true? ~test)
      (:true ~then)
      (:false ~else)))
 
@@ -83,13 +83,13 @@
   otherwise else expr.
   If else is not supplied it defaults to nil."""
 
-  `(case (core.false? ~test)
+  `(case (kapok.core.false? ~test)
      (:true ~then)
      (:false ~else)))
 
 (defmacro when [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
-  `(case (core.true? ~test)
+  `(case (kapok.core.true? ~test)
      (:true ~@body)
      (:false #ok)))
 
@@ -98,7 +98,7 @@
 
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
-  `(case (core.true? ~test)
+  `(case (kapok.core.true? ~test)
      (:true #ok)
      (:false ~@body)))
 
@@ -130,13 +130,13 @@
   (cond) returns `#ok`.
   """
   (unless (nil? clauses)
-    `(core.if ~(first clauses)
-              ~(case (next clauses)
-                 (:nil
-                  (erlang.throw "cond requires an even number of forms"))
-                 (_
-                  (second clauses)))
-       (core.cond ~@(rest (rest clauses))))))
+    `(kapok.core.if ~(first clauses)
+                    ~(case (next clauses)
+                       (:nil
+                        (erlang.throw "cond requires an even number of forms"))
+                       (_
+                        (second clauses)))
+                  (kapok.core.cond ~@(rest (rest clauses))))))
 
 ;; macro
 
@@ -1219,7 +1219,7 @@
      ([] x)
      (_ (let [sym (gensym "and")]
           `(let [~sym ~x]
-             (core.if ~sym (core.and ~@more) ~sym)))))))
+             (kapok.core.if ~sym (kapok.core.and ~@more) ~sym)))))))
 
 (defmacro or
   """Boolean or (short-circuit).
@@ -1249,7 +1249,7 @@
      ([] x)
      (_ (let [sym (gensym "or")]
           `(let [~sym ~x]
-             (core.if ~sym ~sym (core.or ~@more))))))))
+             (kapok.core.if ~sym ~sym (kapok.core.or ~@more))))))))
 
 (defn xor [x y]
   """Boolean xor.

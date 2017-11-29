@@ -1,5 +1,5 @@
 (ns attribute-test.attr
-  (use kunit))
+  (use kapok.kunit))
 
 ;; TODO test pre-difined attributes
 ;; behavior
@@ -24,7 +24,7 @@
 (ns attribute-test.usage
   (require io lists)
   (use (attribute-test.attr :as attr))
-  (use kunit))
+  (use kapok.kunit))
 
 (defn main []
   (test "test attribute"

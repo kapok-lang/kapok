@@ -1,6 +1,6 @@
 (ns macro-test.inner
   "A namespace for testing macro privacy."
-  (use kunit))
+  (use kapok.kunit))
 
 (defmacro j []
   'x)
@@ -16,7 +16,7 @@
 
 (ns macro-test
   "A namespace for testing macro primitives."
-  (use kunit)
+  (use kapok.kunit)
   (use macro-test.inner))
 
 (defn p [a]

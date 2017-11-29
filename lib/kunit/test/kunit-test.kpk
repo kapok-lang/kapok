@@ -1,5 +1,5 @@
 (ns kunit-test
-  (use kunit))
+  (use kapok.kunit))
 
 (defn f []
   1)

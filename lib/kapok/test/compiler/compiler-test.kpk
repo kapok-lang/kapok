@@ -3,7 +3,7 @@
            erl_parse
            io
            kapok_compiler)
-  (use kunit))
+  (use kapok.kunit))
 
 
 (defn erl-to-abstract-format [string]

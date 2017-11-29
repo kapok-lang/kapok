@@ -1,4 +1,4 @@
-(ns integer
+(ns kapok.integer
   """Functions for working with integers."""
   (require erlang
            io_lib))

@@ -1,4 +1,4 @@
-(ns process
+(ns kapok.process
   """Conveniences for working with processes and the process dictionary.
 
   Besides the functions available in this module, the `core` module

@@ -16,7 +16,7 @@
                  (list_to_atom to-atom)
                  ;; rename a function unused
                  ((list_to_integer 2) to-int)))
-       kunit
+       kapok.kunit
        (io_lib
         :as verbose-name-iolib
         :exclude (fread
@@ -41,7 +41,7 @@
   (require
     io_lib
     (erlang :as erl))
-  (use kunit))
+  (use kapok.kunit))
 
 (defn main []
   (test "test ns require"
@@ -62,7 +62,7 @@
          :as erl
          :only (list_to_atom)
          :rename ((list_to_atom to-atom))))
-   (use kunit))
+   (use kapok.kunit))
 
   (defn main []
     (test "test defns"
@@ -79,7 +79,7 @@
   ((require io_lib)
    (use (erlang :only (list_to_atom)
                 :rename ((list_to_atom to-atom)))
-        kunit))
+        kapok.kunit))
 
   (defn main []
     (test "test defns twice"

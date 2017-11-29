@@ -1,18 +1,18 @@
 ;;; Functions and macros for protocol.
 ;; -*- Kapok -*-
 
-(ns protocol
+(ns kapok.protocol
   ;; need to use `core' explicitly since core libs
   ;; are not automatically imported or used when compiled.
-  (use core)
+  (use kapok.core)
   (require kapok_error
            kapok_parser
            erlang
            maps
            lists
-           code-server
-           module
-           io_lib))
+           io_lib
+           (kapok (code-server
+                   module))))
 
 (defmacro string? [category]
   `(&or (=== ~category #list_string)
@@ -286,7 +286,8 @@
                     [{#identifier meta #defns}
                      id
                      doc
-                     `((require module))
+                     `((require (kapok (module
+                                        code-server))))
                      protocol-name-def
                      protocol-functions-def
                      & after]

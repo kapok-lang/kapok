@@ -1,5 +1,5 @@
 (ns funcall-test.impl
-  (use kunit))
+  (use kapok.kunit))
 
 (defn f []
   "function without argument."
@@ -73,7 +73,7 @@
 
 (ns funcall-test.call
   (use funcall-test.impl)
-  (use kunit))
+  (use kapok.kunit))
 
 (defn main []
   (gen-test "test remote call")

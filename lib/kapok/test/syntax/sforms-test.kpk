@@ -1,6 +1,6 @@
 (ns sforms-test
   "A namespace for testing special forms."
-  (use kunit))
+  (use kapok.kunit))
 
 (defn main []
   (test "test do"

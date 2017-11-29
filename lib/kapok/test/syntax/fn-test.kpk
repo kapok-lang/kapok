@@ -1,6 +1,6 @@
 (ns fn-test
   (require lists)
-  (use kunit))
+  (use kapok.kunit))
 
 
 (defn g [e]

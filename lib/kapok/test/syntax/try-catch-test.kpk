@@ -1,5 +1,5 @@
 (ns try-catch-test
-  (use kunit))
+  (use kapok.kunit))
 
 (defn- generate-exception [1]
   """dummy doc for this function"""

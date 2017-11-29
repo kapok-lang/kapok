@@ -1,4 +1,4 @@
-(ns list
+(ns kapok.list
   """Implements functions that only make sense for lists
   and cannot be part of the seq protocol. In general,
   favor using the seq API instead of list.
@@ -17,7 +17,7 @@
   (require erlang
            lists
            unicode
-           tuple))
+           (kapok (tuple))))
 
 (defn delete [list item]
   """Deletes the given item from the list. Returns a list without

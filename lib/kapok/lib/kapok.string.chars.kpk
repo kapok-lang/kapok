@@ -1,4 +1,4 @@
-(defprotocol string.chars
+(defprotocol kapok.string.chars
   """The string.chars protocol is responsible for
   converting a structure to a binary (only if applicable).
   The only function required to be implemented is
@@ -6,8 +6,8 @@
 
   (to-string [thing]))
 
-(defimpl string.chars atom
-  (require atom)
+(defimpl kapok.string.chars atom
+  (require (kapok (atom)))
 
   (defn to-string [:nil]
     ""  ;; doc
@@ -17,7 +17,7 @@
     (atom.to-string atom))
   )
 
-(defimpl string.chars bitstring
+(defimpl kapok.string.chars bitstring
   (require erlang)
 
   (defn to-string [thing] (&when (binary? thing))
@@ -28,24 +28,21 @@
     (throw "cannot convert a bitstring to a string"))
   )
 
-(defimpl string.chars list
-  (require list)
+(defimpl kapok.string.chars list
+  (require (kapok (list)))
 
   (defn to-string [char-list]
-    (list.to-string char-list))
-  )
+    (list.to-string char-list)))
 
-(defimpl string.chars integer
-  (require integer)
+(defimpl kapok.string.chars integer
+  (require (kapok (integer)))
 
   (defn to-string [thing]
-    (integer.to-string thing))
-  )
+    (integer.to-string thing)))
 
-(defimpl string.chars float
+(defimpl kapok.string.chars float
   (require erlang
            io_lib_format)
 
   (defn to-string [thing]
-    (erlang.iolist_to_binary (io_lib_format.fwrite_g thing)))
-  )
+    (erlang.iolist_to_binary (io_lib_format.fwrite_g thing))))

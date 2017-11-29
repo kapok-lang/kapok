@@ -46,6 +46,7 @@
 -define(is_id(C), (C == 'identifier')).
 -define(is_local_id(C), (?is_id(C) orelse ?is_keyword_or_atom(C))).
 -define(is_dot(C), (C == 'dot')).
+-define(is_id_or_dot(C), (?is_id(C) orelse ?is_dot(C))).
 -define(is_local_id_or_dot(C), (?is_local_id(C) orelse ?is_dot(C))).
 -define(is_list(C), (C == 'list' orelse C == 'literal_list')).
 -define(is_cons_list(C), (C == 'cons_list')).
@@ -63,6 +64,9 @@
 -define(is_attribute(Id), (Id == 'attribute')).
 -define(is_attr(Id), (?is_behaviour(Id) orelse ?is_attribute(Id))).
 -define(is_special_form(Id), (Id == 'ns' orelse ?is_def(Id) orelse ?is_attr(Id))).
+
+%% standdard libraries ns name
+-define(STDLIB_NS, 'kapok').
 
 %% default source file suffix
 -define(SOURCE_FILE_SUFFIX, ".kpk").

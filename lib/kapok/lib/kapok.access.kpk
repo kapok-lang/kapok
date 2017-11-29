@@ -1,6 +1,6 @@
 ;;
 
-(defprotocol access
+(defprotocol kapok.access
   """Dictionary-like access to data structures via the `(get ds)` syntax.
 
   This module also empowers `core`'s nested update functions
@@ -33,7 +33,7 @@
   )
 
 
-(defimpl access list
+(defimpl kapok.access list
   (require lists)
 
   (defn get
@@ -66,7 +66,7 @@
 
   )
 
-(defimpl access map
+(defimpl kapok.access map
   (require maps)
 
   (defn get [map key]
@@ -111,7 +111,7 @@
     (throw "could not put key-value into data other than map/struct"))
   )
 
-(defimpl access atom
+(defimpl kapok.access atom
   (require io_lib)
 
   (defn get [:nil _]

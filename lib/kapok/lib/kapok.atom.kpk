@@ -1,7 +1,7 @@
 ;; A namespace which wraps functions for working with atoms.
 ;; -*- Kapok -*-
 
-(ns atom
+(ns kapok.atom
   "Functions for working with atoms."
   (require erlang))
 

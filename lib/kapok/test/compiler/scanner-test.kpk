@@ -1,6 +1,6 @@
 (ns scanner-test
   (require kapok_scanner io lists erlang)
-  (use kunit))
+  (use kapok.kunit))
 
 (defn scan [string]
   (let [{#ok, tokens, _locations} (kapok_scanner.scan string 1 [])]

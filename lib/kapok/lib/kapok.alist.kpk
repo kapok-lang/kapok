@@ -1,4 +1,4 @@
-(ns alist
+(ns kapok.alist
   """An alist (association list) is a list of tuples where
   the first element of the tuple is an atom and the second element
   can be any value.
@@ -24,8 +24,8 @@
   all the operations defined in `seq` and `list` can be applied too,
   specially when ordering is required."""
 
-  (require lists)
-  )
+  (require lists
+           (kapok (seq))))
 
 (defn alist?
   "Returns `:true` if `term` is an alist; otherwise returns `:false`."

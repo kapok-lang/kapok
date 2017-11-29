@@ -1,6 +1,6 @@
 (ns seq-test
-  (use seq)
-  (use kunit))
+  (use (kapok (seq
+               kunit))))
 
 (defn- range [begin end]
   (range begin end []))

@@ -1,4 +1,4 @@
-(ns kunit
+(ns kapok.kunit
   (require erlang io io_lib maps))
 
 (defn error [file line message]
@@ -20,7 +20,7 @@
           (_
            (io.format "~nassert failed~n   op: ~p~n left: ~p~n eval: ~p~nright: ~p~n eval: ~p~n~n"
                       ['~op '~left ~left '~right ~right])
-           (kunit.error ~file ~line "assert failed"))))
+           (kapok.kunit.error ~file ~line "assert failed"))))
       (_
        (error file line "invalid assert args: ~p~n" [args])))))
 

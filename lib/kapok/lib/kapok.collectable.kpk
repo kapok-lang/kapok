@@ -1,4 +1,4 @@
-(defprotocol collectable
+(defprotocol kapok.collectable
   """A protocol to traverse data structures.
 
   The `(seq.into 2)` function uses this protocol to insert an
@@ -10,7 +10,7 @@
   )
 
 
-(defimpl collectable list
+(defimpl kapok.collectable list
   (defn into [original]
     {[]
      (fn
@@ -21,7 +21,7 @@
        ([_ #halt]
         #ok))}))
 
-(defimpl collectable bitstring
+(defimpl kapok.collectable bitstring
   (require erlang)
 
   (defn into [original]
@@ -34,7 +34,7 @@
        ([_ #halt]
         #ok))}))
 
-(defimpl collectable map
+(defimpl kapok.collectable map
   (require maps)
 
   (defn into [original]

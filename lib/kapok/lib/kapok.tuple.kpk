@@ -1,4 +1,4 @@
-(ns tuple
+(ns kapok.tuple
   """Functions for working with tuples.
 
   See also `(core.elem 2)`, `(core.tuple? 1)`, `(core.set-elem 3)` and

@@ -1,6 +1,6 @@
 ;;
 
-(defprotocol sequential
+(defprotocol kapok.sequential
   "Sequential protocol used by `seq` and `stream` modules."
 
   (reduce [collection acc fun]
@@ -12,7 +12,7 @@
   (count [collection]
     "Retrieves the collection's size."))
 
-(defprotocol collection
+(defprotocol kapok.collection
   "A common protocol for built-in collections."
 
   (== [self &rest others]
@@ -34,7 +34,7 @@
 
 ;; TODO add more docs to seq functions
 
-(ns seq
+(ns kapok.seq
   """Provides a set of algorithms to obtain and traverse collections according to
   the `sequential` protocol."""
   (require erlang
@@ -42,11 +42,13 @@
            lists
            maps
            gb_sets
-           sequential
-           (stream.reducers :as reducers)
-           (collectable :as clt)
-           (string.chars :as chars)
-           (dictionary :as dict)))
+
+           (kapok (sequential
+                   (stream.reducers :as reducers)
+                   (collectable :as clt)
+                   (string.chars :as chars)
+                   dict
+                   tuple))))
 
 (defmacro skip [acc]
   acc)

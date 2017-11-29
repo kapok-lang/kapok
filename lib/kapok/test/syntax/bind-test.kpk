@@ -1,5 +1,5 @@
 (ns bind-test
-  (use kunit))
+  (use kapok.kunit))
 
 
 (defn f [a &as aa b &as bb]

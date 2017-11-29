@@ -1,4 +1,4 @@
-(ns record.extractor
+(ns kapok.record.extractor
   )
 
 ;; (defn extract [name &key file] (&when (binary? file))

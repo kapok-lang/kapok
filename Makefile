@@ -117,22 +117,22 @@ $1_beam_output_dir     := $$(lib_$1_dir)/ebin
 
 $1_modules             := $$(call get-files-in-dir,$$($1_src_dir),erl)
 $1_parser_src_file     := $$($1_src_dir)/kapok_parser.erl
-$1_core_lib_files      := \
-  core.kpk                \
-  module.kpk              \
-  code-server.kpk         \
-  protocol.kpk            \
-  stream.reducers.kpk     \
-  atom.kpk                \
-  integer.kpk             \
-  tuple.kpk               \
-  list.kpk                \
-  dictionary.kpk          \
-  collectable.kpk         \
-  string.chars.kpk        \
-  seq.kpk                 \
-  alist.kpk               \
-  access.kpk
+$1_core_lib_files      :=       \
+  kapok.core.kpk                \
+  kapok.module.kpk              \
+  kapok.code-server.kpk         \
+  kapok.protocol.kpk            \
+  kapok.stream.reducers.kpk     \
+  kapok.atom.kpk                \
+  kapok.integer.kpk             \
+  kapok.tuple.kpk               \
+  kapok.list.kpk                \
+  kapok.dict.kpk                \
+  kapok.collectable.kpk         \
+  kapok.string.chars.kpk        \
+  kapok.seq.kpk                 \
+  kapok.alist.kpk               \
+  kapok.access.kpk
 $1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
                               $$(call get-files-in-dir,$$($1_lib_dir),kpk))
