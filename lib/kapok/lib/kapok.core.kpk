@@ -1362,6 +1362,44 @@
     (_
      :false)))
 
+(defmacro attr [module attr]
+  `(kapok.core.first (kapok.alist.get (~module.#module_info #attributes) ~attr)))
+
+(defmacro attr [attr]
+  `(kapok.core.attr (__MODULE__) ~attr))
+
+(defalias get-attr attr)
+(defalias get-attribute attr)
+
+(defmacro to-string
+  """Converts the argument to a string according to the
+  `string.chars` protocol.
+
+  ## Examples
+
+      kapok> (to-string #foo)
+      "foo"
+
+  """
+
+  ([arg] (&when (erlang.is_binary arg))
+   arg)
+
+  ([arg]
+   `(kapok.string.chars.to-string ~arg)))
+
+(defmacro to-char-list [arg]
+  """Converts the argument to a char list according to the `list.chars` protocol.
+
+  ## Examples
+
+      kapok> (to-char-list #foo)
+      #"foo"
+
+  """
+
+  `(kapok.list.chars.to-char-list ~arg))
+
 (defmacro match? [{#identifier _ #_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches
   the left side (a pattern)."""

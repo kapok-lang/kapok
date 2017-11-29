@@ -2,7 +2,11 @@
   """The string.chars protocol is responsible for
   converting a structure to a binary (only if applicable).
   The only function required to be implemented is
-  `to-string` which does the conversion."""
+  `to-string` which does the conversion.
+
+  The `to-string` function automatically imported
+  by `core` invokes this protocol.
+  """
 
   (to-string [thing]))
 
@@ -13,8 +17,8 @@
     ""  ;; doc
     "")
 
-  (defn to-string [atom]
-    (atom.to-string atom))
+  (defn to-string [arg]
+    (atom.to-string arg))
   )
 
 (defimpl kapok.string.chars bitstring

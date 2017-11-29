@@ -120,12 +120,16 @@ extended_libs() ->
   ["kapok.stream.reducers.kpk",
    "kapok.atom.kpk",
    "kapok.integer.kpk",
+   "kapok.float.kpk",
    "kapok.tuple.kpk",
+   "kapok.string.kpk",
    "kapok.list.kpk",
    "kapok.dict.kpk",
    "kapok.collectable.kpk",
    "kapok.string.chars.kpk",
    "kapok.seq.kpk",
    "kapok.alist.kpk",
-   "kapok.access.kpk"
+   "kapok.list.chars.kpk",
+   "kapok.access.kpk",
+   "kapok.io.kpk"
   ].

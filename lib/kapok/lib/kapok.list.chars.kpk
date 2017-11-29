@@ -1,0 +1,53 @@
+(defprotocol kapok.list.chars
+  """The list.chars protocol is responsible for
+  converting a structure to a list (only if applicable).
+  The only function required to be implemented is
+  `to-char-list` which does the conversion.
+
+  The `to-char-list` function automatically imported
+  by `core` invokes this protocol.
+  """
+
+  (to-char-list [thing]))
+
+(defimpl kapok.list.chars atom
+  (require (kapok (atom)))
+
+  (defn to-char-list [arg]
+    (atom.to-char-list arg)))
+
+(defimpl kapok.list.chars bitstring
+  (require (kapok (string)))
+
+  (defn to-char-list
+    "Returns the given binary converted to a char list."
+
+    ([thing] (&when (binary? thing))
+     (string.to-char-list thing))
+
+    ([_thing]
+     ;; TODO revise to use exception
+     (throw "cannot convert a bitstring to a char list"))))
+
+(defimpl kapok.list.chars list
+  (defn to-char-list [list]
+    list))
+
+(defimpl kapok.list.chars integer
+  (require (kapok (integer)))
+
+  (defn to-char-list [thing]
+    (integer.to-char-list thing)))
+
+(defimpl kapok.list.chars float
+  (require math
+           (kapok (float)))
+
+  (attribute digits 20)
+  (attribute limit (math.pow 10 (attr #digits)))
+
+  (defn to-char-list [thing]
+    (if (> thing (attr #limit))
+        (float.to-char-list thing [{#scientific (attr #digits)}])
+      (float.to-char-list thing [{#compact :true}
+                                 {#decimals (attr #digits)}]))))

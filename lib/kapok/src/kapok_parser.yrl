@@ -8,14 +8,15 @@ Nonterminals
     number signed_number
     keyword_expr atom_expr local_id_expr
     bitstring_arg commas_bitstring_arg bitstring_arg_list bitstring_args bitstring_collection
-    quote_expr backquote_expr unquote_expr unquote_splicing_expr macro_value
-    value collection_value comma_collection_value collection_value_list collection_values
+    quote_expr backquote_expr unquote_expr unquote_splicing_expr macro_expr
+    non_dot_expr value
+    collection_value comma_collection_value collection_value_list collection_values
     open_paren close_paren open_bracket close_bracket list_collection cons_list
     open_curly close_curly tuple_collection
     paired_comma_collection_values paired_collection_value_list paired_collection_values
     unpaired_collection_value_list unpaired_collection_values open_bang_curly map_collection
     open_percent_curly set_collection
-    dot_op dot_value dot
+    dot_op dot_value dot_expr
     .
 
 Terminals
@@ -54,31 +55,32 @@ number      -> char_number : build_number('$1').
 number      -> integer : build_number('$1').
 number      -> float : build_number('$1').
 
-value       -> number : '$1'.
-value       -> signed_number : '$1'.
-%% dot value
-value       -> dot_value : '$1'.
-%% dot
-value       -> dot : '$1'.
+value       -> non_dot_expr : '$1'.
+value       -> dot_expr : '$1'.
+
+non_dot_expr  -> number : '$1'.
+non_dot_expr  -> signed_number : '$1'.
 %% function argument and pattern guard keywords
-value       -> keyword_optional : '$1'.
-value       -> keyword_rest : '$1'.
-value       -> keyword_key : '$1'.
-value       -> keyword_when : '$1'.
-value       -> keyword_and : '$1'.
-value       -> keyword_or : '$1'.
+non_dot_expr  -> keyword_optional : '$1'.
+non_dot_expr  -> keyword_rest : '$1'.
+non_dot_expr  -> keyword_key : '$1'.
+non_dot_expr  -> keyword_when : '$1'.
+non_dot_expr  -> keyword_and : '$1'.
+non_dot_expr  -> keyword_or : '$1'.
+%% includes dot_value
+non_dot_expr  -> dot_value : '$1'.
 %% macro
-%% macro_value is included in `dot_value'
+%% macro_expr is included in `dot_value'
 %% strings
-value       -> binary_string : '$1'.
-value       -> list_string : '$1'.
+non_dot_expr  -> binary_string : '$1'.
+non_dot_expr  -> list_string : '$1'.
 %% collections
-value       -> bitstring_collection : '$1'.
+non_dot_expr  -> bitstring_collection : '$1'.
 %% list_collection is included in `dot_value'
-value       -> cons_list: '$1'.
-value       -> tuple_collection : '$1'.
-value       -> map_collection : '$1'.
-value       -> set_collection : '$1'.
+non_dot_expr  -> cons_list: '$1'.
+non_dot_expr  -> tuple_collection : '$1'.
+non_dot_expr  -> map_collection : '$1'.
+non_dot_expr  -> set_collection : '$1'.
 
 %% signed number
 signed_number    -> '+' : build_signed_number('$1').
@@ -105,20 +107,20 @@ dot_op         -> '.' : '$1'.
 
 dot_value      -> local_id_expr   : '$1'.
 dot_value      -> list_collection : '$1'.
-dot_value      -> macro_value     : '$1'.
+dot_value      -> macro_expr     : '$1'.
 
-dot -> dot dot_op dot_value : build_dot('$2', '$1', '$3').
-dot -> dot_value dot_op dot_value : build_dot('$2', '$1', '$3').
+dot_expr -> dot_expr dot_op dot_value : build_dot('$2', '$1', '$3').
+dot_expr -> dot_value dot_op dot_value : build_dot('$2', '$1', '$3').
 
 %% Macro syntaxs
-macro_value      -> quote_expr      : '$1'.
-macro_value      -> backquote_expr  : '$1'.
-macro_value      -> unquote_expr    : '$1'.
-macro_value      -> unquote_splicing_expr : '$1'.
+macro_expr      -> quote_expr      : '$1'.
+macro_expr      -> backquote_expr  : '$1'.
+macro_expr      -> unquote_expr    : '$1'.
+macro_expr      -> unquote_splicing_expr : '$1'.
 
 quote_expr            -> quote value : build_quote('$1', '$2').
 backquote_expr        -> backquote value : build_backquote('$1', '$2').
-unquote_expr          -> unquote value : build_unquote('$1', '$2').
+unquote_expr          -> unquote non_dot_expr : build_unquote('$1', '$2').
 unquote_splicing_expr -> unquote_splicing list_collection : build_unquote_splicing('$1', '$2').
 unquote_splicing_expr -> unquote_splicing identifier : build_unquote_splicing('$1', '$2').
 

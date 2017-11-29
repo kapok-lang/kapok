@@ -1,0 +1,28 @@
+(ns kapok.string
+  ;; TODO add doc
+
+  (require unicode)
+  )
+
+(defn to-char-list [string] (&when (binary? string))
+  """Converts a string into a char list.
+
+  ## Examples
+
+      kapok> (string.to-char-list "æß")
+      #"æß"
+
+  Notice that this function expects a list of integers representing
+  UTF-8 codepoints. If you have a raw binary, you must instead use
+  [the `binary` module](http://erlang.org/doc/man/binary.html).
+  """
+
+  (case (unicode.characters_to_list string)
+    (result (&when (list? result))
+     result)
+    ({#error _encoded _rest}
+     ;; TODO revise to use exception
+     (throw "unicode conversion error"))
+    ({#incomplete _encoded _rest}
+     ;; TODO revise to use exception
+     (throw "unicode conversion incomplete error"))))

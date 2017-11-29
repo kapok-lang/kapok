@@ -126,13 +126,16 @@ $1_core_lib_files      :=       \
   kapok.atom.kpk                \
   kapok.integer.kpk             \
   kapok.tuple.kpk               \
+  kapok.list.chars.kpk          \
   kapok.list.kpk                \
   kapok.dict.kpk                \
   kapok.collectable.kpk         \
   kapok.string.chars.kpk        \
+  kapok.string.kpk              \
   kapok.seq.kpk                 \
   kapok.alist.kpk               \
-  kapok.access.kpk
+  kapok.access.kpk              \
+  kapok.io.kpk
 $1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
                               $$(call get-files-in-dir,$$($1_lib_dir),kpk))

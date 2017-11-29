@@ -197,7 +197,6 @@
      (handle-defprotocol-clause file meta protocol id args))
     (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol: ~p" [clause]))))
 
-
 (defn- builtin []
   [{'atom? #atom}
    {'bitstring? #bitstring}
@@ -317,7 +316,7 @@
          (t (handle-defprotocol file meta id (empty-doc) t))))
       (_ (kapok_error.compile_error meta file "invalid id for defprotocol: ~p" [id])))))
 
-(defn- handle-defimpl-clause [{file meta} clause]
+(defn- handle-defimpl-clause [meta clause]
   (case clause
     ([{#identifier _ id} & _t] (&when (&or (=== id #require)
                                            (=== id #use)))
@@ -325,7 +324,8 @@
     ([{#identifier _ id} {#identifier _ _} & _t] (&when (def? id))
      ;; TODO check the impl defn matches the defprotocol declaration
      {#def {#list meta clause}})
-    (_ (kapok_error.compile_error meta file "invalid clause for defimpl: ~p" [clause]))))
+    (_
+     {#def {#list meta clause}})))
 
 (defn- after-defimpl [{_ protocol-meta protocol-name}
                       {_ for-meta for-name}]
@@ -360,7 +360,7 @@
                        & after]
                       defn-all)}))
       ([{#list clause-meta clause} & t]
-       (case (handle-defimpl-clause {file clause-meta} clause)
+       (case (handle-defimpl-clause clause-meta clause)
          ({#ns handled-ns}
           (handle-defimpl file meta protocol type doc t {[handled-ns & ns-acc] defn-acc}))
          ({#def handled-def}
