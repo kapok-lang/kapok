@@ -1,0 +1,19 @@
+(ns kapok.system
+  """The system module provides access to variables used or
+  maintained by the VM and to functions that interact directly
+  with the VM or the host system.
+  """
+
+  (require erlang))
+
+(defn stacktrace []
+  """Last exception stacktrace.
+
+  Note that the Erlang VM (and therefore this function) does not
+  return the current stacktrace but rather the stacktrace of the
+  latest exception.
+
+  Inlined by the compiler into `(erlang.get_stacktrace 0)`.
+  """
+
+  (erlang.get_stacktrace))
