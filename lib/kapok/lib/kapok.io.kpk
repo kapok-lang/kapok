@@ -141,21 +141,36 @@
   ([device item]
    (io.put_chars (map-dev device) (to-chardata item))))
 
-;; (defn binwrite
-;;   """Writes the given argument to the given device
-;;   as a binary, no unicode conversion happens.
+;; Map the Kapok names for standard io and error to Erlang names
+(defn- map-dev [#stdio]
+  #standard_io)
+(defn- map-dev [#stderr]
+  #standard_error)
+(defn- map-dev [other] (&when (&or (atom? other)
+                                   (pid? other)
+                                   (tuple? other)))
+  other)
 
-;;   Check `(write 2)` for more information.
+(defn- to-chardata [list] (&when (list? list))
+  list)
+(defn- to-chardata [other]
+  (to-string other))
 
-;;   Note: do not use this function on IO devices in unicode mode
-;;   as it will return the wroing result.
-;;   """
+(defn binwrite
+  """Writes the given argument to the given device
+  as a binary, no unicode conversion happens.
 
-;;   ([item] (&when (is-iodata item))
-;;    (binwrite (group_leader) item))
+  Check `(write 2)` for more information.
 
-;;   ([device item] (&when (is-iodata item))
-;;    (file.write (map-dev device) item)))
+  Note: do not use this function on IO devices in unicode mode
+  as it will return the wroing result.
+  """
+
+  ([item] (&when (is-iodata item))
+   (binwrite (group_leader) item))
+
+  ([device item] (&when (is-iodata item))
+   (file.write (map-dev device) item)))
 
 (defn puts
   """Writes the argument to the device, similar to `(write 2)`,
@@ -292,18 +307,3 @@
 
   """
   (erlang.iolist_size item))
-
-;; Map the Kapok names for standard io and error to Erlang names
-(defn- map-dev [#stdio]
-  #standard_io)
-(defn- map-dev [#stderr]
-  #standard_error)
-(defn- map-dev [other] (&when (&or (atom? other)
-                                   (pid? other)
-                                   (tuple? other)))
-  other)
-
-(defn- to-chardata [list] (&when (list? list))
-  list)
-(defn- to-chardata [other]
-  (to-string other))
