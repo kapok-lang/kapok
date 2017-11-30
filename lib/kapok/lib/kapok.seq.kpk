@@ -1289,9 +1289,7 @@
 
 (defn- do-find-value [[h & t] ifnone fun]
   (let [value (fun h)]
-    (if value
-        value
-      (do-find-value t ifnone fun))))
+    (or value (do-find-value t ifnone fun))))
 
 ;; find-index
 

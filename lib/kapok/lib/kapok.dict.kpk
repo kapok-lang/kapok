@@ -35,7 +35,7 @@
 
 (defmacro target [dict]
   `(case ~dict
-     (#{#'__struct__' x} (&when (atom? x))
+     (#{:__struct__ x} (&when (atom? x))
       x)
      (m (&when (map? m))
       #map)

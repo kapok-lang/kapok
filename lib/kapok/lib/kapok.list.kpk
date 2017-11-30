@@ -158,9 +158,7 @@
 
   """
   (let [v (lists.keyfind key (inc position) list)]
-    (if v
-        v
-      default)))
+    (or v default)))
 
 (defn keymember? [list key position]
   """Receives a list of tuples and returns `:true` if there is a tuple

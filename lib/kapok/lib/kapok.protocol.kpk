@@ -156,7 +156,7 @@
     ;; Returns a list of asts since we need two duplicate functions,
     ;; 1. '__struct__' is for being compactible with elixir protocol
     ;; 2. 'new' is for the kapok struct constructor
-    [(elixir-struct-constructor meta #'__struct__' fields-list)
+    [(elixir-struct-constructor meta #__struct__ fields-list)
      (struct-constructor meta #'new' (next fields))
      & (handle-defstruct-derive derives)]))
 
@@ -213,13 +213,12 @@
 
 (defn- after-defprotocol [fallback-to-any builtin]
   [
-   `(defn impl-for [#{#__struct__ struct}] (&when (atom? struct))
+   `(defn impl-for [#{:__struct__ struct}] (&when (atom? struct))
       (struct-impl-for struct))
 
    `(defn impl-for! [data]
       (let [r (impl-for data)]
-        (if r
-            r
+        (or r
           ;; TODO revise to use exception
          (throw "undefined protocol"))))
 
