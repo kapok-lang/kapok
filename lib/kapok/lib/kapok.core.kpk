@@ -1459,3 +1459,146 @@
                (_
                 `(~form ~x)))]
        `(->> ~y ~@left)))))
+
+;; struct
+
+(defn struct
+  """Creates and updates structs.
+
+  The `struct` argument may be an atom (which defines `defstruct`)
+  or a `struct` itself. The second argument is any `sequential` that
+  emits two-item tuples (key-value pairs) during traversal.
+
+  Keys in the `sequential` that don't exist in the struct are automatically
+  discarded.
+
+  This function is useful for dynamically creating and updating
+  structs, as well as for converting maps to structs; in the latter case, just
+  inserting the appropriate `#__struct__` field into the map may not be enough
+  and `(struct 2)` should be used instead.
+
+  ## Examples
+
+      (defns user
+        (defstruct
+          (:name "john")))
+
+      (struct #user)
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "john"}
+
+      (let [opts [{#name "meg"}]]
+        (struct #user opts))
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "meg"}
+
+      (struct #user [{#unknown "value"}])
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "john"}
+
+      (struct #user [{#name "meg"}])
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "meg"}
+
+  """
+
+  ([s]
+   (struct s))
+
+  ([s []] (&when (&or (erlang.is_atom s)
+                      (erlang.is_tuple s)))
+   (apply s #__struct__ []))
+
+  ([s kv] (&when (&or (erlang.is_atom s)
+                      (erlang.is_tuple s)))
+   (struct (apply s #__struct__ []) kv))
+
+  ([#{:__struct__ _} &as s kv]
+   (kapok.seq.reduce kv
+                     s
+                     (fn [{k v} acc]
+                       (case (and (maps.is_key k acc)
+                                  (!= k #__struct__))
+                         (:true (maps.put k v acc))
+                         (:false acc))))))
+
+;; exception
+
+(defmacro defexception [_args]
+  """Defines an exception.
+
+  Exceptions are structs backed by a module that implements
+  the `exception` behaviour. The `exception` behaviour requires
+  two functions to be implemented:
+
+    * `(exception 1)` receives the arguments given to `(raise 2)`
+      and returns the exception struct. The default implementation
+      accepts either a set of alist arguments that is merged into
+      the struct or a string to be used as the exception's message.
+
+    * `(message 1)` receives the exception struct and must return its
+      message. Most commonly exceptions have a message field which
+      by default is accessed by this function. However, if an exception
+      does not have a message field, this function must be explicitly
+      implemented.
+
+  Since exceptions are structs, the API supported by `(defstruct 1)`
+  is also available in `(defexception 1)`.
+
+  ## Raising exceptions
+
+  The most common way to raise ain exception is via `(raise 2)`:
+
+      (defns my-app-error
+        (defexception [#message])
+       )
+
+      ...
+
+      (let [value [#hello]
+        (raise my-app-error
+               [{#message (io_lib.format
+                           "did not get what was expected, got: ~s"
+                           [(inspect value)])}])])
+
+  In many cases it is more convenient to pass the expected value to
+  `(raise 2)` and generate the message in the `(exception 1)` callback:
+
+       (defns my-app-error
+         (defexception [#message])
+
+         (defn exception [value]
+           (let [msg (io_lib.format "did not get what was expected, got: ~s"
+                                    [(inspect value)])]
+             (my-app-error.new :message msg))))
+
+       ...
+
+       (raise my-app-error value)
+
+  The example above shows the preferred strategy for customizing
+  exception messages.
+  """
+
+  ;; (let [fields (if (list? args)
+  ;;                  [{#__exception__ :true} & args]
+  ;;                `(lists.append [{#__exception__ :true}] ~args))]
+    [
+     `(behaviour kapok.exception)
+
+     `(defn exception [msg] (&when (binary? msg))
+        (exception [{#message msg}]))
+
+     `(defn exception [args] (&when (list? args))
+        (kapok.core.struct (__MODULE__) args))
+
+     ;; TODO add dummy impl for `message` if there is no #message field
+     `(defn message [exception]
+        (get exception #message))
+      ]
+    ;;)
+  )

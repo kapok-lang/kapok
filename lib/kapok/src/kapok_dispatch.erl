@@ -1,7 +1,6 @@
 %% Helper module for dispatching names(module/function/macro/var) and their references.
 -module(kapok_dispatch).
 -export([default_requires/0,
-         stdlib_uses/0,
          default_uses/0,
          find_local_macro/5,
          find_remote_macro/6,
@@ -19,15 +18,9 @@ default_requires() ->
        {'protocol', 'kapok.protocol'}],
   orddict:from_list(L).
 
-stdlib_uses() ->
-  ['kapok.core',
-   'kapok.protocol'].
-
 default_uses() ->
   ['kapok.core',
-   'kapok.protocol',
-   'kapok.struct',
-   'kapok.exception'].
+   'kapok.protocol'].
 
 %% find local/remote macro/function
 
@@ -87,6 +80,8 @@ find_optional_remote_macro(Meta, Module, FunArity, FunMeta, Args, Ctx) ->
           {remote, MFAP};
         {function, {M, F, A, P}} ->
           rewrite_function(Meta, M, F, FunMeta, A, P, Args);
+        unknown_module ->
+          false;
         false ->
           false
       end,
@@ -139,7 +134,7 @@ find_optional_remote_function(Meta, Module, FunArity, Ctx) ->
   {D, Ctx1} = find_optional_dispatch(Meta, Module, FunArity, Ctx),
   R = case D of
         {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
-        false -> false
+        Atom when is_atom(Atom) -> Atom
       end,
   {R, Ctx1}.
 
@@ -147,9 +142,14 @@ is_macro_loaded(Module, FAP, Ctx) ->
   lists:member(FAP, get_macros([], Module, Ctx)).
 
 find_optional_dispatch(Meta, Module, FunArity, Ctx) ->
-  FunImports = orddict:from_list([{Module, get_optional_functions(Module)}]),
-  MacroImports = orddict:from_list([{Module, get_optional_macros(Module)}]),
-  do_find_dispatch(Meta, FunArity, FunImports, MacroImports, Ctx).
+  case code:ensure_loaded(Module) of
+    {module, Module} ->
+      FunImports = orddict:from_list([{Module, get_optional_functions(Module)}]),
+      MacroImports = orddict:from_list([{Module, get_optional_macros(Module)}]),
+      do_find_dispatch(Meta, FunArity, FunImports, MacroImports, Ctx);
+    {error, _} ->
+      {unknown_module, Ctx}
+  end.
 
 find_dispatch(Meta, Module, FunArity, Ctx) ->
   Ctx1 = ensure_uses_imported(Ctx),
@@ -258,21 +258,17 @@ ensure_loaded(Meta, Module, Ctx) ->
   end.
 
 get_optional_functions(Module) ->
-  case code:ensure_loaded(Module) of
-    {module, Module} ->
+  try
+    L = Module:'__info__'(functions),
+    ordsets:from_list(L)
+  catch
+    error:undef ->
       try
-        L = Module:'__info__'(functions),
-        ordsets:from_list(L)
+        L1 = Module:module_info(exports),
+        ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
       catch
-        error:undef ->
-          try
-            L1 = Module:module_info(exports),
-            ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
-          catch
-            error:undef -> []
-          end
-      end;
-    {error, _} -> []
+        error:undef -> []
+      end
   end.
 
 get_functions(Meta, Module, Ctx) ->
@@ -293,15 +289,11 @@ get_functions(Meta, Module, Ctx) ->
   end.
 
 get_optional_macros(Module) ->
-  case code:ensure_loaded(Module) of
-    {module, Module} ->
-      try
-        L = Module:'__info__'(macros),
-        ordsets:from_list(L)
-      catch
-        error:undef -> []
-      end;
-    {error, _} -> []
+  try
+    L = Module:'__info__'(macros),
+    ordsets:from_list(L)
+  catch
+    error:undef -> []
   end.
 
 get_macros(Meta, Module, Ctx) ->
