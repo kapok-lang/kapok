@@ -189,9 +189,13 @@ get_var_at_scope(Meta, Ctx, Scope, Var, Recursive) ->
 %% EVAL HOOKS
 
 setup_ctx(Ctx) ->
-  case get_compiler_opt(internal) of
+  case get_compiler_opt(core) of
     true -> Ctx;
-    false -> kapok_ast:add_default_uses(Ctx)
+    false ->
+      case get_compiler_opt(stdlib) of
+        true -> kapok_ast:add_uses(Ctx, kapok_dispatch:stdlib_uses());
+        false -> kapok_ast:add_uses(Ctx, kapok_dispatch:default_uses())
+      end
   end.
 
 ctx_for_eval(Opts) ->

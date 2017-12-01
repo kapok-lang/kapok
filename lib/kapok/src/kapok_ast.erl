@@ -1,7 +1,7 @@
 %% ast handlings, which include expanding/translating the kapok ast
 -module(kapok_ast).
 -export([compile/2,
-         add_default_uses/1,
+         add_uses/2,
          build_namespace/6,
          format_error/1,
          empty_doc/0]).
@@ -231,7 +231,7 @@ handle_use_element_arguments(_Meta, _Name, _, [Ast | _T], Ctx) ->
   kapok_error:compile_error(token_meta(Ast), ?m(Ctx, file), "invalid use argument ~p", [Ast]).
 
 %% Check whether the default namespaces is used. Add them if they are not declared in use clause.
-add_default_uses(Ctx) ->
+add_uses(Ctx, ModuleList) ->
   lists:foldl(fun(Ns, #{uses := Uses} = C) ->
                   case orddict:is_key(Ns, Uses) of
                     true ->
@@ -242,7 +242,7 @@ add_default_uses(Ctx) ->
                   end
               end,
               Ctx,
-              kapok_dispatch:default_uses()).
+              ModuleList).
 
 
 %% defns

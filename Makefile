@@ -133,6 +133,8 @@ $1_core_lib_files      :=       \
   kapok.string.chars.kpk        \
   kapok.string.kpk              \
   kapok.seq.kpk                 \
+  kapok.struct.kpk              \
+  kapok.exception.kpk           \
   kapok.alist.kpk               \
   kapok.access.kpk              \
   kapok.io.kpk

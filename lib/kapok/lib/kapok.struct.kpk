@@ -1,0 +1,68 @@
+(ns kapok.struct
+  """Functions for manipulating structs."""
+  (require maps
+           (kapok (seq))))
+
+(defn struct
+  """Creates and updates structs.
+
+  The `struct` argument may be an atom (which defines `defstruct`)
+  or a `struct` itself. The second argument is any `sequential` that
+  emits two-item tuples (key-value pairs) during traversal.
+
+  Keys in the `sequential` that don't exist in the struct are automatically
+  discarded.
+
+  This function is useful for dynamically creating and updating
+  structs, as well as for converting maps to structs; in the latter case, just
+  inserting the appropriate `#__struct__` field into the map may not be enough
+  and `(struct 2)` should be used instead.
+
+  ## Examples
+
+      (defns user
+        (defstruct
+          (:name "john")))
+
+      (struct #user)
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "john"}
+
+      (let [opts [{#name "meg"}]]
+        (struct #user opts))
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "meg"}
+
+      (struct #user [{#unknown "value"}])
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "john"}
+
+      (struct #user [{#name "meg"}])
+      ;; get struct user as
+      ;;=> #{:__struct__ #user
+             :name "meg"}
+
+  """
+
+  ([s]
+   (struct s))
+
+  ([s []] (&when (&or (atom? s)
+                      (tuple? s)))
+   (apply s #__struct__ []))
+
+  ([s kv] (&when (&or (erlang.is_atom s)
+                      (erlang.is_tuple s)))
+   (struct (apply s #__struct__ []) kv))
+
+  ([#{:__struct__ _} &as s kv]
+   (seq.reduce kv
+               s
+               (fn [{k v} acc]
+                 (case (and (maps.is_key k acc)
+                            (!= k #__struct__))
+                   (:true (maps.put k v acc))
+                   (:false acc))))))

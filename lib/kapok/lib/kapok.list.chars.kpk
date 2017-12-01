@@ -44,7 +44,8 @@
            (kapok (float)))
 
   (attribute digits 20)
-  (attribute limit (math.pow 10 (attr #digits)))
+  ;; TODO revise `20' to `(attr #digits)'
+  (attribute limit (math.pow 10 20))
 
   (defn to-char-list [thing]
     (if (> thing (attr #limit))

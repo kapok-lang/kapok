@@ -1,6 +1,7 @@
 %% Helper module for dispatching names(module/function/macro/var) and their references.
 -module(kapok_dispatch).
 -export([default_requires/0,
+         stdlib_uses/0,
          default_uses/0,
          find_local_macro/5,
          find_remote_macro/6,
@@ -18,9 +19,15 @@ default_requires() ->
        {'protocol', 'kapok.protocol'}],
   orddict:from_list(L).
 
-default_uses() ->
+stdlib_uses() ->
   ['kapok.core',
    'kapok.protocol'].
+
+default_uses() ->
+  ['kapok.core',
+   'kapok.protocol',
+   'kapok.struct',
+   'kapok.exception'].
 
 %% find local/remote macro/function
 

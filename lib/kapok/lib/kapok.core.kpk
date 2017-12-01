@@ -6,8 +6,13 @@
 (ns kapok.core
   (require erlang
            lists
+           ordsets
+           sets
+           maps
            code
            kapok_scanner
+           kapok_ast
+           kapok_error
            kapok_utils))
 
 ;; list operators
