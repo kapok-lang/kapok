@@ -181,9 +181,10 @@ translate({list, Meta, [{identifier, _, 'try'} | Exprs]}, Ctx) ->
 %% Erlang Attribute Forms
 
 %% behaviour
-translate({list, Meta, [{identifier, _, Form}, {Category, _, Id}]}, #{def_kind := Kind} = Ctx)
-    when ?is_behaviour(Form), ?is_id(Category), ?is_attr(Kind) ->
-  translate_attribute(Meta, Form, Id, Ctx);
+translate({list, Meta, [{identifier, _, Form}, {Category, _, _} = NameAst]}, #{def_kind := Kind} = Ctx)
+    when ?is_behaviour(Form), ?is_id_or_dot(Category), ?is_attr(Kind) ->
+  Name = plain_dot_name(NameAst),
+  translate_attribute(Meta, Form, Name, Ctx);
 
 %% user-defined attribute
 translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
