@@ -10,6 +10,7 @@
          is_macro_loaded/3,
          filter_fa/2,
          format_error/1]).
+-import(kapok_ctx, [metadata_check_remote_call/1]).
 -include("kapok.hrl").
 
 default_requires() ->
@@ -130,11 +131,18 @@ find_remote_function(Meta, Module, FunArity, Ctx) ->
       find_optional_remote_function(Meta, Module1, FunArity, Ctx)
   end.
 
-find_optional_remote_function(Meta, Module, FunArity, Ctx) ->
+find_optional_remote_function(Meta, Module, {Fun, Arity} = FunArity, Ctx) ->
   {D, Ctx1} = find_optional_dispatch(Meta, Module, FunArity, Ctx),
   R = case D of
-        {Tag, MFAP} when Tag == macro; Tag == function -> MFAP;
-        Atom when is_atom(Atom) -> Atom
+        {Tag, MFAP} when Tag == macro; Tag == function ->
+          MFAP;
+        unknown_module ->
+          case metadata_check_remote_call(Ctx) of
+            true -> false;
+            _ -> {Module, Fun, Arity, 'normal'}
+          end;
+        Atom when is_atom(Atom) ->
+          Atom
       end,
   {R, Ctx1}.
 

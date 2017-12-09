@@ -16,7 +16,8 @@
          add_bindings/2,
          get_var/3,
          get_var_current_scope/3,
-         ctx_for_eval/1]).
+         ctx_for_eval/1,
+         metadata_check_remote_call/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
 
@@ -43,6 +44,7 @@ new_ctx() ->
     def_ast => nil,                        %% the ast of def*
     context => nil,                        %% can be fn_pattern, let_pattern, case_pattern, guards, or nil
     macro_context => new_macro_context(),  %%
+    metadata => #{},          %% metadata for compilation
     requires => [],           %% a dict of modules(and aliases) required in 'name -> original'
     uses => [],               %% a dict of modules used in 'module -> use arguments'
     functions => [],          %% a dict of imported functions(and aliases) by 'module -> [fun...]'
@@ -242,3 +244,12 @@ ctx_for_eval(Ctx, Opts) ->
       functions := Functions,
       macros := Macros
      }.
+
+
+%% configs and settings
+
+metadata_check_remote_call(#{metadata := Metadata} = _Ctx) ->
+  case maps:find(check_remote_call, Metadata) of
+    {ok, V} -> V;
+    error -> true
+  end.

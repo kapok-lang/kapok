@@ -35,6 +35,15 @@ handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) -
 handle(Ast, Ctx) ->
   kapok_error:form_error(token_meta(Ast), ?m(Ctx, file), ?MODULE, {invalid_expression, {Ast}}).
 
+%% metadata
+
+update_metadata(Metadata, #{metadata := M} = Ctx) ->
+  M1 = maps:merge(M, Metadata),
+  {M, Ctx#{metadata => M1}}.
+
+restore_metadata(Metadata, Ctx) ->
+  Ctx#{metadata => Metadata}.
+
 %% namespace
 
 handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_local_id_or_dot(C1), ?is_string(C2) ->
@@ -269,6 +278,14 @@ handle_def_ns(Meta, _Kind, NameAst, DocAst, [{list, _, NSArgs} | T], #{namespace
   Ctx2#{namespace => NS}.
 
 %% definitions
+
+handle_def(Meta, Kind, [{map, _, _} = Map | T], Ctx) ->
+  %% metadata
+  {Metadata, Ctx1} = kapok_compiler:eval_ast(Map, Ctx),
+  {Original, Ctx2} = update_metadata(Metadata, Ctx1),
+  Ctx3 = handle_def(Meta, Kind, T, Ctx2),
+  %% restore the original metadata later
+  restore_metadata(Original, Ctx3);
 handle_def(Meta, Kind, [{identifier, _, Name}  | T], Ctx) ->
   handle_def(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, T, Ctx) ->

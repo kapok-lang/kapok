@@ -260,8 +260,6 @@ translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
               case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
                 {{M3, F3, A3, P3}, Ctx2} ->
                   translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
-                {unknown_module, Ctx2} ->
-                  translate_remote_call(Meta, Module, Fun, Arity, 'normal', Arity, TArgs, Ctx2);
                 {false, Ctx2} ->
                   kapok_error:compile_error(Meta, ?m(Ctx2, file),
                                             "invalid remote call: ~p ~p", [Module, FunArity])

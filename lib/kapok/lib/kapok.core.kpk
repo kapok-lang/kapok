@@ -1462,7 +1462,9 @@
 
 ;; struct
 
-(defn struct
+(defn
+    #{:check_remote_call :false}
+    struct
   """Creates and updates structs.
 
   The `struct` argument may be an atom (which defines `defstruct`)
