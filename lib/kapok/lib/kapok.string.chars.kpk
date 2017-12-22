@@ -14,7 +14,6 @@
   (require (kapok (atom)))
 
   (defn to-string [:nil]
-    ""  ;; doc
     "")
 
   (defn to-string [arg]

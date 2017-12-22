@@ -215,27 +215,21 @@
     (format-exit-reason reason))
 
   (defn- format-exit-reason [#normal]
-    "" ;; doc
     "normal")
   (defn- format-exit-reason [#shutdown]
-    "" ;; doc
     "shutdown")
 
   (defn- format-exit-reason [{#shutdown reason}]
     (format "shutdown: ~s" [reason]))
 
   (defn- format-exit-reason [#timeout]
-    "" ;; doc
     "time out")
   (defn- format-exit-reason [#killed]
-    "" ;; doc
     "killed")
   (defn- format-exit-reason [#noconnection]
-    "" ;; doc
     "no connection")
 
   (defn- format-exit-reason [#noproc]
-    "" ;; doc
     "no process")
 
   (defn- format-exit-reason [{#nodedown node-name}] (&when (atom? node-name))
@@ -425,16 +419,15 @@
   (defexception [])
 
   (defn message [_]
-    "" ;; doc
     "bad argument in arithmetic expression")
   )
 
-;; (defns kapok.system-limit-error
-;;   (defexception [])
+(defns kapok.system-limit-error
+  (defexception [])
 
-;;   (defn message [_]
-;;     "A system limit has been reached")
-;;   )
+  (defn message [_]
+    "A system limit has been reached")
+  )
 
 
 ;; (defns kapok.syntax-error

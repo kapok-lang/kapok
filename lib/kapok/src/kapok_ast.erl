@@ -338,11 +338,14 @@ do_handle_def_alias(Meta, Alias, Original, Ctx) ->
   kapok_symbol_table:new_alias(Namespace, Alias, Original, Meta),
   Ctx.
 
-handle_def_with_args(Meta, Kind, Name, Args, [{list, _, [{keyword_when, _, _} | _]} = Guard | T],
+handle_def_with_args(Meta, Kind, Name, Args,
+                     [{list, _, [{keyword_when, _, _} | _]} = Guard | T],
                      Ctx) ->
   handle_def_with_args(Meta, Kind, Name, Args, Guard, T, Ctx);
 handle_def_with_args(Meta, Kind, Name, Args, T, Ctx) ->
   handle_def_with_args(Meta, Kind, Name, Args, [], T, Ctx).
+handle_def_with_args(Meta, Kind, Name, Args, Guard, [_] = Body, Ctx) ->
+  handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx);
 handle_def_with_args(Meta, Kind, Name, Args, Guard, [{C, _, _} = _Doc | Body], Ctx)
     when ?is_string(C) ->
   %% TODO add doc
