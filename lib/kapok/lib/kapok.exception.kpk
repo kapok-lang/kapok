@@ -421,12 +421,13 @@
 (defns kapok.argument-error
   (defexception [{#message "argument error"}]))
 
-;; (defns kapok.arithmetic-error
-;;   (defexception [])
+(defns kapok.arithmetic-error
+  (defexception [])
 
-;;   (defn message [_]
-;;     "bad argument in arithmetic expression")
-;;   )
+  (defn message [_]
+    "" ;; doc
+    "bad argument in arithmetic expression")
+  )
 
 ;; (defns kapok.system-limit-error
 ;;   (defexception [])

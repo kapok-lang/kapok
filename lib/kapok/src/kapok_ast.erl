@@ -277,23 +277,19 @@ handle_def_ns(Meta, _Kind, NameAst, DocAst,
               [{list, _, [{list, _, [{identifier, _, Id} | _]} | _] = NSArgs} | T],
               Ctx)
     when Id == require; Id == use ->
-  Name = plain_dot_name(NameAst),
-  Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx#{namespace => Name}),
+  Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
-  build_namespace(Name, Ctx2);
+  build_namespace(?m(Ctx2, namespace), Ctx2);
 %% Sometimes we need to expand a top level macro call to a list of ast,
 %% in this case, we need to handle the returned all these asts in sequence.
 handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) ->
-  Ctx1 = handle_def_ns(Meta, Kind, NameAst, DocAst, List, Ctx),
-  handle_def_ns(Meta, Kind, NameAst, DocAst, T, Ctx1);
+  Defs = List ++ T,
+  handle_def_ns(Meta, Kind, NameAst, DocAst, Defs, Ctx);
 %% defs
-handle_def_ns(_Meta, _Kind, _NameAst, _DocAst, [], Ctx) ->
-  Ctx;
 handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, Ctx) ->
-  Name = plain_dot_name(NameAst),
-  Ctx1 = handle_ns(Meta, [NameAst, DocAst], Ctx#{namespace => Name}),
+  Ctx1 = handle_ns(Meta, [NameAst, DocAst], Ctx),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, Defs),
-  build_namespace(Name, Ctx2).
+  build_namespace(?m(Ctx2, namespace), Ctx2).
 
 %% definitions
 

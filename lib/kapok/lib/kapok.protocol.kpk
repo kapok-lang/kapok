@@ -73,7 +73,9 @@
                        no-tag-fields)
         key-args (lists.reverse list1)
         map-fields (lists.reverse list2)
-        arguments [{#keyword_key meta #'&key'} & key-args]]
+        arguments (if (nil? key-args)
+                      []
+                    [{#keyword_key meta #'&key'} & key-args])]
     {#list meta [{#identifier meta #defn}
                  {#identifier meta name}
                  {#literal_list meta arguments}
@@ -157,7 +159,7 @@
     ;; 1. '__struct__' is for being compactible with elixir protocol
     ;; 2. 'new' is for the kapok struct constructor
     [(elixir-struct-constructor meta #__struct__ fields-list)
-     (struct-constructor meta #'new' (next fields))
+     (struct-constructor meta #'new' (rest fields))
      & (handle-defstruct-derive derives)]))
 
 (defmacro defstruct [&rest args]
@@ -165,7 +167,6 @@
   (let [meta (maps.get #meta _&ctx)
         file (maps.get #file _&ctx)]
     (case args
-      ([] (kapok_error.compile_error meta file "not enough arguments to define struct"))
       ([{c _ _} &as doc {#literal_list _ derives} & t] (&when (string? c))
        (handle-defstruct file meta doc derives t))
       ([{#literal_list _ derives} & t]
