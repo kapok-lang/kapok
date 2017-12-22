@@ -2,6 +2,7 @@
 -module(kapok_symbol_table).
 -behaviour(gen_server).
 -export([new_namespace/1,
+         is_namespace_defined/1,
          new_def/7,
          new_alias/4,
          new_form/2,
@@ -19,6 +20,9 @@
 
 new_namespace(Namespace) ->
   gen_server:call(?MODULE, {new_ns, Namespace}).
+
+is_namespace_defined(Namespace) ->
+  gen_server:call(?MODULE, {is_ns_defined, Namespace}).
 
 new_def(Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause) ->
   gen_server:call(?MODULE, {new_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}).
@@ -73,6 +77,10 @@ init([]) ->
 handle_call({new_ns, Namespace}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
   {reply, ok, Map1};
+
+handle_call({is_ns_defined, Namespace}, _From, Map) ->
+  R = namespace_exist(Map, Namespace),
+  {reply, R, Map};
 
 %% def
 handle_call({new_def, Namespace, Kind, Fun, Arity, ParameterType, Meta, Clause}, _From, Map) ->
@@ -155,38 +163,53 @@ handle_call({cleanup_fap_alias, Namespace, Kind, FAPList, AliasFAPList}, _From, 
   {reply, ok, Map3};
 
 handle_call({namespace_macros, Namespace}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  %% direct macro definitions
-  Macros = get_kv(Map1, Namespace, 'macros'),
-  Aliases = get_kv(Map1, Namespace, 'macro_aliases'),
-  {reply, Aliases ++ Macros, Map1};
+  R = case namespace_exist(Map, Namespace) of
+        true ->
+          %% direct macro definitions
+          Macros = get_kv(Map, Namespace, 'macros'),
+          Aliases = get_kv(Map, Namespace, 'macro_aliases'),
+          Aliases ++ Macros;
+        false ->
+          []
+      end,
+  {reply, R, Map};
 
 handle_call({namespace_locals, Namespace}, _From, Map) ->
-  Map1 = add_namespace_if_missing(Map, Namespace),
-  Funs = get_kv(Map1, Namespace, 'funs'),
-  FunAliases = get_kv(Map1, Namespace, 'fun_aliases'),
-  Macros = get_kv(Map1, Namespace, 'macros'),
-  MacroAliases = get_kv(Map1, Namespace, 'macro_aliases'),
-  {reply, ordsets:union([Funs, Macros, FunAliases, MacroAliases]), Map1};
+  R = case namespace_exist(Map, Namespace) of
+        true ->
+          Funs = get_kv(Map, Namespace, 'funs'),
+          FunAliases = get_kv(Map, Namespace, 'fun_aliases'),
+          Macros = get_kv(Map, Namespace, 'macros'),
+          MacroAliases = get_kv(Map, Namespace, 'macro_aliases'),
+          ordsets:union([Funs, Macros, FunAliases, MacroAliases]);
+        false ->
+          ordsets:new()
+      end,
+  {reply, R, Map};
 
 handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) ->
-  R = case lists:member(ignore_suspended_def_clauses, Options) of
-        false ->
-          case get_kv(Map, Namespace, 'suspended_def_clauses') of
-            [] ->
-              case validate_aliases(Map, Namespace) of
-                {invalid_alias, _} = V ->
-                  V;
-                ok ->
-                  {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
-                  {ok, Forms, Ctx1}
-              end;
-            Suspended ->
-              {suspended, orddict:to_list(Suspended), Ctx}
-          end;
+  R = case namespace_exist(Map, Namespace) of
         true ->
-          {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
-          {ok, Forms, Ctx1}
+          case lists:member(ignore_suspended_def_clauses, Options) of
+            false ->
+              case get_kv(Map, Namespace, 'suspended_def_clauses') of
+                [] ->
+                  case validate_aliases(Map, Namespace) of
+                    {invalid_alias, _} = V ->
+                      V;
+                    ok ->
+                      {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
+                      {ok, Forms, Ctx1}
+                  end;
+                Suspended ->
+                  {suspended, orddict:to_list(Suspended), Ctx}
+              end;
+            true ->
+              {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
+              {ok, Forms, Ctx1}
+          end;
+        false ->
+          []
       end,
   {reply, R, Map}.
 
@@ -222,6 +245,9 @@ add_namespace_if_missing(Map, Namespace) ->
     false -> maps:put(Namespace, new_namespace(), Map);
     true -> Map
   end.
+
+namespace_exist(Map, Namespace) ->
+  maps:is_key(Namespace, Map).
 
 add_def(Map, Namespace, Kind, FAP) when Kind == 'defn-' ->
   add_def(Map, Namespace, 'defn', FAP);

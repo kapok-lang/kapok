@@ -131,5 +131,8 @@ extended_libs() ->
    "kapok.alist.kpk",
    "kapok.list.chars.kpk",
    "kapok.access.kpk",
-   "kapok.io.kpk"
+   "kapok.io.kpk",
+   "kapok.process.kpk",
+   "kapok.system.kpk",
+   "kapok.exception.kpk"
   ].

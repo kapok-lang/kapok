@@ -11,7 +11,11 @@
 
 compile(Ast, Ctx) when is_list(Ast) ->
   Ctx1 = lists:foldl(fun compile/2, Ctx, Ast),
-  build_namespace(?m(Ctx1, namespace), Ctx1);
+  NS = ?m(Ctx1, namespace),
+  case kapok_symbol_table:is_namespace_defined(NS) of
+    true -> build_namespace(NS, Ctx1);
+    false -> ok
+  end;
 compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
@@ -270,10 +274,28 @@ handle_def_ns(Meta, Kind, _NameAst, [], Ctx) ->
 handle_def_ns(Meta, Kind, NameAst, T, Ctx) ->
   handle_def_ns(Meta, Kind, NameAst, empty_doc(), T, Ctx).
 
-handle_def_ns(Meta, _Kind, NameAst, DocAst, [{list, _, NSArgs} | T], #{namespace := NS} = Ctx) ->
+%% namespace args
+handle_def_ns(Meta, _Kind, NameAst, DocAst,
+              [{list, _, [{list, _, [{identifier, _, Id} | _]} | _] = NSArgs} | T],
+              #{namespace := NS} = Ctx)
+    when Id == require; Id == use ->
   Name = plain_dot_name(NameAst),
   Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx#{namespace => Name}),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
+  build_namespace(Name, Ctx2),
+  Ctx2#{namespace => NS};
+%% Sometimes we need to expand a top level macro call to a list of ast,
+%% in this case, we need to handle the returned all these asts in sequence.
+handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) ->
+  Ctx1 = handle_def_ns(Meta, Kind, NameAst, DocAst, List, Ctx),
+  handle_def_ns(Meta, Kind, NameAst, DocAst, T, Ctx1);
+%% defs
+handle_def_ns(_Meta, _Kind, _NameAst, _DocAst, [], Ctx) ->
+  Ctx;
+handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, #{namespace := NS} = Ctx) ->
+  Name = plain_dot_name(NameAst),
+  Ctx1 = handle_ns(Meta, [NameAst, DocAst], Ctx#{namespace => Name}),
+  Ctx2 = lists:foldl(fun handle/2, Ctx1, Defs),
   build_namespace(Name, Ctx2),
   Ctx2#{namespace => NS}.
 

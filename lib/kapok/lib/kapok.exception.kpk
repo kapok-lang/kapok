@@ -1,0 +1,585 @@
+(defns kapok.exception
+    """Functions to format throw/catch/exit and exceptions.
+
+  Note that stacktraces in Kapok are updated on throw,
+  errors and exits. For example, at any given moment,
+  `(system.stackstrace 0)` will return the stacktrace for
+  the last throw/error/exit that occurred in the current process.
+
+  Do not rely on the particular format returned by the `format`
+  functions in this module. They may be changed in future releases
+  in order to better suit Kapok's tool chain. In other words,
+  by using the functions in this module it is guaranteed you will
+  format exceptions as in the current Kapok version being used.
+  """
+
+  ((require application)
+   (use (io_lib :only (format))
+        (kapok (access
+                alist
+                atom
+                integer
+                process
+                seq
+                system))))
+
+  ;; behaviour definition
+
+  (defn behaviour_info [#callbacks]
+    [{#exception 1}
+     {#message 1}])
+  (defn behaviour_info [_]
+    #undefined)
+
+;; functions
+
+  (defn exception?
+    "Returns `:true` if the given argument is an exception."
+
+    ([#{:__struct__ struct
+        :__exception__ :true}] (&when (atom? struct))
+     :true)
+
+    ([_]
+     :false))
+
+  (defn message [#{#__struct__ module
+                   #__exception__ :true} &as exception] (&when (atom? module))
+    "Gets the message for an exception."
+    (try (module.message exception)
+      ((x (&when (binary? x))
+        x)
+       (x
+        (format "got ~s while retrieving (exception.message 1) for ~p"
+                [x exception])))
+      (catch
+        (e (format
+            "got ~s with message ~s while retrieving (exception.message 1) for ~p"
+            [(access.get e #__struct__)
+             (message e)
+             exception])))))
+
+  (defn
+      #{:check_remote_call :false}
+      normalize
+    """Normalizes an exception, converting Erlang exceptions
+    to Kapok exceptions.
+
+    It takes the `kind` spilled by `catch` as an argument and
+    normalizes only `#error`, returning the untouched payload
+    for others.
+
+    The third argument, a stacktrace, is optional. If it is
+    not supplied `(system.stacktrace 0)` will sometimes be used
+    to get additional information for the `kind` `#error`. If
+    the stacktrace is unknown and `(system.stacktrace 0)` would
+    not return the stacktrace corresponding to the exception
+    an empty stacktrace, `[]`, must be used.
+    """
+
+    ([kind payload]
+     ;; Generating a stacktrace is expensive, default to nil
+     ;; to only fetch it when needed.
+     (normalize kind payload :nil))
+
+    ([#error exception stacktrace]
+     (if (exception? exception)
+         exception
+       (kapok.erlang-error.normalize exception stacktrace)))
+
+    ([_kind payload _stacktrace]
+     payload))
+
+
+  (defn format-banner
+    """Normalizes and formats any throw, error and exit.
+
+    The message is formatted and displayed in the same
+    format as used by Kapok's CLI.
+
+    The third argument, a stacktrace, is optional. If it is
+    not supplied `(system.stacktrace 0)` will sometimes be used
+    to get additional information for the `kind` `#error`. If
+    the stacktrace is unknown and `(system.stacktrace 0)` would
+    not return the stacktrace corresponding to the exception
+    an empty stacktrace, `[]`, must be used.
+    """
+
+    ([kind exception]
+     (format-banner kind exception :nil))
+
+    ([#error exception stacktrace]
+     (let [e (normalize #error exception stacktrace)]
+       (format "** (~s) ~s" [(access.get exception #__struct__)
+                             (message e)])))
+
+    ([#throw reason _stacktrace]
+     (format "** (throw) ~s" [reason]))
+
+    ([#exit reason _stacktrace]
+     (format "** (exit) ~s" [(format-exit reason "\n    ")]))
+
+    ([#EXIT reason _stacktrace]
+     (format "** (EXIT from ~p) ~s" [(format-exit reason "\n    ")])))
+
+  (defn
+      #{:check_remote_call :false}
+      format
+    """Normalizes and formats throw/errors/exits and stacktrace.
+
+    It relies on `(format-banner 3)` and `(format-stacktrace 1)`
+    to generate the final format.
+
+    Note that `{#EXIT pid}` do not generate a stacktrace though
+    (as they are retrieved as messages without stacktrace).
+    """
+
+    ([kind payload]
+     (format kind payload :nil))
+
+    ([{#EXIT _} &as kind any _]
+     (format-banner kind any))
+
+    ([kind payload stacktrace]
+     (let [st (or stacktrace (system.stacktrace))
+           message (format-banner kind payload stacktrace)]
+       (case st
+         ([]
+          message)
+         (_
+          (format "~s\n~s" [message (format-stacktrace st)]))))))
+
+  (defn format-exit [reason]
+    """Format an exit, returns a string.
+
+    Often there are errors/exceptions inside exits. Exits are often
+    wrapped by the caller and provide stacktraces too. This function
+    formats exits in a way to nicely show the exit reason, caller
+    and stacktrace.
+    """
+
+    (format-exit reason "\n    "))
+
+  ;; 2-Tuple could be caused by an error if the second element is a stacktrace.
+  (defn-
+      #{:check_remote_call :false}
+      format-exit [{exception maybe-stacktrace} &as reason
+                   joiner] (&when (&and (list? maybe-stacktrace)
+                                        (!== maybe-stacktrace [])))
+    (try (seq.map maybe-stacktrace (fn format-stacktrace-entry 1))
+      ((formatted-stacktrace
+        ;; Assume a non-empty list formattable as stacktrace is a
+        ;; stacktrace, so exit was caused by an error.
+        (let [message (format "an exception was raised:~s~s"
+                        [joiner
+                         (format-banner #error exception maybe-stacktrace)])]
+          (seq.join [message & formatted-stacktrace]
+                    (format "~s    " [joiner])))))
+      (catch
+        ((#error _)
+         ;; Not a stacktrace, was an exit.
+         (format-exit-reason reason)))))
+
+  ;; supervisor.start_link returns this error reason when it fails to init
+  ;; because a child's start_link raises.
+  (defn- format-exit [{#shutdown
+                       {#failed_to_start_child, child, {#EXIT, reason}}}
+                      joiner]
+    (format-start-child child reason joiner))
+
+  ;; supervisor.start_link returns this error reason when it fails to init
+  ;; because a child's start_link returns {#error reason}.
+  (defn- format-exit [{#shutdown
+                       {#failed_to_start_child, child, reason}}
+                      joiner]
+    (format-start-child child reason joiner))
+
+  ;; 2-Tuple could be an exit caused by mfa if second element is mfa, args
+  ;; must be a list of arguments - max length 255 due to max arity.
+  (defn- format-exit [{reason2 {mod fun args}} &as reason
+                      joiner] (&when (< (length args) 256))
+    (try (format-mfa mod fun args)
+      ((mfa
+        ;; assume tuple formattable as an mfa is an mfa, so exit was caused by
+        ;; failed mfa.
+        (format "exited in: ~s~s** (EXIT) ~s"
+                [mfa
+                 joiner
+                 (format-exit reason2 (format "~s    " [joiner]))])))
+      (catch
+        ((#error _)
+         ;; Not an mfa, was an exit.
+         (format-exit-reason reason)))))
+
+  (defn- format-exit [reason _joiner]
+    (format-exit-reason reason))
+
+  (defn- format-exit-reason [#normal]
+    "" ;; doc
+    "normal")
+  (defn- format-exit-reason [#shutdown]
+    "" ;; doc
+    "shutdown")
+
+  (defn- format-exit-reason [{#shutdown reason}]
+    (format "shutdown: ~s" [reason]))
+
+  (defn- format-exit-reason [#timeout]
+    "" ;; doc
+    "time out")
+  (defn- format-exit-reason [#killed]
+    "" ;; doc
+    "killed")
+  (defn- format-exit-reason [#noconnection]
+    "" ;; doc
+    "no connection")
+
+  (defn- format-exit-reason [#noproc]
+    "" ;; doc
+    "no process")
+
+  (defn- format-exit-reason [{#nodedown node-name}] (&when (atom? node-name))
+         (format "no connection to ~s" [node-name]))
+
+  ;; gen_server exit reasons
+
+  (defn- format-exit-reason [{#already_started pid}]
+    (format "already started: ~s" [pid]))
+
+  (defn- format-exit-reason [{#bad_return_value value}]
+    (format "bad return value: ~s" [value]))
+
+  (defn- format-exit-reason [{#bad_call request}]
+    (format "bad call: ~s" [request]))
+
+  (defn- format-exit-reason [{#bad_cast request}]
+    (format "bad cast: ~s" [request]))
+
+  ;; supervisor.start_link error reasons
+
+  ;; If value is a list will be formatted by mfa exit in (format-exit 1)
+  (defn- format-exit-reason [{#bad_return {mod #init value}}] (&when (atom? mod))
+         ;; TODO add impl
+         (format "~s returned a bad value: ~s" [(format-mfa mod #init 1)
+                                                value]))
+
+  (defn- format-exit-reason [{#bad_start_spec start-spec}]
+    (format "bad start spec: invalid children: ~s" [start-spec]))
+
+  (defn- format-exit-reason [{#start_spec start-spec}]
+    (format "bad start spec: ~s" [(format-sup-spec start-spec)]))
+
+  (defn- format-exit-reason [{#supervisor_data data}]
+    (format "bad supervisor data: ~s" [(format-sup-data data)]))
+
+  (defn- format-exit-reason [reason]
+    ;; TODO revise to use `(core.inspect 1)`
+    (format "~p" [reason]))
+
+  (defn- format-start-child [child reason joiner]
+    (format "shutdown: failed to start child: ~p~s**(EXIT) ~s"
+            [child
+             joiner
+             (format-exit reason (format "~s    " [joiner]))]))
+
+  (defn- format-sup-data [{#invalid_type type}]
+    (format "invalid type: ~s" [type]))
+
+  (defn- format-sup-data [{#invalid_strategy strategy}]
+    (format "invalid strategy: ~s" [strategy]))
+
+  (defn- format-sup-data [{#invalid_intensity intensity}]
+    (format "invalid intensity: ~s" [intensity]))
+
+  (defn- format-sup-data [{#invalid_period period}]
+    (format "invalid period: ~s" [period]))
+
+  (defn- format-sup-data [other]
+    ;; TODO revise to use `(core.inspect 1)`
+    (format "~p" [other]))
+
+  (defn- format-sup-spec [{#invalid_child_spec child-spec}]
+    (format "invalid child spec: ~s" [child-spec]))
+
+  (defn- format-sup-spec [{#invalid_child_type type}]
+    (format "invalid child type: ~s" [type]))
+
+  (defn- format-sup-spec [{#invalid_mfa mfa}]
+    (format "invalid mfa: ~s" [mfa]))
+
+  (defn- format-sup-spec [{#invalid_restart_type restart}]
+    (format "invalid restart type: ~s" [restart]))
+
+  (defn- format-sup-spec [{#invalid_shutdown shutdown}]
+    (format "invalid shutdown: ~s" [shutdown]))
+
+  (defn- format-sup-spec [{#invalid_module mod}]
+    (format "invalid module: ~s" [mod]))
+
+  (defn- format-sup-spec [{#invalid_modules modules}]
+    (format "invalid modules: ~s" [modules]))
+
+  (defn- format-sup-spec [other]
+    (format "~p" [other]))
+
+  (defn format-stacktrace-entry
+      """Receives a stacktrace entry and formats it into a string."""
+
+      ;; TODO add impl
+
+      ([module]
+       (case (application.get_application module)
+         ({#ok app}
+          (format "(~s)" [(atom.to-string app)]))
+         (#undefined
+          "")))
+  )
+
+  (defn format-stacktrace [&optional (trace :nil)]
+    """Format the stacktrace.
+
+    A stacktrace must be given as an argument. If not, the stacktrace
+    is retrieved from `(process.info 2)`.
+    """
+    (let [tr (or trace
+               (case (process.info (self)
+                                   #current_stacktrace)
+                 ({#current_stacktrace t} (seq.drop t 3))))]
+      (case tr
+        ([]
+         "\n")
+        (s
+         (format "    ~s"
+                 [(seq.map-join
+                   s
+                   "\n    "
+                   (format "~s\n" [(fn format-stacktrace-entry 1)]))])))))
+
+  (defn format-fa [fun arity] (&when (function? fun))
+    """Receives an anonymous function and arity and formats it as
+    shown in stacktrace. The arity may also be a list of arguments.
+
+    ## Examples
+
+        (exception.format-fa (fn [] #ok) 1)
+        ;;=> "#Function<...>/1"
+
+    """
+    ;; TODO revise to use inspect
+    (format "~p~s" [fun (format-arity arity)]))
+
+
+  (defn format-mfa [module fun arity] (&when (&and (atom? module)
+                                                   (atom? fun)))
+    ;; TODO add doc
+    ;; TODO add impl
+    (format "~p.~p ~s" [module fun (format-arity arity)]))
+
+  (defn format-arity [arity] (&when (list? arity))
+    ;; TODO add impl
+    (format "~p" [arity]))
+
+  (defn format-arity [arity] (&when (integer? arity))
+    (format "/~d" [(integer.to-string arity)]))
+
+  (defn format-file-line [file line]
+    """Formats the given file and line as shown in stacktraces.
+    If any of the values are `:nil`, they are omitted.
+
+    ## Examples
+
+        kapok> (exception.format-file-line "foo" 1)
+        "foo:1:"
+
+        kapok> (exception.format-file-line "foo" :nil)
+        "foo:"
+
+        kapok> (exception.format-file-line :nil :nil)
+        ""
+
+    """
+    (format-file-line file line ""))
+
+  (defn format-file-line [file line suffix]
+    (if file
+        (if (and line
+                 (!= line 0))
+            (format "~s:~p:~s" [file line suffix])
+          (format "~s:~p" [file line]))
+      ""))
+
+  (defn format-location [opts] (&when (list? opts))
+    (format-file-line (alist.get opts #file)
+                      (alist.get opts #line)
+                      " "))
+
+  )
+
+(defns kapok.runtime-error
+  (defexception [{#message "runtime error"}]))
+
+(defns kapok.argument-error
+  (defexception [{#message "argument error"}]))
+
+;; (defns kapok.arithmetic-error
+;;   (defexception [])
+
+;;   (defn message [_]
+;;     "bad argument in arithmetic expression")
+;;   )
+
+;; (defns kapok.system-limit-error
+;;   (defexception [])
+
+;;   (defn message [_]
+;;     "A system limit has been reached")
+;;   )
+
+
+;; (defns kapok.syntax-error
+;;   (use (io_lib :only (format))
+;;        (kapok (access
+;;                exception)))
+;;   (defexception [{#file :nil}
+;;                  {#line :nil}
+;;                  {#description "syntax error"}])
+
+;;   (defn message [e]
+;;     (format "~s ~s" [(exception.format-file-line (get e #file)
+;;                                                  (get e #line))
+;;                      (get e #description)])))
+
+;; (defns kapok.token-missing-error
+;;   (use (io_lib :only (format))
+;;        (kapok (access
+;;                exception)))
+
+;;   (defexception [{#file :nil}
+;;                  {#line :nil}
+;;                  {#description "expression is incomplete"}])
+
+;;   (defn message [e]
+;;     (format "~s ~s" [(exception.format-file-line (get e #file)
+;;                                                  (get e #line))
+;;                      (get e #description)])))
+
+;; (defns kapok.compile-error
+
+;;   (use (io_lib :only (format))
+;;        (kapok (access
+;;                exception)))
+
+;;   (defexception [{#file :nil}
+;;                  {#line :nil}
+;;                  {#description "compile error"}])
+
+;;   (defn message [e]
+;;     (format "~s ~s" [(exception.format-file-line (get e #file)
+;;                                                  (get e #line))
+;;                      (get e #description)])))
+
+;; (defns kapok.bad-function-error
+
+;;   (use (io_lib :only (format)))
+
+;;   (defexception [{#term :nil}])
+
+;;   (defn message [e]
+;;     (format "expected a function, got: ~p" [(get e #term)])))
+
+;; (defns kapok.bad-struct-error
+
+;;   (use (io_lib :only (format))
+;;        (kapok (access)))
+
+;;   (defexception [{#struct :nil}
+;;                  {#term :nil}])
+
+;;   (defn message [e]
+;;     (format "expected a struct named ~s, got: ~s" [(get e #struct)
+;;                                                    (get e #term)])))
+
+;; (defns kapok.match-error
+
+;;   (use (io_lib :only (format))
+;;        (kapok (access)))
+
+;;   (defexception [{#term :nil}])
+
+;;   (defn message [e]
+;;     (format "no match of right hand side value: ~p" [(get e #term)])))
+
+;; (defns kapok.case-clause-error
+
+;;   (use (io_lib :only (format))
+;;        (kapok (access)))
+
+;;   (defexception [{#term :nil}])
+
+;;   (defn message [e]
+;;     (format "no case clause matching: ~p" [(get e #term)])))
+
+;; (defns kapok.cond-clause-error
+
+;;   (use (io_lib :only (format)))
+
+;;   (defexception [])
+
+;;   (defn message [e]
+;;     (format "no cond clause evaluated to a true value")))
+
+;; (defns kapok.try-clause-error
+
+;;   (use (io_lib :only (format))
+;;        (kapok (access)))
+
+;;   (defexception [{#term :nil}])
+
+;;   (defn message [e]
+;;     (format "no try clause matching: ~p" [(get e #term)])))
+
+;; (defns kapok.bad-arity-error
+
+;;   (use (io_lib :only (format))
+;;        (kapok (access
+;;                seq)))
+
+;;   (defexception [{#function :nil}
+;;                  {#args :nil}])
+
+;;   (defn message [e]
+;;     (let [fun (get e #function)
+;;           args (get e #args)
+;;           insp (seq.map-join args
+;;                              ", "
+;;                              ;; TODO revise to use inspect
+;;                              (fn [x] -> x))
+;;           {#arity arity} (erlang.fun_info fun #arity)]
+;;       (format "~p with arity ~p called with ~p"
+;;               [fun
+;;                arity
+;;                (count (length args) insp)])))
+
+;;   (defn- count [0 _insp]
+;;     "no arguments")
+
+;;   (defn- count [1 insp]
+;;     (format "1 argument ~p" [insp]))
+
+;;   (defn- count [x insp]
+;;     (format "~p arguments" [insp])))
+
+(defns kapok.erlang-error
+  ((require io_lib)
+   (use (kapok (access
+                exception
+                argument-error))))
+
+  (defexception [{#original :nil}])
+
+  (defn message [e]
+    (io_lib.format "erlang error: ~p" [e]))
+
+  (defn normalize [#badarg _stacktrace]
+    (argument-error.new))
+  )

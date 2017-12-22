@@ -135,7 +135,10 @@ $1_core_lib_files      :=       \
   kapok.seq.kpk                 \
   kapok.alist.kpk               \
   kapok.access.kpk              \
-  kapok.io.kpk
+  kapok.io.kpk                  \
+  kapok.process.kpk             \
+  kapok.system.kpk              \
+  kapok.exception.kpk
 $1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
                               $$(call get-files-in-dir,$$($1_lib_dir),kpk))

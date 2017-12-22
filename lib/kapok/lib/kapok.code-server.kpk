@@ -43,7 +43,7 @@
            (module.__info__ #module)
            {#module module})
           (catch
-              ((#throw error) error))))
+              ((#error error) error))))
     (other
      other)))
 

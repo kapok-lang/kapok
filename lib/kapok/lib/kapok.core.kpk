@@ -12,6 +12,7 @@
            code
            kapok_scanner
            kapok_ast
+           kapok_ctx
            kapok_error
            kapok_utils))
 
@@ -1530,7 +1531,7 @@
 
 ;; exception
 
-(defmacro defexception [_args]
+(defmacro defexception [{_ args-meta arg-list} &as args]
   """Defines an exception.
 
   Exceptions are structs backed by a module that implements
@@ -1586,21 +1587,31 @@
   exception messages.
   """
 
-  ;; (let [fields (if (list? args)
-  ;;                  [{#__exception__ :true} & args]
-  ;;                `(lists.append [{#__exception__ :true}] ~args))]
-    [
-     `(behaviour kapok.exception)
+  (let [f (lists.map (fn [{#tuple meta1 values}]
+                       {#list meta1 values})
+                     arg-list)
+        fields {#list args-meta f}
+        {a _ctx} (kapok_compiler.eval_ast args (kapok_ctx.ctx_for_eval []))
+        message-def (case (lists.keyfind #message 1 a)
+                      (t (&when (erlang.is_tuple t))
+                         [`(defn message [exception]
+                             (kapok.access.get exception #message))])
+                      (:false
+                       []))
+        struct-def `(defstruct ;;[kapok.access]
+                        ~@fields)]
+    [`(behaviour kapok.exception)
 
-     `(defn exception [msg] (&when (binary? msg))
+      `(defn exception [msg] (&when (binary? msg))
         (exception [{#message msg}]))
 
-     `(defn exception [args] (&when (list? args))
+      `(defn exception [args] (&when (list? args))
         (kapok.core.struct (__MODULE__) args))
 
-     ;; TODO add dummy impl for `message` if there is no #message field
-     `(defn message [exception]
-        (get exception #message))
+      struct-def
+      &
+      ;; TODO add dummy impl for `message` if there is no #message field
+      message-def
       ]
-    ;;)
+    )
   )

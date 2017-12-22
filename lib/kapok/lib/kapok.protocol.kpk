@@ -350,14 +350,16 @@
              t-name (erlang.atom_to_list type-name)
              module-name (erlang.list_to_atom
                           (lists.append p-name (lists.append #"." t-name)))
-             after (after-defimpl protocol type)]
-         {#list meta (lists.append
-                      [{#identifier meta #defns}
-                       {#identifier protocol-meta module-name}
-                       doc
-                       {#list protocol-meta ns-all}
-                       & after]
-                      defn-all)}))
+             after (after-defimpl protocol type)
+             ns-head (if (nil? ns-all)
+                         [{#identifier meta #defns}
+                          {#identifier protocol-meta module-name}
+                          doc]
+                       [{#identifier meta #defns}
+                        {#identifier protocol-meta module-name}
+                        doc
+                        {#list protocol-meta ns-all}])]
+         {#list meta (lists.append [ns-head after defn-all])}))
       ([{#list clause-meta clause} & t]
        (case (handle-defimpl-clause clause-meta clause)
          ({#ns handled-ns}
