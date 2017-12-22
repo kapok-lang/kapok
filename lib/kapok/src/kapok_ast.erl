@@ -75,10 +75,8 @@ handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
              Ctx;
            NS ->
              %% build the previous namespace before entering the new namespace
-             build_namespace(NS, Ctx),
-             %% create a new context for the new namespace
-             File = maps:get(file, Ctx),
-             kapok_ctx:ctx_for_eval([{namespace, Name}, {file, File}, {line, 1}])
+             C = build_namespace(NS, Ctx),
+             C#{namespace => Name}
          end,
   kapok_symbol_table:new_namespace(Name),
   {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),
@@ -277,13 +275,12 @@ handle_def_ns(Meta, Kind, NameAst, T, Ctx) ->
 %% namespace args
 handle_def_ns(Meta, _Kind, NameAst, DocAst,
               [{list, _, [{list, _, [{identifier, _, Id} | _]} | _] = NSArgs} | T],
-              #{namespace := NS} = Ctx)
+              Ctx)
     when Id == require; Id == use ->
   Name = plain_dot_name(NameAst),
   Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx#{namespace => Name}),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
-  build_namespace(Name, Ctx2),
-  Ctx2#{namespace => NS};
+  build_namespace(Name, Ctx2);
 %% Sometimes we need to expand a top level macro call to a list of ast,
 %% in this case, we need to handle the returned all these asts in sequence.
 handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) ->
@@ -292,12 +289,11 @@ handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) -
 %% defs
 handle_def_ns(_Meta, _Kind, _NameAst, _DocAst, [], Ctx) ->
   Ctx;
-handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, #{namespace := NS} = Ctx) ->
+handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, Ctx) ->
   Name = plain_dot_name(NameAst),
   Ctx1 = handle_ns(Meta, [NameAst, DocAst], Ctx#{namespace => Name}),
   Ctx2 = lists:foldl(fun handle/2, Ctx1, Defs),
-  build_namespace(Name, Ctx2),
-  Ctx2#{namespace => NS}.
+  build_namespace(Name, Ctx2).
 
 %% definitions
 
@@ -655,7 +651,9 @@ build_namespace(Namespace, Ctx) ->
   %% from the forms for the final compilation in order to avoid unused warnings caused by them.
   STOptions = [strip_private_macro],
   ErlOptions = [],
-  build_namespace(Namespace, Namespace, Ctx, STOptions, ErlOptions, fun write_compiled/2).
+  build_namespace(Namespace, Namespace, Ctx, STOptions, ErlOptions, fun write_compiled/2),
+  %% reset a new context for the later compilation
+  kapok_ctx:reset_ctx(Ctx).
 
 write_compiled(Module, Binary) ->
   %% write compiled binary to dest file

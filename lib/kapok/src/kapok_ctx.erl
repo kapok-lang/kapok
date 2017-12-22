@@ -17,6 +17,7 @@
          get_var/3,
          get_var_current_scope/3,
          ctx_for_eval/1,
+         reset_ctx/1,
          metadata_check_remote_call/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
@@ -195,6 +196,11 @@ setup_ctx(Ctx) ->
     true -> Ctx;
     false -> kapok_ast:add_uses(Ctx, kapok_dispatch:default_uses())
   end.
+
+reset_ctx(Ctx) ->
+  New = ctx_for_eval([]),
+  New#{file => ?m(Ctx, file),
+       line => ?m(Ctx, line)}.
 
 ctx_for_eval(Opts) ->
   Ctx = ctx_for_eval((new_ctx())#{requires := kapok_dispatch:default_requires()},

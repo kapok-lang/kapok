@@ -570,15 +570,16 @@
 ;;     (format "~p arguments" [insp])))
 
 (defns kapok.erlang-error
-  ((require io_lib)
-   (use (kapok (access
+  ((use (io_lib :only (format)
+                :rename ((format fmt)))
+     (kapok (access
                 exception
                 argument-error))))
 
   (defexception [{#original :nil}])
 
   (defn message [e]
-    (io_lib.format "erlang error: ~p" [e]))
+    (fmt "erlang error: ~p" [e]))
 
   (defn normalize [#badarg _stacktrace]
     (argument-error.new))

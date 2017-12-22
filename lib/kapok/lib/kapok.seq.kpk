@@ -1569,6 +1569,7 @@
 
 (defimpl sequential map
   (require maps)
+  (use (kapok (sequential)))
 
   (defn reduce [map acc fun]
     (sequential.reduce (maps.to_list map)
