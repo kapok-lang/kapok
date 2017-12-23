@@ -563,9 +563,14 @@
 (defns kapok.erlang-error
   ((use (io_lib :only (format)
                 :rename ((format fmt)))
-     (kapok (access
+        (kapok (access
                 exception
-                argument-error))))
+                argument-error
+                arithmetic-error
+                system-limit-error
+                cond-clause-error
+                bad-arity-error
+                ))))
 
   (defexception [{#original :nil}])
 
@@ -574,4 +579,17 @@
 
   (defn normalize [#badarg _stacktrace]
     (argument-error.new))
+
+  (defn normalize [#badarith _stacktrace]
+    (arithmetic-error.new))
+
+  (defn normalize [#system_limit _stacktrace]
+    (system-limit-error.new))
+
+  (defn normalize [#cond_clause _stacktrace]
+    (cond-clause-error.new))
+
+  (defn normalize [{#badarity {fun args}} _stacktrace]
+    (bad-arity-error.new :function fun :args args))
+
   )

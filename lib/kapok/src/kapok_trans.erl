@@ -235,7 +235,7 @@ translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
     true ->
       {Module, Fun} = plain_dot_mf(Dot),
       {TArgs, TCtx1} = translate_args(Args, Ctx),
-      Arity = length(Args),
+      Arity = length(TArgs),
       case kapok_ctx:get_var(Meta, Ctx, Module) of
         {ok, _} ->
           M = {identifier, DotMeta, Module},
