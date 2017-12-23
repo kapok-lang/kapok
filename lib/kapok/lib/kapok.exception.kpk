@@ -13,7 +13,9 @@
   format exceptions as in the current Kapok version being used.
   """
 
-  ((require application)
+  ((require application
+            code
+            maps)
    (use (io_lib :only (format))
         (kapok (access
                 alist
@@ -560,6 +562,193 @@
   (defn- count [_x insp]
     (format "~p arguments" [insp])))
 
+(defns kapok.undefined-function-error
+  ((use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (exception))))
+
+  (defexception [{#module :nil}
+                 {#function :nil}
+                 {#arity :nil}
+                 {#reason :nil}])
+
+  (defn message [#{#reason :nil
+                   #module module
+                   #function function
+                   #arity arity} &as e]
+    (cond
+      (or (nil? function) (nil? arity))
+      "undefined function"
+
+      (and (not (nil? module))
+           (=== (code.is_loaded module) :false))
+      (message (maps.put #reason "module could not be loaded" e))
+
+      :true
+      (message (maps.put #reason "function not exported" e))))
+
+  (defn message [#{#reason "module could not be loaded"
+                   #module module
+                   #function function
+                   #arity arity}]
+    (fmt "undefined function: ~s (module ~p is not available)"
+         [(exception.format-mfa module function arity)
+          module]))
+
+  (defn message [#{#reason "function not exported"
+                   #module module
+                   #function function
+                   #arity arity}]
+    (fmt "undefined function: ~s" [(exception.format-mfa module function arity)]))
+
+  (defn message [#{#reason "function not available"
+                   #module module
+                   #function function
+                   #arity arity}]
+    (let [<<("nil.") (fa)>> (exception.format-mfa :nil function arity)]
+      (fmt "undefined function: ~s (function ~p is not available)"
+           [(exception.format-mfa module function arity)
+            fa]))))
+
+(defns kapok.function-clause-error
+  ((use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (access
+                exception))))
+
+  (defexception [{#module :nil}
+                 {#function :nil}
+                 {#arity :nil}])
+
+  (defn message [e]
+    (if (get e #function)
+        (let [formatted (exception.format-mfa (get e #module)
+                                              (get e #function)
+                                              (get e #arity))]
+          (fmt "no function clause matching in ~s" [formatted]))
+      "no function clause matches")))
+
+(defns kapok.code.load-error
+  ((require maps)
+   (use (io_lib :only (format))
+        (kapok (access
+                alist))))
+
+  (defexception [{#file :nil}
+                 {#message :nil}])
+
+  (defn exception [opts]
+    (let [file (alist.fetch! opts #file)
+          message (format "could not load ~p" [file])]
+      (new :message message :file file))))
+
+(defns kapok.protocol.undefined-error
+  ((use (kapok (access
+                exception))))
+
+  (defexception [{#protocol :nil}
+                 {#value :nil}
+                 {#description :nil}])
+
+  (defn message [e]
+    (let [msg (format "protocol ~p not implemented for ~p"
+                [(get e #protocol)
+                 (get e #value)])]
+      (if (get e #description)
+          (format "~s, ~s" [msg
+                            (get e #description)])
+        msg))))
+
+(defns kapok.key-error
+  ((use (io_lib :only (format))
+        (kapok (access))))
+
+  (defexception [{#key :nil}
+                 {#term :nil}])
+
+  (defn message [e]
+    (format "key ~p not found in ~p" [(get e #key)
+                                      (get e #term)])))
+
+(defns kapok.unicode-conversion-error
+  ((use (io_lib :only (format))
+        (kapok (alist))))
+
+  (defexception [{#encode :nil}
+                 {#message :nil}])
+
+  (defn exception [opts]
+    (let [message (format "~p ~p" [(alist.fetch! opts #kind)
+                                   (alist.fetch! opts #rest)])]
+      (new :encode (alist.fetch! opts #encode)
+           :message message)))
+
+  (defn detail [rest] (&when (binary? rest))
+    (format "encoding starting at ~p" [rest]))
+
+  (defn detail [[h & _]]
+    (format "code point ~p" [h])))
+
+(defns kapok.enum.out-out-bounds-error
+  (defexception [])
+
+  (defn message [_]
+    "out of bounds error"))
+
+(defns kapok.enum.empty-error
+  (defexception [])
+
+  (defn message [_]
+    "empty error"))
+
+(defns kapok.file.error
+  ((require file)
+   (use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (access
+                exception
+                io))))
+
+  (defexception [{#reason :nil}
+                 {#action ""}
+                 {#path :nil}])
+
+  (defn
+      #{:check_remote_call :false}
+      message [e]
+    (let [formatted (io.iodata-to-binary (file.format_error (get e #reason)))]
+      (fmt "could not ~p ~p: ~s" [(get e #action)
+                                  (get e #path)
+                                  formatted]))))
+
+(defns kapok.file.copy-error
+  ((require file)
+   (use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (access
+                exception
+                io))))
+
+  (defexception [{#reason :nil}
+                 {#action :nil}
+                 {#source :nil}
+                 {#destination :nil}
+                 {#on :nil}])
+
+  (defn
+      #{:check_remote_call :false}
+      message [e]
+    (let [formatted (io.iodata-to-binary (file.format_error (get e #reason)))
+          location (if (get e #on)
+                       (fmt ". ~p" [(get e #on)])
+                     "")]
+      (fmt "could not ~p from ~p to ~p~p: ~s" [(get e #action)
+                                               (get e #source)
+                                               (get e #destination)
+                                               location
+                                               formatted])))
+  )
+
 (defns kapok.erlang-error
   ((use (io_lib :only (format)
                 :rename ((format fmt)))
@@ -570,7 +759,14 @@
                 system-limit-error
                 cond-clause-error
                 bad-arity-error
-                ))))
+                bad-function-error
+                bad-struct-error
+                match-error
+                case-clause-error
+                try-clause-error
+                undefined-function-error
+                function-clause-error
+                argument-error))))
 
   (defexception [{#original :nil}])
 
@@ -592,4 +788,43 @@
   (defn normalize [{#badarity {fun args}} _stacktrace]
     (bad-arity-error.new :function fun :args args))
 
+  (defn normalize [{#badfun term} _stacktrace]
+    (bad-function-error.new :term term))
+
+  (defn normalize [{#badstruct struct term} _stacktrace]
+    (bad-struct-error.new :struct struct :term term))
+
+  (defn normalize [{#badmatch term} _stacktrace]
+    (match-error.new :term term))
+
+  (defn normalize [{#case_clause term} _stacktrace]
+    (case-clause-error.new :term term))
+
+  (defn normalize [{#try_clause term} _stacktrace]
+    (try-clause-error.new :term term))
+
+  (defn normalize [#undef stacktrace]
+    (let [st (or stacktrace
+               (erlang.get_stacktrace))
+          {mod fun arity} (from-stacktrace st)]
+      (undefined-function-error.new :module mod :function fun :arity arity)))
+
+  (defn normalize [#function_clause stacktrace]
+    (let [{mod fun arity} (from-stacktrace (or stacktrace (erlang.get_stacktrace)))]
+      (function-clause-error.new :module mod :function fun :arity arity)))
+
+  (defn normalize [{#badarg payload} _stacktrace]
+    (argument-error.new :message (fmt "argument error: ~p" [payload])))
+
+  (defn normalize [other _stacktrace]
+    (new :original other))
+
+  (defn- from-stacktrace [[{module function args _} & _]] (&when (list? args))
+    {module function (length args)})
+
+  (defn- from-stacktrace [[{module function arity _} & _]]
+    {module function arity})
+
+  (defn- from-stacktrace [_]
+    {:nil :nil :nil})
   )
