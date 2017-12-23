@@ -1,5 +1,5 @@
 (defns kapok.exception
-    """Functions to format throw/catch/exit and exceptions.
+  """Functions to format throw/catch/exit and exceptions.
 
   Note that stacktraces in Kapok are updated on throw,
   errors and exits. For example, at any given moment,
@@ -430,138 +430,135 @@
   )
 
 
-;; (defns kapok.syntax-error
-;;   (use (io_lib :only (format))
-;;        (kapok (access
-;;                exception)))
-;;   (defexception [{#file :nil}
-;;                  {#line :nil}
-;;                  {#description "syntax error"}])
+(defns kapok.syntax-error
+  ((use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (access
+                exception))))
 
-;;   (defn message [e]
-;;     (format "~s ~s" [(exception.format-file-line (get e #file)
-;;                                                  (get e #line))
-;;                      (get e #description)])))
+  (defexception [{#file :nil}
+                 {#line :nil}
+                 {#description "syntax error"}])
 
-;; (defns kapok.token-missing-error
-;;   (use (io_lib :only (format))
-;;        (kapok (access
-;;                exception)))
+  (defn message [e]
+    (fmt "~s ~s" [(exception.format-file-line (get e #file)
+                                              (get e #line))
+                  (get e #description)])))
 
-;;   (defexception [{#file :nil}
-;;                  {#line :nil}
-;;                  {#description "expression is incomplete"}])
+(defns kapok.token-missing-error
+  ((use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (access
+                exception))))
 
-;;   (defn message [e]
-;;     (format "~s ~s" [(exception.format-file-line (get e #file)
-;;                                                  (get e #line))
-;;                      (get e #description)])))
+  (defexception [{#file :nil}
+                 {#line :nil}
+                 {#description "expression is incomplete"}])
 
-;; (defns kapok.compile-error
+  (defn message [e]
+    (fmt "~s ~s" [(exception.format-file-line (get e #file)
+                                              (get e #line))
+                  (get e #description)])))
 
-;;   (use (io_lib :only (format))
-;;        (kapok (access
-;;                exception)))
+(defns kapok.compile-error
+  ((use (io_lib :only (format)
+                :rename ((format fmt)))
+        (kapok (access
+                exception))))
 
-;;   (defexception [{#file :nil}
-;;                  {#line :nil}
-;;                  {#description "compile error"}])
+  (defexception [{#file :nil}
+                 {#line :nil}
+                 {#description "compile error"}])
 
-;;   (defn message [e]
-;;     (format "~s ~s" [(exception.format-file-line (get e #file)
-;;                                                  (get e #line))
-;;                      (get e #description)])))
+  (defn message [e]
+    (fmt "~s ~s" [(exception.format-file-line (get e #file)
+                                              (get e #line))
+                  (get e #description)])))
 
-;; (defns kapok.bad-function-error
+(defns kapok.bad-function-error
+  ((use (io_lib :only (format))
+        (kapok (access))))
 
-;;   (use (io_lib :only (format)))
+  (defexception [{#term :nil}])
 
-;;   (defexception [{#term :nil}])
+  (defn message [e]
+    (format "expected a function, got: ~p" [(get e #term)])))
 
-;;   (defn message [e]
-;;     (format "expected a function, got: ~p" [(get e #term)])))
+(defns kapok.bad-struct-error
+  ((use (io_lib :only (format))
+        (kapok (access))))
 
-;; (defns kapok.bad-struct-error
+  (defexception [{#struct :nil}
+                 {#term :nil}])
 
-;;   (use (io_lib :only (format))
-;;        (kapok (access)))
+  (defn message [e]
+    (format "expected a struct named ~s, got: ~s" [(get e #struct)
+                                                   (get e #term)])))
 
-;;   (defexception [{#struct :nil}
-;;                  {#term :nil}])
+(defns kapok.match-error
+  ((use (io_lib :only (format))
+        (kapok (access))))
 
-;;   (defn message [e]
-;;     (format "expected a struct named ~s, got: ~s" [(get e #struct)
-;;                                                    (get e #term)])))
+  (defexception [{#term :nil}])
 
-;; (defns kapok.match-error
+  (defn message [e]
+    (format "no match of right hand side value: ~p" [(get e #term)])))
 
-;;   (use (io_lib :only (format))
-;;        (kapok (access)))
+(defns kapok.case-clause-error
+  ((use (io_lib :only (format))
+        (kapok (access))))
 
-;;   (defexception [{#term :nil}])
+  (defexception [{#term :nil}])
 
-;;   (defn message [e]
-;;     (format "no match of right hand side value: ~p" [(get e #term)])))
+  (defn message [e]
+    (format "no case clause matching: ~p" [(get e #term)])))
 
-;; (defns kapok.case-clause-error
+(defns kapok.cond-clause-error
+  ((use (io_lib :only (format))))
 
-;;   (use (io_lib :only (format))
-;;        (kapok (access)))
+  (defexception [])
 
-;;   (defexception [{#term :nil}])
+  (defn message [_e]
+    (format "no cond clause evaluated to a true value" [])))
 
-;;   (defn message [e]
-;;     (format "no case clause matching: ~p" [(get e #term)])))
+(defns kapok.try-clause-error
+  ((use (io_lib :only (format))
+        (kapok (access))))
 
-;; (defns kapok.cond-clause-error
+  (defexception [{#term :nil}])
 
-;;   (use (io_lib :only (format)))
+  (defn message [e]
+    (format "no try clause matching: ~p" [(get e #term)])))
 
-;;   (defexception [])
+(defns kapok.bad-arity-error
+  ((use (io_lib :only (format))
+        (kapok (access
+                seq))))
 
-;;   (defn message [e]
-;;     (format "no cond clause evaluated to a true value")))
+  (defexception [{#function :nil}
+                 {#args :nil}])
 
-;; (defns kapok.try-clause-error
+  (defn message [e]
+    (let [fun (get e #function)
+          args (get e #args)
+          insp (seq.map-join args
+                             ", "
+                             ;; TODO revise to use inspect
+                             (fn [x] x))
+          {#arity arity} (erlang.fun_info fun #arity)]
+      (format "~p with arity ~p called with ~p"
+              [fun
+               arity
+               (count (length args) insp)])))
 
-;;   (use (io_lib :only (format))
-;;        (kapok (access)))
+  (defn- count [0 _insp]
+    "no arguments")
 
-;;   (defexception [{#term :nil}])
+  (defn- count [1 insp]
+    (format "1 argument ~p" [insp]))
 
-;;   (defn message [e]
-;;     (format "no try clause matching: ~p" [(get e #term)])))
-
-;; (defns kapok.bad-arity-error
-
-;;   (use (io_lib :only (format))
-;;        (kapok (access
-;;                seq)))
-
-;;   (defexception [{#function :nil}
-;;                  {#args :nil}])
-
-;;   (defn message [e]
-;;     (let [fun (get e #function)
-;;           args (get e #args)
-;;           insp (seq.map-join args
-;;                              ", "
-;;                              ;; TODO revise to use inspect
-;;                              (fn [x] -> x))
-;;           {#arity arity} (erlang.fun_info fun #arity)]
-;;       (format "~p with arity ~p called with ~p"
-;;               [fun
-;;                arity
-;;                (count (length args) insp)])))
-
-;;   (defn- count [0 _insp]
-;;     "no arguments")
-
-;;   (defn- count [1 insp]
-;;     (format "1 argument ~p" [insp]))
-
-;;   (defn- count [x insp]
-;;     (format "~p arguments" [insp])))
+  (defn- count [_x insp]
+    (format "~p arguments" [insp])))
 
 (defns kapok.erlang-error
   ((use (io_lib :only (format)
