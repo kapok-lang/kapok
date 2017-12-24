@@ -14,6 +14,7 @@
          namespace_forms/4]).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
+-import(kapok_utils, [meta_order/1]).
 -include("kapok.hrl").
 
 %% Public API
@@ -127,13 +128,13 @@ handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map)
   NewAliasFAPList = filter_aliases(Match, get_kv(Map1, Namespace, Key)),
   AllFAPList = NewAliasFAPList ++ FAPList,
   SuspendedClauses = get_kv(Map1, Namespace, 'suspended_def_clauses'),
-  Folder = fun(FA, S, {Suspended, M} = Acc) ->
+  Folder = fun(FA, D, {Suspended, M} = Acc) ->
                case kapok_dispatch:filter_fa(FA, AllFAPList) of
                  [] ->
                    Acc;
                  _ ->
                    M1 = remove_suspended_def_clause(M, Namespace, FA),
-                   {orddict:store(FA, S, Suspended), M1}
+                   {orddict:store(FA, D, Suspended), M1}
                end
            end,
   {ToHandle, Map2} = orddict:fold(Folder,
@@ -238,7 +239,8 @@ new_namespace() ->
     defs => [],
     locals => [],
     forms => [],
-    suspended_def_clauses => []}.
+    suspended_def_clauses => [],
+    order => 0}.
 
 add_namespace_if_missing(Map, Namespace) ->
   case maps:is_key(Namespace, Map) of
@@ -302,15 +304,27 @@ is_exported(Map, Namespace, 'defmacro', FAP) ->
 is_exported(NS, Key, FAP) ->
   ordsets:is_element(FAP, maps:get(Key, NS)).
 
+next_order(Namespace, Map) ->
+  Key = 'order',
+  Fun = fun(Order) -> Order + 1 end,
+  Map1 = update_kv(Map, Namespace, Key, Fun),
+  Next = get_kv(Map1, Namespace, Key),
+  {Next, Map1}.
+
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn-' ->
   add_def_clause(Map, Namespace, 'defn', FA, Meta, Clause);
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defmacro-' ->
   add_def_clause(Map, Namespace, 'defmacro', FA, Meta, Clause);
 add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn'; Kind == 'defmacro' ->
-  add_into_kv_dict_dict_set(Map, Namespace, 'defs', FA, Meta, Clause).
+  {Order, Map1} = case meta_order(Meta) of
+                    0 -> next_order(Namespace, Map);
+                    Value -> {Value, Map}
+                  end,
+  add_into_kv_dict_dict_set(Map1, Namespace, 'defs', FA, {Order, Meta}, Clause).
 
 add_suspended_def_clause(Map, Namespace, FA, ClauseArgs) ->
-  add_into_kv_dict_set(Map, Namespace, 'suspended_def_clauses', FA, ClauseArgs).
+  {Order, Map1} = next_order(Namespace, Map),
+  add_into_kv_dict_dict(Map1, Namespace, 'suspended_def_clauses', FA, Order, ClauseArgs).
 
 remove_suspended_def_clause(Map, Namespace, FA) ->
   remove_from_kv_dict(Map, Namespace, 'suspended_def_clauses', FA).
@@ -348,13 +362,15 @@ remove_from_kv_dict(Map, Namespace, Key, DictKey) ->
   Fun = fun(V) -> orddict:erase(DictKey, V) end,
   update_kv(Map, Namespace, Key, Fun).
 
-add_into_kv_dict_set(Map, Namespace, Key, DictKey, SetValue) ->
-  Fun = fun(Dict) ->
-            NewSet = case orddict:find(DictKey, Dict) of
-                       {ok, Set} -> ordsets:add_element(SetValue, Set);
-                       error -> ordsets:from_list([SetValue])
-                     end,
-            orddict:store(DictKey, NewSet, Dict)
+add_into_kv_dict_dict(Map, Namespace, Key, Dict1Key, Dict2Key, Value) ->
+  Fun = fun(Dict1) ->
+            NewDict2 = case orddict:find(Dict1Key, Dict1) of
+                         {ok, Dict2} ->
+                           orddict:store(Dict2Key, Value, Dict2);
+                         error ->
+                           orddict:from_list([{Dict2Key, Value}])
+                       end,
+            orddict:store(Dict1Key, NewDict2, Dict1)
         end,
   update_kv(Map, Namespace, Key, Fun).
 
@@ -494,8 +510,10 @@ private_macros(NS) ->
   ordsets:subtract(All, Exports).
 
 namespace_defs(NS, Options) ->
-  GetMetaClauses = fun(Meta, Clauses, {nil, Acc}) -> {Meta, Clauses ++ Acc};
-                      (_Meta, Clauses, {Meta, Acc}) -> {Meta, Clauses ++ Acc}
+  GetMetaClauses = fun({_Order, Meta}, Clauses, {nil, Acc}) ->
+                       {Meta, Clauses ++ Acc};
+                      (_OrderAndMeta, Clauses, {Meta, Acc}) ->
+                       {Meta, Clauses ++ Acc}
                    end,
   IterateDefs = fun(FA, MetaClauses, Acc) ->
                     {Meta, ReversedClauses} = orddict:fold(GetMetaClauses, {nil, []}, MetaClauses),

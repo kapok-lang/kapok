@@ -3,6 +3,7 @@
 -module(kapok_utils).
 -export([meta_line/1,
          meta_column/1,
+         meta_order/1,
          characters_to_list/1,
          characters_to_binary/1,
          to_binary/1,
@@ -19,6 +20,9 @@ meta_line(TupleList) when is_list(TupleList) ->
 
 meta_column(TupleList) when is_list(TupleList) ->
   find_key(column, TupleList).
+
+meta_order(TupleList) when is_list(TupleList) ->
+  find_key(order, TupleList).
 
 find_key(Key, TupleList) when is_list(TupleList) ->
   case lists:keyfind(Key, 1, TupleList) of

@@ -624,11 +624,12 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
 handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
   {ToHandle, AliasFAPList} = kapok_symbol_table:check_suspended_def_clauses(
                                  Namespace, CurrentKind, FAPList),
-  orddict:map(fun(_, S) ->
-                  lists:map(fun({_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}) ->
-                                handle_def_clause(Meta, Kind, Name, Args, Guard, Body, Ctx)
+  orddict:map(fun(_FA, D) ->
+                  lists:map(fun({Order, {_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}}) ->
+                                OrderedMeta = [{order, Order} | Meta],
+                                handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx)
                             end,
-                            ordsets:to_list(S))
+                            orddict:to_list(D))
               end,
               ToHandle),
   R = case ToHandle of
