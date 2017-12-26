@@ -121,27 +121,31 @@ $1_core_lib_files      :=       \
   kapok.core.kpk                \
   kapok.module.kpk              \
   kapok.code-server.kpk         \
-  kapok.protocol.kpk            \
+  kapok.protocol.kpk
+$1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
+$1_lib_files           :=       \
   kapok.stream.reducers.kpk     \
   kapok.atom.kpk                \
   kapok.integer.kpk             \
+  kapok.float.kpk               \
   kapok.tuple.kpk               \
-  kapok.list.chars.kpk          \
+  kapok.string.kpk              \
   kapok.list.kpk                \
   kapok.dict.kpk                \
   kapok.collectable.kpk         \
   kapok.string.chars.kpk        \
-  kapok.string.kpk              \
   kapok.seq.kpk                 \
   kapok.alist.kpk               \
+  kapok.list.chars.kpk          \
   kapok.access.kpk              \
   kapok.io.kpk                  \
   kapok.process.kpk             \
   kapok.system.kpk              \
-  kapok.exception.kpk
-$1_core_lib_modules     := $$(patsubst %.kpk,%,$$($1_core_lib_files))
-$1_lib_modules          := $$(call filter-out-list,$$($1_core_lib_files),\
-                              $$(call get-files-in-dir,$$($1_lib_dir),kpk))
+  kapok.time.kpk                \
+  kapok.exception.kpk           \
+  kapok.record.kpk              \
+  kapok.record.extractor.kpk
+$1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
 $1_core_lib_beam_files := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_core_lib_modules))
 $1_lib_beam_files      := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_lib_modules))
@@ -208,7 +212,7 @@ $3$1: $2$1
 
 $4$1:
 	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) \
-  $($1_core_lib_beam_files) $($1_lib_beam_files)
+  $($1_core_lib_beam_files) $($1_lib_beam_files) $($1_beam_output_dir)/*.beam
 
 else
 

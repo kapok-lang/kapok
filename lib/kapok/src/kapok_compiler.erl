@@ -82,10 +82,7 @@ eval_ast(Ast, Ctx) ->
 %% CORE HANDLING
 
 core() ->
-  compile_libs([{core, true}], fun core_libs/0),
-  %% reset compiler options
-  kapok_env:put(compiler_options, []),
-  compile_libs([], fun extended_libs/0).
+  compile_libs([{core, true}], fun core_libs/0).
 
 compile_libs(Options, Fun) ->
   {ok, _} = application:ensure_all_started(kapok),
@@ -114,25 +111,4 @@ core_libs() ->
    "kapok.module.kpk",
    "kapok.code-server.kpk",
    "kapok.protocol.kpk"
-  ].
-
-extended_libs() ->
-  ["kapok.stream.reducers.kpk",
-   "kapok.atom.kpk",
-   "kapok.integer.kpk",
-   "kapok.float.kpk",
-   "kapok.tuple.kpk",
-   "kapok.string.kpk",
-   "kapok.list.kpk",
-   "kapok.dict.kpk",
-   "kapok.collectable.kpk",
-   "kapok.string.chars.kpk",
-   "kapok.seq.kpk",
-   "kapok.alist.kpk",
-   "kapok.list.chars.kpk",
-   "kapok.access.kpk",
-   "kapok.io.kpk",
-   "kapok.process.kpk",
-   "kapok.system.kpk",
-   "kapok.exception.kpk"
   ].
