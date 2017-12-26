@@ -4,7 +4,41 @@
   with the VM or the host system.
   """
 
-  (require erlang))
+  (require erlang
+           file
+           os)
+  (use (kapok (io))))
+
+(defn cwd []
+  """Current working directory.
+
+  Returns the current working directory or `:nil` if one
+  is not available.
+  """
+  (case (file.get_cwd)
+    ({#ok base}
+     (io.chardata-to-string (fix-drive-letter base)))
+    (_ :nil)))
+
+(defn- fix-drive-letter [[l \: \/ & rest] &as original] (&when (&and (>= l \A)
+                                                                     (<= l \Z)))
+  (case (os.type)
+    ({#win32 _}
+     [(- (+ l \a) \A) \: \/ & rest])
+    (_
+     original)))
+
+(defn- fix-drive-letter [original]
+  original)
+
+(defn cwd! []
+  """Current working directory, exception on error.
+
+  Returns the current working directory or raises error.
+  """
+  (or (cwd)
+      ;; TODO revise to use exception
+      (throw "could not get a current working directory")))
 
 (defn stacktrace []
   """Last exception stacktrace.
