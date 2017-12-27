@@ -1,0 +1,262 @@
+(ns kapok.path
+  """This module provides conveniences for manipulating or
+  retrieving file system paths.
+
+  The functions in this module may receive a char data as
+  argument (i.e. a string or a list of characters / string)
+  and will always returns a string (encoded in UTF-8).
+
+  The majority of the functions in this module do not
+  interact with the file system, except for a few functions
+  that require it (like `wildcard/1` and `expand/1`).
+  """
+
+  (require binary
+           file
+           (filename :as fn)
+           lists
+           os
+           unicode)
+  (use (kapok (io
+               system)))
+  )
+
+(defn absname [path]
+  """Converts the given path to an absolute one. Unlike
+  `expand/1`, no attempt is made to resolve `..`, `.` or `~`.
+
+  ## Unix examples
+
+      (path.absname "foo")
+      ;;=> "/usr/local/foo"
+
+      (path.absname "../x")
+      ;;=> "/usr/local/../x"
+
+  ## Windows
+
+      (path.absname "foo")
+      "D:/usr/local/foo"
+
+      (path.absname "../x")
+      "D:/usr/local/../x"
+
+  """
+  (absname path (system.cwd!)))
+
+(defn absname [path relative-to]
+  """Builds a path from `relative-to` to `path`. If `path` is already
+  an absolute path, `relative-to` is ignored. See also `(relative-to 2)`.
+
+  Unlike `(expand 2)`, no attempt is made to resolve `..`, `.` or `~`.
+
+  ## Examples
+
+      kapok> (path.absname "foo" "bar")
+      "bar/foo"
+
+      kapok> (path.absname "../x" "bar")
+      "bar/../x"
+
+  """
+  (let [p (io.chardata-to-string path)]
+    (case (type p)
+      (:relative
+       (absname-join relative-to p))
+      (:absolute
+       (absname-join [p]))
+      (:volumerelative
+       (let [new-relative-to (io.chardata-to-string relative-to)]
+         (absname-vr (split p)
+                     (split new-relative-to)
+                     relative-to))))))
+
+(defn- absname-join [_ _]
+  #ok)
+(defn- absname-join [_]
+  #ok)
+
+(defn- absname-vr [_ _ _]
+  #ok)
+
+;; Absolute path on current drive
+;; (defn- absname-vr [["/" & rest] [volume & _] _relative]
+;;   (absname-join [volume rest]))
+
+;; ;; Relative to current directory on current drive.
+;; (defn- absname-vr [[<<(x) (\:)>> & rest] [<<(x) (_ :binary)>> & _] relative]
+;;   (absname (absname-join rest) relative))
+
+;; ;; Relative to current directory on another drive.
+;; (defn- absname-vr [[<<(x) (\:)>> & name] _ _relative]
+;;   (let [cwd (case (file.get_cwd [x \:])
+;;               ({#ok dir}
+;;                (io.chardata-to-string dir))
+;;               ({#error _}
+;;                <<(x) (\:) (\/)>>))]
+;;     (absname (absname-join name) cwd)))
+
+;; ;; Joins a list
+;; (defn- absname-join [[name1 name2 & rest]]
+;;   (absname-join [(absname-join name1 name2) & rest]))
+;; (defn- absname-join [name]
+;;   (do-absname-join (io.chardata-to-string name)
+;;                    << >>
+;;                    []
+;;                    (major-os-type)))
+
+;; ;; Joins two paths
+;; (defn- absname-join [left right]
+;;   (do-absname-join (io.chardata-to-string left)
+;;                    (relative right)
+;;                    []
+;;                    (major-os-type)))
+
+;; (defn- do-absname-join [<<(uc-letter) (\:) (rest :binary)>> relativename [] #win32]
+;;   (&when (&and (>= uc-letter \A) (<= uc-letter \Z)))
+;;   (do-absname-join rest relativename [\: (- (+ uc-letter \a) \A) #win32]))
+;; (defn- do-absname-join [<<(\\) (rest :binary)>> relativename result #win32]
+;;   (do-absname-join <<(\/) (rest :binary)>> relativename result #win32))
+;; (defn- do-absname-join [<<(\/) (rest :binary)>> relativename [\. \/ & result] os-type]
+;;   ;; TODO add impl
+;;   (do-absname-join rest relativename [\/ & result] os-type))
+;; (defn- do-absname-join [<<(\/) (rest :binary)>> relativename [\/ & result] os-type]
+;;   (do-absname-join rest relativename [\/ & result] os-type))
+;; (defn- do-absname-join [<<>> <<>> result os-type]
+;;   (io.iodata-to-binary (reverse-maybe-remove-dirsep result os-type)))
+;; (defn- do-absname-join [<<>> relativename [\/ & rest] #win32]
+;;   (do-absname-join relativename <<>> [\: & rest] #win32))
+;; (defn- do-absname-join [<<>> relativename [\/ & result] os-type]
+;;   (do-absname-join relativename <<>> [\/ & result] os-type))
+;; (defn- do-absname-join [<<>> relativename result os-type]
+;;   (do-absname-join relativename <<>> [\/ & result] os-type))
+;; (defn- do-absname-join [<<(char) (rest :binary)>> relativename result os-type]
+;;   (do-absname-join rest relativename [char & result] os-type))
+
+;; (defn- reverse-maybe-remove-dirsep [[\/ \: letter] #win32]
+;;   [letter \: \/])
+;; (defn- reverse-maybe-remove-dirsep [[\/] _]
+;;   [\/])
+;; (defn- reverse-maybe-remove-dirsep [[\/ & name] _]
+;;   (lists.reverse name))
+;; (defn- reverse-maybe-remove-dirsep [name _]
+;;   (lists.reverse name))
+
+(defn type [name] (&when (&or (list? name)
+                              (binary? name)))
+  """Returns the path type.
+
+  ## Unix examples
+
+      (path.type "/")                ;;=> #absolute
+      (path.type "/usr/local/bin")   ;;=> #absolute
+      (path.type "usr/local/bin")    ;;=> #relative
+      (path.type "../usr/local/bin") ;;=> #relative
+      (path.type "~/file")           ;;=> #relative
+
+  ## Windows examples
+
+      (path.type "D:/usr/local/bin") ;;=> #absolute
+      (path.type "usr/local/bin")    ;;=> #relative
+      (path.type "D:bar.kpk")        ;;=> #volumerelative
+      (path.type "/bar/foo.kpk")     ;;=> #volumerelative
+
+  """
+  (-> (pathtype name (major-os-type))
+      (elem 0)))
+
+(defn- pathtype [name os-type]
+  (case os-type
+    (#win32
+     (win32-pathtype name))
+    (_
+     (unix-pathtype name))))
+
+(defn- unix-pathtype [<< (\/) (relative :binary)>>]
+  {#absolute relative})
+(defn- unix-pathtype [[\/ & relative]]
+  {#absolute relative})
+(defn- unix-pathtype [[list & rest]] (&when (list? list))
+  (unix-pathtype (lists.append list rest)))
+(defn- unix-pathtype [relative]
+  {#relative relative})
+
+;; (defmacro in-slash [char]
+;;   `(&or (== ~char \/)
+;;         (== ~char \\)))
+
+(defn- win32-pathtype [[list & rest]] (&when (list? list))
+  (win32-pathtype (lists.append list rest)))
+(defn- win32-pathtype [[char, list & rest]] (&when (list? list))
+  (win32-pathtype [char & (lists.append list rest)]))
+;; (defn- win32-pathtype [<<(c1) (c2) (relative :binary)>>] (&when (in-slash c1))
+;;        )
+
+
+;; Work around a bug in Erlang on UNIX
+(defn- split [""]
+  [])
+(defn- split [path]
+  (fn.split (io.chardata-to-string path)))
+
+;; expand-dot the given path by expanding "..", "." and "~"
+
+;; (defn- chardata-to-list [chardata]
+;;   (case (unicode.characters_to_list chardata)
+;;     (result (&when (list? result))
+;;      result)
+;;     ({#error _encoded _rest}
+;;      ;; TODO revise to use exception
+;;      (throw "unicode conversion error"))
+;;     ({#incomplete _encoded _rest}
+;;      ;; TODO revise to use exception
+;;      (throw "unicode conversion incomplete error"))))
+
+;; (defn- expand-home [type]
+;;   (case (io.chardata-to-string type)
+;;     (<<("~") (rest)>>
+;;        (resolve-home rest))
+;;     (rest
+;;      rest)))
+
+;; (defn- resolve-home [""]
+;;   (system.user-home!))
+
+;; (defn- resolve-home [rest]
+;;   (case {rest (major-os-type)}
+;;     ({<<("\\") (_)>> #win32}
+;;      <<((system.user-home!)) (rest))
+;;     ({<<("/") (_)>> _}
+;;      <<((system.user-home!)) (rest))
+;;     (_
+;;      rest)))
+
+;; (defn- expand-dot [<<("/../") (rest :binary)>>]
+;;   (expand-dot <<("/") (rest)>>))
+;; (defn- expand-dot [<<(letter) (":/../") (rest :binary)>>]
+;;   (&when (&and (>= letter \a) (<= letter \z)))
+;;   ;; TODO add impl
+;;   (expand-dot <<(letter) (":/") (rest :binary)>>))
+;; (defn- expand-dot ["/.."]
+;;   "/")
+;; (defn- expand-dot [<<(letter) (":/..")>>] (&when (&and (>= letter \a)
+;;                                                        (<= letter \z)))
+;;   (expand-dot <<(letter) (":/")>>))
+;; (defn- expand-dot [path]
+;;   (expand-dot (binary.split path "/" [#global]) []))
+
+;; (defn- expand-dot [[".." & t] [_ _ & acc]]
+;;   (expand-dot t acc))
+
+;; (defn- expand-dot [["." & t] acc]
+;;   (expand-dot t acc))
+
+;; (defn- expand-dot [[h & t] acc]
+;;   (expand-dot t ["/" h & acc]))
+
+;; (defn- expand-dot [[] ["/" & acc]]
+;;   (io.iodata-to-binary (lists.reverse acc)))
+
+(defn- major-os-type []
+  (-> (os.type)
+      (elem 0)))
