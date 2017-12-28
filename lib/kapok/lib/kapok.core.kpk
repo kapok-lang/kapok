@@ -1628,3 +1628,53 @@
       ]
     )
   )
+
+(defmacro raise [msg]
+  """Raises an exception.
+
+  If the argument `msg` is a binary, it raises a `runtime-error` exception
+  using the given argument as message.
+
+  If `msg` as an atom, it just calls `(raises 2)` with the atom as the first
+  argument and `[]` as the second argument.
+
+  If `msg` is anything else, raises an `argument-error` exception.
+  """
+
+  (case msg
+    (m (&when (erlang.is_binary m))
+      `(erlang.error (kapok.runtime-error.exception ~m)))
+    (alias (&when (erlang.is_atom alias))
+      `(erlang.error (~alias.exception [])))
+    (_
+     `(case ~msg
+        (m (&when (erlang.is_binary m))
+         (erlang.error (kapok.runtime-error.exception m)))
+        (atom (&when (erlang.is_atom atom))
+         (erlang.error (atom.exception [])))
+        (#{#__struct__ struct
+           #__exception__ :true} &as other (&when (atom struct))
+         (erlang.error other))
+        (_
+         (erlang.error
+          (kapok.argument-error.exception
+           "(raise 1) expects an alias or a string as the first argument")))))))
+
+(defmacro raise [exception attrs]
+  """Raises an exception.
+
+  Calls the `(exception 1)` function on the given argument (which has to be
+  a module name like `argument-error` or `runtime-error`) passing `attrs`
+  as the attributes in order to retrieve the exception struct.
+
+  Any module that contains a call to the `(defexception 1)` macro automatically
+  implements the `(exception 1)` callback expected by `(raise 2)`. See the docs
+  for `(defexception 1)` for more information.
+
+  ## Examples
+
+      kapok> (raise argument-error :message "Sample")
+      ** (argument-error) Sample
+
+  """
+  `(erlang.error (~exception.exception ~attrs)))

@@ -145,6 +145,7 @@ $1_lib_files           :=       \
   kapok.exception.kpk           \
   kapok.record.kpk              \
   kapok.record.extractor.kpk    \
+  kapok.regex.kpk               \
   kapok.path.kpk
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
