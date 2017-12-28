@@ -10,6 +10,7 @@
            sets
            maps
            code
+           io_lib
            kapok_scanner
            kapok_ast
            kapok_ctx
@@ -48,6 +49,19 @@
       [2, 3, #go]
   """
   (erlang.tl list))
+
+(defmacro in [m {#literal_list _ args}]
+  """check whether `m` is a member of list `seq`.
+
+  Allowed in guard tests.
+  """
+  (let [op-args (lists.map (fn [arg]
+                             `(== ~m ~arg))
+                            args)]
+    `(op-orelse ~@op-args)))
+(defmacro in [_ other]
+  ;; TODO revise to use exception
+  (throw (io_lib.format "only accept list, invalid arg: ~p" [other])))
 
 ;; special forms
 

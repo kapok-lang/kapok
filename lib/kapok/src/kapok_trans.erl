@@ -134,6 +134,26 @@ translate({list, Meta, [{identifier, _, 'do'} | Exprs]}, Ctx) ->
 translate({list, Meta, [{identifier, _, 'case'}, Expr, Clause | Left]}, Ctx) ->
   translate_case(Meta, Expr, Clause, Left, Ctx);
 
+%% logical operators: not, and, or xor
+%% short-circuit operators: andalso, orelse
+translate({list, Meta, [{identifier, _, Op}, Expr]}, Ctx) when Op == 'op-not' ->
+  {TExpr, TCtx} = translate(Expr, Ctx),
+  {{op, ?line(Meta), op_type(Op), TExpr}, TCtx};
+translate({list, _Meta, [{identifier, _, Op}, Expr]}, Ctx)
+    when ?is_var_arg_op(Op); ?is_short_circuit_op(Op) ->
+  translate(Expr, Ctx);
+translate({list, Meta, [{identifier, _, Op}, Left, Right]}, Ctx)
+    when ?is_var_arg_op(Op); ?is_short_circuit_op(Op) ->
+  {TLeft, TCtx1} = translate(Left, Ctx),
+  {TRight, TCtx2} = translate(Right, TCtx1),
+  {{op, ?line(Meta), op_type(Op), TLeft, TRight}, TCtx2};
+translate({list, Meta, [{identifier, OpMeta, Op} = OpAst, Left, Right | T]}, Ctx)
+    when ?is_var_arg_op(Op) ->
+  translate({list, Meta, [OpAst, {list, OpMeta, [OpAst, Left, Right]} | T]}, Ctx);
+translate({list, Meta, [{identifier, OpMeta, Op} = OpAst, Left, Right | T]}, Ctx)
+    when ?is_short_circuit_op(Op) ->
+  translate({list, Meta, [OpAst, Left, {list, OpMeta, [OpAst, Right | T]}]}, Ctx);
+
 %% fn
 translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Ctx)
     when ?is_id(C) ->
@@ -195,7 +215,7 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
 
 %% List
 
-%% Local call
+%% local call
 translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
   %% translate ast to erlang abstract format
   case kapok_ctx:get_var(Meta, Ctx, Id) of
@@ -752,6 +772,14 @@ translate_body(Meta, Body, Ctx) ->
     _ ->
       translate(Body, Ctx)
   end.
+
+%% logical operators
+op_type('op-not') -> 'not';
+op_type('op-and') -> 'and';
+op_type('op-or') -> 'or';
+op_type('op-xor') -> 'xor';
+op_type('op-andalso') -> 'andalso';
+op_type('op-orelse') -> 'orelse'.
 
 %% Error
 
