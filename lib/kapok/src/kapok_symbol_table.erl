@@ -34,8 +34,8 @@ new_alias(Namespace, Alias, Original, Meta) ->
 new_form(Namespace, Form) ->
   gen_server:call(?MODULE, {new_form, Namespace, Form}).
 
-new_suspended_def_clause(Namespace, FA, ClauseArgs) ->
-  gen_server:call(?MODULE, {new_suspended_def_clause, Namespace, FA, ClauseArgs}).
+new_suspended_def_clause(Namespace, UnresolvedFA, ClauseArgs) ->
+  gen_server:call(?MODULE, {new_suspended_def_clause, Namespace, UnresolvedFA, ClauseArgs}).
 
 check_suspended_def_clauses(Namespace, Kind, FAPList) ->
   gen_server:call(?MODULE, {check_suspended_def_clauses, Namespace, Kind, FAPList}).
@@ -59,9 +59,8 @@ namespace_forms(Namespace, ModuleName, Ctx, Options) ->
       kapok_error:compile_error(Meta, ?m(Ctx1, file),
                                 "invalid alias ~s because the original ~s does not exist",
                                 [Alias, AliasDesc]);
-    {suspended, [SuspendedDef | _T], Ctx1} ->
-      {FA, [{FAMeta, _} | _]} = SuspendedDef,
-      kapok_error:compile_error(FAMeta, ?m(Ctx1, file), "unknown local call: ~p", [FA]);
+    {unresolved, {UnresolvedFA, FAMeta}, Ctx1} ->
+      kapok_error:compile_error(FAMeta, ?m(Ctx1, file), "unresolved local call: ~p", [UnresolvedFA]);
     {ok, Forms, Ctx1} ->
       {Forms, Ctx1}
   end.
@@ -113,9 +112,10 @@ handle_call({new_form, Namespace, Form}, _From, Map) ->
   {reply, ok, Map2};
 
 %% suspended def clause
-handle_call({new_suspended_def_clause, Namespace, FA, ClauseArgs}, _From, Map) ->
+handle_call({new_suspended_def_clause, Namespace, UnresolvedFA, {_FAMeta, Args} = ClauseArgs}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
-  Map2 = add_suspended_def_clause(Map1, Namespace, FA, ClauseArgs),
+  FAP = element(1, Args),
+  Map2 = add_suspended_def_clause(Map1, Namespace, UnresolvedFA, FAP, ClauseArgs),
   {reply, ok, Map2};
 
 handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map) ->
@@ -203,7 +203,9 @@ handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) 
                       {ok, Forms, Ctx1}
                   end;
                 Suspended ->
-                  {suspended, orddict:to_list(Suspended), Ctx}
+                  Dependencies = get_kv(Map, Namespace, 'fap_dependencies'),
+                  UnresolvedFAInfo = find_unresolved_fa(Suspended, Dependencies),
+                  {unresolved, UnresolvedFAInfo, Ctx}
               end;
             true ->
               {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
@@ -240,6 +242,7 @@ new_namespace() ->
     locals => [],
     forms => [],
     suspended_def_clauses => [],
+    fap_dependencies => [],
     order => 0}.
 
 add_namespace_if_missing(Map, Namespace) ->
@@ -322,11 +325,19 @@ add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn'; Kind
                   end,
   add_into_kv_dict_dict_set(Map1, Namespace, 'defs', FA, {Order, Meta}, Clause).
 
-add_suspended_def_clause(Map, Namespace, FA, ClauseArgs) ->
+add_suspended_def_clause(Map, Namespace, UnresolvedFA, FAP, ClauseArgs) ->
   {Order, Map1} = next_order(Namespace, Map),
-  add_into_kv_dict_dict(Map1, Namespace, 'suspended_def_clauses', FA, Order, ClauseArgs).
+  Map2 = add_into_kv_dict_dict(Map1, Namespace, 'suspended_def_clauses', UnresolvedFA, Order, ClauseArgs),
+  add_into_kv_dict(Map2, Namespace, 'fap_dependencies', FAP, UnresolvedFA).
 
 remove_suspended_def_clause(Map, Namespace, FA) ->
+  Solved = get_kv_dict(Map, Namespace, 'suspended_def_clauses', FA),
+  orddict:fold(fun (_Order, {_Meta, Args}, M) ->
+                   FAP = element(1, Args),
+                   remove_from_kv_dict(M, Namespace, 'fap_dependencies', FAP)
+               end,
+               Map,
+               Solved),
   remove_from_kv_dict(Map, Namespace, 'suspended_def_clauses', FA).
 
 get_kv(Map, Namespace, Key) ->
@@ -350,6 +361,10 @@ add_into_kv_set(Map, Namespace, Key, Value) ->
 add_into_kv_dict(Map, Namespace, Key, DictKey, DictValue) ->
   Fun = fun(V) -> orddict:store(DictKey, DictValue, V) end,
   update_kv(Map, Namespace, Key, Fun).
+
+get_kv_dict(Map, Namespace, Key, DictKey) ->
+  Dict = get_kv(Map, Namespace, Key),
+  orddict:fetch(DictKey, Dict).
 
 remove_from_kv_set(Map, Namespace, Key, List) when is_list(List) ->
   Fun = fun(V) -> ordsets:subtract(V, ordsets:from_list(List)) end,
@@ -467,6 +482,21 @@ validate_aliases(Map, Namespace) ->
   case Invalid of
     [] -> ok;
     _ -> {invalid_alias, Invalid}
+  end.
+
+find_unresolved_fa(Suspended, Dependencies) ->
+  [UnresolvedFA | _] = orddict:fetch_keys(Suspended),
+  find_unresolved_fa(Suspended, Dependencies, UnresolvedFA).
+
+find_unresolved_fa(Suspended, Dependencies, UnresolvedFA) ->
+  case kapok_dispatch:filter_fa(UnresolvedFA, orddict:fetch_keys(Dependencies)) of
+    [] ->
+      UnresolvedDict = orddict:fetch(UnresolvedFA, Suspended),
+      [{_Order, {FAMeta, _Args}} | _] = orddict:to_list(UnresolvedDict),
+      {UnresolvedFA, FAMeta};
+    [FAP | _] ->
+      FA = orddict:fetch(FAP, Dependencies),
+      find_unresolved_fa(Suspended, Dependencies, FA)
   end.
 
 namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->

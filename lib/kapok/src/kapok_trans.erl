@@ -243,8 +243,7 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
                 '__MODULE__' ->
                   translate({atom, Meta, ?m(Ctx, namespace)}, Ctx);
                 _ ->
-                  throw({unknown_local_call, FunArity, Meta})
-                  %% kapok_error:compile_error(Meta, ?m(TCtx2, file), "unknown local call: ~p", [FunArity])
+                  throw({unresolved_local_call, FunArity, Meta})
               end
           end
       end
@@ -274,7 +273,7 @@ translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
                 {F2, A2, P2} ->
                   translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
                 _ ->
-                  throw({unknown_local_call, FunArity, Meta})
+                  throw({unresolved_local_call, FunArity, Meta})
               end;
             _ ->
               case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of

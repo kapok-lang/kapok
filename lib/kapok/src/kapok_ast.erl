@@ -474,7 +474,7 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
       kapok_symbol_table:new_def(Namespace, Kind, Name, Arity, ParameterType, Meta, Clause),
       kapok_ctx:pop_scope(TCtx8#{def_fap => PreviousFAP})
   catch
-    throw:{unknown_local_call, FA, FAMeta} ->
+    throw:{unresolved_local_call, UnresolvedFA, FAMeta} ->
       %% clean up added fap
       case R of
         handled ->
@@ -483,8 +483,8 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
           ok
       end,
       %% record current def clause as suspended
-      kapok_symbol_table:new_suspended_def_clause(Namespace, FA,
-                                                  {FAMeta, {Meta, Kind, Name, Args, Guard, Body}}),
+      kapok_symbol_table:new_suspended_def_clause(Namespace, UnresolvedFA,
+                                                  {FAMeta, {FAP, Meta, Kind, Name, Args, Guard, Body}}),
       kapok_ctx:pop_scope(TCtx7#{def_fap => PreviousFAP})
   end.
 
@@ -625,7 +625,7 @@ handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
   {ToHandle, AliasFAPList} = kapok_symbol_table:check_suspended_def_clauses(
                                  Namespace, CurrentKind, FAPList),
   orddict:map(fun(_FA, D) ->
-                  lists:map(fun({Order, {_FAMeta, {Meta, Kind, Name, Args, Guard, Body}}}) ->
+                  lists:map(fun({Order, {_FAMeta, {_FAP, Meta, Kind, Name, Args, Guard, Body}}}) ->
                                 OrderedMeta = [{order, Order} | Meta],
                                 handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx)
                             end,
