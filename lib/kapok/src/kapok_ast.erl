@@ -28,7 +28,9 @@ handle(List, Ctx) when is_list(List) ->
 handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_ns(Id) ->
   handle_ns(Meta, T, Ctx#{def_kind => Id});
 handle({list, Meta, [{identifier, _, Id} | T]}, Ctx) when ?is_def_ns(Id) ->
-  handle_def_ns(Meta, Id, T, Ctx#{def_kind => Id});
+  _Ctx1 = handle_def_ns(Meta, Id, T, Ctx#{def_kind => Id}),
+  %% restore `Ctx` for previous namespace
+  Ctx;
 handle({list, Meta, [{identifier, _, Id} | T]} = Ast, Ctx) when ?is_def(Id) ->
   handle_def(Meta, Id, T, Ctx#{def_kind => Id, def_ast => Ast});
 handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) ->
@@ -75,8 +77,14 @@ handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
              Ctx;
            NS ->
              %% build the previous namespace before entering the new namespace
-             C = build_namespace(NS, Ctx),
-             C#{namespace => Name}
+             case ?m(Ctx, def_kind) of
+               Keyword when ?is_ns(Keyword) ->
+                 C = build_namespace(NS, Ctx),
+                 C#{namespace => Name};
+               _ ->
+                 C = kapok_ctx:reset_ctx(Ctx),
+                 C#{namespace => Name}
+             end
          end,
   kapok_symbol_table:new_namespace(Name),
   {_, TCtx1} = lists:mapfoldl(fun handle_ns_clause/2, Ctx1, Clauses),

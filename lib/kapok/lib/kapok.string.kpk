@@ -1,8 +1,126 @@
 (ns kapok.string
   ;; TODO add doc
 
-  (require unicode)
+  (require binary
+           unicode)
+  (use (kapok (alist
+               regex)))
   )
+
+(defn split
+  """Divides a string into substrings based on a pattern.
+
+  Returns a list of these substrings. The pattern can
+  be a string, a list of strings or a regular expression.
+
+  The string is split into as many parts as possible by default,
+  but can be controlled via the `{#parts num}` option.
+  If you pass `{#parts #infinity}`, it will return all possible parts
+  (being this one the default behaviour).
+
+  Empty strings are noly removed from the result if the
+  `#trim` option is set to `:true` (default is `:false`).
+
+  ## Examples
+
+  Splitting with a string pattern:
+
+      kapok> (string.split "a,b,c" ",")
+      ["a" "b" "c"]
+
+      kapok> (string.split "a,b,c" "," [{#parts 2}])
+      ["a" "b,c"]
+
+      kapok> (string.split " a b c " " " [{#trim :true}])
+      ["a" "b" "c"]
+
+  A list op patterns:
+
+      kapok> (string.split "1,2 3,4" [" " ","])
+      ["1" "2" "3" "4"]
+
+  A regular expression:
+
+      ;; TODO add comment
+      kapok> (string.split "a,b,c" (regex.new ","))
+      ["a" "b" "c"]
+
+      kapok> (string.split "a,b,c" (regex.new ",") [{#parts 2}])
+      ["a" "b,c"]
+
+      kapok> (string.split " a b c " (regex.new "\s" [{#trim :true}]))
+      ["a" "b" "c"]
+
+  Spliting on empty patterns returns codepoints:
+
+      kapok> (string.split "abc" (regex.new ""))
+      ["a" "b" "c" ""]
+
+      kapok> (string.split "abc" "")
+      ["a" "b" "c" ""]
+
+      kapok> (string.split "abc" "" [{#trim :true}])
+      ["a" "b" "c"]
+
+      kapok> (string.split "abc" "" [{#parts 2}])
+      ["a" "bc"]
+
+  """
+
+  ([string pattern]
+   (split string pattern []))
+
+  ([string "" options]
+   (let [parts (alist.get options #parts #infinity)]
+     (split-codepoints string
+                       (parts-to-index parts)
+                       (alist.get options #trim :false))))
+
+  ([string pattern options]
+   (if (regex.regex? pattern)
+       (regex.split pattern string options)
+     (do
+      (let [parts (alist.get options #parts #infinity)
+            trim (alist.get options #trim :false)]
+        (if (and (== parts #infinity)
+                 (== trim :false))
+            (binary.split string pattern [#global])
+          (split-parts string pattern (parts-to-index parts) trim)))))))
+
+(defn- parts-to-index [#infinity]
+  0)
+(defn- parts-to-index [n] (&when (&and (integer? n)
+                                       (> n 0)))
+  n)
+
+(defn- split-codepoints [binary 1 _trim]
+  [binary])
+(defn- split-codepoints [<<(h :utf8) (t :binary)>> count trim]
+  [<<(h :utf8)>> & (split-codepoints t (dec count) trim)])
+(defn- split-codepoints [<<(h) (t :binary)>> count trim]
+  [<<(h)>> & (split-codepoints t (dec count) trim)])
+(defn- split-codepoints [<<>> _ :true]
+  [])
+(defn- split-codepoints [<<>> _ :false]
+  "")
+
+(defn- split-parts ["" _pattern _num :true]
+  [])
+(defn- split-parts ["" _pattern _num _trim]
+  [""])
+(defn- split-parts [string _pattern 1 _trim]
+  [string])
+(defn- split-parts [string pattern num trim]
+  (case (binary.split string pattern)
+    ([""] (&when trim)
+     [])
+    ([head]
+     [head])
+    ([head tail]
+     (if (and trim
+              (== head ""))
+         (split-parts tail pattern num trim)
+       [head & (split-parts tail pattern (dec num) trim)]))))
 
 (defn to-char-list [string] (&when (binary? string))
   """Converts a string into a char list.

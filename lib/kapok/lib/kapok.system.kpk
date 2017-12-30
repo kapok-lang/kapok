@@ -6,8 +6,13 @@
 
   (require erlang
            file
+           filename
+           io_lib
            os)
-  (use (kapok (io))))
+  (use (kapok (io
+               list
+               seq
+               string))))
 
 (defn cwd []
   """Current working directory.
@@ -39,6 +44,58 @@
   (or (cwd)
       ;; TODO revise to use exception
       (throw "could not get a current working directory")))
+
+(defn user-home []
+  (case (os.type)
+    ({#win32 _}
+     (get-windows-home))
+    (_
+     (get-unix-home))))
+
+(defn user-home! []
+  (or (user-home)
+      ;; TODO revise to use exception
+      (throw "could not find the user home")))
+
+(defn- get-unix-home []
+  (get-env "HOME"))
+
+(defn- get-windows-home []
+  (filename.absname (or (get-env "USERPROFILE")
+                        (let [hd (get-env "HOMEDRIVE")
+                              hp (get-env "HOMEPATH")]
+                          (and hd
+                               hp
+                               (io_lib.format "~s~s" [hd hp]))))))
+
+(defn
+    #{:check_remote_call :false}
+    get-env []
+  """System environment variables.
+
+  Returns a list of all environment variables. Each variable is given as a
+  `{name value}` tuple where `name` and `value` are strings.
+  """
+  (seq.into (os.getenv)
+            #{}
+            (fn [var]
+              (let [str (io.chardata-to-string var)
+                    [k, v] (string.split str "=" [{#parts 2}])]
+                {k v}))))
+
+(defn
+    #{:check_remote_call :false}
+    get-env [varname] (&when (binary? varname))
+  """Environment variable value.
+
+  Returns the value of the environment variable `varname` as a binary,
+  or `nil` if the environment variable is undefined.
+  """
+  (case (os.getenv (string.to-char-list varname))
+    (:false
+     :nil)
+    (other
+     (list.to-string other))))
 
 (defn stacktrace []
   """Last exception stacktrace.

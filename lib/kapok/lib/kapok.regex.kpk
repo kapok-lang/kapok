@@ -77,7 +77,8 @@
   """
 
   (require io_lib
-           re))
+           re
+           (kapok (alist))))
 
 (defns kapok.regex.compile-error
   (defexception [{#message "regex could not be compiled"}]))
@@ -138,6 +139,106 @@
     ({#error {reason at}}
      (let [message (io_lib.format "~p at position ~p" [reason at])]
        (raise kapok.regex.compile-error [{#message message}])))))
+
+(defn regex? [#{#__struct__ struct}] (&when (== struct #'kapok.regex'))
+  :true)
+(defn regex? [_]
+  :false)
+
+(defn split
+  """Splits the given target based on the given pattern and in the given number
+  of parts.
+
+  ## Options
+
+    * `#parts` - when specified, splits the string into the given number of
+      parts. If not specified, `#parts` defaults to `#infinity`, which will
+      split the string into the maximum number of parts possible based on
+      the given pattern.
+
+    * `#trim` - whin `:true`, removes empty strings (`""`) from the result.
+
+    * `#on` - specifies which captures to split the string on, and in what
+      order. Defaults to `#first` which means captures inside the regex
+      do not affect the splitting process.
+
+  ## Examples
+
+      kapok> (regex.split (regex.new "-") "a-b-c")
+      ["a" "b" "c"]
+
+      kapok> (regex.split (regex.new "-") "a-b-c" [{#parts 2}])
+      ["a" "b-c"]
+
+      kapok> (regex.split (regex.new "-") "abc")
+      ["abc"]
+
+      kapok> (regex.split (regex.new "") "abc")
+      ["a" "b" "c" ""]
+
+      kapok> (regex.split (regex.new "a(?<second>b)c") "abc")
+      ["" ""]
+
+      kapok> (regex.split (regex.new "a(?<second>b)c") "abc" [{#on [:second]}])
+      ["a" "c"]
+
+  """
+  ([regex string]
+   (split regex string []))
+
+  ([#{#__struct__ #'kapok.regex'} "" opts]
+   (if (alist.get opts #trim :false)
+       []
+     [""]))
+
+  ([#{#__struct__ #'kapok.regex'
+      #re_pattern compiled}
+    string
+    opts] (&when (binary? string))
+   (let [on (alist.get opts #on #first)]
+     (case (re.run string compiled [#global {#capture on}])
+       ({#match matches}
+        (do-split matches string 0
+                  (parts-to-index (alist.get opts #parts #infinity))
+                  (alist.get opts #trim :false)))
+       (#match
+        [string])
+       (#nomatch
+        [string]))))
+  )
+
+(defn- parts-to-index [#infinity]
+  0)
+(defn- parts-to-index [n] (&when (&and (integer? n)
+                                       (> n 0)))
+  n)
+
+(defn- do-split [_ string offset _counter :true]
+    (&when (<= (byte-size string) offset))
+  [])
+
+(defn- do-split [_ string offset 1 _trim]
+  [(binary-part string offset (- (byte-size string) offset))])
+
+(defn- do-split [[] string offset _counter _trim]
+  [(binary-part string offset (- (byte-size string) offset))])
+
+(defn- do-split [[[{pos _} & h] & t] string offset counter trim]
+    (&when (< (- pos offset) 0))
+  (do-split [h & t] string offset counter trim))
+
+(defn- do-split [[[] & t] string offset counter trim]
+  (do-split t string offset counter trim))
+
+(defn- do-split [[[{pos length} & h] & t] string offset counter trim]
+  (let [new-offset (+ pos length)
+        keep (- pos offset)]
+    (if (and (== keep 0)
+             (or (== length 0)
+                 trim))
+        (do-split [h & t] string new-offset counter trim)
+      (let [<<(_ :binary (:size offset)) (part :binary (:size keep)) (_ :binary)>> string]
+        [part & (do-split [h & t] string new-offset (dec counter) trim)]))))
 
 ;; Private Helpers
 
