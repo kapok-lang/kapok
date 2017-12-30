@@ -124,22 +124,22 @@ $1_core_lib_files      :=       \
   kapok.protocol.kpk
 $1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_files           :=       \
+  kapok.exception.kpk           \
+  kapok.access.kpk              \
   kapok.atom.kpk                \
   kapok.integer.kpk             \
   kapok.float.kpk               \
   kapok.tuple.kpk               \
   kapok.list.kpk                \
+  kapok.alist.kpk               \
   kapok.dict.kpk                \
+  kapok.list.chars.kpk          \
   kapok.string.chars.kpk        \
   kapok.stream.reducers.kpk     \
   kapok.collectable.kpk         \
   kapok.seq.kpk                 \
-  kapok.access.kpk              \
-  kapok.alist.kpk               \
-  kapok.exception.kpk           \
   kapok.regex.kpk               \
   kapok.string.kpk              \
-  kapok.list.chars.kpk          \
   kapok.io.kpk                  \
   kapok.process.kpk             \
   kapok.system.kpk              \

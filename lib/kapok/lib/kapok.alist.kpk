@@ -59,7 +59,9 @@
   """
   (new pairs (fn [pair] pair)))
 
-(defn new [pairs transform] (&when (function? transform 1))
+(defn
+    #{:check_remote_call :false}
+    new [pairs transform] (&when (function? transform 1))
   """Creates an alist from a sequential via the transformamtion function.
 
   Duplicated entries are removed, the latest one prevails.

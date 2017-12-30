@@ -1607,7 +1607,9 @@
         {a _ctx} (kapok_compiler.eval_ast args (kapok_ctx.ctx_for_eval []))
         message-def (case (lists.keyfind #message 1 a)
                       (t (&when (erlang.is_tuple t))
-                         [`(defn message [exception]
+                         [`(defn
+                               #{:check_remote_call :false}
+                               message [exception]
                              (kapok.access.get exception #message))])
                       (:false
                        []))

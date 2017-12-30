@@ -46,8 +46,10 @@
     ([_]
      :false))
 
-  (defn message [#{#__struct__ module
-                   #__exception__ :true} &as exception] (&when (atom? module))
+  (defn
+      #{:check_remote_call :false}
+      message [#{#__struct__ module
+                 #__exception__ :true} &as exception] (&when (atom? module))
     "Gets the message for an exception."
     (try (module.message exception)
       ((x (&when (binary? x))
@@ -94,7 +96,9 @@
      payload))
 
 
-  (defn format-banner
+  (defn
+      #{:check_remote_call :false}
+      format-banner
     """Normalizes and formats any throw, error and exit.
 
     The message is formatted and displayed in the same
@@ -319,7 +323,9 @@
   (defn- format-sup-spec [other]
     (format "~p" [other]))
 
-  (defn format-stacktrace-entry
+  (defn
+      #{:check_remote_call :false}
+      format-stacktrace-entry
       """Receives a stacktrace entry and formats it into a string."""
 
       ;; TODO add impl
@@ -378,7 +384,9 @@
     ;; TODO add impl
     (format "~p" [arity]))
 
-  (defn format-arity [arity] (&when (integer? arity))
+  (defn
+      #{:check_remote_call :false}
+      format-arity [arity] (&when (integer? arity))
     (format "/~d" [(integer.to-string arity)]))
 
   (defn format-file-line [file line]
@@ -407,7 +415,9 @@
           (format "~s:~p" [file line]))
       ""))
 
-  (defn format-location [opts] (&when (list? opts))
+  (defn
+      #{:check_remote_call :false}
+      format-location [opts] (&when (list? opts))
     (format-file-line (alist.get opts #file)
                       (alist.get opts #line)
                       " "))
@@ -445,7 +455,9 @@
                  {#line :nil}
                  {#description "syntax error"}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (fmt "~s ~s" [(exception.format-file-line (access.get e #file)
                                               (access.get e #line))
                   (access.get e #description)])))
@@ -460,7 +472,9 @@
                  {#line :nil}
                  {#description "expression is incomplete"}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (fmt "~s ~s" [(exception.format-file-line (access.get e #file)
                                               (access.get e #line))
                   (access.get e #description)])))
@@ -475,7 +489,9 @@
                  {#line :nil}
                  {#description "compile error"}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (fmt "~s ~s" [(exception.format-file-line (access.get e #file)
                                               (access.get e #line))
                   (access.get e #description)])))
@@ -486,7 +502,9 @@
 
   (defexception [{#term :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (format "expected a function, got: ~p" [(access.get e #term)])))
 
 (defns kapok.bad-struct-error
@@ -496,7 +514,9 @@
   (defexception [{#struct :nil}
                  {#term :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (format "expected a struct named ~s, got: ~s" [(access.get e #struct)
                                                    (access.get e #term)])))
 
@@ -506,7 +526,9 @@
 
   (defexception [{#term :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (format "no match of right hand side value: ~p" [(access.get e #term)])))
 
 (defns kapok.case-clause-error
@@ -515,7 +537,9 @@
 
   (defexception [{#term :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (format "no case clause matching: ~p" [(access.get e #term)])))
 
 (defns kapok.cond-clause-error
@@ -532,7 +556,9 @@
 
   (defexception [{#term :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (format "no try clause matching: ~p" [(access.get e #term)])))
 
 (defns kapok.bad-arity-error
@@ -627,7 +653,9 @@
                  {#function :nil}
                  {#arity :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (if (access.get e #function)
         (let [formatted (exception.format-mfa (access.get e #module)
                                               (access.get e #function)
@@ -642,7 +670,9 @@
   (defexception [{#file :nil}
                  {#message :nil}])
 
-  (defn exception [opts]
+  (defn
+      #{:check_remote_call :false}
+      exception [opts]
     (let [file (alist.fetch! opts #file)
           message (format "could not load ~p" [file])]
       (new :message message :file file))))
@@ -656,7 +686,9 @@
                  {#value :nil}
                  {#description :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (let [msg (format "protocol ~p not implemented for ~p"
                 [(access.get e #protocol)
                  (access.get e #value)])]
@@ -672,7 +704,9 @@
   (defexception [{#key :nil}
                  {#term :nil}])
 
-  (defn message [e]
+  (defn
+      #{:check_remote_call :false}
+      message [e]
     (format "key ~p not found in ~p" [(access.get e #key)
                                       (access.get e #term)])))
 
@@ -683,7 +717,9 @@
   (defexception [{#encode :nil}
                  {#message :nil}])
 
-  (defn exception [opts]
+  (defn
+      #{:check_remote_call :false}
+      exception [opts]
     (let [message (format "~p ~p" [(alist.fetch! opts #kind)
                                    (alist.fetch! opts #rest)])]
       (new :encode (alist.fetch! opts #encode)

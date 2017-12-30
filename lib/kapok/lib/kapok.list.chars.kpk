@@ -19,7 +19,9 @@
 (defimpl kapok.list.chars bitstring
   (require (kapok (string)))
 
-  (defn to-char-list
+  (defn
+      #{:check_remote_call :false}
+      to-char-list
     "Returns the given binary converted to a char list."
 
     ([thing] (&when (binary? thing))
