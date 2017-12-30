@@ -68,7 +68,7 @@ handle_file_error(File, {Line, Module, Desc}) ->
 raise(Meta, File, Kind, Message) when is_list(Meta), is_binary(File), is_binary(Message)  ->
   Line = ?line(Meta),
   raise(Line, File, Kind, Message);
-raise(Line, File, Kind, Message) when is_integer(Line), is_binary(File), is_binary(Message) ->
+raise(Line, File, Kind, Message) when is_binary(File), is_binary(Message) ->
   io:format("~p, file: ~p, line: ~p, ~s\n\n", [Kind, File, Line, Message]),
   %% reset stacktrace
   Stacktrace = try
@@ -85,7 +85,11 @@ file_format(Line, File) ->
   io_lib:format("~ts:~w: ", [kapok_utils:relative_to_cwd(File), Line]).
 
 
-format_error([], Desc) ->
-  io_lib:format("~p", [Desc]);
-format_error(Module, ErrorDesc) ->
-  Module:format_error(ErrorDesc).
+format_error(Module, ErrorDesc) when is_atom(Module) ->
+  Message = Module:format_error(ErrorDesc),
+  case Message of
+    [H | _] when is_list(H) ->
+      string:join(Message, "");
+    _ ->
+      Message
+  end.

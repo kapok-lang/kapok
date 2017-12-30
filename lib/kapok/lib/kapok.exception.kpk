@@ -16,14 +16,15 @@
   ((require application
             code
             maps)
-   (use (io_lib :only (format))
-        (kapok (access
-                alist
-                atom
-                integer
-                process
-                seq
-                system))))
+   (require (kapok (access
+                    alist
+                    atom
+                    integer
+                    io
+                    process
+                    seq
+                    system)))
+   (use (io_lib :only (format))))
 
   ;; behaviour definition
 
@@ -331,7 +332,9 @@
           "")))
   )
 
-  (defn format-stacktrace [&optional (trace :nil)]
+  (defn
+      #{:check_remote_call :false}
+      format-stacktrace [&optional (trace :nil)]
     """Format the stacktrace.
 
     A stacktrace must be given as an argument. If not, the stacktrace
@@ -433,87 +436,87 @@
 
 
 (defns kapok.syntax-error
-  ((use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception))))
+  ((require (kapok (access
+                    exception)))
+   (use (io_lib :only (format)
+                :rename ((format fmt)))))
 
   (defexception [{#file :nil}
                  {#line :nil}
                  {#description "syntax error"}])
 
   (defn message [e]
-    (fmt "~s ~s" [(exception.format-file-line (get e #file)
-                                              (get e #line))
-                  (get e #description)])))
+    (fmt "~s ~s" [(exception.format-file-line (access.get e #file)
+                                              (access.get e #line))
+                  (access.get e #description)])))
 
 (defns kapok.token-missing-error
-  ((use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception))))
+  ((require (kapok (access
+                    exception)))
+   (use (io_lib :only (format)
+                :rename ((format fmt)))))
 
   (defexception [{#file :nil}
                  {#line :nil}
                  {#description "expression is incomplete"}])
 
   (defn message [e]
-    (fmt "~s ~s" [(exception.format-file-line (get e #file)
-                                              (get e #line))
-                  (get e #description)])))
+    (fmt "~s ~s" [(exception.format-file-line (access.get e #file)
+                                              (access.get e #line))
+                  (access.get e #description)])))
 
 (defns kapok.compile-error
-  ((use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception))))
+  ((require (kapok (access
+                    exception)))
+   (use (io_lib :only (format)
+                :rename ((format fmt)))))
 
   (defexception [{#file :nil}
                  {#line :nil}
                  {#description "compile error"}])
 
   (defn message [e]
-    (fmt "~s ~s" [(exception.format-file-line (get e #file)
-                                              (get e #line))
-                  (get e #description)])))
+    (fmt "~s ~s" [(exception.format-file-line (access.get e #file)
+                                              (access.get e #line))
+                  (access.get e #description)])))
 
 (defns kapok.bad-function-error
-  ((use (io_lib :only (format))
-        (kapok (access))))
+  ((require (kapok (access)))
+   (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
 
   (defn message [e]
-    (format "expected a function, got: ~p" [(get e #term)])))
+    (format "expected a function, got: ~p" [(access.get e #term)])))
 
 (defns kapok.bad-struct-error
-  ((use (io_lib :only (format))
-        (kapok (access))))
+  ((require (kapok (access)))
+   (use (io_lib :only (format))))
 
   (defexception [{#struct :nil}
                  {#term :nil}])
 
   (defn message [e]
-    (format "expected a struct named ~s, got: ~s" [(get e #struct)
-                                                   (get e #term)])))
+    (format "expected a struct named ~s, got: ~s" [(access.get e #struct)
+                                                   (access.get e #term)])))
 
 (defns kapok.match-error
-  ((use (io_lib :only (format))
-        (kapok (access))))
+  ((require (kapok (access)))
+   (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
 
   (defn message [e]
-    (format "no match of right hand side value: ~p" [(get e #term)])))
+    (format "no match of right hand side value: ~p" [(access.get e #term)])))
 
 (defns kapok.case-clause-error
-  ((use (io_lib :only (format))
-        (kapok (access))))
+  ((require (kapok (access)))
+   (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
 
   (defn message [e]
-    (format "no case clause matching: ~p" [(get e #term)])))
+    (format "no case clause matching: ~p" [(access.get e #term)])))
 
 (defns kapok.cond-clause-error
   ((use (io_lib :only (format))))
@@ -524,25 +527,27 @@
     (format "no cond clause evaluated to a true value" [])))
 
 (defns kapok.try-clause-error
-  ((use (io_lib :only (format))
-        (kapok (access))))
+  ((require (kapok (access)))
+   (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
 
   (defn message [e]
-    (format "no try clause matching: ~p" [(get e #term)])))
+    (format "no try clause matching: ~p" [(access.get e #term)])))
 
 (defns kapok.bad-arity-error
-  ((use (io_lib :only (format))
-        (kapok (access
-                seq))))
+  ((require (kapok (access
+                    seq)))
+   (use (io_lib :only (format))))
 
   (defexception [{#function :nil}
                  {#args :nil}])
 
-  (defn message [e]
-    (let [fun (get e #function)
-          args (get e #args)
+  (defn
+      #{:check_remote_call :false}
+      message [e]
+    (let [fun (access.get e #function)
+          args (access.get e #args)
           insp (seq.map-join args
                              ", "
                              ;; TODO revise to use inspect
@@ -563,9 +568,11 @@
     (format "~p arguments" [insp])))
 
 (defns kapok.undefined-function-error
-  ((use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (exception))))
+    ((require code
+              maps
+              (kapok (exception)))
+   (use (io_lib :only (format)
+                :rename ((format fmt)))))
 
   (defexception [{#module :nil}
                  {#function :nil}
@@ -611,28 +618,26 @@
             fa]))))
 
 (defns kapok.function-clause-error
-  ((use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception))))
+  ((require (kapok (access
+                    exception)))
+   (use (io_lib :only (format)
+                :rename ((format fmt)))))
 
   (defexception [{#module :nil}
                  {#function :nil}
                  {#arity :nil}])
 
   (defn message [e]
-    (if (get e #function)
-        (let [formatted (exception.format-mfa (get e #module)
-                                              (get e #function)
-                                              (get e #arity))]
+    (if (access.get e #function)
+        (let [formatted (exception.format-mfa (access.get e #module)
+                                              (access.get e #function)
+                                              (access.get e #arity))]
           (fmt "no function clause matching in ~s" [formatted]))
       "no function clause matches")))
 
 (defns kapok.code.load-error
-  ((require maps)
-   (use (io_lib :only (format))
-        (kapok (access
-                alist))))
+  ((require (kapok (alist)))
+   (use (io_lib :only (format))))
 
   (defexception [{#file :nil}
                  {#message :nil}])
@@ -643,8 +648,9 @@
       (new :message message :file file))))
 
 (defns kapok.protocol.undefined-error
-  ((use (kapok (access
-                exception))))
+  ((require (kapok (access
+                    exception)))
+   (use (io_lib :only (format))))
 
   (defexception [{#protocol :nil}
                  {#value :nil}
@@ -652,27 +658,27 @@
 
   (defn message [e]
     (let [msg (format "protocol ~p not implemented for ~p"
-                [(get e #protocol)
-                 (get e #value)])]
-      (if (get e #description)
+                [(access.get e #protocol)
+                 (access.get e #value)])]
+      (if (access.get e #description)
           (format "~s, ~s" [msg
-                            (get e #description)])
+                            (access.get e #description)])
         msg))))
 
 (defns kapok.key-error
-  ((use (io_lib :only (format))
-        (kapok (access))))
+  ((require (kapok (access)))
+   (use (io_lib :only (format))))
 
   (defexception [{#key :nil}
                  {#term :nil}])
 
   (defn message [e]
-    (format "key ~p not found in ~p" [(get e #key)
-                                      (get e #term)])))
+    (format "key ~p not found in ~p" [(access.get e #key)
+                                      (access.get e #term)])))
 
 (defns kapok.unicode-conversion-error
-  ((use (io_lib :only (format))
-        (kapok (alist))))
+  ((require (kapok (alist)))
+   (use (io_lib :only (format))))
 
   (defexception [{#encode :nil}
                  {#message :nil}])
@@ -702,12 +708,11 @@
     "empty error"))
 
 (defns kapok.file.error
-  ((require file)
+  ((require file
+            (kapok (access
+                    io)))
    (use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception
-                io))))
+                :rename ((format fmt)))))
 
   (defexception [{#reason :nil}
                  {#action ""}
@@ -716,18 +721,18 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (let [formatted (io.iodata-to-binary (file.format_error (get e #reason)))]
-      (fmt "could not ~p ~p: ~s" [(get e #action)
-                                  (get e #path)
+    (let [formatted (io.iodata-to-binary (file.format_error
+                                          (access.get e #reason)))]
+      (fmt "could not ~p ~p: ~s" [(access.get e #action)
+                                  (access.get e #path)
                                   formatted]))))
 
 (defns kapok.file.copy-error
-  ((require file)
+  ((require file
+            (kapok (access
+                    io)))
    (use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception
-                io))))
+                :rename ((format fmt)))))
 
   (defexception [{#reason :nil}
                  {#action :nil}
@@ -738,35 +743,34 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (let [formatted (io.iodata-to-binary (file.format_error (get e #reason)))
-          location (if (get e #on)
-                       (fmt ". ~p" [(get e #on)])
+    (let [formatted (io.iodata-to-binary (file.format_error (access.get e #reason)))
+          location (if (access.get e #on)
+                       (fmt ". ~p" [(access.get e #on)])
                      "")]
-      (fmt "could not ~p from ~p to ~p~p: ~s" [(get e #action)
-                                               (get e #source)
-                                               (get e #destination)
+      (fmt "could not ~p from ~p to ~p~p: ~s" [(access.get e #action)
+                                               (access.get e #source)
+                                               (access.get e #destination)
                                                location
                                                formatted])))
   )
 
 (defns kapok.erlang-error
-  ((use (io_lib :only (format)
-                :rename ((format fmt)))
-        (kapok (access
-                exception
-                argument-error
-                arithmetic-error
-                system-limit-error
-                cond-clause-error
-                bad-arity-error
-                bad-function-error
-                bad-struct-error
-                match-error
-                case-clause-error
-                try-clause-error
-                undefined-function-error
-                function-clause-error
-                argument-error))))
+  ((require(kapok (exception
+                   argument-error
+                   arithmetic-error
+                   system-limit-error
+                   cond-clause-error
+                   bad-arity-error
+                   bad-function-error
+                   bad-struct-error
+                   match-error
+                   case-clause-error
+                   try-clause-error
+                   undefined-function-error
+                   function-clause-error
+                   argument-error)))
+   (use (io_lib :only (format)
+                :rename ((format fmt)))))
 
   (defexception [{#original :nil}])
 

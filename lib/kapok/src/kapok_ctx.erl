@@ -18,6 +18,9 @@
          get_var_current_scope/3,
          ctx_for_eval/1,
          reset_ctx/1,
+         get_metadata/1,
+         update_metadata/2,
+         set_metadata/2,
          metadata_check_remote_call/1]).
 -import(kapok_env, [get_compiler_opt/1]).
 -include("kapok.hrl").
@@ -252,7 +255,17 @@ ctx_for_eval(Ctx, Opts) ->
      }.
 
 
-%% configs and settings
+%% metadata
+
+get_metadata(#{metadata := M} = _Ctx) ->
+  M.
+
+update_metadata(#{metadata := M} = Ctx, Metadata) ->
+  M1 = maps:merge(M, Metadata),
+  {Ctx#{metadata => M1}, M}.
+
+set_metadata(#{metadata := M} = Ctx, Metadata) ->
+  {Ctx#{metadata => Metadata}, M}.
 
 metadata_check_remote_call(#{metadata := Metadata} = _Ctx) ->
   case maps:find(check_remote_call, Metadata) of

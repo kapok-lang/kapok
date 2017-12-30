@@ -41,15 +41,6 @@ handle({list, _Meta, [{identifier, _, Id} | _T]} = Ast, Ctx) when ?is_attr(Id) -
 handle(Ast, Ctx) ->
   kapok_error:form_error(token_meta(Ast), ?m(Ctx, file), ?MODULE, {invalid_expression, {Ast}}).
 
-%% metadata
-
-update_metadata(Metadata, #{metadata := M} = Ctx) ->
-  M1 = maps:merge(M, Metadata),
-  {M, Ctx#{metadata => M1}}.
-
-restore_metadata(Metadata, Ctx) ->
-  Ctx#{metadata => Metadata}.
-
 %% namespace
 
 handle_ns(Meta, [{C1, _, _} = Ast, {C2, _, Doc} | T], Ctx) when ?is_local_id_or_dot(C1), ?is_string(C2) ->
@@ -304,10 +295,11 @@ handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, Ctx) ->
 handle_def(Meta, Kind, [{map, _, _} = Map | T], Ctx) ->
   %% metadata
   {Metadata, Ctx1} = kapok_compiler:eval_ast(Map, Ctx),
-  {Original, Ctx2} = update_metadata(Metadata, Ctx1),
+  {Ctx2, Original} = kapok_ctx:update_metadata(Ctx1, Metadata),
   Ctx3 = handle_def(Meta, Kind, T, Ctx2),
-  %% restore the original metadata later
-  restore_metadata(Original, Ctx3);
+  %% restore the original metadata
+  {Ctx4, _} = kapok_ctx:set_metadata(Ctx3, Original),
+  Ctx4;
 handle_def(Meta, Kind, [{identifier, _, Name}  | T], Ctx) ->
   handle_def(Meta, Kind, Name, T, Ctx);
 handle_def(Meta, Kind, T, Ctx) ->
@@ -491,8 +483,9 @@ handle_def_clause(Meta, Kind, Name, Args, Guard, Body, #{def_fap := PreviousFAP}
           ok
       end,
       %% record current def clause as suspended
+      Metadata = kapok_ctx:get_metadata(TCtx7),
       kapok_symbol_table:new_suspended_def_clause(Namespace, UnresolvedFA,
-                                                  {FAMeta, {FAP, Meta, Kind, Name, Args, Guard, Body}}),
+                                                  {FAMeta, {FAP, Metadata, Meta, Kind, Name, Args, Guard, Body}}),
       kapok_ctx:pop_scope(TCtx7#{def_fap => PreviousFAP})
   end.
 
@@ -633,9 +626,11 @@ handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
   {ToHandle, AliasFAPList} = kapok_symbol_table:check_suspended_def_clauses(
                                  Namespace, CurrentKind, FAPList),
   orddict:map(fun(_FA, D) ->
-                  lists:map(fun({Order, {_FAMeta, {_FAP, Meta, Kind, Name, Args, Guard, Body}}}) ->
+                  lists:map(fun({Order, {_FAMeta, {_FAP, Metadata, Meta, Kind, Name, Args, Guard, Body}}}) ->
                                 OrderedMeta = [{order, Order} | Meta],
-                                handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx)
+                                %% restore the previous metadata
+                                {Ctx1, _} = kapok_ctx:set_metadata(Ctx, Metadata),
+                                handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx1)
                             end,
                             orddict:to_list(D))
               end,

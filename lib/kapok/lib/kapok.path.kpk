@@ -252,50 +252,46 @@
      ;; TODO revise to use exception
      (throw "unicode conversion incomplete error"))))
 
-;; (defn- expand-home [type]
-;;   (case (io.chardata-to-string type)
-;;     (<<("~") (rest)>>
-;;        (resolve-home rest))
-;;     (rest
-;;      rest)))
+(defn- expand-home [type]
+  (case (io.chardata-to-string type)
+    (<<("~") (rest)>>
+       (resolve-home rest))
+    (rest
+     rest)))
 
-;; (defn- resolve-home [""]
-;;   (system.user-home!))
+(defn- resolve-home [""]
+  (system.user-home!))
 
-;; (defn- resolve-home [rest]
-;;   (case {rest (major-os-type)}
-;;     ({<<("\\") (_)>> #win32}
-;;      <<((system.user-home!)) (rest))
-;;     ({<<("/") (_)>> _}
-;;      <<((system.user-home!)) (rest))
-;;     (_
-;;      rest)))
+(defn- resolve-home [rest]
+  (case {rest (major-os-type)}
+    ({<<("\\") (_)>> #win32}
+     <<((system.user-home!)) (rest)>>)
+    ({<<("/") (_)>> _}
+     <<((system.user-home!)) (rest)>>)
+    (_
+     rest)))
 
-;; (defn- expand-dot [<<("/../") (rest :binary)>>]
-;;   (expand-dot <<("/") (rest)>>))
-;; (defn- expand-dot [<<(letter) (":/../") (rest :binary)>>]
-;;   (&when (&and (>= letter \a) (<= letter \z)))
-;;   ;; TODO add impl
-;;   (expand-dot <<(letter) (":/") (rest :binary)>>))
-;; (defn- expand-dot ["/.."]
-;;   "/")
-;; (defn- expand-dot [<<(letter) (":/..")>>] (&when (&and (>= letter \a)
-;;                                                        (<= letter \z)))
-;;   (expand-dot <<(letter) (":/")>>))
-;; (defn- expand-dot [path]
-;;   (expand-dot (binary.split path "/" [#global]) []))
+(defn- expand-dot [<<("/../") (rest :binary)>>]
+  (expand-dot <<("/") (rest)>>))
+(defn- expand-dot [<<(letter) (":/../") (rest :binary)>>]
+    (&when (&and (>= letter \a) (<= letter \z)))
+  (expand-dot <<(letter) (":/") (rest :binary)>>))
+(defn- expand-dot ["/.."]
+  "/")
+(defn- expand-dot [<<(letter) (":/..")>>] (&when (&and (>= letter \a)
+                                                       (<= letter \z)))
+  (expand-dot <<(letter) (":/")>>))
+(defn- expand-dot [path]
+  (expand-dot (binary.split path "/" [#global]) []))
 
-;; (defn- expand-dot [[".." & t] [_ _ & acc]]
-;;   (expand-dot t acc))
-
-;; (defn- expand-dot [["." & t] acc]
-;;   (expand-dot t acc))
-
-;; (defn- expand-dot [[h & t] acc]
-;;   (expand-dot t ["/" h & acc]))
-
-;; (defn- expand-dot [[] ["/" & acc]]
-;;   (io.iodata-to-binary (lists.reverse acc)))
+(defn- expand-dot [[".." & t] [_ _ & acc]]
+  (expand-dot t acc))
+(defn- expand-dot [["." & t] acc]
+  (expand-dot t acc))
+(defn- expand-dot [[h & t] acc]
+  (expand-dot t ["/" h & acc]))
+(defn- expand-dot [[] ["/" & acc]]
+  (io.iodata-to-binary (lists.reverse acc)))
 
 (defn- major-os-type []
   (-> (os.type)

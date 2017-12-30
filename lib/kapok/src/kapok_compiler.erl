@@ -34,20 +34,20 @@ string_to_ast(String, StartLine, File, Options) when is_integer(StartLine), is_b
     {ok, Tokens, _EndLocation} ->
       try kapok_parser:parse(Tokens) of
           {ok, Forms} -> {ok, Forms};
-          {error, {Line, _, [Error, Token]}} -> {error, {Line, to_binary(Error), to_binary(Token)}}
+          {error, {_Line, _Module, _ErrorDescription}} = E -> E
       catch
-        {error, {Line, _, [Error, Token]}} -> {error, {Line, to_binary(Error), to_binary(Token)}}
+        {error, {_Line, _Module, _ErrorDescription}} = E -> E
       end;
     {error, {Location, Module, ErrorDescription}, _Rest, _SoFar} ->
-      {error, Location, Module, ErrorDescription}
+      {Line, _} = Location,
+      {error, {Line, Module, ErrorDescription}}
   end.
 
 'string_to_ast!'(String, StartLine, File, Options) ->
   case string_to_ast(String, StartLine, File, Options) of
     {ok, Forms} ->
       Forms;
-    {error, Location, Module, ErrorDesc} ->
-      {Line, _} = Location,
+    {error, {Line, Module, ErrorDesc}} ->
       kapok_error:parse_error(Line, File, Module, ErrorDesc)
   end.
 

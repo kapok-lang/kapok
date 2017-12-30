@@ -68,9 +68,7 @@
                                hp
                                (io_lib.format "~s~s" [hd hp]))))))
 
-(defn
-    #{:check_remote_call :false}
-    get-env []
+(defn get-env []
   """System environment variables.
 
   Returns a list of all environment variables. Each variable is given as a

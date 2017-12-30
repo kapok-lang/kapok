@@ -136,13 +136,13 @@ $1_lib_files           :=       \
   kapok.seq.kpk                 \
   kapok.access.kpk              \
   kapok.alist.kpk               \
-  kapok.io.kpk                  \
-  kapok.process.kpk             \
-  kapok.system.kpk              \
   kapok.exception.kpk           \
   kapok.regex.kpk               \
   kapok.string.kpk              \
   kapok.list.chars.kpk          \
+  kapok.io.kpk                  \
+  kapok.process.kpk             \
+  kapok.system.kpk              \
   kapok.path.kpk                \
   kapok.time.kpk                \
   kapok.record.kpk              \
