@@ -1,0 +1,131 @@
+(ns kapok.file
+  """This module contains functions to manipulate files.
+
+  Some of those functions are low-level, allowing the user
+  to interact with the file or IO devices, like `(open 2)`,
+  `(copy 3)` and others. This module also provides higher
+  level functions that work with filenames and have their naming
+  based on UNIX variants. For example, one can copy a file
+  via `(cp 3)` and remove files and directories recursively
+  via `(rm-rf 1)`.
+
+  ## Encoding
+
+  In order to write and read files, one must use the functions
+  In the `io` module. By default, a file is opened in binary mode
+  which requires the functions `(io.binread 2)` and `(io.binwrite 2)`
+  to interact with the file. A developer may pass `#utf8` as an
+  option whin opening the file, then the slower `(io.read 2)` and
+  `(io.write 2)` functions must be used as they are responsible for
+  doing the proper conversions and data guarantees.
+
+  Note that filenames when given as char lists in Kapok are
+  always treated as UTF-8. In particular, we expect that the
+  shell and the operating system are configured to use UTF8
+  encoding. Binary filenames are considering raw and passed
+  to the OS as is.
+
+  ## API
+
+  Most of the functions in this module return `#ok` or
+  `{#ok, result}` in case of success, `{#error reason}`
+  otherwise. Those function are also followed by a variant
+  that ends with `!` which returns the result (without the
+  `{#ok result}` tuple) in case of success or raises an
+  exception in case it fails. For example:
+
+      (file.read "hello.txt")
+      ;;=> {#ok "World"}
+
+      (file.read "invalid.txt")
+      ;;=> {#error #enoent}
+
+      (file.read! "hello.txt")
+      ;;=> "World"
+
+      (file.read! "invalid.txt")
+      ;;=> raises error
+
+  In general, a developer should use the former in case they want
+  to react if the file does not exist. The latter should be used
+  when the developer expects their software to fail in case the
+  file cannot be read (i.e. it is literally an exception).
+
+  ## Processes and raw files
+
+  Every time a file is opened, Kapok spawns a new process. Writing
+  to a file is equivalent to sending messages to that process that
+  writes to the file descriptor.
+
+  This means files can be passed between nodes and message passing
+  guarantees they can write to the same file in a network.
+
+  However, you may not always want to pay the price for this abstraction.
+  In such cases, a file can be opened in `#raw` mode. the options `#read-ahead`
+  and `#delayed-write` are also useful when operating large files or
+  working with files in tight loops.
+
+  Check http://www.erlang.org/doc/man/file.html#open-2 for more information
+  about such options and other performance considerations.
+  """
+
+  (require kapok_utils
+           file
+           (kapok (io))))
+
+(defn regular? [path]
+  """Returns `:true` if the path is a regular file.
+
+  ## Examples
+
+      (file.regular? "kapok.file.kpk")    ;;=> :true
+
+  """
+
+  (== (kapok_utils.read_file_type (io.chardata-to-string path))
+      {#ok #regular}))
+
+(defn dir? [path]
+  "Returns `:true` if the path is a directory."
+  (== (kapok_utils.read_file_type (io.chardata-to-string path))
+      {#ok #directory}))
+
+(defn exists? [path]
+  """Returns `:true` if the given path exists.
+  It can be regular file, directory, socket,
+  symbolic link, named pipe or device file.
+
+  ## Examples
+
+      (file.exists? "test/")
+      ;;=> :true
+
+      (file.exists? "missing.txt")
+      ;;=> :false
+
+      (file.exists? "/dev/null")
+      ;;=> :true
+
+  """
+
+  (match? {#ok _}
+          (file.read_file_info (io.chardata-to-string path))))
+
+(defn mkdir [path]
+  """Tries to create the directory `path`. Missing parent directories are not created.
+  Returns `#ok` if successful, or `{#error reason}` if an error occurs.
+
+  Typical error reasons are:
+
+    * `#eacces` - missing search or write permissions for the parent
+      directories of `path`
+    * `#eexist` - there is already a file or directory named `path`
+    * `#enoent` - a component of `path` does not exist
+    * `#enospc` - there is a no space left on the device
+    * `#enotdir` - a component of `path` is not a directory;
+      on some platforms, `#enoent` is returned instead
+
+  """
+  (file.make_dir (io.chardata-to-string path)))
+
+

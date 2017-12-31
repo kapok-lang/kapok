@@ -8,6 +8,7 @@
          characters_to_binary/1,
          to_binary/1,
          read_file_type/1,
+         read_link_type/1,
          relative_to_cwd/1,
          gensym_plain/1,
          gensym/0,
@@ -52,6 +53,12 @@ to_binary(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8).
 
 read_file_type(File) ->
   case file:read_file_info(File) of
+    {ok, #file_info{type = Type}} -> {ok, Type};
+    {error, _} = Error -> Error
+  end.
+
+read_link_type(File) ->
+  case file:read_link_info(File) of
     {ok, #file_info{type = Type}} -> {ok, Type};
     {error, _} = Error -> Error
   end.

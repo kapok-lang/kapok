@@ -144,6 +144,7 @@ $1_lib_files           :=       \
   kapok.process.kpk             \
   kapok.system.kpk              \
   kapok.path.kpk                \
+  kapok.file.kpk                \
   kapok.time.kpk                \
   kapok.record.kpk              \
   kapok.record.extractor.kpk
