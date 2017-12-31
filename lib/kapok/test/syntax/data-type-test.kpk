@@ -92,8 +92,8 @@ world!")))
     (assert (=== #'atom has space' (erlang.list_to_atom #"atom has space")))
 
     ;; keyword
-    (assert (=== :atom (erlang.list_to_atom #"atom")))
-    (assert (=== :'atom has space' (erlang.list_to_atom #"atom has space")))
+    (assert (=== :true (erlang.list_to_atom #"true")))
+    (assert (=== #'atom has space' (erlang.list_to_atom #"atom has space")))
 
     ;; boolean
     (assert (=== :true (true? :true)))
