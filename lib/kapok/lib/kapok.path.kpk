@@ -13,13 +13,16 @@
 
   (require binary
            file
-           (filename :as fn)
+           filelib
+           (filename :as flnm)
+           io_lib
            lists
            os
-           unicode)
-  (use (kapok (io
-               system)))
-  )
+           unicode
+           (kapok (alist
+                   io
+                   seq
+                   system))))
 
 ;; defined at the beginning of this module because the module needs
 ;; to be compiled to call the macro `slash?` in `win32-pathtype`.
@@ -170,6 +173,43 @@
 (defn- reverse-maybe-remove-dirsep [name _]
   (lists.reverse name))
 
+(defn expand [path]
+  """Converts the path to an absolute one and expands
+  any `.` and `..` characters and a leading `~`.
+
+  ## Examples
+
+      kapok> (path.expand "/foo/bar/../bar")
+      "/foo/bar"
+
+  """
+  (expand-dot (absname (expand-home path) (system.cwd!))))
+
+(defn expand [path relative-to]
+  """Expands the path relative to the path given as the second argument
+  expanding any `.` and `..` characters. If the path is already an
+  absolute path, `relative-to` ignored.
+
+  Note, that this function treats `path` with a leading `~` as
+  an absolute one.
+
+  The second argument is first expanded to an absolute path.
+
+  ## Examples
+
+      # Assuming that the absolute path to baz is /quux/baz
+      (path.expand "foo/bar/../bar" "baz")
+      ;;=> "/quux/baz/foo/bar"
+
+      (path.expand "foo/bar/../bar" "baz")
+      "/baz/foo/bar"
+      (path.expand "/foo/bar/../bar" "/baz")
+      "/foo/bar"
+
+  """
+  (expand-dot (absname (absname (expand-home path) (expand-home relative-to))
+                       (system.cwd!))))
+
 (defn type [name] (&when (&or (list? name)
                               (binary? name)))
   """Returns the path type.
@@ -233,11 +273,314 @@
 (defn- unix-pathtype [relative]
   {#relative relative})
 
-;; Work around a bug in Erlang on UNIX
-(defn- split [""]
-  [])
-(defn- split [path]
-  (fn.split (io.chardata-to-string path)))
+(defn relative-to [path from]
+  """Returns the given `path` relative to the given `from` path.
+  In other words, it tries to strip the `from` prefix from `path`.
+
+  This function does not query the file system, so it assumes
+  no symlinks between the paths.
+
+  In case a direct relative path cannot be found, it returns
+  the original path.
+
+  ## Examples
+
+      kapok> (path.relative-to "/usr/local/foo", "/usr/local")
+      "foo"
+
+      kapok> (path.relative-to "/usr/local/foo" "/")
+      "usr/local/bin"
+
+      kapok> (path.relative-to "/usr/local/foo" "/etc")
+      "/usr/local/foo"
+
+  """
+
+  (let [p (io.chardata-to-string path)]
+    (relative-to (split p) (split from) p)))
+
+(defn- relative-to [[h & t1] [h & t2] original]
+  (relative-to t1 t2 original))
+
+(defn- relative-to [[_ & _] &as l1 [] _original]
+  (join l1))
+
+(defn- relative-to [_ _ original]
+  original)
+
+(defn relative-to-cwd [path]
+  """Convenience to get the path relative to the current working
+  directory. If for some reason, the current working directory
+  cannot be retrieved, returns the full path.
+  """
+  (case (file.get_cwd)
+    ({#ok base}
+     (relative-to path (io.chardata-to-string base)))
+    (_
+     path)))
+
+(defn basename [path]
+  """Returns the last component of the path or the path
+  itself if it does not contain any directory separators.
+
+  ## Examples
+
+      kapok> (path.basename "foo")
+      "foo"
+
+      kapok> (path.basename "foo/bar")
+      "bar"
+
+      kapok> (path.basename "/")
+      ""
+
+  """
+  (flnm.basename (io.chardata-to-string path)))
+
+(defn basename [path extension]
+  """Returns the last component of `path` with the `extension`
+  stripped. This function should be used to remove a specific
+  extension which may, or may not, be there.
+
+  ## Examples
+
+      kapok> (path.basename "~/foo/bar.kpk" ".kpk")
+      "bar"
+
+      kapok> (path.basename "~/foo/bar.kpk" ".k")
+      "bar.kpk"
+
+      kapok> (path.basename "~/foo/bar.old.kpk" ".kpk")
+      "bar.old"
+
+  """
+  (flnm.basename (io.chardata-to-string path)
+                 (io.chardata-to-string extension)))
+
+(defn dirname [path]
+  """Returns the directory component of `path`.
+
+  ## Examples
+
+      (path.dirname "/foo/bar.kpk")
+      ;;=> "/foo"
+      (path.dirname "/foo/bar/baz.kpk")
+      ;;=> "/foo/bar"
+
+  """
+  (flnm.dirname (io.chardata-to-string path)))
+
+(defn extname [path]
+  """Returns the extension of the last component of `path`.
+
+  ## Examples
+
+      kapok> (path.extname "foo.erl")
+      ".erl"
+
+      kapok> (path.extname "~/foo/bar")
+      ""
+
+  """
+  (flnm.extension (io.chardata-to-string path)))
+
+(defn rootname [path]
+  """Returns the `path` with the extension stripped.
+
+  ## Examples
+
+      kapok> (path.rootname "/foo/bar")
+      "/foo/bar"
+
+      kapok> (path.rootname "/foo/bar.kpk")
+      "/foo/bar"
+
+  """
+  (flnm.rootname (io.chardata-to-string path)))
+
+(defn rootname [path extension]
+  """Returns the `path` with the `extension` stripped.
+  This function should be used to remove a specific extension
+  which might, or might not, be there.
+
+  ## Examples
+
+      kapok> (path.rootname "/foo/bar.erl" ".erl")
+      "/foo/bar"
+
+      kapok> (path.rootname "/foo/bar.erl" ".kpk")
+      "/foo/bar.erl"
+
+  """
+  (flnm.rootname (io.chardata-to-string path)
+                 (io.chardata-to-string extension)))
+
+(defn join
+  """Joins a list of strings.
+
+  This function should be used to convert a list of strings to a path.
+  Note that any trailing slash is removed on join.
+
+  ## Examples
+
+      kapok> (path.join ["~" "foo"])
+      "~/foo"
+
+      kapok> (path.join ["foo"])
+      "foo"
+
+      kapok> (path.join ["/" "foo" "bar"])
+      "/foo/bar"
+
+  """
+  ([[name1 name2 & rest]]
+   (join [(join name1 name2) & rest]))
+
+  ([name]
+   name)
+  )
+
+(defn join [left right]
+  """Joins two paths.
+
+  The right path will always be expanded to its relative format
+  and any trailing slash is removed on join.
+
+  ## Examples
+
+      kapok> (path.join "foo" "bar")
+      "foo/bar"
+
+  """
+  (let [l (io.chardata-to-string left)
+        os-type (major-os-type)]
+    (-> (do-join l right os-type)
+        (remove-dirsep os-type))))
+
+(defn- do-join ["" right os-type]
+  (relative right os-type))
+(defn- do-join [left "" _os-type]
+  (left))
+(defn- do-join [left right os-type]
+  (io_lib.format "~s/~s" [(remove-dirsep left os-type)
+                          (relative right os-type)]))
+
+(defn- remove-dirsep ["" _os-type]
+  "")
+(defn- remove-dirsep [bin os-type]
+  (let [last (binary.last bin)]
+    (if (or (== last \/)
+            (and (== last \\)
+                 (== os-type #win32)))
+        (binary-part bin 0 (dec (byte-size bin)))
+      bin)))
+
+(defn split
+  """Splits the path into a list at the path separator.
+
+  If an empty string is given, returns an empty list.
+
+  On Windows, path is split on both "\" and "/" separators
+  and the driver letter, if there is one, is always returned
+  in lowercase.
+
+  ## Examples
+
+     kapok> (path.split "")
+     []
+
+     kapok> (path.split "foo")
+     ["foo"]
+
+     kapok> (path.split "/foo/bar")
+     ["/" "foo" "bar"]
+
+  """
+
+  ;; Work around a bug in Erlang on UNIX
+  ([""]
+   [])
+
+  ([path]
+   (flnm.split (io.chardata-to-string path))))
+
+(defns kapok.path.wildcard
+  ((require erlang
+            gen_server
+            (kapok (seq))))
+
+  (defn read-link-info [file]
+    (call {#read_link_info file}))
+
+  ;; for compatibility with buggy Erlang 17.1.
+  (defn read-file-info [file]
+    (call {#read_link_info file}))
+
+  (defn list-dir [dir]
+    (case (call {#list_dir dir})
+      ({#ok files}
+       (let [r (seq.filter files (fn [f] (!= (head f) \.)))]
+         {#ok r}))
+      (other
+       other)))
+
+  (defn- call [tuple]
+    (let [x (erlang.dt_spread_tag :true)
+          y (gen_server.call #file_server_2 tuple)]
+      (erlang.dt_restore_tag x)
+      y))
+  )
+
+(defn wildcard [glob &optional (opts [])]
+  """Traverses paths according to the given `glob` expression, and returns
+  a list of matches.
+
+  The wildcard looks like an ordinary path, except that certain
+  "wildcard characters"  are interpreted in a special way. The following
+  characters are special:
+
+    * `?` - matches one character
+
+    * `*` - matches any number of characters up to the end of the filename,
+      the next dot, or the next slash
+
+    * `**` - two adjacent `*`'s used as a single pattern will match all
+      files and zero or more directories and subdirectories
+
+    * `[char1 char2 ...]` - matches any of the characters listed; two
+      characters separated by a hyphen will match a range of characters
+
+    * `{item1 item2 ...}` - matches one of the alternatives
+
+  Other characters represent themselves. Only paths that have
+  exactly the same character in the same position will match. Note
+  that matching is case-sensitive; i.e. "a" will not match "A".
+
+  By default, the patterns `*` and `?` do not match files starting
+  with a dot `.` unless `{#match_dot :true}` is given in `opts`.
+
+  ## Examples
+
+  Imagine you have a directory called `projects` with three Kapok projects
+  inside of it: `kapok`, `kapok-doc` and `kunit`. You can find all `.beam` files
+  inside the `ebin` directory of each project as follows:
+
+      (path.wildcard "projects/*/ebin/**/*.beam")
+
+  If you want to search for both `.beam` and `.app` files, you could do
+
+      (path.wildcard "projects/*/ebin/**/*.{beam,app}")
+
+  """
+
+  (let [mod (if (alist.get opts #match_dot)
+                #file
+                #'kapok.path.wildcard')]
+    (-> glob
+        chardata-to-list
+        (filelib.wildcard mod)
+        (seq.map (fn io chardata-to-list 1)))))
+
 
 ;; expand-dot the given path by expanding "..", "." and "~"
 
