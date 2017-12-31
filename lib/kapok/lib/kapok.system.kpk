@@ -8,11 +8,11 @@
            file
            filename
            io_lib
-           os)
-  (use (kapok (io
-               list
-               seq
-               string))))
+           os
+           (kapok (io
+                   list
+                   seq
+                   string))))
 
 (defn cwd []
   """Current working directory.

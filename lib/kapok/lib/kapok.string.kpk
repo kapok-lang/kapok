@@ -2,10 +2,9 @@
   ;; TODO add doc
 
   (require binary
-           unicode)
-  (use (kapok (alist
-               regex)))
-  )
+           unicode
+           (kapok (alist
+                   regex))))
 
 (defn split
   """Divides a string into substrings based on a pattern.
