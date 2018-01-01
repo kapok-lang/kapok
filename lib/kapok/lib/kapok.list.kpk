@@ -141,7 +141,7 @@
   ([[_ & t]]
    (last t)))
 
-(defn keyfind [list key position default]
+(defn keyfind [list key position &optional (default :nil)]
   """Receives a list of tuples and returns the first tuple
   where the item at `position` the tuple matches the given `key`.
 

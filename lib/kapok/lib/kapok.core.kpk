@@ -1655,7 +1655,7 @@
         (atom (&when (erlang.is_atom atom))
          (erlang.error (atom.exception [])))
         (#{#__struct__ struct
-           #__exception__ :true} &as other (&when (atom struct))
+           #__exception__ :true} &as other (&when (atom? struct))
          (erlang.error other))
         (_
          (erlang.error
