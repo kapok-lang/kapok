@@ -1,12 +1,12 @@
 (ns kapok.record
-  """Namespace to work, define and import records.
+  """Module to work, define and import records.
 
   Records are simply tuples where the first element is an atom:
 
       kapok> (is_record {#user, "john", 27})
-      true
+      :true
 
-  This namespace provides conveniences for working with records at
+  This module provides conveniences for working with records at
   compilation time, where compile-time field names are used to
   manipulate the tuples, providing fast operations on top of
   the tuples compact structure.
@@ -16,72 +16,250 @@
     1. to work with short, internal data
     2. to interface with Erlang records
 
-  The macros `defrecord` and `defrecord-` can be used to create records
-  while `extract` can be used to extract records from Erlang files.
+  The macros `(defrecord 3)` and `(defrecord- 3)` can be used to create
+　records while `(extract 2)` can be used to extract records from Erlang
+  files.
+
+  ## Types can be defined for tuples with the `(record 2)` macro (only
+  available in typespecs). Like with the generated record macros it will
+  expand to a tuple.
+
+      (defns my-module
+        (require (kapok (record)))
+
+        (record.defrecord #user
+           (#name "john")
+           (#age 25))
+        )
+
   """
-  (require erlang))
+  (require erlang
+           io_lib
+           lists
+           maps
+           (kapok (alist
+                   record.extractor
+                   seq
+                   tuple)))
+  (use (kapok_error :only (compile_error))))
 
-(defmacro is-record [data]
-  """Checks if the given `data` is a record.
+(defn extract [name opts] (&when (&and (atom? name)
+                                       (list? opts)))
+  """Extracts record information from an Erlang file.
 
-  This is implemented as a mocro so it can be used in guard clauses.
+  Returns a quoted expression containing the fields as a list
+  of tuples. It expects the record name to be an atom and the
+  library path to be a string at expansion time.
 
   ## Examples
 
-      kapok> (is_record {#user, "john", 27})
-      :true
-
-      kapok> (is_record {})
-      :false
+      kapok> (record.extract #file_info [{#from_lib "kernel/include/file.hrl"}])
+      [{#size #undefined} {#type #undefined} {#access #undefined} {#atime #undefined}
+       {#mtime #undefined} {#ctime #undefined} {#mode #undefined} {#links #undefined}
+       {#major_device #undefined} {#minor_device #undefined} {#inode #undefined}
+       {#uid #undefined} {#gid #undefined}]
 
   """
+  (record.extractor.extract name opts))
 
-  `(core.and (core.is_tuple ~data)
-             (core.> (core.tuple-size ~data) 0)
-             (core.is_atom (erlang.element 1 ~data))))
+(defn extract-all [opts] (&when (list? opts))
+  """Extracts all records information from an Erlang file.
 
-(defmacro is-record [data kind]
+  Returns a keyword list containing extracted record names as keys, and
+  lists of tuples describing the fields as values. It expects a named
+  argument #from or #from_lib, which correspond to *include* or
+  *include_lib* attribute from Erlang modules, respectively.
+
+  """
+  (record.extractor.extract-all opts))
+
+(defmacro record? [data kind]
   """Checks if the given `data` is a record of `kind`.
 
   This is implemented as a macro so it can be used in guard clauses.
 
   ## Examples
 
-      kapok> (is_record {#user, "john", 27} #user)
+      kapok> (record? {#user, "john", 27} #user)
       :true
 
   """
-  `(core.and (core.is_tuple ~data)
-             (core.> (core.tuple-size ~data) 0)
-             (core.== (erlang.element 1 ~data) ~kind)))
+  `(kapok.core.and (kapok.core.tuple? ~data)
+                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
+                   (kapok.core.== (kapok.core.elem ~data 0) ~kind)))
 
-;; (defmacro defrecord [name &rest fields]
-;;   """Define a record by the specified `name` and `fields`.
+(defmacro record? [data]
+  """Checks if the given `data` is a record.
 
-;;   The argument `fields` should contain a list of `field`, which is
-;;   either a tuple `(key, default_value)` or simply just `key`.
-;;   `key` is a keyword to specify record key, `default_value` is
-;;   the default value for this key. When the default value is omitted
-;;   in the second form, it will be `undefined`.
+  This is implemented as a mocro so it can be used in guard clauses.
 
-;;   ## Examples
+  ## Examples
 
-;;       kapok> (defrecord rr
-;;                (:a 1)
-;;                :b
-;;                (:c 2)
-;;                :d)
+      kapok> (record? {#user, "john", 27})
+      :true
 
-;;   """
-;;   `(lists.foldl (fn [ast]
-;;                   (let ({category meta value} ast)
-;;                     (core.unless (or (category == 'keyword')
-;;                                      (category == 'atom'))
-;;                                  (kapok_error:compile_error meta  "invalid ")
-;;                         (do
+      kapok> (record? {})
+      :false
 
-;;                          ))
-;;                     )
-;;                   (&when (&or (=== category 'keyword')
-;;                                                      (=== category 'atom')))
-;;                     )
+  """
+
+  `(kapok.core.and (kapok.core.tuple? ~data)
+                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
+                   (kapok.core.atom? (kapok.core.elem ~data 0))))
+
+(defmacro record-field? [category]
+  `(&or (=== ~category #keyword)
+        (=== ~category #atom)))
+
+(defn- handle-defrecord-fields [file meta args]
+  (let [handler (fn
+                  ([{c id-meta id-name}] (&when (record-field? c))
+                   {#tuple id-meta {#keyword id-meta id-name} {#atom id-meta #nil}})
+                  ([{#list list-meta [{c id-meta id-name} expr]}] (&when (record-field? c))
+                   {#tuple list-meta {#keyword id-meta id-name} expr})
+                  ([{_ arg-meta _} &as arg]
+                   (compile_error arg-meta
+                                  file
+                                  "invalid field arg for defrecord: ~p"
+                                  [arg])))]
+    {#literal_list meta (lists.map handler args)}))
+
+(defn- handle-defrecord [file meta {_ name-meta name-id} &as name args]
+  (let [id {#identifier name-meta name-id}
+        fields (handle-defrecord-fields file meta args)]
+    [`(defmacro ~id [&optional (args [])]
+        (kapok.record.__access__ ~name ~fields args))
+     `(defmacro ~id [record args]
+        (kapok.record.__access__ ~name ~fields record args))
+     ]
+    ))
+
+(defmacro defrecord [name &rest fields]
+  """Defines a set of macros to create and access a record.
+
+  The argument `name` should be a atom, which specifies the tag name
+  of the record. The argument `fields` should contain a list of `field`,
+  which is either a tuple `(key, default-value)` or simply just `key`.
+  `key` is a atom to specify record key, `default-value` is
+  the default value for this key. When the default value is omitted
+  in the second form, it will be `#undefined`.
+
+  ## Examples
+
+      (defns user
+        ((require (kapok (record))))
+        (record.defrecord #user
+          (#name "meg")
+          (#age 25))
+       )
+
+  In the example above, a set of macros named `user` but with different
+  arities will be defined to manipulate the underlying record:
+
+      # To create records
+      (user)           ;;=> {#user, "meg", 25}
+      (user :age 26)   ;;=> {#user, "meg", 26}
+
+      # To get a field from the record
+      (user record #name)   ;;=> "meg"
+
+      # To update the record
+      (user record :age 26) ;;=> {#user "meg" 26}
+
+      # Convert a record to an association list
+      (user record)         ;;=> [{#name "meg"} {#age 26}]
+
+  """
+
+  (let [meta (maps.get #meta _&ctx)
+        file (maps.get #file _&ctx)]
+    (case name
+      ({#atom _ _}
+       (handle-defrecord file meta name fields))
+      (_
+       (compile_error meta
+                      file
+                      "defrecord expects name to be an atom, but got: ~p"
+                      [name])))))
+
+;; Callback invoked from defrecord macros.
+(defn __access__ [atom fields args]
+  (cond
+    (atom? args) (index atom fields args)
+    (map? args) (create atom fields args)
+    :true (throw (io_lib.format "in record.__access__(), invalid args: ~p"
+                                [args]))))
+
+;; Callback invoked from defrecord macros.
+(defn __access__ [atom fields record args]
+  (cond
+    (atom? args) (get atom fields record args)
+    (map? args) (case (seq.empty? args)
+                  (:true (to-alist atom fields record))
+                  (:false (update atom fields record args)))
+    :true (throw (io_lib.format "in record.__access__(), invalid args: ~p"
+                                [args]))))
+
+;; Gets the index of field.
+(defn- index [atom fields field]
+  (let [index (find-index fields field 0)]
+    (if index
+        (dec index) ;; Convert to Kapok index
+      (let [message (io_lib.format "record ~p does not have the key: ~p"
+                      [atom field])]
+          (raise kapok.argument-error message)))))
+
+;; Creates a new record with the given default fields and map values.
+(defn- create [atom fields map]
+  (let [fun (fn [{field default} each-map]
+              (let [new-fields (case (maps.is_key field each-map)
+                                 (:true (maps.get field each-map))
+                                 (:false default))]
+                {new-fields (maps.remove field each-map)}))
+        {match remaining} (seq.map-reduce fields map fun)]
+    (cond
+      (seq.empty? remaining) [atom & match]
+      :true (let [key (first (seq.map remaining (fn [{key _}] key)))
+                  message (io_lib.format "record ~p does not have the key: ~p" [atom key])]
+              (raise kapok.argument-error message)))))
+
+;; Updates a record given by var with the given map.
+(defn- update [atom fields var map]
+  (seq.reduce map var (fn [{key value} acc]
+                        (let [index (find-index fields key 0)]
+                          (if index
+                              `(erlang.setelement ~index ~acc ~value)
+                            (let [message (io_lib.format
+                                           "record ~p does not have the key: ~p"
+                                            [atom key])]
+                              (raise kapok.argument-error message)))))))
+
+;; Gets a record key from the given var.
+(defn- get [atom fields var key]
+  (let [index (find-index fields key 0)]
+    (if index
+        `(erlang.element ~index ~var)
+      (let [message (io_lib.format "record ~p does not have the key: ~p"
+                                   [atom key])]
+        (raise kapok.argument-error message)))))
+
+(defn- find-index [[{k, _} & _] k i]
+  (+ i 2))
+(defn- find-index [[{_ _} & t] k i]
+  (find-index t k (inc i)))
+(defn- find-index [[] _k _i]
+  :nil)
+
+;; Returns an association list of the record
+(defn to-alist [atom fields record]
+  (if (record? record atom)
+      (let [[_tag & values] (tuple.to-list record)]
+        (join-alist fields values []))
+    (let [message (io_lib.format "expected argument to be a literal atom, literal alist or a ~p record, got runtime: ~p"
+                                 [atom record])]
+      (raise kapok.argument-error message))))
+
+(defn- join-alist [[{field _default} & fields] [value & values] acc]
+  (join-alist fields values [{field value} & acc]))
+(defn- join-alist [[] [] acc]
+  (lists.reverse acc))
