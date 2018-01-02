@@ -3,7 +3,7 @@
   (require erlang
            io_lib))
 
-(defmacro is-odd [n]
+(defmacro odd? [n]
   """Determines if an integer is odd.
 
   Returns `:true` if `n` is an odd number, otherwise `:false`.
@@ -12,7 +12,7 @@
 
   `(== (bit-and ~n 1) 1))
 
-(defmacro is-even [n]
+(defmacro even? [n]
   """Determines if an integer is even.
 
   Returns `:true` if `n` is an even number, otherwise `:false`.

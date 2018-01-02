@@ -35,7 +35,7 @@
   (use (erlang :only (group_leader)))
   )
 
-(defmacro is-iodata [data]
+(defmacro iodata? [data]
   `(&or (list? ~data)
         (binary? ~data)))
 
@@ -166,10 +166,10 @@
   as it will return the wroing result.
   """
 
-  ([item] (&when (is-iodata item))
+  ([item] (&when (iodata? item))
    (binwrite (group_leader) item))
 
-  ([device item] (&when (is-iodata item))
+  ([device item] (&when (iodata? item))
    (file.write (map-dev device) item)))
 
 (defn puts
