@@ -3,6 +3,7 @@
   (require code
            filename
            epp
+           io
            io_lib
            lists
            (kapok (list
@@ -71,9 +72,14 @@
 
 ;; Parse the given file and extract all existent records.
 (defn- extract-records [form]
-  (seq.map form
-           (fn [{#attribute _ #record record}]
-             record)))
+  (seq.filter-map form
+                  (fn
+                    ([{#attribute _ #record _record}]
+                     :true)
+                    ([_]
+                     :false))
+                  (fn [{#attribute _ #record record}]
+                    record)))
 
 ;; Read a file and return its abstract syntax form also
 ;; includes record but with macros and other attributes expanded,
@@ -100,6 +106,9 @@
 
 (defn- parse-field [{#typed_record_field record-field _type}]
   (parse-field record-field))
+
+(defn- parse-field [{#record_field _ key}]
+  {#tuple 0 [key {#atom 0 #undefined}]})
 
 (defn- parse-field [{#record_field _ key value}]
   {#tuple 0 [key, value]})

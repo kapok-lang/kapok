@@ -17,6 +17,9 @@ compile(Ast, Ctx) when is_list(Ast) ->
     false -> ok
   end;
 compile(Ast, Ctx) ->
+  do_compile(Ast, Ctx).
+
+do_compile(Ast, Ctx) ->
   {EAst, ECtx} = kapok_macro:expand(Ast, Ctx),
   handle(EAst, ECtx).
 
@@ -277,7 +280,7 @@ handle_def_ns(Meta, _Kind, NameAst, DocAst,
               Ctx)
     when Id == require; Id == use ->
   Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx),
-  Ctx2 = lists:foldl(fun handle/2, Ctx1, T),
+  Ctx2 = lists:foldl(fun do_compile/2, Ctx1, T),
   build_namespace(?m(Ctx2, namespace), Ctx2);
 %% Sometimes we need to expand a top level macro call to a list of ast,
 %% in this case, we need to handle the returned all these asts in sequence.
@@ -287,7 +290,7 @@ handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) -
 %% defs
 handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, Ctx) ->
   Ctx1 = handle_ns(Meta, [NameAst, DocAst], Ctx),
-  Ctx2 = lists:foldl(fun handle/2, Ctx1, Defs),
+  Ctx2 = lists:foldl(fun do_compile/2, Ctx1, Defs),
   build_namespace(?m(Ctx2, namespace), Ctx2).
 
 %% definitions
