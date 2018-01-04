@@ -7,6 +7,7 @@
          empty_doc/0]).
 -import(kapok_scanner, [token_text/1, token_meta/1]).
 -import(kapok_parser, [is_plain_dot/1, plain_dot_name/1]).
+-import(kapok_utils, [meta_order/1]).
 -include("kapok.hrl").
 
 compile(Ast, Ctx) when is_list(Ast) ->
@@ -630,7 +631,11 @@ handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
                                  Namespace, CurrentKind, FAPList),
   orddict:map(fun(_FA, D) ->
                   lists:map(fun({Order, {_FAMeta, {_FAP, Metadata, Meta, Kind, Name, Args, Guard, Body}}}) ->
-                                OrderedMeta = [{order, Order} | Meta],
+                                OrderedMeta = case meta_order(Meta) of
+                                                0 -> [{order, Order} | Meta];
+                                                Order -> Meta;
+                                                Other -> kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {inconsistent_order, {Order, Other, Name, Meta}})
+                                              end,
                                 %% restore the previous metadata
                                 {Ctx1, _} = kapok_ctx:set_metadata(Ctx, Metadata),
                                 handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx1)
@@ -745,4 +750,9 @@ format_error({invalid_parameter, {P, Token}}) ->
 format_error({too_many_parameters_for_keyword, {P, Token}}) ->
   io_lib:format("too many parameters ~p for ~s", [P, token_text(Token)]);
 format_error({invalid_key, {Token}}) ->
-  io_lib:format("invalid key ~s", [token_text(Token)]).
+  io_lib:format("invalid key ~s", [token_text(Token)]);
+format_error({inconsistent_order, {Order, Old, FunName, Meta}}) ->
+  io_lib:format("inconsistent orders: ~p and ~p for suspended def clause, Name: ~p, Meta: ~p~n",
+                [Order, Old, FunName, Meta]).
+
+

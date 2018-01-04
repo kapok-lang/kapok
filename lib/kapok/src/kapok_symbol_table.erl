@@ -115,7 +115,8 @@ handle_call({new_form, Namespace, Form}, _From, Map) ->
 handle_call({new_suspended_def_clause, Namespace, UnresolvedFA, {_FAMeta, Args} = ClauseArgs}, _From, Map) ->
   Map1 = add_namespace_if_missing(Map, Namespace),
   FAP = element(1, Args),
-  Map2 = add_suspended_def_clause(Map1, Namespace, UnresolvedFA, FAP, ClauseArgs),
+  Meta = element(3, Args),
+  Map2 = add_suspended_def_clause(Map1, Namespace, UnresolvedFA, Meta, FAP, ClauseArgs),
   {reply, ok, Map2};
 
 handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map) ->
@@ -325,8 +326,11 @@ add_def_clause(Map, Namespace, Kind, FA, Meta, Clause) when Kind == 'defn'; Kind
                   end,
   add_into_kv_dict_dict_set(Map1, Namespace, 'defs', FA, {Order, Meta}, Clause).
 
-add_suspended_def_clause(Map, Namespace, UnresolvedFA, FAP, ClauseArgs) ->
-  {Order, Map1} = next_order(Namespace, Map),
+add_suspended_def_clause(Map, Namespace, UnresolvedFA, Meta, FAP, ClauseArgs) ->
+  {Order, Map1} = case meta_order(Meta) of
+                    0 -> next_order(Namespace, Map);
+                    Value -> {Value, Map}
+                  end,
   Map2 = add_into_kv_dict_dict(Map1, Namespace, 'suspended_def_clauses', UnresolvedFA, Order, ClauseArgs),
   add_into_kv_dict(Map2, Namespace, 'fap_dependencies', FAP, UnresolvedFA).
 
