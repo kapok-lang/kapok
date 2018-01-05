@@ -1680,3 +1680,61 @@
 
   """
   `(erlang.error (~exception.exception ~attrs)))
+
+(defmacro reraise [msg stacktrace]
+  """Raises an exception preserving a previous stacktrace.
+
+  Works like `(raise 1)` but does not generate a new stacktrace.
+
+  Notice that `(system.stacktrace 0)` returns the stacktrace
+  of the last exception. That said, it is common to assign
+  the stacktrace as the first expression inside a `catch`
+  clause as any other exception potentially raised (and
+  catched) between the catch clause and the raise call
+  may change the `(system.stacktrace 0)` value.
+
+  ## Examples
+
+      (try (raise "Oops")
+        (catch
+          (exception (let [stacktrace (system.stacktrace)]
+                       (if (== (exception.message exception) "Oops")
+                           (reraise exception stacktrace)))))))
+
+  """
+
+  (case msg
+    (m (&when (erlang.is_binary m))
+     `(erlang.raise #error (kapok.runtime-error.exception ~m) ~stacktrace))
+    (alias (&when (erlang.is_atom alias))
+     `(erlang.raise #error (~alias.exception []) ~stacktrace))
+    (_
+     `(let [stacktrace ~stacktrace]
+       (case ~msg
+         (m (&when (erlang.is_binary m))
+          (erlang.raise #error (kapok.runtime-error.exception m) stacktrace))
+         (atom (&when (erlang.is_atom atom))
+          (erlang.raise #error (atom.exception []) stacktrace))
+         (#{#__struct__ struct
+            #__exception__ :true} &as other (&when (atom? struct))
+          (erlang.raise #error other stacktrace))
+         (_
+          (erlang.error
+           (kapok.argument-error.exception
+            "(reraise 2) expects an alias or a string as the first argument"))))))))
+
+(defmacro reraise [exception attrs stacktrace]
+  """Raises an exception preserving a previous stacktrace.
+
+  `(reraise 3)` works like `(reraise 2)`, except it passes arguments to
+  the `(exception 1)` function like explained in `(raise 2)`.
+
+  ## Examples
+
+      (try (raise "Oops")
+        (catch
+          (exception (let [stacktrace (system.stacktrace)]
+                       (reraise wrapper-error [{#exception exception}] stacktrace)))))
+
+  """
+  `(erlang raise #error (~exception.exception ~attrs) ~stacktrace))
