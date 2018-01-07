@@ -88,8 +88,9 @@
 
 (defn- handle-defstruct-derive [derives]
   ;; TODO add impl
-  (let [acc (lists.foldl (fn [{_ _ d} acc0]
-                           (let [r (derive d (__MODULE__) [])]
+  (let [acc (lists.foldl (fn [d acc0]
+                           (let [module (kapok_parser.plain_dot_name d)
+                                 r (derive module (__MODULE__) [])]
                              [r & acc0]))
                          []
                          derives)]
@@ -143,12 +144,13 @@
         #ok)
        (other
         ;; TODO revise to use exception
-        (throw (io_lib.format #"expected impl ~p to be an implementation of protocol ~p, but got ~p"
+        (throw (io_lib.format "expected impl ~p to be an implementation of protocol ~p, but got ~p"
                               [impl protocol other]))))
       (catch
           ((#throw _)
+           (io.format "catch throw~n" [])
            ;; TODO revise to use exception
-           (throw (io_lib.format #"impl ~p is not an implementation of a protocol" [impl]))))))
+           (throw (io_lib.format "impl ~p is not an implementation of a protocol" [impl]))))))
   )
 
 (defn- handle-defstruct [file meta _doc derives args]
@@ -329,18 +331,19 @@
     (_
      {#def {#list meta clause}})))
 
-(defn- after-defimpl [{_ protocol-meta protocol-name}
+(defn- after-defimpl [{_ protocol-meta _} &as protocol
                       {_ for-meta for-name}]
-  [
-   `(defn __impl__ [#protocol]
-      ~{#atom protocol-meta protocol-name})
+  (let [protocol-name (kapok_parser.plain_dot_name protocol)]
+    [
+     `(defn __impl__ [#protocol]
+        ~{#atom protocol-meta protocol-name})
 
-   `(defn __impl__ [#for]
-      ~{#atom for-meta for-name})
+     `(defn __impl__ [#for]
+        ~{#atom for-meta for-name})
 
-   `(defn __impl__ [#target]
-      (__MODULE__))
-   ])
+     `(defn __impl__ [#target]
+        (__MODULE__))
+      ]))
 
 (defn- handle-defimpl [file meta protocol type doc defs {ns-acc defn-acc}]
   (let [{_ protocol-meta _} protocol

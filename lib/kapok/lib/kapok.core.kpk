@@ -1474,6 +1474,60 @@
                 `(~form ~x)))]
        `(->> ~y ~@left)))))
 
+;; inspect
+
+(defn inspect [_arg &optional (_opts [])]
+  """Inspects the given argument according to the `inspect` protocol.
+  The secord argument is a alist with options to control inspection.
+
+  ## Options
+
+  `(inspect 2)` accepts a list of options that are internally
+  translated to an `inspect.opts` struct. check the docs for
+  `inspect.opts` to see the supported options.
+
+  ## Examples
+
+      kapok> (inspect #foo)
+      "#foo"
+
+      kapok> (inspect [1 2 3 4 5] [{#limit 3}])
+      "[1 2 3 ...]"
+
+      kapok> (inspect "olá0")
+      "<<111, 108, 195, 161, 0>>"
+
+      kapok> (inspect "olá0" [{#binaries #as_strings}])
+      "\"olá\\0\""
+
+      kapok> (inspect "olá" [{#binaries #as_binaries}] )
+      "<<111, 108, 195, 161>>"
+
+      kapok> (inspect #"bar")
+      "#\"bar\""
+
+      kapok> (inspect [0|#"bar"])
+      "[0, 98, 97, 114]"
+
+      kapok> (inspect 100 [{#base #octal}])
+      "0o144"
+
+      kapok> (inspect 100 [{#base #hex}])
+      "0x64"
+
+  Note thath the `inspect` protocol does not necessarily return a valid
+  representation of an Kapok term. In such cases, the inspected result
+  must start with `#`. For example, inspecting a function will return:
+
+      (inspect (fn [a b] (+ a b)))
+      ;;=> #Function<...>
+
+  """
+
+  ;; TODO add impl
+  #todo
+  )
+
 ;; struct
 
 (defn
