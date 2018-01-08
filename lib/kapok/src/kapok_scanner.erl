@@ -256,7 +256,7 @@ scan([S, H|T] = Original, Line, Column, Scope, Tokens)
        Original, lists:reverse(Tokens)}
   end;
 scan([S, H|T], Line, Column, Scope, Tokens)
-    when (S == $: orelse S == $#), ?is_identifier(H) ->
+    when (S == $: orelse S == $#), ?is_identifier_char(H) ->
   Type = case S of
            $: -> keyword;
            $# -> atom
@@ -614,7 +614,7 @@ scan_identifier(Line, Column, T) ->
   scan_identifier(Line, Column, T, []).
 scan_identifier(Line, Column, [], Acc) ->
   {ok, Line, Column, lists:reverse(Acc), []};
-scan_identifier(Line, Column, [H|T], Acc) when ?is_identifier(H) ->
+scan_identifier(Line, Column, [H|T], Acc) when ?is_identifier_char(H) ->
   scan_identifier(Line, Column + 1, T, [H|Acc]);
 scan_identifier(Line, Column, Rest, Acc) ->
   {ok, Line, Column, lists:reverse(Acc), Rest}.
