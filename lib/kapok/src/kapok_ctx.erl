@@ -5,6 +5,7 @@
          add_require/4,
          add_use/3,
          add_use/5,
+         reset_use/2,
          add_function/4,
          add_macro/4,
          reset_macro_context/1,
@@ -74,6 +75,10 @@ add_require(Meta, #{requires := Requires} = Ctx, Alias, Original)
       Ctx#{requires => Requires2}
   end.
 
+delete_require(#{requires := Requires} = Ctx, Original) ->
+  Requires1 = orddict:filter(fun(_K, V) -> V /= Original end, Requires),
+  Ctx#{requires => Requires1}.
+
 add_use(Meta, #{uses := Uses} = Ctx, Module) ->
   Ctx#{uses => orddict:store(Module, [{meta, Meta}], Uses)}.
 
@@ -87,6 +92,15 @@ add_use(_Meta, #{uses := Uses} = Ctx, Module, Key, Value) ->
       Ctx#{uses => orddict:store(Module, NewArgs, Uses)}
   end.
 
+reset_use(Ctx, Module) ->
+  Ctx1 = delete_require(Ctx, Module),
+  Ctx2 = delete_use(Ctx1, Module),
+  Ctx3 = delete_function(Ctx2, Module),
+  delete_macro(Ctx3, Module).
+
+delete_use(#{uses := Uses} = Ctx, Module) ->
+  Ctx#{uses => orddict:erase(Module, Uses)}.
+
 add_function(_Meta, #{functions := Functions} = Ctx, Module, ToImports) ->
   case orddict:find(Module, Functions) of
     {ok, Imports} ->
@@ -97,6 +111,9 @@ add_function(_Meta, #{functions := Functions} = Ctx, Module, ToImports) ->
       Ctx#{functions => orddict:store(Module, NewImports, Functions)}
   end.
 
+delete_function(#{functions := Functions} = Ctx, Module) ->
+  Ctx#{functions => orddict:erase(Module, Functions)}.
+
 add_macro(_Meta, #{macros := Macros} = Ctx, Module, ToImports) ->
   case orddict:find(Module, Macros) of
     {ok, Imports} ->
@@ -106,6 +123,9 @@ add_macro(_Meta, #{macros := Macros} = Ctx, Module, ToImports) ->
       NewImports = ordsets:from_list(ToImports),
       Ctx#{macros => orddict:store(Module, NewImports, Macros)}
   end.
+
+delete_macro(#{macros := Macros} = Ctx, Module) ->
+  Ctx#{macros => orddict:erase(Module, Macros)}.
 
 reset_macro_context(Ctx) ->
   Ctx#{macro_context => new_macro_context()}.

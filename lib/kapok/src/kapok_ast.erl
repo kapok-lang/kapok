@@ -14,7 +14,7 @@ compile(Ast, Ctx) when is_list(Ast) ->
   Ctx1 = lists:foldl(fun compile/2, Ctx, Ast),
   NS = ?m(Ctx1, namespace),
   case kapok_symbol_table:is_namespace_defined(NS) of
-    true -> build_namespace(NS, Ctx1);
+    true -> build_namespace(NS, Ctx1, false);
     false -> ok
   end;
 compile(Ast, Ctx) ->
@@ -74,7 +74,7 @@ handle_ns(_Meta, Ast, _Doc, Clauses, Ctx) ->
              %% build the previous namespace before entering the new namespace
              case ?m(Ctx, def_kind) of
                Keyword when ?is_ns(Keyword) ->
-                 C = build_namespace(NS, Ctx),
+                 C = build_namespace(NS, Ctx, true),
                  C#{namespace => Name};
                _ ->
                  C = kapok_ctx:reset_ctx(Ctx),
@@ -154,16 +154,18 @@ handle_use_clause(List, Ctx) when is_list(List) ->
   lists:mapfoldl(fun handle_use_element/2, Ctx, List).
 
 handle_use_element({Category, Meta, Id}, Ctx) when ?is_id(Category) ->
-  Ctx1 = kapok_ctx:add_require(Meta, Ctx, Id),
-  Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Id),
-  {Id, Ctx2};
+  Ctx1 = kapok_ctx:reset_use(Ctx, Id),
+  Ctx2 = kapok_ctx:add_require(Meta, Ctx1, Id),
+  Ctx3 = kapok_ctx:add_use(Meta, Ctx2, Id),
+  {Id, Ctx3};
 handle_use_element({dot, Meta, _} = Dot, Ctx) ->
   case is_plain_dot(Dot) of
     true ->
       Name = plain_dot_name(Dot),
-      Ctx1 = kapok_ctx:add_require(Meta, Ctx, Name),
-      Ctx2 = kapok_ctx:add_use(Meta, Ctx1, Name),
-      {Name, Ctx2};
+      Ctx1 = kapok_ctx:reset_use(Ctx, Name),
+      Ctx2 = kapok_ctx:add_require(Meta, Ctx1, Name),
+      Ctx3 = kapok_ctx:add_use(Meta, Ctx2, Name),
+      {Name, Ctx3};
     false ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for use", [Dot])
   end;
@@ -197,9 +199,7 @@ handle_use_element({C1, _, [{identifier, _, Id}, {C2, _, Args}]}, Ctx)
                 kapok_error:compile_error(C3Meta, ?m(Ctx, file), "invalid use expression ~p", [A])
             end
         end,
-  lists:mapfoldl(Fun,
-                 Ctx,
-                 Args);
+  lists:mapfoldl(Fun, Ctx, Args);
 handle_use_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
     [{C, _, _} = Ast | T] when ?is_id(C) ->
@@ -245,18 +245,21 @@ handle_use_element_arguments(_Meta, _Name, _, [Ast | _T], Ctx) ->
   kapok_error:compile_error(token_meta(Ast), ?m(Ctx, file), "invalid use argument ~p", [Ast]).
 
 %% Check whether the default namespaces is used. Add them if they are not declared in use clause.
-add_uses(Ctx, ModuleList) ->
-  lists:foldl(fun(Ns, #{uses := Uses} = C) ->
-                  case orddict:is_key(Ns, Uses) of
+add_uses(Ctx, ModuleAliasList) ->
+  lists:foldl(fun({M, A}, #{uses := Uses} = C) ->
+                  case orddict:is_key(M, Uses) of
                     true ->
                       C;
                     false ->
-                      {_, E1} = handle_use_element({identifier, [], Ns}, C),
-                      E1
+                      Ast = {list, [], [{identifier, [], M},
+                                        {keyword, [], 'as'},
+                                        {identifier, [], A}]},
+                      {_, C1} = handle_use_element(Ast, C),
+                      C1
                   end
               end,
               Ctx,
-              ModuleList).
+              ModuleAliasList).
 
 
 %% defns
@@ -282,7 +285,7 @@ handle_def_ns(Meta, _Kind, NameAst, DocAst,
     when Id == require; Id == use ->
   Ctx1 = handle_ns(Meta, [NameAst, DocAst | NSArgs], Ctx),
   Ctx2 = lists:foldl(fun do_compile/2, Ctx1, T),
-  build_namespace(?m(Ctx2, namespace), Ctx2);
+  build_namespace(?m(Ctx2, namespace), Ctx2, true);
 %% Sometimes we need to expand a top level macro call to a list of ast,
 %% in this case, we need to handle the returned all these asts in sequence.
 handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) ->
@@ -292,7 +295,7 @@ handle_def_ns(Meta, Kind, NameAst, DocAst, [List | T], Ctx) when is_list(List) -
 handle_def_ns(Meta, _Kind, NameAst, DocAst, Defs, Ctx) ->
   Ctx1 = handle_ns(Meta, [NameAst, DocAst], Ctx),
   Ctx2 = lists:foldl(fun do_compile/2, Ctx1, Defs),
-  build_namespace(?m(Ctx2, namespace), Ctx2).
+  build_namespace(?m(Ctx2, namespace), Ctx2, true).
 
 %% definitions
 
@@ -655,7 +658,7 @@ build_namespace(Namespace, ModuleName, Ctx, STOptions, ErlOptions, Callback) ->
   {Forms, Ctx1} = kapok_symbol_table:namespace_forms(Namespace, ModuleName, Ctx, STOptions),
   kapok_erl:module(Forms, ErlOptions, Ctx1, Callback).
 
-build_namespace(Namespace, Ctx) ->
+build_namespace(Namespace, Ctx, ResetCtx) ->
   %% Strip all private macros from the forms for the final compilation of the specified module.
   %% A private macro is meant to be called only in current module. There will be
   %% no explicit call to it any more after its full expansion. We strip their definitions
@@ -663,8 +666,13 @@ build_namespace(Namespace, Ctx) ->
   STOptions = [strip_private_macro],
   ErlOptions = [],
   build_namespace(Namespace, Namespace, Ctx, STOptions, ErlOptions, fun write_compiled/2),
-  %% reset a new context for the later compilation
-  kapok_ctx:reset_ctx(Ctx).
+  case ResetCtx of
+    true ->
+      %% reset a new context for the later compilation
+      kapok_ctx:reset_ctx(Ctx);
+    false ->
+      ok
+  end.
 
 write_compiled(Module, Binary) ->
   %% write compiled binary to dest file

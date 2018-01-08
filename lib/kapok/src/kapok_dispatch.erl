@@ -14,14 +14,12 @@
 -include("kapok.hrl").
 
 default_requires() ->
-  L = [{'kapok_macro', 'kapok_macro'},
-       {'core', 'kapok.core'},
-       {'protocol', 'kapok.protocol'}],
+  L = [{'kapok_macro', 'kapok_macro'}],
   orddict:from_list(L).
 
 default_uses() ->
-  ['kapok.core',
-   'kapok.protocol'].
+  [{'kapok.core', 'core'},
+   {'kapok.protocol', 'protocol'}].
 
 %% find local/remote macro/function
 
