@@ -241,7 +241,7 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
               %% TODO revise __MODULE__ to be macro, which is expended during compilation.
               case Id of
                 '__MODULE__' ->
-                  translate({atom, Meta, ?m(Ctx, namespace)}, Ctx);
+                  translate({atom, Meta, ?m(TCtx2, namespace)}, TCtx2);
                 _ ->
                   throw({unresolved_local_call, FunArity, Meta})
               end
@@ -255,7 +255,7 @@ translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
       {Module, Fun} = plain_dot_mf(Dot),
       {TArgs, TCtx1} = translate_args(Args, Ctx),
       Arity = length(TArgs),
-      case kapok_ctx:get_var(Meta, Ctx, Module) of
+      case kapok_ctx:get_var(Meta, TCtx1, Module) of
         {ok, _} ->
           M = {identifier, DotMeta, Module},
           F = case kapok_ctx:get_var(Meta, TCtx1, Fun) of

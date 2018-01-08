@@ -57,10 +57,10 @@ expand_1({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
   case R of
     {local, {F, A, P} = FAP} ->
       %% to call a previously defined macro in the namespace
-      Namespace = ?m(Ctx, namespace),
-      {ok, Module} = kapok_code:load_ns_for(Namespace, FAP, Ctx),
+      Namespace = ?m(Ctx1, namespace),
+      {ok, Module} = kapok_code:load_ns_for(Namespace, FAP, Ctx1),
       NewArgs = kapok_trans:construct_new_args('expand', Arity, A, P, Args),
-      {EAst, ECtx} = expand_macro_named(Meta, Module, F, A, NewArgs, Ctx),
+      {EAst, ECtx} = expand_macro_named(Meta, Module, F, A, NewArgs, Ctx1),
       {EAst, ECtx, true};
     {remote, {M, F, A, P}} ->
       %% to call a macro defined in another module
@@ -70,7 +70,7 @@ expand_1({list, Meta, [{identifier, IdMeta, Id} | Args]} = Ast, Ctx) ->
     {rewrite, Ast1} ->
       {Ast1, Ctx1, true};
     false ->
-      expand_list(Ast, Ctx)
+      expand_list(Ast, Ctx1)
   end;
 expand_1({list, Meta, [{dot, DotMeta, _} = Dot | Args]} = Ast, Ctx) ->
   case is_plain_dot(Dot) of
