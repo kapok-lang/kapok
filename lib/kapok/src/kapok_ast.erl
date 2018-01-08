@@ -188,7 +188,7 @@ handle_use_element({C1, _, [{identifier, _, Id}, {C2, _, Args}]}, Ctx)
                 Name = plain_dot_name(Id1),
                 Dot = {dot, C4Meta, {{identifier, C4Meta, ?STDLIB_NS},
                                      {identifier, C4Meta, Name}}},
-                {_, Ctx1} = handle_use_element({C4, C4Meta, [Dot | T]}, Ctx0),
+                {_, Ctx1} = handle_use_element({C3, C3Meta, [Dot | T]}, Ctx0),
                 Alias = {list, C3Meta, [Dot,
                                         {keyword, C3Meta, 'as'},
                                         {identifier, C3Meta, Name}]},
