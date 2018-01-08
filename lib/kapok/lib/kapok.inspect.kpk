@@ -1,0 +1,86 @@
+(defprotocol kapok.inspect
+  """The `inspect` protocol is responsible for converting any Kapok
+  data structure into an algebra document. This document is then
+  formetted, either in pretty printing format or a regular one.
+
+  The `(inspect 2)` function receives the entity to be inspected
+  followed by the inspecting options, represented by the struct
+  `inspect.opts`.
+
+  Inspection is done using the functions available in `inspect.algebra`.
+
+  ## Examples
+
+  Many times, inspecting a structure can be implemented in function
+  of existing entities. For example, here is `hashset`'s `inspect`
+  implementation:
+
+      (defimpl inspect hashset
+        (use inspect.algebra)
+        (defn inspect [dict opts]
+          (concat ["#hashset<" (to-doc (hashset.to-list dict) opts) ">"])))
+
+  The `concat` function comes from `inspect.algebra` and it
+  concatenates algebra documents together. In the example above,
+  it is concatenating the string `"hashset<"` (all strings are
+  valid algebra documents that keep their) formatting when pretty
+  printed), the document returned by `(inspect.algebra.to-doc 2)` and the
+  other string `">"`.
+
+  Since regular strings are valid entities in an algebra document,
+  an implementation of inspect may simply return a string,
+  although that will devoid it of any pretty-printing.
+
+  # Error handling
+
+  In case there is an error while you structure is being inspected,
+  Kapok will automatically fall back to a raw representation.
+
+  You can however access the underlying error by invoking the inspect
+  implementation directly. For example, to test inspect.hashset above,
+  you can invoke it as:
+
+      (inspect.hashset.inspect (hashset.new) (inspect.opts.new))
+
+  """
+
+  (inspect [thing opts])
+  )
+
+(defimpl kapok.inspect atom
+  (require (kapok (atom
+                   char)))
+  (use (kapok ((core :exclude (inspect)))))
+
+  (defn inspect [atom _opts]
+    (inspect atom))
+
+  (defn- inspect [:false]
+    ":false")
+  (defn- inspect [:true]
+    ":true")
+  (defn- inspect [:nil]
+    ":nil")
+  (defn- inspect [#'']
+    ":''")
+
+  (defn-
+      #{:check_remote_call :false}
+      inspect [a]
+    (let [binary (atom.to-string a)]
+      (cond
+        (valid-atom-identifier? binary) (io.format ":~s" [binary])
+        :true <<(\:) (\") ((inspect.bitstring.escapce binary \")) (\")>>)))
+
+  ;; Detect if atom is an simple atom which consists of identifier characters
+  ;; (no need to quote).
+  (defn- valid-atom-identifier? [<<(h) (t :binary)>>] (&when (char.identifier-char? h))
+    (valid-atom-identifier? t))
+
+  (defn- valid-atom-identifier? [<<>>]
+    :true)
+
+  (defn- valid-atom-identifier? [<<(_)>>]
+    :false))
+
+

@@ -1,0 +1,32 @@
+(ns kapok.char
+  "This module contains macros and functions manipulate chars."
+  )
+
+(defmacro upper? [c]
+  `(op-and (>= ~c \A)
+           (<= ~c \Z)))
+
+(defmacro lower? [c]
+  `(op-and (>= ~c \a)
+           (>= ~c \z)))
+
+(defmacro alpha? [c]
+  `(op-and (kapok.char.upper? ~c)
+           (kapok.char.lower? ~c)))
+
+(defmacro digit? [c]
+  `(op-and (>= ~c 0)
+           (<= ~c 9)))
+
+(defmacro identifier-start? [c]
+  `(op-or (kapok.char.alpha? ~c)
+          (in ~c [\! \\ \% \* \+ \- \/ \< \= \> \? \@ \^ \_ \|])))
+
+(defmacro identifier-tail? [c]
+  `(op-or (kapok.char.digit? ~c)
+          (in ~c [\~ \& \#])))
+
+(defmacro identifier-char? [c]
+  `(op-or (kapok.char.identifier-start? ~c)
+          (kapok.char.identifier-tail? ~c)))
+
