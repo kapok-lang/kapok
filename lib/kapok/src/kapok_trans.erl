@@ -143,7 +143,7 @@ translate({list, _Meta, [{identifier, _, Op}, Expr]}, Ctx)
     when ?is_var_arg_op(Op); ?is_short_circuit_op(Op) ->
   translate(Expr, Ctx);
 translate({list, Meta, [{identifier, _, Op}, Left, Right]}, Ctx)
-    when ?is_var_arg_op(Op); ?is_short_circuit_op(Op) ->
+    when ?is_var_arg_op(Op); ?is_short_circuit_op(Op); ?is_list_op(Op) ->
   {TLeft, TCtx1} = translate(Left, Ctx),
   {TRight, TCtx2} = translate(Right, TCtx1),
   {{op, ?line(Meta), op_type(Op), TLeft, TRight}, TCtx2};
@@ -778,7 +778,9 @@ op_type('op-and') -> 'and';
 op_type('op-or') -> 'or';
 op_type('op-xor') -> 'xor';
 op_type('op-andalso') -> 'andalso';
-op_type('op-orelse') -> 'orelse'.
+op_type('op-orelse') -> 'orelse';
+%% list operators
+op_type('op-++') -> '++'.
 
 %% Error
 

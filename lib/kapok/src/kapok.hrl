@@ -62,6 +62,7 @@
 -define(is_def(Id), (?is_def_fn(Id) orelse ?is_def_macro(Id) orelse ?is_def_alias(Id))).
 -define(is_var_arg_op(Id), (Id == 'op-and' orelse Id == 'op-or' orelse Id == 'op-xor')).
 -define(is_short_circuit_op(Id), (Id == 'op-andalso' orelse Id == 'op-orelse')).
+-define(is_list_op(Id), (Id == 'op-++')).
 -define(is_behaviour(Id), (Id == 'behavior' orelse Id == 'behaviour')).
 -define(is_attribute(Id), (Id == 'attribute')).
 -define(is_attr(Id), (?is_behaviour(Id) orelse ?is_attribute(Id))).
