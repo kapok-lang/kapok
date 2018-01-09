@@ -536,6 +536,7 @@ append_escaped(Rest, Map, List, Hex, Acc, Base) ->
 
 %% Unescape Helpers
 
+unescape_map($0) -> 0;
 unescape_map($a) -> 7;
 unescape_map($b) -> $\b;
 unescape_map($d) -> $\d;
