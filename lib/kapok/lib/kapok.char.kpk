@@ -8,15 +8,15 @@
 
 (defmacro lower? [c]
   `(op-and (>= ~c $a)
-           (>= ~c $z)))
+           (<= ~c $z)))
 
 (defmacro alpha? [c]
-  `(op-and (kapok.char.upper? ~c)
+  `(op-or (kapok.char.upper? ~c)
            (kapok.char.lower? ~c)))
 
 (defmacro digit? [c]
-  `(op-and (>= ~c 0)
-           (<= ~c 9)))
+  `(op-and (>= ~c $0)
+           (<= ~c $9)))
 
 (defmacro identifier-start? [c]
   `(op-or (kapok.char.alpha? ~c)
