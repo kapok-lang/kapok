@@ -64,9 +64,9 @@ A single character literal could be represented in either `$c`, `$\xhh` or `$\x{
 
 These escape chars are also available in string literal, e.g., it's written `"\n\t"` if you need a binary string which consist of one line feed character and then one horizontal tab.
 
-`\xhh` is the hexadecimal format for ascii characters, e.g. `\xa` is a line feed character with value 10 in base-10 notation. And `\x41` is char 'A'.
+`$\xhh` is the hexadecimal format for ascii characters, e.g. `$\xa` is a line feed character with value 10 in base-10 notation. And `$\x41` is char 'A'.
 
-`\x{hhhhhh}` is for utf8 character. You could put 1-6 hexadecimal digit(0-9, a-f, A-F) inside `{}` to represent a code point in utf8 encoding.
+`$\x{hhhhhh}` is for utf8 character. You could put 1-6 hexadecimal digit(0-9, a-f, A-F) inside `{}` to represent a code point in utf8 encoding.
 
 #### String
 
