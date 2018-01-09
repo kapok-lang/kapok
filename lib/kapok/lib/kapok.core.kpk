@@ -1476,7 +1476,9 @@
 
 ;; inspect
 
-(defn inspect [_arg &optional (_opts [])]
+(defn
+    #{:check_remote_call :false}
+    inspect [arg &optional (opts [])]
   """Inspects the given argument according to the `inspect` protocol.
   The secord argument is a alist with options to control inspection.
 
@@ -1521,9 +1523,13 @@
 
   """
 
-  ;; TODO add impl
-  #todo
-  )
+  (let [opts1 (struct (kapok.inspect.opts.new) opts)
+        limit (case (kapok.access.get opts1 #pretty)
+                (:true (kapok.access.get opts1 #width))
+                (:false #infinity))]
+    (kapok.io.iodata-to-binary (kapok.inspect.algebra.format
+                                (kapok.inspect.algebra.to-doc arg opts1)
+                                limit))))
 
 ;; struct
 
