@@ -88,32 +88,36 @@
 
 (defn- handle-defstruct-derive [derives]
   ;; TODO add impl
-  (let [acc (lists.foldl (fn [d acc0]
-                           (let [module (kapok_parser.plain_dot_name d)
-                                 r (derive module (__MODULE__) [])]
-                             [r & acc0]))
-                         []
+  (let [derive-macro `(defmacro- gen-derive [protocol]
+                        (let [name (kapok_parser.plain_dot_name protocol)
+                              plain (kapok.module.concat name #map)
+                              for (__MODULE__)]
+                          ;; TODO add checking for whether __deriving__ function exists in module impl.
+                          ;; refer to `protocol.derive' in Elixir for more info.
+
+                          `(defns ~{#dot [] {protocol {#atom [] for}}}
+                               (defn __impl__ [#protocol]
+                                 ~{#atom [] name})
+
+                             (defn __impl__ [#for]
+                               ~{#atom [] for})
+
+                             (defn __impl__ [#target]
+                               ~{#atom [] plain}))))
+        acc (lists.foldl (fn [d acc0]
+                           (let [r (derive d [])]
+                             [r & acc0])
+                           )
+                         [derive-macro]
                          derives)]
-    (lists.reverse acc)
-    []))
+    (lists.reverse acc)))
 
-(defn- derive [protocol for _options]
-  (assert-protocol! protocol)
-  (assert-impl! protocol #map)
+(defn- derive [protocol _options]
+  (let [name (kapok_parser.plain_dot_name protocol)]
+    (assert-protocol! name)
+    (assert-impl! name #map)
 
-  ;; TODO add checking for whether __deriving__ function exists in module impl.
-  ;; refer to `protocol.derive' in Elixir for more info.
-
-  (let [impl (module.concat protocol #map)]
-    `(defns ~impl
-       (defn __impl__ [#protocol]
-         ~{#atom [] protocol})
-
-       (defn __impl__ [#for]
-         ~{#atom [] for})
-
-       (defn __impl__ [#target]
-         ~{#atom [] impl})))
+    `(gen-derive ~protocol))
   )
 
 (defn- assert-protocol! [module]
