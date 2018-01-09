@@ -6,6 +6,41 @@
            (kapok (alist
                    regex))))
 
+(defn printable? [<<(h :utf8) (t :binary)>>]
+    (&when (&or (&and (>= h 0x20)
+                      (<= h 0x7E))
+                (&and (>= h 0xA0)
+                      (<= h 0xD7FF))
+                (&and (>= h 0xE000)
+                      (<= h 0xFFFD))
+                (&and (>= h 0x10000)
+                      (<= h 0x10FFFF))))
+  """Checks if a string is printable considering it is encoded
+  as UTF-8. Returns `:true` if so, `:false` otherwise.
+
+  ## Examples
+
+      kapok> (string.printable? "abc")
+      :true
+
+  """
+  (printable? t))
+
+(defn printable? [<<($\n) (t :binary)>>] (printable? t)) ;; NL  (line feed, new line)
+(defn printable? [<<($\r) (t :binary)>>] (printable? t)) ;; CR  (carriage return)
+(defn printable? [<<($\t) (t :binary)>>] (printable? t)) ;; TAB (horizontal tab)
+(defn printable? [<<($\v) (t :binary)>>] (printable? t)) ;; VT  (vertical tab)
+(defn printable? [<<($\b) (t :binary)>>] (printable? t)) ;; BS  (backspace)
+(defn printable? [<<($\f) (t :binary)>>] (printable? t)) ;; FF  (formfeed)
+(defn printable? [<<($\e) (t :binary)>>] (printable? t)) ;; ESC (escape)
+(defn printable? [<<($\d) (t :binary)>>] (printable? t)) ;; DEL (delete)
+(defn printable? [<<($\a) (t :binary)>>] (printable? t)) ;; BEL (bell)
+
+(defn printable? [<<>>]
+  :true)
+(defn printable? [binary] (&when (binary? binary))
+  :false)
+
 (defn split
   """Divides a string into substrings based on a pattern.
 

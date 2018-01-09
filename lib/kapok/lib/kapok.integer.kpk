@@ -189,14 +189,14 @@
 
 (defn- parse-in-base
 
-  ([<< (\-) (bin) >> base] (&when (binary? bin))
+  ([<< ($-) (bin) >> base] (&when (binary? bin))
    (case (do-parse bin base)
      (#error
       #error)
      ({number remainder}
       {(- number) remainder})))
 
-  ([<< (\+) (bin) >> base] (&when (binary? bin))
+  ([<< ($+) (bin) >> base] (&when (binary? bin))
    (do-parse bin base))
 
   ([bin base] (&when (binary? bin))
@@ -225,16 +225,16 @@
 
 (defn- parse-digit [char _]
   (case char
-    (c (&when (&and (>= c \0) (<= c \9)))
-     (- char \0))
-    (c (&when (&and (>= c \A) (<= c \Z)))
-     (+ (- char \A) 10))
+    (c (&when (&and (>= c $0) (<= c $9)))
+     (- char $0))
+    (c (&when (&and (>= c $A) (<= c $Z)))
+     (+ (- char $A) 10))
     (_
-     (+ (- char \a) 10))))
+     (+ (- char $a) 10))))
 
 (defn- valid-digit-in-base? [char base]
   (if (<= base 10)
-      (in-range char \0 (dec (+ \0 base)))
-    (or (in-range char \0 \9)
-        (in-range char \A (- (+ \A base) 11))
-        (in-range char \a (- (+ \a base ) 11)))))
+      (in-range char $0 (dec (+ $0 base)))
+    (or (in-range char $0 $9)
+        (in-range char $A (- (+ $A base) 11))
+        (in-range char $a (- (+ $a base ) 11)))))

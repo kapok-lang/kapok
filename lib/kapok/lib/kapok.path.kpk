@@ -27,7 +27,7 @@
 ;; defined at the beginning of this module because the module needs
 ;; to be compiled to call the macro `slash?` in `win32-pathtype`.
 (defmacro slash? [c]
-  `(in ~c [\/ \\]))
+  `(in ~c [$/ $\\]))
 
 (defn- win32-pathtype [[list & rest]] (&when (list? list))
   (win32-pathtype (lists.append list rest)))
@@ -38,10 +38,10 @@
   {#absolute relative})
 (defn- win32-pathtype [<<(c) (relative :binary)>>] (&when (slash? c))
   {#volumerelative relative})
-(defn- win32-pathtype [<<(_letter) (\:) (c) (relative :binary)>>]
+(defn- win32-pathtype [<<(_letter) ($:) (c) (relative :binary)>>]
   (&when (slash? c))
   {#absolute relative})
-(defn- win32-pathtype [<<(_letter) (\:) (relative :binary)>>]
+(defn- win32-pathtype [<<(_letter) ($:) (relative :binary)>>]
   {#volumerelative relative})
 
 (defn- win32-pathtype [[c1 c2 & relative]] (&when (&and (slash? c1) (slash? c2)))
@@ -50,9 +50,9 @@
   {#volumerelative relative})
 (defn- win32-pathtype [[c1 c2 list & rest]] (&when (list? list))
   (win32-pathtype [c1 c2 & (lists.append list rest)]))
-(defn- win32-pathtype [[_letter \: c & relative]] (&when (slash? c))
+(defn- win32-pathtype [[_letter $: c & relative]] (&when (slash? c))
   {#absolute relative})
-(defn- win32-pathtype [[_letter \: & relative]]
+(defn- win32-pathtype [[_letter $: & relative]]
   {#volumerelative relative})
 (defn- win32-pathtype [relative]
   {#relative relative})
@@ -112,16 +112,16 @@
   (absname-join [volume & rest]))
 
 ;; Relative to current directory on current drive.
-(defn- absname-vr [[<<(x) (\:)>> & rest] [<<(x) (_ :binary)>> & _] relative]
+(defn- absname-vr [[<<(x) ($:)>> & rest] [<<(x) (_ :binary)>> & _] relative]
   (absname (absname-join rest) relative))
 
 ;; Relative to current directory on another drive.
-(defn- absname-vr [[<<(x) (\:)>> & name] _ _relative]
-  (let [cwd (case (file.get_cwd [x \:])
+(defn- absname-vr [[<<(x) ($:)>> & name] _ _relative]
+  (let [cwd (case (file.get_cwd [x $:])
               ({#ok dir}
                (io.chardata-to-string dir))
               ({#error _}
-               <<(x) (\:) (\/)>>))]
+               <<(x) ($:) ($/)>>))]
     (absname (absname-join name) cwd)))
 
 ;; Joins a list
@@ -143,32 +143,32 @@
 ;; (defn- do-absname-join [_ _ _ _]
 ;;   #ok)
 
-(defn- do-absname-join [<<(uc-letter) (\:) (rest :binary)>> relativename [] #win32]
-  (&when (&and (>= uc-letter \A) (<= uc-letter \Z)))
-  (do-absname-join rest relativename [\: (- (+ uc-letter \a) \A)]  #win32))
-(defn- do-absname-join [<<(\\) (rest :binary)>> relativename result #win32]
-  (do-absname-join <<(\/) (rest :binary)>> relativename result #win32))
-(defn- do-absname-join [<<(\/) (rest :binary)>> relativename [\. \/ & result] os-type]
+(defn- do-absname-join [<<(uc-letter) ($:) (rest :binary)>> relativename [] #win32]
+  (&when (&and (>= uc-letter $A) (<= uc-letter $Z)))
+  (do-absname-join rest relativename [$: (- (+ uc-letter $a) $A)]  #win32))
+(defn- do-absname-join [<<($\\) (rest :binary)>> relativename result #win32]
+  (do-absname-join <<($/) (rest :binary)>> relativename result #win32))
+(defn- do-absname-join [<<($/) (rest :binary)>> relativename [$. $/ & result] os-type]
   ;; TODO add impl
-  (do-absname-join rest relativename [\/ & result] os-type))
-(defn- do-absname-join [<<(\/) (rest :binary)>> relativename [\/ & result] os-type]
-  (do-absname-join rest relativename [\/ & result] os-type))
+  (do-absname-join rest relativename [$/ & result] os-type))
+(defn- do-absname-join [<<($/) (rest :binary)>> relativename [$/ & result] os-type]
+  (do-absname-join rest relativename [$/ & result] os-type))
 (defn- do-absname-join [<<>> <<>> result os-type]
   (io.iodata-to-binary (reverse-maybe-remove-dirsep result os-type)))
-(defn- do-absname-join [<<>> relativename [\/ & rest] #win32]
-  (do-absname-join relativename <<>> [\: & rest] #win32))
-(defn- do-absname-join [<<>> relativename [\/ & result] os-type]
-  (do-absname-join relativename <<>> [\/ & result] os-type))
+(defn- do-absname-join [<<>> relativename [$/ & rest] #win32]
+  (do-absname-join relativename <<>> [$: & rest] #win32))
+(defn- do-absname-join [<<>> relativename [$/ & result] os-type]
+  (do-absname-join relativename <<>> [$/ & result] os-type))
 (defn- do-absname-join [<<>> relativename result os-type]
-  (do-absname-join relativename <<>> [\/ & result] os-type))
+  (do-absname-join relativename <<>> [$/ & result] os-type))
 (defn- do-absname-join [<<(char) (rest :binary)>> relativename result os-type]
   (do-absname-join rest relativename [char & result] os-type))
 
-(defn- reverse-maybe-remove-dirsep [[\/ \: letter] #win32]
-  [letter \: \/])
-(defn- reverse-maybe-remove-dirsep [[\/] _]
-  [\/])
-(defn- reverse-maybe-remove-dirsep [[\/ & name] _]
+(defn- reverse-maybe-remove-dirsep [[$/ $: letter] #win32]
+  [letter $: $/])
+(defn- reverse-maybe-remove-dirsep [[$/] _]
+  [$/])
+(defn- reverse-maybe-remove-dirsep [[$/ & name] _]
   (lists.reverse name))
 (defn- reverse-maybe-remove-dirsep [name _]
   (lists.reverse name))
@@ -264,9 +264,9 @@
     (_
      (unix-pathtype name))))
 
-(defn- unix-pathtype [<< (\/) (relative :binary)>>]
+(defn- unix-pathtype [<< ($/) (relative :binary)>>]
   {#absolute relative})
-(defn- unix-pathtype [[\/ & relative]]
+(defn- unix-pathtype [[$/ & relative]]
   {#absolute relative})
 (defn- unix-pathtype [[list & rest]] (&when (list? list))
   (unix-pathtype (lists.append list rest)))
@@ -469,8 +469,8 @@
   "")
 (defn- remove-dirsep [bin os-type]
   (let [last (binary.last bin)]
-    (if (or (== last \/)
-            (and (== last \\)
+    (if (or (== last $/)
+            (and (== last $\\)
                  (== os-type #win32)))
         (binary-part bin 0 (dec (byte-size bin)))
       bin)))
@@ -519,7 +519,7 @@
   (defn list-dir [dir]
     (case (call {#list_dir dir})
       ({#ok files}
-       (let [r (seq.filter files (fn [f] (!= (head f) \.)))]
+       (let [r (seq.filter files (fn [f] (!= (head f) $.)))]
          {#ok r}))
       (other
        other)))
@@ -617,12 +617,12 @@
 (defn- expand-dot [<<("/../") (rest :binary)>>]
   (expand-dot <<("/") (rest)>>))
 (defn- expand-dot [<<(letter) (":/../") (rest :binary)>>]
-    (&when (&and (>= letter \a) (<= letter \z)))
+    (&when (&and (>= letter $a) (<= letter $z)))
   (expand-dot <<(letter) (":/") (rest :binary)>>))
 (defn- expand-dot ["/.."]
   "/")
-(defn- expand-dot [<<(letter) (":/..")>>] (&when (&and (>= letter \a)
-                                                       (<= letter \z)))
+(defn- expand-dot [<<(letter) (":/..")>>] (&when (&and (>= letter $a)
+                                                       (<= letter $z)))
   (expand-dot <<(letter) (":/")>>))
 (defn- expand-dot [path]
   (expand-dot (binary.split path "/" [#global]) []))

@@ -10,7 +10,9 @@
   (let [tokens (scan string)]
     (case tokens
       ([token] token)
-      (_ (erlang.throw "expect only one token")))))
+      (_
+       (io.format "tokens: ~p~n" [tokens])
+       (erlang.throw "expect only one token")))))
 
 (defn scan-error [string]
   (let [{#error error_info _ _} (kapok_scanner.scan string 1 [])
@@ -49,29 +51,33 @@
 
   (test "scan char"
     (let [cases [;; simple escape char
-                 {97 "\\a"}
-                 {99 "\\c"}
+                 {97 "$a"}
+                 {99 "$c"}
                  ;; special escape chars
-                 {32 "\\space"}
-                 {9 "\\tab"}
-                 {12 "\\formfeed"}
-                 {8 "\\backspace"}
-                 {10 "\\newline"}
-                 {13 "\\return"}
+                 {7 "$\\a"}
+                 {8 "$\\b"}
+                  {127 "$\\d"}
+                 {27 "$\\e"}
+                 {12 "$\\f"}
+                 {10 "$\\n"}
+                 {13 "$\\r"}
+                 {32 "$\\s"}
+                 {9 "$\\t"}
+                 {11 "$\\v"}
                  ;; escape escape
-                 {92 "\\\\"}
+                 {92 "$\\\\"}
                  ;; hex char notation
-                 {0 "\\x0"}
-                 {7 "\\x7"}
-                 {10 "\\xa"}
-                 {12 "\\xc"}
+                 {0 "$\\x0"}
+                 {7 "$\\x7"}
+                 {10 "$\\xa"}
+                 {12 "$\\xc"}
                  ;; utf-8 char notation
-                 {10 "\\x{a}"}
-                 {171 "\\x{ab}"}
-                 {2748 "\\x{abc}"}
-                 {43981 "\\x{abcd}"}
-                 {703710 "\\x{abcde}"}
-                 {1092557 "\\x{10abcd}"}]]
+                  {10 "$\\x{a}"}
+                 {171 "$\\x{ab}"}
+                 {2748 "$\\x{abc}"}
+                 {43981 "$\\x{abcd}"}
+                 {703710 "$\\x{abcde}"}
+                 {1092557 "$\\x{10abcd}"}]]
       (lists.map (fn [{n b}]
                    (let [l (erlang.binary_to_list b)]
                      (assert (=== {#char_number [{#line 1} {#column 1}] n}

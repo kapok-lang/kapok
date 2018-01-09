@@ -44,36 +44,29 @@ All floating-point numbers are transformed to Erlang floating-point numbers, whi
 
 #### Char
 
-A single character literal could be represented in either `\c`, `\xhh` or `\x{hhhhhh}`.
+A single character literal could be represented in either `$c`, `$\xhh` or `$\x{hhhhhh}`.
 
-`\c` is for special escape charactor and other printable ascii character. There are a few special escape chars as listed below:
+`$c` is for special escape charactor and other printable ascii character. There are a few special escape chars as listed below:
 
 | char | stands for | integer value(in decimal) |
 | --- | --- | --- |
-| \b | backspace | 8 |
-| \f | formfeed | 12 |
-| \n | linefeed | 10 | 
-| \r | carriage return | 13 |
-| \s | space | 32 |
-| \t | horizontal tab | 9 |
-| \x | the prefix of hexadecimal format char(described below) | |
+| $\a | bell | 7 |
+| $\b | backspace | 8 |
+| $\d | delete | 127 |
+| $\e | escape | 27 |
+| $\f | form feed | 12 |
+| $\n | line feed | 10 | 
+| $\r | carriage return | 13 |
+| $\s | space | 32 |
+| $\t | horizontal tab | 9 |
+| $\v | vertical tab | 11 |
+| $\x | the prefix of hexadecimal format char(described below) | |
 
-Other than these special escape chars, the `\c` format represents a printable ascii char `c`, e.g. `\a` is character `a`. If you need to write a literal char t, you use use the `\xhh` format, which is `\x74`.
+These escape chars are also available in string literal, e.g., it's written `"\n\t"` if you need a binary string which consist of one line feed character and then one horizontal tab.
 
-`\xhh` is the hexadecimal format for ascii characters, e.g. `\xa` is a LineFeed character with value 10 in base-10 notation. And `\x41` is char 'A'.
+`\xhh` is the hexadecimal format for ascii characters, e.g. `\xa` is a line feed character with value 10 in base-10 notation. And `\x41` is char 'A'.
 
 `\x{hhhhhh}` is for utf8 character. You could put 1-6 hexadecimal digit(0-9, a-f, A-F) inside `{}` to represent a code point in utf8 encoding.
-
-For some special characters, there are some constant literals:
-
-```clojure
-\space
-\tab
-\formfeed
-\backspace
-\newline
-\return
-```
 
 #### String
 
@@ -112,6 +105,8 @@ And it support multiline as well."""
 
 '''The triple single-quotes act the same as triple double-quotes as string terminator.'''
 ```
+
+The specical escape character are supported in both string types. Refer to previous Char section for more info.
 
 #### Atom
 

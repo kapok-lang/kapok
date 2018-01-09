@@ -3,12 +3,12 @@
   )
 
 (defmacro upper? [c]
-  `(op-and (>= ~c \A)
-           (<= ~c \Z)))
+  `(op-and (>= ~c $A)
+           (<= ~c $Z)))
 
 (defmacro lower? [c]
-  `(op-and (>= ~c \a)
-           (>= ~c \z)))
+  `(op-and (>= ~c $a)
+           (>= ~c $z)))
 
 (defmacro alpha? [c]
   `(op-and (kapok.char.upper? ~c)
@@ -20,11 +20,11 @@
 
 (defmacro identifier-start? [c]
   `(op-or (kapok.char.alpha? ~c)
-          (in ~c [\! \\ \% \* \+ \- \/ \< \= \> \? \@ \^ \_ \|])))
+          (in ~c [$! $\\ $% $* $+ $- $/ $< $= $> $? $@ $^ $_ $|])))
 
 (defmacro identifier-tail? [c]
   `(op-or (kapok.char.digit? ~c)
-          (in ~c [\~ \& \#])))
+          (in ~c [$~ $& $#])))
 
 (defmacro identifier-char? [c]
   `(op-or (kapok.char.identifier-start? ~c)

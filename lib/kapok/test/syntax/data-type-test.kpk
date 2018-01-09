@@ -43,28 +43,31 @@
     (assert (=== -314.15E-2 (to-float "-3.1415")))
 
     ;; char
-    ;; escape format
-    (assert (=== \a (to-int "97")))
-    (assert (=== \c (to-int "99")))
+    (assert (=== $a (to-int "97")))
+    (assert (=== $c (to-int "99")))
     ;; special escape chars
-    (assert (=== \space (to-int "32") ))
-    (assert (=== \tab (to-int "9")))
-    (assert (=== \formfeed (to-int "12")))
-    (assert (=== \backspace (to-int "8")))
-    (assert (=== \newline (to-int "10")))
-    (assert (=== \return (to-int "13")))
+    (assert (=== $\a (to-int "7")))
+    (assert (=== $\b (to-int "8")))
+    (assert (=== $\d (to-int "127")))
+    (assert (=== $\e (to-int "27")))
+    (assert (=== $\f (to-int "12")))
+    (assert (=== $\n (to-int "10")))
+    (assert (=== $\r (to-int "13")))
+    (assert (=== $\s (to-int "32")))
+    (assert (=== $\t (to-int "9")))
+    (assert (=== $\v (to-int "11")))
     ;; escape escape
-    (assert (=== \\ (to-int "92")))
+    (assert (=== $\\ (to-int "92")))
     ;; hex notation
-    (assert (=== \xa (to-int "10")))
-    (assert (=== \x61 \a))
+    (assert (=== $\xa (to-int "10")))
+    (assert (=== $\x61 $a))
     ;; utf-8 code point
-    (assert (=== \x{a} \xa))
-    (assert (=== \x{ab} \xab))
-    (assert (=== \x{abc} (to-int "2748")))
-    (assert (=== \x{abcd} (to-int "43981")))
-    (assert (=== \x{abcde} (to-int "703710")))
-    (assert (=== \x{10abcd} (to-int "1092557")))
+    (assert (=== $\x{a} $\xa))
+    (assert (=== $\x{ab} $\xab))
+    (assert (=== $\x{abc} (to-int "2748")))
+    (assert (=== $\x{abcd} (to-int "43981")))
+    (assert (=== $\x{abcde} (to-int "703710")))
+    (assert (=== $\x{10abcd} (to-int "1092557")))
 
     ;; string
     ;; list string
@@ -123,13 +126,13 @@ world!")))
                  (erlang.list_to_binary #"hello")))
     ;; list
     ;; literal list
-    (assert (=== [\h \e \l \l \o]
+    (assert (=== [$h $e $l $l $o]
                  #"hello"))
     ;; general list evaluated to a function call
     (assert (=== (to-int "100")
                  100))
     ;; cons list
-    (assert (=== [\h \e \l \l & [\o]]
+    (assert (=== [$h $e $l $l & [$o]]
                  #"hello"))
     ;; tuple
     (assert (=== {1 2 3}

@@ -933,11 +933,11 @@
     ({#error _} &as error
      error)))
 
-(defn- fix-drive-letter [[l \: \/ & rest] &as original]
-    (&when (&and (>= l \A) (<= l \Z)))
+(defn- fix-drive-letter [[l $: $/ & rest] &as original]
+    (&when (&and (>= l $A) (<= l $Z)))
   (case (os.type)
     ({#win32 _}
-     [(- (+ (l \a)) \A) \: \/ & rest])
+     [(- (+ (l $a)) $A) $: $/ & rest])
     (_
      original)))
 

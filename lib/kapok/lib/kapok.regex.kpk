@@ -242,23 +242,23 @@
 
 ;; Private Helpers
 
-(defn- translate-options [<<(\u) (t :binary)>> acc]   ;; char 'u'
+(defn- translate-options [<<($u) (t :binary)>> acc]
   (translate-options t [#unicode #ucp & acc]))
-(defn- translate-options [<<(\i) (t :binary)>> acc]   ;; char 'i'
+(defn- translate-options [<<($i) (t :binary)>> acc]
   (translate-options t [#caseless & acc]))
-(defn- translate-options [<<(\x78) (t :binary)>> acc] ;; char 'x'
+(defn- translate-options [<<($x) (t :binary)>> acc]
   (translate-options t [#extended & acc]))
-(defn- translate-options [<<(\x66) (t :binary)>> acc] ;; char 'f'
+(defn- translate-options [<<($f) (t :binary)>> acc]
   (translate-options t [#firstline & acc]))
-(defn- translate-options [<<(\U) (t :binary)>> acc]   ;; char 'U'
+(defn- translate-options [<<($U) (t :binary)>> acc]
   (translate-options t [#ungreedy & acc]))
-(defn- translate-options [<<(\x73) (t :binary)>> acc] ;; char 's'
+(defn- translate-options [<<($s) (t :binary)>> acc]
   (translate-options t [#dotall & acc]))
-(defn- translate-options [<<(\m) (t :binary)>> acc]   ;; char 'm'
+(defn- translate-options [<<($m) (t :binary)>> acc]
   (translate-options t [#multiline & acc]))
 
 ;; TODO Deprecated in funture
-(defn- translate-options [<<(\x72) (t :binary)>> acc] ;; char 'r'
+(defn- translate-options [<<($\x72) (t :binary)>> acc] ;; char 'r'
   (translate-options t [#ungreedy & acc]))
 
 (defn- translate-options [<<>> acc]

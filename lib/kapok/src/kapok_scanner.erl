@@ -123,65 +123,56 @@ scan([$;|T], Line, Column, Scope, Tokens) ->
 
 %% Char
 
-scan([$\\, $x, ${,A,B,C,D,E,F,$}|T], Line, Column, Scope, Tokens)
+scan([$$, $\\, $x, ${,A,B,C,D,E,F,$}|T], Line, Column, Scope, Tokens)
     when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E), ?is_hex(F) ->
   Char = escape_char([$\\, $x, ${,A,B,C,D,E,F,$}]),
-  scan(T, Line, Column+10, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+  scan(T, Line, Column+11, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
-scan([$\\, $x, ${,A,B,C,D,E,$}|T], Line, Column, Scope, Tokens)
+scan([$$, $\\, $x, ${,A,B,C,D,E,$}|T], Line, Column, Scope, Tokens)
     when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(E) ->
   Char = escape_char([$\\, $x, ${,A,B,C,D,E,$}]),
-  scan(T, Line, Column+9, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $x, ${,A,B,C,D,$}|T], Line, Column, Scope, Tokens)
-    when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
-  Char = escape_char([$\\, $x, ${,A,B,C,D,$}]),
-  scan(T, Line, Column + 8, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $x, ${,A,B,C,$}|T], Line, Column, Scope, Tokens)
-    when ?is_hex(A), ?is_hex(B), ?is_hex(C) ->
-  Char = escape_char([$\\, $x, ${,A,B,C,$}]),
-  scan(T, Line, Column + 7, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $x, ${,A,B,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A), ?is_hex(B) ->
-  Char = escape_char([$\\, $x, ${,A,B,$}]),
-  scan(T, Line, Column + 6, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $x, ${,A,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
-  Char = escape_char([$\\, $x, ${,A,$}]),
-  scan(T, Line, Column + 5, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $x, A, B|T], Line, Column, Scope, Tokens) when ?is_hex(A), ?is_hex(B) ->
-  Char = escape_char([$\\, $x, A, B]),
-  scan(T, Line, Column + 4, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $x, A|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
-  Char = escape_char([$\\, $x, A]),
-  scan(T, Line, Column + 3, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
-  Char = $\s,
-  scan(T, Line, Column + 6, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $t,$a,$b|T], Line, Column, Scope, Tokens) ->
-  Char = $\t,
-  scan(T, Line, Column + 4, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $f,$o,$r,$m,$f,$e,$e,$d|T], Line, Column, Scope, Tokens) ->
-  Char = $\f,
-  scan(T, Line, Column + 9, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
-
-scan([$\\, $b,$a,$c,$k,$s,$p,$a,$c,$e|T], Line, Column, Scope, Tokens) ->
-  Char = $\b,
   scan(T, Line, Column+10, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
-scan([$\\, $n,$e,$w,$l,$i,$n,$e|T], Line, Column, Scope, Tokens) ->
-  Char = $\n,
+scan([$$, $\\, $x, ${,A,B,C,D,$}|T], Line, Column, Scope, Tokens)
+    when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
+  Char = escape_char([$\\, $x, ${,A,B,C,D,$}]),
+  scan(T, Line, Column + 9, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+
+scan([$$, $\\, $x, ${,A,B,C,$}|T], Line, Column, Scope, Tokens)
+    when ?is_hex(A), ?is_hex(B), ?is_hex(C) ->
+  Char = escape_char([$\\, $x, ${,A,B,C,$}]),
   scan(T, Line, Column + 8, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
-scan([$\\, $r,$e,$t,$u,$r,$n|T], Line, Column, Scope, Tokens) ->
-  Char = $\r,
+scan([$$, $\\, $x, ${,A,B,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A), ?is_hex(B) ->
+  Char = escape_char([$\\, $x, ${,A,B,$}]),
   scan(T, Line, Column + 7, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+
+scan([$$, $\\, $x, ${,A,$}|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
+  Char = escape_char([$\\, $x, ${,A,$}]),
+  scan(T, Line, Column + 6, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+
+scan([$$, $\\, $x, A, B|T], Line, Column, Scope, Tokens) when ?is_hex(A), ?is_hex(B) ->
+  Char = escape_char([$\\, $x, A, B]),
+  scan(T, Line, Column + 5, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+
+scan([$$, $\\, $x, A|T], Line, Column, Scope, Tokens) when ?is_hex(A) ->
+  Char = escape_char([$\\, $x, A]),
+  scan(T, Line, Column + 4, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+
+scan([$$, $\\, H|T], Line, Column, Scope, Tokens) ->
+  Char = unescape_map(H),
+  scan(T, Line, Column + 3, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
+
+scan([$$, Char | T], Line, Column, Scope, Tokens) ->
+  case handle_char(Char) of
+    {Escape, Name} ->
+      Msg = io_lib:format("found $ followed by codepoint 0x~.16B (~ts), please use ~ts instead",
+                          [Char, Name, Escape]),
+      kapok_error:warn(Line, Scope#kapok_scanner_scope.file, Msg);
+    false ->
+      ok
+  end,
+  scan(T, Line, Column + 2, Scope, [{char_number, build_meta(Line, Column), Char}|Tokens]);
 
 %% End of line
 
@@ -474,6 +465,18 @@ scan_comment([]) -> [].
 
 %% Chars
 
+handle_char(7)   -> {"\\a", "alert"};
+handle_char($\b) -> {"\\b", "backspace"};
+handle_char($\d) -> {"\\d", "delete"};
+handle_char($\e) -> {"\\e", "escape"};
+handle_char($\f) -> {"\\f", "form feed"};
+handle_char($\n) -> {"\\n", "newline"};
+handle_char($\r) -> {"\\r", "carriage return"};
+handle_char($\s) -> {"\\s", "space"};
+handle_char($\t) -> {"\\t", "tab"};
+handle_char($\v) -> {"\\v", "vertical tab"};
+handle_char(_)  -> false.
+
 escape_char(List) ->
   {ok, <<Char/utf8>>} = unescape_chars(list_to_binary(List)),
   Char.
@@ -533,12 +536,16 @@ append_escaped(Rest, Map, List, Hex, Acc, Base) ->
 
 %% Unescape Helpers
 
+unescape_map($a) -> 7;
 unescape_map($b) -> $\b;
+unescape_map($d) -> $\d;
+unescape_map($e) -> $\e;
 unescape_map($f) -> $\f;
 unescape_map($n) -> $\n;
 unescape_map($r) -> $\r;
 unescape_map($s) -> $\s;
 unescape_map($t) -> $\t;
+unescape_map($v) -> $\v;
 unescape_map($x) -> true;
 unescape_map(E)  -> E.
 

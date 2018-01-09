@@ -1494,11 +1494,8 @@
       kapok> (inspect [1 2 3 4 5] [{#limit 3}])
       "[1 2 3 ...]"
 
-      kapok> (inspect "olá0")
-      "<<111, 108, 195, 161, 0>>"
-
-      kapok> (inspect "olá0" [{#binaries #as_strings}])
-      "\"olá\\0\""
+      kapok> (inspect "olá")
+      "<<111, 108, 195, 161>>"
 
       kapok> (inspect "olá" [{#binaries #as_binaries}] )
       "<<111, 108, 195, 161>>"

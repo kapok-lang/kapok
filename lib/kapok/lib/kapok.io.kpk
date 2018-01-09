@@ -182,7 +182,7 @@
 
   ([device item]
    (let [erl-dev (map-dev device)]
-     (io.put_chars erl-dev [(to-chardata item) \newline]))))
+     (io.put_chars erl-dev [(to-chardata item) $\n]))))
 
 ;; TODO impl the missing functions and uncomment the following block
 ;; (defn inspect [item &optional (opts [])]
