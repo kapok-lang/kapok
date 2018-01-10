@@ -1382,7 +1382,11 @@
      :false)))
 
 (defmacro attr [module attr]
-  `(kapok.core.first (kapok.alist.get (~module.#module_info #attributes) ~attr)))
+  (let [var-value (gensym "value")]
+    `(kapok.core.first
+      (case (#lists.keyfind ~attr 1 (~module.module_info #attributes))
+        ({_ ~var-value} ~var-value)
+        (:false :nil)))))
 
 (defmacro attr [attr]
   `(kapok.core.attr (__MODULE__) ~attr))

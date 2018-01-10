@@ -252,6 +252,8 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
 translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
   case is_plain_dot(Dot) of
     true ->
+      %% TODO don't explain module as var if it's written as atom.
+      %% Do the same for fun
       {Module, Fun} = plain_dot_mf(Dot),
       {TArgs, TCtx1} = translate_args(Args, Ctx),
       Arity = length(TArgs),
