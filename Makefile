@@ -125,34 +125,33 @@ $1_core_lib_files      :=       \
 $1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_files           :=       \
   kapok.exception.kpk           \
-  kapok.access.kpk              \
   kapok.char.kpk                \
-  kapok.inspect.algebra.kpk     \
-  kapok.inspect.kpk             \
   kapok.atom.kpk                \
   kapok.integer.kpk             \
   kapok.float.kpk               \
   kapok.tuple.kpk               \
   kapok.list.kpk                \
-  kapok.alist.kpk               \
-  kapok.dict.kpk                \
   kapok.list.chars.kpk          \
+  kapok.alist.kpk               \
+  kapok.regex.kpk               \
+  kapok.string.kpk              \
   kapok.string.chars.kpk        \
+  kapok.access.kpk              \
+  kapok.inspect.algebra.kpk     \
+  kapok.inspect.kpk             \
+  kapok.dict.kpk                \
   kapok.stream.reducers.kpk     \
   kapok.collectable.kpk         \
   kapok.seq.kpk                 \
-  kapok.regex.kpk               \
-  kapok.string.kpk              \
+  kapok.record.extractor.kpk    \
+  kapok.record.kpk              \
   kapok.io.kpk                  \
   kapok.process.kpk             \
   kapok.system.kpk              \
-  kapok.record.extractor.kpk    \
-  kapok.record.kpk              \
+  kapok.time.kpk                \
   kapok.path.kpk                \
   kapok.file.stat.kpk           \
-  kapok.file.kpk                \
-  kapok.time.kpk
-
+  kapok.file.kpk
 
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))

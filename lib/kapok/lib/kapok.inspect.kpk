@@ -89,9 +89,7 @@
                    integer
                    string)))
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [thing
+  (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #binaries bins} &as opts] (&when (binary? thing))
     (if (or (== bins #as_strings)
@@ -132,9 +130,7 @@
     (escape t char << (binary :binary) ($\\) ($t) >>))
   (defn- escape [<< ($\v) (t :binary) >> char binary]
     (escape t char << (binary :binary) ($\\) ($v) >>))
-  (defn-
-    #{:check_remote_call :false}
-    escape [<< (h :utf8) (t :binary) >> char binary]
+  (defn- escape [<< (h :utf8) (t :binary) >> char binary]
     (let [head <<(h :utf8)>>]
      (if (string.printable? head)
          (escape t char (append head binary))
@@ -190,27 +186,19 @@
 
   ;; Bitstrings
 
-  (defn-
-    #{:check_remote_call :false}
-    inspect-bitstring [bitstring opts]
+  (defn- inspect-bitstring [bitstring opts]
     << ((each-bit bitstring (access.get opts #limit) "<<")) (">>") >>)
 
   (defn- each-bit [_ 0 acc]
     << (acc) (" ...") >>)
 
-  (defn-
-    #{:check_remote_call :false}
-    each-bit [<<(h) (t :bitstring)>> counter acc] (&when (!= t <<>>))
+  (defn- each-bit [<<(h) (t :bitstring)>> counter acc] (&when (!= t <<>>))
     (each-bit t (decrement counter) <<(acc) ("(") ((integer.to-string h)) (") ")>>))
 
-  (defn-
-    #{:check_remote_call :false}
-    each-bit [<<(h (:size 8))>> _counter acc]
+  (defn- each-bit [<<(h (:size 8))>> _counter acc]
     << (acc) ((integer.to-string h)) >>)
 
-  (defn-
-    #{:check_remote_call :false}
-    each-bit [bitstring _counter acc]
+  (defn- each-bit [bitstring _counter acc]
     (let [size (bit-size bitstring)
           <<(h (:size size))>> bitstring]
      << (acc) ("(") ((integer.to-string h)) (" (:size ") ((integer.to-string size)) ("))")>>))
@@ -252,9 +240,7 @@
   (defn keyword [{key value} opts]
     (concat <<((key-to-binary key)) (": ")>> (to-doc value opts)))
 
-  (defn
-      #{:check_remote_call :false}
-      keyword? [[{key _value} & rest]] (&when (atom? key))
+  (defn keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (atom.to-char-list key)
       ((op-++ #"kapok." _) :false)
       (_ (keyword? rest))))
@@ -294,9 +280,7 @@
   (defn inspect [{} _opts]
     "{}")
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [tuple opts]
+  (defn inspect [tuple opts]
     (surround-many "{" (tuple.to-list tuple) "}" opts
                    (fn kapok.inspect.algebra to-doc 2)))
   )
@@ -334,9 +318,7 @@
 (defimpl kapok.inspect integer
   (require (kapok (integer)))
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [thing
+  (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #base base}]
     (-> (integer.to-string thing (base-to-value base))
