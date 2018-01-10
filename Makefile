@@ -126,8 +126,10 @@ $1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_files           :=       \
   kapok.exception.kpk           \
   kapok.access.kpk              \
-  kapok.atom.kpk                \
   kapok.char.kpk                \
+  kapok.inspect.algebra.kpk     \
+  kapok.inspect.kpk             \
+  kapok.atom.kpk                \
   kapok.integer.kpk             \
   kapok.float.kpk               \
   kapok.tuple.kpk               \
@@ -149,9 +151,8 @@ $1_lib_files           :=       \
   kapok.path.kpk                \
   kapok.file.stat.kpk           \
   kapok.file.kpk                \
-  kapok.time.kpk                \
-  kapok.inspect.algebra.kpk     \
-  kapok.inspect.kpk
+  kapok.time.kpk
+
 
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))

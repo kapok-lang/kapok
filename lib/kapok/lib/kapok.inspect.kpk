@@ -89,7 +89,9 @@
                    integer
                    string)))
 
-  (defn inspect [thing
+  (defn
+      #{:check_remote_call :false}
+      inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #binaries bins} &as opts] (&when (binary? thing))
     (if (or (== bins #as_strings)
@@ -130,7 +132,9 @@
     (escape t char << (binary :binary) ($\\) ($t) >>))
   (defn- escape [<< ($\v) (t :binary) >> char binary]
     (escape t char << (binary :binary) ($\\) ($v) >>))
-  (defn- escape [<< (h :utf8) (t :binary) >> char binary]
+  (defn-
+    #{:check_remote_call :false}
+    escape [<< (h :utf8) (t :binary) >> char binary]
     (let [head <<(h :utf8)>>]
      (if (string.printable? head)
          (escape t char (append head binary))
@@ -186,19 +190,27 @@
 
   ;; Bitstrings
 
-  (defn- inspect-bitstring [bitstring opts]
+  (defn-
+    #{:check_remote_call :false}
+    inspect-bitstring [bitstring opts]
     << ((each-bit bitstring (access.get opts #limit) "<<")) (">>") >>)
 
   (defn- each-bit [_ 0 acc]
     << (acc) (" ...") >>)
 
-  (defn- each-bit [<<(h) (t :bitstring)>> counter acc] (&when (!= t <<>>))
+  (defn-
+    #{:check_remote_call :false}
+    each-bit [<<(h) (t :bitstring)>> counter acc] (&when (!= t <<>>))
     (each-bit t (decrement counter) <<(acc) ("(") ((integer.to-string h)) (") ")>>))
 
-  (defn- each-bit [<<(h (:size 8))>> _counter acc]
+  (defn-
+    #{:check_remote_call :false}
+    each-bit [<<(h (:size 8))>> _counter acc]
     << (acc) ((integer.to-string h)) >>)
 
-  (defn- each-bit [bitstring _counter acc]
+  (defn-
+    #{:check_remote_call :false}
+    each-bit [bitstring _counter acc]
     (let [size (bit-size bitstring)
           <<(h (:size size))>> bitstring]
      << (acc) ("(") ((integer.to-string h)) (" (:size ") ((integer.to-string size)) ("))")>>))
@@ -221,7 +233,9 @@
   (defn inspect [[] _opts]
     "[]")
 
-  (defn inspect [thing
+  (defn
+      #{:check_remote_call :false}
+      inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #char_lists lists} &as opts]
     (cond
@@ -238,7 +252,9 @@
   (defn keyword [{key value} opts]
     (concat <<((key-to-binary key)) (": ")>> (to-doc value opts)))
 
-  (defn keyword? [[{key _value} & rest]] (&when (atom? key))
+  (defn
+      #{:check_remote_call :false}
+      keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (atom.to-char-list key)
       ((op-++ #"kapok." _) :false)
       (_ (keyword? rest))))
@@ -273,12 +289,14 @@
   )
 
 (defimpl kapok.inspect tuple
-  (use (kapok (tuple
-               (inspect.algebra :only (surround-many)))))
+  (require (kapok (tuple)))
+  (use (kapok ((inspect.algebra :only (surround-many)))))
   (defn inspect [{} _opts]
     "{}")
 
-  (defn inspect [tuple opts]
+  (defn
+      #{:check_remote_call :false}
+      inspect [tuple opts]
     (surround-many "{" (tuple.to-list tuple) "}" opts
                    (fn kapok.inspect.algebra to-doc 2)))
   )
@@ -316,7 +334,9 @@
 (defimpl kapok.inspect integer
   (require (kapok (integer)))
 
-  (defn inspect [thing
+  (defn
+      #{:check_remote_call :false}
+      inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #base base}]
     (-> (integer.to-string thing (base-to-value base))
@@ -344,7 +364,9 @@
   (require io_lib_format
            (kapok (io)))
 
-  (defn inspect [thing _opts]
+  (defn
+      #{:check_remote_call :false}
+      inspect [thing _opts]
     (io.iodata-to-binary (io_lib_format.fwrite_g thing)))
   )
 
@@ -353,7 +375,9 @@
   (require erlang
            (kapok (io)))
 
-  (defn inspect [pid _opts]
+  (defn
+      #{:check_remote_call :false}
+      inspect [pid _opts]
     <<("#PID") ((io.iodata-to-binary (erlang.pid_to_list pid)))>>)
   )
 
@@ -361,7 +385,9 @@
   (require erlang
            (kapok (io)))
 
-  (defn inspect [port _opts]
+  (defn
+      #{:check_remote_call :false}
+      inspect [port _opts]
     (io.iodata-to-binary (erlang.port_to_list port)))
   )
 
@@ -369,7 +395,9 @@
   (require erlang
            (kapok (io)))
 
-  (defn inspect [ref _opts]
+  (defn
+      #{:check_remote_call :false}
+      inspect [ref _opts]
     (let [(op-++ #"#ref" rest) (erlang.ref_to_list ref)]
       <<("#Reference") ((io.iodata-to-binary rest))>>))
   )

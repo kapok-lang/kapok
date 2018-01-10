@@ -381,7 +381,9 @@
   """
   (group (concat left (concat (nest doc (attr #nesting)) right))))
 
-(defn surround-many [left docs right opts fun &optional (separator (attr #surround-separator))]
+(defn
+    #{:check_remote_call :false}
+    surround-many [left docs right opts fun &optional (separator (attr #surround-separator))]
   """Maps and glues a collection of items.
 
   It uses the given left and right as surrounding and a separator for
