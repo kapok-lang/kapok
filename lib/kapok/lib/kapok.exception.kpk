@@ -55,14 +55,14 @@
       ((x (&when (binary? x))
         x)
        (x
-        (format "got ~s while retrieving (exception.message 1) for ~p"
-                [x exception])))
+        (format "got ~s while retrieving (exception.message 1) for ~s (expected a string)"
+                [(inspect x) (inspect exception)])))
       (catch
         (e (format
-            "got ~s with message ~s while retrieving (exception.message 1) for ~p"
-            [(access.get e #__struct__)
+            "got ~s with message ~s while retrieving (exception.message 1) for ~s"
+            [(inspect (access.get e #__struct__))
              (message e)
-             exception])))))
+             (inspect exception)])))))
 
   (defn
       #{:check_remote_call :false}
@@ -117,17 +117,18 @@
 
     ([#error exception stacktrace]
      (let [e (normalize #error exception stacktrace)]
-       (format "** (~s) ~s" [(access.get exception #__struct__)
+       (format "** (~s) ~s" [(inspect (access.get exception #__struct__))
                              (message e)])))
 
     ([#throw reason _stacktrace]
-     (format "** (throw) ~s" [reason]))
+     (format "** (throw) ~s" [(inspect reason)]))
 
     ([#exit reason _stacktrace]
      (format "** (exit) ~s" [(format-exit reason "\n    ")]))
 
-    ([#EXIT reason _stacktrace]
-     (format "** (EXIT from ~p) ~s" [(format-exit reason "\n    ")])))
+    ([{#EXIT pid} reason _stacktrace]
+     (format "** (EXIT from ~s) ~s" [(inspect pid)
+                                     (format-exit reason "\n    ")])))
 
   (defn
       #{:check_remote_call :false}
@@ -227,7 +228,7 @@
     "shutdown")
 
   (defn- format-exit-reason [{#shutdown reason}]
-    (format "shutdown: ~s" [reason]))
+    (format "shutdown: ~s" [(inspect reason)]))
 
   (defn- format-exit-reason [#timeout]
     "time out")
@@ -245,27 +246,27 @@
   ;; gen_server exit reasons
 
   (defn- format-exit-reason [{#already_started pid}]
-    (format "already started: ~s" [pid]))
+    (format "already started: ~s" [(inspect pid)]))
 
   (defn- format-exit-reason [{#bad_return_value value}]
-    (format "bad return value: ~s" [value]))
+    (format "bad return value: ~s" [(inspect value)]))
 
   (defn- format-exit-reason [{#bad_call request}]
-    (format "bad call: ~s" [request]))
+    (format "bad call: ~s" [(inspect request)]))
 
   (defn- format-exit-reason [{#bad_cast request}]
-    (format "bad cast: ~s" [request]))
+    (format "bad cast: ~s" [(inspect request)]))
 
   ;; supervisor.start_link error reasons
 
   ;; If value is a list will be formatted by mfa exit in (format-exit 1)
   (defn- format-exit-reason [{#bad_return {mod #init value}}] (&when (atom? mod))
-         ;; TODO add impl
-         (format "~s returned a bad value: ~s" [(format-mfa mod #init 1)
-                                                value]))
+    ;; TODO add impl
+    (format "~s returned a bad value: ~s" [(format-mfa mod #init 1)
+                                           (inspect value)]))
 
   (defn- format-exit-reason [{#bad_start_spec start-spec}]
-    (format "bad start spec: invalid children: ~s" [start-spec]))
+    (format "bad start spec: invalid children: ~s" [(inspect start-spec)]))
 
   (defn- format-exit-reason [{#start_spec start-spec}]
     (format "bad start spec: ~s" [(format-sup-spec start-spec)]))
@@ -274,69 +275,74 @@
     (format "bad supervisor data: ~s" [(format-sup-data data)]))
 
   (defn- format-exit-reason [reason]
-    ;; TODO revise to use `(core.inspect 1)`
-    (format "~p" [reason]))
+    (inspect reason))
 
   (defn- format-start-child [child reason joiner]
-    (format "shutdown: failed to start child: ~p~s**(EXIT) ~s"
-            [child
+    (format "shutdown: failed to start child: ~s~s**(EXIT) ~s"
+            [(inspect child)
              joiner
              (format-exit reason (format "~s    " [joiner]))]))
 
   (defn- format-sup-data [{#invalid_type type}]
-    (format "invalid type: ~s" [type]))
+    (format "invalid type: ~s" [(inspect type)]))
 
   (defn- format-sup-data [{#invalid_strategy strategy}]
-    (format "invalid strategy: ~s" [strategy]))
+    (format "invalid strategy: ~s" [(inspect strategy)]))
 
   (defn- format-sup-data [{#invalid_intensity intensity}]
-    (format "invalid intensity: ~s" [intensity]))
+    (format "invalid intensity: ~s" [(inspect intensity)]))
 
   (defn- format-sup-data [{#invalid_period period}]
-    (format "invalid period: ~s" [period]))
+    (format "invalid period: ~s" [(inspect period)]))
 
   (defn- format-sup-data [other]
-    ;; TODO revise to use `(core.inspect 1)`
-    (format "~p" [other]))
+    (inspect other))
 
   (defn- format-sup-spec [{#invalid_child_spec child-spec}]
-    (format "invalid child spec: ~s" [child-spec]))
+    (format "invalid child spec: ~s" [(inspect child-spec)]))
 
   (defn- format-sup-spec [{#invalid_child_type type}]
-    (format "invalid child type: ~s" [type]))
+    (format "invalid child type: ~s" [(inspect type)]))
 
   (defn- format-sup-spec [{#invalid_mfa mfa}]
-    (format "invalid mfa: ~s" [mfa]))
+    (format "invalid mfa: ~s" [(inspect mfa)]))
 
   (defn- format-sup-spec [{#invalid_restart_type restart}]
-    (format "invalid restart type: ~s" [restart]))
+    (format "invalid restart type: ~s" [(inspect restart)]))
 
   (defn- format-sup-spec [{#invalid_shutdown shutdown}]
-    (format "invalid shutdown: ~s" [shutdown]))
+    (format "invalid shutdown: ~s" [(inspect shutdown)]))
 
   (defn- format-sup-spec [{#invalid_module mod}]
-    (format "invalid module: ~s" [mod]))
+    (format "invalid module: ~s" [(inspect mod)]))
 
   (defn- format-sup-spec [{#invalid_modules modules}]
-    (format "invalid modules: ~s" [modules]))
+    (format "invalid modules: ~s" [(inspect modules)]))
 
   (defn- format-sup-spec [other]
-    (format "~p" [other]))
+    (inspect other))
 
   (defn
       #{:check_remote_call :false}
       format-stacktrace-entry
-      """Receives a stacktrace entry and formats it into a string."""
+    """Receives a stacktrace entry and formats it into a string."""
 
-      ;; TODO add impl
+    ;; TODO add clauses for other cases
 
-      ([module]
-       (case (application.get_application module)
-         ({#ok app}
-          (format "(~s)" [(atom.to-string app)]))
-         (#undefined
-          "")))
-  )
+    ([{module fun arity location}]
+     (format "~s~s~s" [(format-application module)
+                       (format-location location)
+                       (format-mfa module fun arity)]))
+    ([{fun arity location}]
+     (format "~s~s" [(format-location location)
+                     (format-fa fun arity)])))
+
+  (defn
+      #{:check_remote_call :false}
+      format-application [module]
+    (case (application.get_application module)
+      ({#ok app} (format "(~s)" [(atom.to-string app)]))
+      (#undefined "")))
 
   (defn
       #{:check_remote_call :false}
@@ -351,14 +357,13 @@
                                    #current_stacktrace)
                  ({#current_stacktrace t} (seq.drop t 3))))]
       (case tr
-        ([]
-         "\n")
-        (s
-         (format "    ~s"
-                 [(seq.map-join
-                   s
-                   "\n    "
-                   (format "~s\n" [(fn format-stacktrace-entry 1)]))])))))
+        ([] "\n")
+        (s (format "    ~s"
+                   [(seq.map-join
+                     s
+                     "\n    "
+                     (fn [x]
+                       (format "~s\n" [(format-stacktrace-entry x)])))])))))
 
   (defn format-fa [fun arity] (&when (function? fun))
     """Receives an anonymous function and arity and formats it as
@@ -370,19 +375,21 @@
         ;;=> "#Function<...>/1"
 
     """
-    ;; TODO revise to use inspect
-    (format "~p~s" [fun (format-arity arity)]))
+    ;; TODO revise the format to be Kapok style
+    (format "~s~s" [(inspect fun) (format-arity arity)]))
 
 
   (defn format-mfa [module fun arity] (&when (&and (atom? module)
                                                    (atom? fun)))
     ;; TODO add doc
     ;; TODO add impl
-    (format "~p.~p ~s" [module fun (format-arity arity)]))
+    (format "~s.~s~s" [(inspect module) fun (format-arity arity)]))
 
-  (defn format-arity [arity] (&when (list? arity))
-    ;; TODO add impl
-    (format "~p" [arity]))
+  (defn
+      #{:check_remote_call :false}
+      format-arity [arity] (&when (list? arity))
+    (let [inspected (seq.map arity (fn kapok.core inspect 1))]
+      (format "(~s)" [(seq.join inspected ", ")])))
 
   (defn
       #{:check_remote_call :false}
@@ -505,7 +512,7 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (format "expected a function, got: ~p" [(access.get e #term)])))
+    (format "expected a function, got: ~s" [(inspect (access.get e #term))])))
 
 (defns kapok.bad-struct-error
   ((require (kapok (access)))
@@ -517,8 +524,9 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (format "expected a struct named ~s, got: ~s" [(access.get e #struct)
-                                                   (access.get e #term)])))
+    (format "expected a struct named ~s, got: ~s"
+            [(inspect (access.get e #struct))
+             (inspect (access.get e #term))])))
 
 (defns kapok.match-error
   ((require (kapok (access)))
@@ -529,7 +537,8 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (format "no match of right hand side value: ~p" [(access.get e #term)])))
+    (format "no match of right hand side value: ~s"
+            [(inspect (access.get e #term))])))
 
 (defns kapok.case-clause-error
   ((require (kapok (access)))
@@ -540,7 +549,7 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (format "no case clause matching: ~p" [(access.get e #term)])))
+    (format "no case clause matching: ~s" [(inspect (access.get e #term))])))
 
 (defns kapok.cond-clause-error
   ((use (io_lib :only (format))))
@@ -559,7 +568,7 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (format "no try clause matching: ~p" [(access.get e #term)])))
+    (format "no try clause matching: ~s" [(inspect (access.get e #term))])))
 
 (defns kapok.bad-arity-error
   ((require (kapok (access
@@ -576,11 +585,10 @@
           args (access.get e #args)
           insp (seq.map-join args
                              ", "
-                             ;; TODO revise to use inspect
-                             (fn [x] x))
+                             (fn kapok.core inspect 1))
           {#arity arity} (erlang.fun_info fun #arity)]
-      (format "~p with arity ~p called with ~p"
-              [fun
+      (format "~s with arity ~B called with ~s"
+              [(inspect fun)
                arity
                (count (length args) insp)])))
 
@@ -588,10 +596,10 @@
     "no arguments")
 
   (defn- count [1 insp]
-    (format "1 argument ~p" [insp]))
+    (format "1 argument ~s" [insp]))
 
-  (defn- count [_x insp]
-    (format "~p arguments" [insp])))
+  (defn- count [x insp]
+    (format "~B arguments ~s" [x insp])))
 
 (defns kapok.undefined-function-error
     ((require code
@@ -624,9 +632,9 @@
                    #module module
                    #function function
                    #arity arity}]
-    (fmt "undefined function: ~s (module ~p is not available)"
+    (fmt "undefined function: ~s (module ~s is not available)"
          [(exception.format-mfa module function arity)
-          module]))
+          (inspect module)]))
 
   (defn message [#{#reason "function not exported"
                    #module module
@@ -639,7 +647,7 @@
                    #function function
                    #arity arity}]
     (let [<<("nil.") (fa)>> (exception.format-mfa :nil function arity)]
-      (fmt "undefined function: ~s (function ~p is not available)"
+      (fmt "undefined function: ~s (function ~s is not available)"
            [(exception.format-mfa module function arity)
             fa]))))
 
@@ -674,7 +682,7 @@
       #{:check_remote_call :false}
       exception [opts]
     (let [file (alist.fetch! opts #file)
-          message (format "could not load ~p" [file])]
+          message (format "could not load ~s" [file])]
       (new :message message :file file))))
 
 (defns kapok.protocol.undefined-error
@@ -689,9 +697,9 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (let [msg (format "protocol ~p not implemented for ~p"
-                [(access.get e #protocol)
-                 (access.get e #value)])]
+    (let [msg (format "protocol ~s not implemented for ~s"
+                [(inspect (access.get e #protocol))
+                 (inspect (access.get e #value))])]
       (if (access.get e #description)
           (format "~s, ~s" [msg
                             (access.get e #description)])
@@ -707,8 +715,8 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (format "key ~p not found in ~p" [(access.get e #key)
-                                      (access.get e #term)])))
+    (format "key ~s not found in ~s" [(inspect (access.get e #key))
+                                      (inspect (access.get e #term))])))
 
 (defns kapok.unicode-conversion-error
   ((require (kapok (alist)))
@@ -720,15 +728,15 @@
   (defn
       #{:check_remote_call :false}
       exception [opts]
-    (let [message (format "~p ~p" [(alist.fetch! opts #kind)
-                                   (alist.fetch! opts #rest)])]
+    (let [message (format "~p ~s" [(alist.fetch! opts #kind)
+                                   (detail (alist.fetch! opts #rest))])]
       (new :encode (alist.fetch! opts #encode)
            :message message)))
 
-  (defn detail [rest] (&when (binary? rest))
-    (format "encoding starting at ~p" [rest]))
+  (defn- detail [rest] (&when (binary? rest))
+    (format "encoding starting at ~s" [(inspect rest)]))
 
-  (defn detail [[h & _]]
+  (defn- detail [[h & _]]
     (format "code point ~p" [h])))
 
 (defns kapok.enum.out-out-bounds-error
@@ -759,7 +767,7 @@
       message [e]
     (let [formatted (io.iodata-to-binary (file.format_error
                                           (access.get e #reason)))]
-      (fmt "could not ~p ~p: ~s" [(access.get e #action)
+      (fmt "could not ~s ~s: ~s" [(access.get e #action)
                                   (access.get e #path)
                                   formatted]))))
 
@@ -781,9 +789,9 @@
       message [e]
     (let [formatted (io.iodata-to-binary (file.format_error (access.get e #reason)))
           location (if (access.get e #on)
-                       (fmt ". ~p" [(access.get e #on)])
+                       (fmt ". ~s" [(access.get e #on)])
                      "")]
-      (fmt "could not ~p from ~p to ~p~p: ~s" [(access.get e #action)
+      (fmt "could not ~s from ~s to ~s~s: ~s" [(access.get e #action)
                                                (access.get e #source)
                                                (access.get e #destination)
                                                location
@@ -791,27 +799,30 @@
   )
 
 (defns kapok.erlang-error
-  ((require(kapok (exception
-                   argument-error
-                   arithmetic-error
-                   system-limit-error
-                   cond-clause-error
-                   bad-arity-error
-                   bad-function-error
-                   bad-struct-error
-                   match-error
-                   case-clause-error
-                   try-clause-error
-                   undefined-function-error
-                   function-clause-error
-                   argument-error)))
+  ((require (kapok (access
+                    exception
+                    argument-error
+                    arithmetic-error
+                    system-limit-error
+                    cond-clause-error
+                    bad-arity-error
+                    bad-function-error
+                    bad-struct-error
+                    match-error
+                    case-clause-error
+                    try-clause-error
+                    undefined-function-error
+                    function-clause-error
+                    argument-error)))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
   (defexception [{#original :nil}])
 
-  (defn message [e]
-    (fmt "erlang error: ~p" [e]))
+  (defn
+      #{:check_remote_call :false}
+      message [e]
+    (fmt "erlang error: ~s" [(inspect (access.get e #original))]))
 
   (defn normalize [#badarg _stacktrace]
     (argument-error.new))
@@ -854,7 +865,7 @@
       (function-clause-error.new :module mod :function fun :arity arity)))
 
   (defn normalize [{#badarg payload} _stacktrace]
-    (argument-error.new :message (fmt "argument error: ~p" [payload])))
+    (argument-error.new :message (fmt "argument error: ~s" [(inspect payload)])))
 
   (defn normalize [other _stacktrace]
     (new :original other))
