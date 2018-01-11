@@ -394,7 +394,7 @@
   (erlang.list_to_atom char-list))
 
 (defn to-existing-atom [char-list]
-  """Converts a char list to an existing atom. Raises an ArgumentError
+  """Converts a char list to an existing atom. Raises an `argument-error`
   if the atom does not exist.
 
   Currently Kapok does not support conversions from char lists
@@ -482,12 +482,14 @@
   (case (unicode.characters_to_binary list)
     (result (&when (binary? result))
      result)
-    ({#error _encoded _rest}
-     ;; TODO revise to use exception
-     (throw "unicode conversion error"))
-    ({#incomplete _encoded _rest}
-     ;; TODO revise to use exception
-     (throw "unicode conversion incomplete error"))))
+    ({#error encoded rest}
+     (raise kapok.unicode-conversion-error [{#encoded encoded}
+                                            {#rest rest}
+                                            {#kind #invalid}]))
+    ({#incomplete encoded rest}
+     (raise kapok.unicode-conversion-error [{#encoded encoded}
+                                            {#rest rest}
+                                            {#kind #incomplete}]))))
 
 ;; Helpers
 

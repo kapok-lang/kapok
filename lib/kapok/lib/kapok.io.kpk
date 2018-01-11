@@ -31,7 +31,10 @@
   (require io
            file
            erlang
-           unicode)
+           unicode
+           (kapok (access
+                   inspect.opts
+                   inspect.algebra)))
   (use (erlang :only (group_leader)))
   )
 
@@ -184,29 +187,28 @@
    (let [erl-dev (map-dev device)]
      (io.put_chars erl-dev [(to-chardata item) $\n]))))
 
-;; TODO impl the missing functions and uncomment the following block
-;; (defn inspect [item &optional (opts [])]
-;;   """Inspects and writes the given argument to the device.
+(defn inspect [item &optional (opts [])]
+  """Inspects and writes the given argument to the device.
 
-;;   It enables pretty printing by default with width of
-;;   80 characters. The width can be changed by explicitly
-;;   passing the `#width` option.
+  It enables pretty printing by default with width of
+  80 characters. The width can be changed by explicitly
+  passing the `#width` option.
 
-;;   ## Examples
+  ## Examples
 
-;;       (io.inspect (process.list) [{#width 40}])
+      (io.inspect (process.list) [{#width 40}])
 
-;;   """
-;;   (inspect (group_leader) item opts))
+  """
+  (inspect (group_leader) item opts))
 
-;; (defn inspect [device item opts] (&when (list? opts))
-;;   """Inspects the item with options using the given device."""
-;;   (let [opts (struct inspect.opts opts)
-;;         iodata (inspect.algebra.form
-;;                 (inspect.algebra.to-doc item opts)
-;;                 (get opts.width))]
-;;     (puts device iodata)
-;;     item))
+(defn inspect [device item opts] (&when (list? opts))
+  """Inspects the item with options using the given device."""
+  (let [opts1 (struct (inspect.opts.new) opts)
+        iodata (inspect.algebra.format
+                (inspect.algebra.to-doc item opts1)
+                (access.get opts1 #width))]
+    (puts device iodata)
+    item))
 
 
 (defn getn [device prompt count]
@@ -240,7 +242,7 @@
   """Converts chardata (a list of integers representing codepoints,
   lists and strings) into a string.
 
-  In case the conversion fails, it raises a error.
+  In case the conversion fails, it raises a `unicode-conversion-error`.
   If a string is given, returns the string itself.
 
   ## Examples
@@ -260,12 +262,14 @@
    (case (unicode.characters_to_binary list)
      (result (&when (binary? result))
       result)
-     ({#error _encoded _rest}
-      ;; TODO revise to use exception
-      (throw "unicode conversion error"))
-     ({#incomplete _encoded _rest}
-      ;; TODO revise to use exception
-      (throw "unicode conversion incomplete error")))))
+     ({#error encoded rest}
+      (raise kapok.unicode-conversion-error [{#encoded encoded}
+                                             {#rest rest}
+                                             {#kind #invalid}]))
+     ({#incomplete encoded rest}
+      (raise kapok.unicode-conversion-error [{#encoded encoded}
+                                             {#rest rest}
+                                             {#kind #incomplete}])))))
 
 (defn iodata-to-binary [item]
   """Converts iodata (a list of integers representing bytes, lists

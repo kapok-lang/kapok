@@ -31,6 +31,8 @@
 
   Dictionaries are required to implement all operations
   using the match (`===`) operator."""
+
+  (require io_lib)
   )
 
 (defmacro target [dict]
@@ -52,6 +54,6 @@
   (let [module (target dict)]
     (module.update dict key initial fun)))
 
-(defn- unsupported-dict [_dict]
-  ;; TODO revise to use exception
-  (throw "unsupported dict"))
+(defn- unsupported-dict [dict]
+  (let [message (io_lib.format "unsupported dict: ~s" [(inspect dict)])]
+    (raise kapok.argument-error message)))

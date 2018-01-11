@@ -722,7 +722,7 @@
   ((require (kapok (alist)))
    (use (io_lib :only (format))))
 
-  (defexception [{#encode :nil}
+  (defexception [{#encoded :nil}
                  {#message :nil}])
 
   (defn
@@ -730,7 +730,7 @@
       exception [opts]
     (let [message (format "~p ~s" [(alist.fetch! opts #kind)
                                    (detail (alist.fetch! opts #rest))])]
-      (new :encode (alist.fetch! opts #encode)
+      (new :encoded (alist.fetch! opts #encoded)
            :message message)))
 
   (defn- detail [rest] (&when (binary? rest))
@@ -739,13 +739,13 @@
   (defn- detail [[h & _]]
     (format "code point ~p" [h])))
 
-(defns kapok.enum.out-out-bounds-error
+(defns kapok.seq.out-out-bounds-error
   (defexception [])
 
   (defn message [_]
     "out of bounds error"))
 
-(defns kapok.enum.empty-error
+(defns kapok.seq.empty-error
   (defexception [])
 
   (defn message [_]

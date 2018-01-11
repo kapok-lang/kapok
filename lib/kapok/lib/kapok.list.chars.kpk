@@ -27,9 +27,11 @@
     ([thing] (&when (binary? thing))
      (string.to-char-list thing))
 
-    ([_thing]
-     ;; TODO revise to use exception
-     (throw "cannot convert a bitstring to a char list"))))
+    ([thing]
+     (raise kapok.protocol.undefined-error
+            [{#protocol #'kapok.list.chars'}
+             {#value thing}
+             {#description "cannot convert a bitstring to a char list"}]))))
 
 (defimpl kapok.list.chars list
   (defn to-char-list [list]

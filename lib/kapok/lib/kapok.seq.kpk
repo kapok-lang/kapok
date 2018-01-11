@@ -297,6 +297,8 @@
    (do-fetch (reverse collection) (abs (inc n))))
   )
 
+;; TODO add fetch! impll
+
 (defn filter
   """Filters the collection, i.e. returns only those elements
   for which `fun` returns a truthy value."""
@@ -546,11 +548,22 @@
      {(lists.reverse list) acc2})))
 
 (defn max [collection]
-  """Returns the maximum value."""
+  """Returns the maximum value.
+
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add examples
+
+  """
   (reduce collection (fn [x acc] (core.max x acc))))
 
 (defn max-by
-  """Returns the maximum value as calculated by the given function."""
+  """Returns the maximum value as calculated by the given function.
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add examples
+
+  """
 
   ([[h & t] fun]
    (-> (reduce t
@@ -563,8 +576,7 @@
        (elem 0)))
 
   ([[] _fun]
-   ;; TODO revise to use exception
-   (throw "empty error"))
+   (raise kapok.seq.empty-error []))
 
   ([collection fun]
    (let [result (reduce collection
@@ -579,8 +591,7 @@
                                old)))))]
      (case result
        (#first
-        ;; TODO revise to use exception
-        (throw "empty error"))
+        (raise kapok.seq.empty-error []))
        ({entry _}
         entry)))))
 
@@ -607,11 +618,21 @@
           (elem 1))))))
 
 (defn min [collection]
-  """Returns the minimum value as calculated by the given function."""
+  """Returns the minimum value as calculated by the given function.
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add examples
+
+  """
   (reduce collection (fn [x acc] (core.min x acc))))
 
 (defn min-by
-  """Returns the minimum value as calculated by the given function."""
+  """Returns the minimum value as calculated by the given function.
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add examples
+
+  """
 
   ([[h & t] fun]
    (-> (reduce t
@@ -624,8 +645,7 @@
        (elem 0)))
 
   ([[] _fun]
-   ;; TODO revise to use exception
-   (throw "empty error"))
+   (raise kapok.seq.empty-error []))
 
   ([collection fun]
    (let [result (reduce collection
@@ -640,13 +660,17 @@
                                  old)))))]
      (case result
        (#first
-        ;; TODO revise to use exception
-        (throw "empty error"))
+        (raise kapok.seq.empty-error []))
        ({entry _}
         entry)))))
 
 (defn minmax [collection]
-  """Returns a tuple with the minimum and maximum values."""
+  """Returns a tuple with the minimum and maximum values.
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add examples
+
+  """
 
   (let [result (reduce collection
                        #first
@@ -664,8 +688,12 @@
        result))))
 
 (defn minmax-by [collection fun]
-  """Returns a tuple with the minmum and maximum values as
-  calculated by the given function."""
+  """Returns a tuple with the minmum and maximum values as calculated by the given function.
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add examples
+
+  """
 
   (let [result (reduce collection
                  #first
@@ -684,13 +712,18 @@
                       {new-min new-max}))))]
     (case result
       (#first
-       ;; TODO revise to use exception
-       (throw "empty error"))
+       (raise kapok.seq.empty-error []))
       ({{min-entry _} {max-entry _}}
        {min-entry max-entry}))))
 
 (defn sum [collection]
-  """Returns the sum of all values."""
+  """Returns the sum of all values.
+
+  Raises `arithmetic-error` if collection contains a non-numeric value.
+
+  ;; TODO add examples
+
+  """
 
   (reduce collection 0 (fn core + 2)))
 
@@ -759,8 +792,7 @@
    (reduce t h fun))
 
   ([[] _fun]
-   ;; TODO revise to use exception
-   (throw "empty list error"))
+   (raise kapok.seq.empty-error []))
 
   ([collection fun]
    (let [result (-> (sequential.reduce collection
@@ -773,8 +805,7 @@
                     (elem 1))]
      (case result
        (#first
-        ;; TODO revise to use exception
-        (throw "empty error"))
+        (raise kapok.seq.empty-error []))
        ({#acc acc}
         acc)))))
 
@@ -828,12 +859,16 @@
       (lists.reverse list))))
 
 (defn random [collection]
-  """Returns a random element of a collection."""
+  """Returns a random element of a collection.
+  Raises `empty-error` if the collection is empty.
+
+  ;; TODO add docs and examples
+
+  """
 
   (case (random collection 1)
     ([]
-     ;; TODO revise to use exception
-     (throw "empty error"))
+     (raise kapok.seq.empty-error []))
     ([e]
      e)))
 

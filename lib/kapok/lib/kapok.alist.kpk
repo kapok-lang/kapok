@@ -192,7 +192,7 @@
                                       (atom? key)))
   """Fetches the value for specific `key`.
 
-  If the `key` does not exist, a error as threw.
+  If the `key` does not exist, a `key-error` is raised.
 
   ## Examples
 
@@ -207,8 +207,8 @@
     ({key value}
      value)
     (:false
-     ;; TODO revise to use exception
-     (throw "key not found"))))
+     (raise kapok.key-error [{#key key}
+                             {#term alist}]))))
 
 (defn get-values [alist key] (&when (&and (list? alist)
                                           (atom? key)))
@@ -456,7 +456,7 @@
 (defn update! [alist key fun]
   """Updates the `key` with the given function.
 
-  If the `key` does not exist, raises error.
+  If the `key` does not exist, raises `key-error`.
 
   If there are duplicated keys, they are all removed and only the first one
   is updated.
@@ -482,9 +482,9 @@
 (defn- update! [[{_ _} &as e & alist] key fun dict acc]
   (update! alist key fun dict [e & acc]))
 
-(defn- update! [[] _key _fun _dict _acc]
-  ;; TODO revise to use exception
-  (throw "key not found"))
+(defn- update! [[] key _fun dict _acc]
+  (raise kapok.key-error [{#key key}
+                          {#term dict}]))
 
 (defn update [alist key initial fun]
   """Updates the `key` in `keywords` with the given function.

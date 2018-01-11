@@ -106,8 +106,8 @@
                                              (<= base 36)))
    (parse-in-base binary base))
   ([_ base]
-   ;; TODO revise to use exception
-   (throw (io_lib.format "invalid base ~p" [base]))))
+   (let [message (io_lib.format "invalid base ~p" [base])]
+     (raise kapok.argument-error message))))
 
 (defn to-string [some-integer]
   """Returns a binary which corresponding to the text representation

@@ -172,9 +172,11 @@
   (case (unicode.characters_to_list string)
     (result (&when (list? result))
      result)
-    ({#error _encoded _rest}
-     ;; TODO revise to use exception
-     (throw "unicode conversion error"))
-    ({#incomplete _encoded _rest}
-     ;; TODO revise to use exception
-     (throw "unicode conversion incomplete error"))))
+    ({#error encoded rest}
+     (raise kapok.unicode-conversion-error [{#encoded encoded}
+                                            {#rest rest}
+                                            {#kind #invalid}]))
+    ({#incomplete encoded rest}
+     (raise kapok.unicode-conversion-error [{#encoded encoded}
+                                            {#rest rest}
+                                            {#kind #incomplete}]))))

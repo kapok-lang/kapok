@@ -39,11 +39,11 @@
 (defn cwd! []
   """Current working directory, exception on error.
 
-  Returns the current working directory or raises error.
+  Returns the current working directory or raises `runtime-error`.
   """
   (or (cwd)
-      ;; TODO revise to use exception
-      (throw "could not get a current working directory")))
+      (raise kapok.runtime-error
+             [{#message "could not get a current working directory, the current location is not accessible"}])))
 
 (defn user-home []
   (case (os.type)
@@ -54,8 +54,8 @@
 
 (defn user-home! []
   (or (user-home)
-      ;; TODO revise to use exception
-      (throw "could not find the user home")))
+      (raise kapok.runtime-error
+             [{#message "could not find the user home, please set the HOME environment variable"}])))
 
 (defn- get-unix-home []
   (get-env "HOME"))

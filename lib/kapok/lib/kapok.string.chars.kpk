@@ -26,10 +26,11 @@
   (defn to-string [thing] (&when (binary? thing))
     thing)
 
-  (defn to-string [_thing]
-    ;; TODO revise to use exception
-    (throw "cannot convert a bitstring to a string"))
-  )
+  (defn to-string [thing]
+     (raise kapok.protocol.undefined-error
+            [{#protocol #'kapok.string.chars'}
+             {#value thing}
+             {#description "cannot convert a bitstring to a string"}])))
 
 (defimpl kapok.string.chars list
   (require (kapok (list)))
