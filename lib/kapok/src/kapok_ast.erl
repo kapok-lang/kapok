@@ -387,7 +387,9 @@ handle_def_expr(Kind, Name, Expr, Ctx) ->
 prepare_macro_vars(Meta, Ctx) ->
   %% add macro env variables `_&form` and `_&ctx`
   Ast = ?m(Ctx, def_ast),
-  Context = #{file => ?m(Ctx, file), meta => Meta},
+  Context = #{namespace => ?m(Ctx, namespace),
+              file => ?m(Ctx, file),
+              meta => Meta},
   Vars = [{identifier, Meta, '_&ctx'}, kapok_trans:quote(Meta, Context),
           {identifier, Meta, '_&form'}, kapok_trans:quote(Meta, Ast)],
   kapok_trans_special_form:translate_let_args(Vars, Ctx).
