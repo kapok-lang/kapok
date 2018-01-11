@@ -89,36 +89,39 @@
 (defn- handle-defstruct-derive [derives]
   ;; TODO add impl
   (let [derive-macro `(defmacro- gen-derive [protocol]
-                        (let [name (kapok_parser.plain_dot_name protocol)
-                              plain (kapok.module.concat name #map)
-                              for (__MODULE__)]
-                          ;; TODO add checking for whether __deriving__ function exists in module impl.
-                          ;; refer to `protocol.derive' in Elixir for more info.
-
-                          `(defns ~{#dot [] {protocol {#atom [] for}}}
-                               (defn __impl__ [#protocol]
-                                 ~{#atom [] name})
-
-                             (defn __impl__ [#for]
-                               ~{#atom [] for})
-
-                             (defn __impl__ [#target]
-                               ~{#atom [] plain}))))
+                        (kapok.protocol.derive protocol (__MODULE__)))
         acc (lists.foldl (fn [d acc0]
-                           (let [r (derive d [])]
+                           (let [r (handle-derive d [])]
                              [r & acc0])
                            )
                          [derive-macro]
                          derives)]
     (lists.reverse acc)))
 
-(defn- derive [protocol _options]
+(defn- handle-derive [protocol _options]
   (let [name (kapok_parser.plain_dot_name protocol)]
     (assert-protocol! name)
     (assert-impl! name #map)
 
     `(gen-derive ~protocol))
   )
+
+(defn derive [protocol-ast for]
+  (let [name (kapok_parser.plain_dot_name protocol-ast)
+        plain (kapok.module.concat name #map)]
+
+    ;; TODO add checking for whether __deriving__ function exists in module impl.
+    ;; refer to `protocol.derive' in Elixir for more info.
+
+    `(defns ~{#dot [] {protocol-ast {#atom [] for}}}
+       (defn __impl__ [#protocol]
+         ~{#atom [] name})
+
+       (defn __impl__ [#for]
+         ~{#atom [] for})
+
+       (defn __impl__ [#target]
+         ~{#atom [] plain}))))
 
 (defn- assert-protocol! [module]
   (case (code-server.ensure-compiled module)
