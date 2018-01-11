@@ -205,8 +205,8 @@
   (let [index (find-index fields field 0)]
     (if index
         (dec index) ;; Convert to Kapok index
-      (let [message (io_lib.format "record ~p does not have the key: ~p"
-                      [atom field])]
+      (let [message (io_lib.format "record ~s does not have the key: ~s"
+                      [(inspect atom) (inspect field)])]
           (raise kapok.argument-error message)))))
 
 ;; Creates a new record with the given default fields and map values.
@@ -220,7 +220,8 @@
     (cond
       (seq.empty? remaining) [atom & match]
       :true (let [key (first (seq.map remaining (fn [{key _}] key)))
-                  message (io_lib.format "record ~p does not have the key: ~p" [atom key])]
+                  message (io_lib.format "record ~s does not have the key: ~s"
+                            [(inspect atom) (inspect key)])]
               (raise kapok.argument-error message)))))
 
 ;; Updates a record given by var with the given map.
@@ -230,8 +231,8 @@
                           (if index
                               `(erlang.setelement ~index ~acc ~value)
                             (let [message (io_lib.format
-                                           "record ~p does not have the key: ~p"
-                                            [atom key])]
+                                           "record ~s does not have the key: ~s"
+                                            [(inspect atom) (inspect key)])]
                               (raise kapok.argument-error message)))))))
 
 ;; Gets a record key from the given var.
@@ -239,8 +240,8 @@
   (let [index (find-index fields key 0)]
     (if index
         `(erlang.element ~index ~var)
-      (let [message (io_lib.format "record ~p does not have the key: ~p"
-                                   [atom key])]
+      (let [message (io_lib.format "record ~s does not have the key: ~s"
+                                   [(inspect atom) (inspect key)])]
         (raise kapok.argument-error message)))))
 
 (defn- find-index [[{k, _} & _] k i]
@@ -255,8 +256,9 @@
   (if (record? record atom)
       (let [[_tag & values] (tuple.to-list record)]
         (join-alist fields values []))
-    (let [message (io_lib.format "expected argument to be a literal atom, literal alist or a ~p record, got runtime: ~p"
-                                 [atom record])]
+    (let [message (io_lib.format
+                   "expected argument to be a literal atom, literal alist or a ~s record, got runtime: ~s"
+                    [(inspect atom) (inspect record)])]
       (raise kapok.argument-error message))))
 
 (defn- join-alist [[{field _default} & fields] [value & values] acc]

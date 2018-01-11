@@ -90,8 +90,8 @@
     ({#ok form}
      form)
     (other
-     (let [message (io_lib.format "error parsing file ~p, got: ~p"
-                                  [file other])]
+     (let [message (io_lib.format "error parsing file ~s, got: ~s"
+                                  [file (inspect other)])]
        (raise message)))))
 
 ;; Parse a tuple with name and fields and returns a
