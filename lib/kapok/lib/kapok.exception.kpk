@@ -149,7 +149,7 @@
      (format-banner kind any))
 
     ([kind payload stacktrace]
-     (let [st (or stacktrace (system.stacktrace))
+     (let [st (or stacktrace (system.#stacktrace))
            message (format-banner kind payload stacktrace)]
        (case st
          ([]

@@ -89,7 +89,7 @@
 (defn- handle-defstruct-derive [derives]
   ;; TODO add impl
   (let [derive-macro `(defmacro- gen-derive [protocol]
-                        (kapok.protocol.derive protocol (__MODULE__)))
+                        (kapok.protocol.#derive protocol (__MODULE__)))
         acc (lists.foldl (fn [d acc0]
                            (let [r (handle-derive d [])]
                              [r & acc0])
@@ -235,10 +235,10 @@
          (throw "undefined protocol"))))
 
    `(defn- struct-impl-for [struct]
-      (let [target (module.concat (__MODULE__) struct)]
+      (let [target (kapok.module.#concat (__MODULE__) struct)]
         (case (impl-for? target)
           (:true
-           (target.__impl__ #target))
+           (target.#__impl__ #target))
           (:false
            (any-impl-for)))))
 
@@ -246,24 +246,24 @@
         `(defn- any-impl-for []
           (case (impl-for? (__MODULE__) #any)
             (:true
-             (let [m (module.concat (__MODULE__) #any)]
-               (m.__impl__ #target)))
+             (let [m (kapok.module.#concat (__MODULE__) #any)]
+               (m.#__impl__ #target)))
             (:false :nil)))
       `(defn- any-impl-for []
         :nil))
 
     `(defn- impl-for? [target]
-      (and (code-server.ensure-compiled? target)
-           (function-exported? target #__impl__ 1)))
+      (and (kapok.code-server.#ensure-compiled? target)
+           (kapok.core.#function-exported? target #__impl__ 1)))
 
     &
 
     (lists.map (fn [{guard mod}]
                  `(defn impl-for [data] (&when (~guard data))
-                    (let [target (module.concat (__MODULE__) ~mod)]
+                    (let [target (kapok.module.#concat (__MODULE__) ~mod)]
                       (case (impl-for? target)
                             (:true
-                             (target.__impl__ #target))
+                             (target.#__impl__ #target))
                             (:false
                              (any-impl-for))))))
                builtin)
@@ -296,6 +296,7 @@
                     [{#identifier meta #defns}
                      id
                      doc
+                     ;; TODO remove this require
                      `((require (kapok (module
                                         code-server))))
                      protocol-name-def

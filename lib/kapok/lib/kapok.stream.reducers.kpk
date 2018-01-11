@@ -9,10 +9,10 @@
            new (if (>= count ~limit)
                    (do
                     (let [left (- count ~step)]
-                      {(kapok.seq.take buffer left) left}))
+                      {(kapok.seq.#take buffer left) left}))
                  {buffer count})]
        (if (=== count ~n)
-           (next-with-acc ~f (lists.reverse buffer) h new t)
+           (next-with-acc ~f (#lists.#reverse buffer) h new t)
            (skip (acc h new t))))))
 
 (defmacro chunk-by [callback &optional f]
@@ -21,7 +21,7 @@
       (let [new-value (~callback entry)]
         (if (== new-value value)
             (skip (acc h {[entry & buffer] value} t))
-          (next-with-acc ~f (lists.reverse buffer) h {[entry] new-value} t))))
+          (next-with-acc ~f (#lists.#reverse buffer) h {[entry] new-value} t))))
      ([entry (acc h :nil t)]
       (skip (acc h {[entry] (~callback entry)} t))))
   )
@@ -88,6 +88,6 @@
   `(fn [entry (acc h prev t) &as acc]
      (let [value (~callback entry)]
        ;; TODO revise to use hash set
-       (if (gb_sets.is_member value prev)
+       (if (#gb_sets.#is_member value prev)
            (skip acc)
-         (next-with-acc ~f entry h (gb_sets.add value prev) t)))))
+         (next-with-acc ~f entry h (#gb_sets.#add value prev) t)))))

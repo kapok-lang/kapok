@@ -84,9 +84,9 @@
       :true
 
   """
-  `(kapok.core.and (kapok.core.tuple? ~data)
-                   (kapok.core.> (kapok.core.tuple-size ~data) 0)
-                   (kapok.core.== (kapok.core.elem ~data 0) ~kind)))
+  `(kapok.core.#and (kapok.core.#tuple? ~data)
+                   (kapok.core.#> (kapok.core.#tuple-size ~data) 0)
+                   (kapok.core.#== (kapok.core.#elem ~data 0) ~kind)))
 
 (defmacro record? [data]
   """Checks if the given `data` is a record.
@@ -219,7 +219,7 @@
         {match remaining} (seq.map-reduce fields map fun)]
     (cond
       (seq.empty? remaining) [atom & match]
-      :true (let [key (first (seq.map remaining (fn [{key _}] key)))
+      :true (let [key (first (seq.#map remaining (fn [{key _}] key)))
                   message (io_lib.format "record ~s does not have the key: ~s"
                             [(inspect atom) (inspect key)])]
               (raise kapok.argument-error message)))))

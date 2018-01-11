@@ -7,7 +7,7 @@
 
 
 (defn erl-to-abstract-format [string]
-  (case (erl_scan.string string)
+  (case (erl_scan.#string string)
     ({#ok tokens _end-location}
      (let [{#ok expr_list} (erl_parse.parse_exprs tokens)]
        expr_list))
@@ -18,7 +18,7 @@
 (defn eval-erlang-expr [string]
   (let [eaf (erl-to-abstract-format string)
         [expr] eaf
-        {#value, value, _new-bindings} (erl_eval.expr expr [])]
+        {#value, value, _new-bindings} (erl_eval.#expr expr [])]
     value))
 
 (defn eval-kapok-expr [string]

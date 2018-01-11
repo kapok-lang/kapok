@@ -11,7 +11,7 @@
   (erlang.exit message))
 
 (defn exit [format args]
-  (let [message (io_lib.format format args)]
+  (let [message (io_lib.#format format args)]
     (exit message)))
 
 (defn- blank-arguements []
@@ -57,7 +57,7 @@
                  (when (is-test-file path)
                    (io.format "--- Run ~s ---~n" [path])
                    (let [cmd (io_lib.format "kapok ~p" [path])
-                         out (os.cmd cmd)]
+                         out (os.#cmd cmd)]
                      (io.format "~s" [out])))))]
     (io.format "--- run tests for project: ~s ---~n" [test-dir])
     (iterate-dir test-dir fun))

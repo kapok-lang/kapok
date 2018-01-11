@@ -11,22 +11,22 @@
            (<= ~c $z)))
 
 (defmacro alpha? [c]
-  `(op-or (kapok.char.upper? ~c)
-           (kapok.char.lower? ~c)))
+  `(op-or (kapok.char.#upper? ~c)
+           (kapok.char.#lower? ~c)))
 
 (defmacro digit? [c]
   `(op-and (>= ~c $0)
            (<= ~c $9)))
 
 (defmacro identifier-start? [c]
-  `(op-or (kapok.char.alpha? ~c)
+  `(op-or (kapok.char.#alpha? ~c)
           (in ~c [$! $\\ $% $* $+ $- $/ $< $= $> $? $@ $^ $_ $|])))
 
 (defmacro identifier-tail? [c]
-  `(op-or (kapok.char.digit? ~c)
+  `(op-or (kapok.char.#digit? ~c)
           (in ~c [$~ $& $#])))
 
 (defmacro identifier-char? [c]
-  `(op-or (kapok.char.identifier-start? ~c)
-          (kapok.char.identifier-tail? ~c)))
+  `(op-or (kapok.char.#identifier-start? ~c)
+          (kapok.char.#identifier-tail? ~c)))
 

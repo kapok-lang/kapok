@@ -8,7 +8,7 @@
     (erlang.raise #error exception (erlang.tl stacktrace))))
 
 (defn error [file line format args]
-  (error file line (io_lib.format format args)))
+  (error file line (io_lib.#format format args)))
 
 (defmacro assert [args]
   (let [file (maps.get #file _&ctx)
@@ -18,13 +18,13 @@
        `(case ~args
           (:true #ok)
           (_
-           (io.format "~nassert failed~n   op: ~p~n left: ~p~n eval: ~p~nright: ~p~n eval: ~p~n~n"
+           (#io.#format "~nassert failed~n   op: ~p~n left: ~p~n eval: ~p~nright: ~p~n eval: ~p~n~n"
                       ['~op '~left ~left '~right ~right])
-           (kapok.kunit.error ~file ~line "assert failed"))))
+           (kapok.kunit.#error ~file ~line "assert failed"))))
       (_
        (error file line "invalid assert args: ~p~n" [args])))))
 
 (defmacro test [message &rest body]
   `(do
-    (io.format "test: ~s~n" [~message])
+    (#io.#format "test: ~s~n" [~message])
     ~@body))

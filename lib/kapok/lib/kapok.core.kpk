@@ -84,7 +84,7 @@
   ;; the `core` namespace may be unimported where this macro is used,
   ;; so we'd better write the calling to `true?` in dot-identifier form
   ;; to specify its namespace.
-  `(case (kapok.core.true? ~test)
+  `(case (kapok.core.#true? ~test)
      (:true ~then)
      (:false ~else)))
 
@@ -93,13 +93,13 @@
   otherwise else expr.
   If else is not supplied it defaults to nil."""
 
-  `(case (kapok.core.false? ~test)
+  `(case (kapok.core.#false? ~test)
      (:true ~then)
      (:false ~else)))
 
 (defmacro when [test &rest body]
   """Evaluates test. If logical true, evaluates body in an implicit do."""
-  `(case (kapok.core.true? ~test)
+  `(case (kapok.core.#true? ~test)
      (:true ~@body)
      (:false #ok)))
 
@@ -108,7 +108,7 @@
 
 (defmacro when-not [test &rest body]
   """Evaluates test. If logical false, evaluates body in an implicit do."""
-  `(case (kapok.core.true? ~test)
+  `(case (kapok.core.#true? ~test)
      (:true #ok)
      (:false ~@body)))
 
@@ -140,13 +140,13 @@
   (cond) returns `#ok`.
   """
   (unless (nil? clauses)
-    `(kapok.core.if ~(first clauses)
-                    ~(case (next clauses)
-                       (:nil
-                        (erlang.throw "cond requires an even number of forms"))
-                       (_
-                        (second clauses)))
-                  (kapok.core.cond ~@(rest (rest clauses))))))
+    `(kapok.core.#if ~(first clauses)
+                     ~(case (next clauses)
+                        (:nil
+                         (#erlang.#throw "cond requires an even number of forms"))
+                        (_
+                         (second clauses)))
+                   (kapok.core.#cond ~@(rest (rest clauses))))))
 
 ;; macro
 
@@ -1202,8 +1202,8 @@
 
   """
   `(case ~x
-     (bool (&when (&or (erlang.#'=:=' bool :false)
-                       (erlang.#'=:=' bool :nil)))
+     (bool (&when (&or (#erlang.#'=:=' bool :false)
+                       (#erlang.#'=:=' bool :nil)))
        :true)
      (_ :false)))
 
@@ -1237,7 +1237,7 @@
      ([] x)
      (_ (let [sym (gensym "and")]
           `(let [~sym ~x]
-             (kapok.core.if ~sym (kapok.core.and ~@more) ~sym)))))))
+             (kapok.core.#if ~sym (kapok.core.#and ~@more) ~sym)))))))
 
 (defmacro or
   """Boolean or (short-circuit).
@@ -1267,7 +1267,7 @@
      ([] x)
      (_ (let [sym (gensym "or")]
           `(let [~sym ~x]
-             (kapok.core.if ~sym ~sym (kapok.core.or ~@more))))))))
+             (kapok.core.#if ~sym ~sym (kapok.core.#or ~@more))))))))
 
 (defn xor [x y]
   """Boolean xor.
@@ -1387,7 +1387,7 @@
                          [`(defn
                                #{:check_remote_call :false}
                                message [exception]
-                             (kapok.access.get exception #message))])
+                             (kapok.access.#get exception #message))])
                       (:false
                        []))
         struct-def `(defstruct ;;[kapok.access]
@@ -1398,7 +1398,7 @@
         (exception [{#message msg}]))
 
       `(defn exception [args] (&when (list? args))
-        (kapok.core.struct (__MODULE__) args))
+        (kapok.core.#struct (__MODULE__) args))
 
       struct-def
       &
@@ -1424,22 +1424,22 @@
   """
 
   (case msg
-    (m (&when (erlang.is_binary m))
-      `(erlang.error (kapok.runtime-error.exception ~m)))
-    (alias (&when (erlang.is_atom alias))
-      `(erlang.error (~alias.exception [])))
+    (m (&when (#erlang.#is_binary m))
+      `(#erlang.#error (kapok.runtime-error.#exception ~m)))
+    (alias (&when (#erlang.#is_atom alias))
+      `(#erlang.#error (~alias.#exception [])))
     (_
      `(case ~msg
-        (m (&when (erlang.is_binary m))
-         (erlang.error (kapok.runtime-error.exception m)))
-        (atom (&when (erlang.is_atom atom))
-         (erlang.error (atom.exception [])))
+        (m (&when (#erlang.#is_binary m))
+         (#erlang.#error (kapok.runtime-error.#exception m)))
+        (atom (&when (#erlang.#is_atom atom))
+         (#erlang.#error (atom.#exception [])))
         (#{#__struct__ struct
            #__exception__ :true} &as other (&when (atom? struct))
-         (erlang.error other))
+         (#erlang.#error other))
         (_
-         (erlang.error
-          (kapok.argument-error.exception
+         (#erlang.#error
+          (kapok.argument-error.#exception
            "(raise 1) expects an alias or a string as the first argument")))))))
 
 (defmacro raise [exception attrs]
@@ -1459,7 +1459,7 @@
       ** (argument-error) Sample
 
   """
-  `(erlang.error (~exception.exception ~attrs)))
+  `(#erlang.#error (~exception.#exception ~attrs)))
 
 (defmacro reraise [msg stacktrace]
   """Raises an exception preserving a previous stacktrace.
@@ -1485,22 +1485,22 @@
 
   (case msg
     (m (&when (erlang.is_binary m))
-     `(erlang.raise #error (kapok.runtime-error.exception ~m) ~stacktrace))
+     `(#erlang.#raise #error (kapok.runtime-error.#exception ~m) ~stacktrace))
     (alias (&when (erlang.is_atom alias))
-     `(erlang.raise #error (~alias.exception []) ~stacktrace))
+     `(#erlang.#raise #error (~alias.#exception []) ~stacktrace))
     (_
      `(let [stacktrace ~stacktrace]
        (case ~msg
-         (m (&when (erlang.is_binary m))
-          (erlang.raise #error (kapok.runtime-error.exception m) stacktrace))
-         (atom (&when (erlang.is_atom atom))
-          (erlang.raise #error (atom.exception []) stacktrace))
+         (m (&when (#erlang.#is_binary m))
+          (#erlang.#raise #error (kapok.runtime-error.#exception m) stacktrace))
+         (atom (&when (#erlang.#is_atom atom))
+          (#erlang.#raise #error (atom.#exception []) stacktrace))
          (#{#__struct__ struct
             #__exception__ :true} &as other (&when (atom? struct))
-          (erlang.raise #error other stacktrace))
+          (#erlang.#raise #error other stacktrace))
          (_
-          (erlang.error
-           (kapok.argument-error.exception
+          (#erlang.#error
+           (kapok.argument-error.#exception
             "(reraise 2) expects an alias or a string as the first argument"))))))))
 
 (defmacro reraise [exception attrs stacktrace]
@@ -1517,7 +1517,7 @@
                        (reraise wrapper-error [{#exception exception}] stacktrace)))))
 
   """
-  `(erlang raise #error (~exception.exception ~attrs) ~stacktrace))
+  `(#erlang.#raise #error (~exception.#exception ~attrs) ~stacktrace))
 
 ;;; functions for macro programming
 
@@ -1582,13 +1582,13 @@
 
 (defmacro attr [module attr]
   (let [var-value (gensym "value")]
-    `(kapok.core.first
-      (case (#lists.keyfind ~attr 1 (~module.module_info #attributes))
+    `(kapok.core.#first
+      (case (#lists.#keyfind ~attr 1 (~module.#module_info #attributes))
         ({_ ~var-value} ~var-value)
         (:false :nil)))))
 
 (defmacro attr [attr]
-  `(kapok.core.attr (__MODULE__) ~attr))
+  `(kapok.core.#attr (__MODULE__) ~attr))
 
 (defalias get-attr attr)
 (defalias get-attribute attr)
@@ -1608,7 +1608,7 @@
    arg)
 
   ([arg]
-   `(kapok.string.chars.to-string ~arg)))
+   `(kapok.string.chars.#to-string ~arg)))
 
 (defmacro to-char-list [arg]
   """Converts the argument to a char list according to the `list.chars` protocol.
@@ -1620,7 +1620,7 @@
 
   """
 
-  `(kapok.list.chars.to-char-list ~arg))
+  `(kapok.list.chars.#to-char-list ~arg))
 
 (defmacro match? [{#identifier _ #_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches

@@ -263,7 +263,15 @@ translate({list, Meta, [{dot, DotMeta, {Left, Right}} = Dot | Args]}, Ctx) ->
               %% signature of the calling function by looking at its declaration or definition.
               %% So the signature MFAP is assumed to be `{Module, Fun, Arity, 'normal'}`
               %% as the best guess.
-              FAst = translate_remote_call_fun(DotMeta, Right, Fun, Ctx),
+              FAst = case is_identifier(Right) of
+                       true ->
+                         case kapok_ctx:get_var(Meta, TCtx1, Fun) of
+                           {ok, _} -> Right;
+                           error -> {atom, token_meta(Right), Fun}
+                         end;
+                       false ->
+                         {atom, token_meta(Right), Fun}
+                     end,
               translate_remote_call(Meta, Left, FAst, Arity, 'normal', Arity, TArgs, TCtx1);
             error ->
               translate_module_call(Meta, DotMeta, Right, Module, Fun, TArgs, Arity, TCtx1)
@@ -591,17 +599,6 @@ translate_local_call(Meta, F, A, P, Arity, TArgs, Ctx) ->
   translate_local_call(Meta, TF, TArgs1, TCtx).
 translate_local_call(Meta, TF, TArgs, Ctx) ->
   {{call, ?line(Meta), TF, TArgs}, Ctx}.
-
-translate_remote_call_fun(Meta, Right, Fun, Ctx) ->
-  case is_identifier(Right) of
-    true ->
-      case kapok_ctx:get_var(Meta, Ctx, Fun) of
-        {ok, _} -> Right;
-        error -> {atom, token_meta(Right), Fun}
-      end;
-    false ->
-      {atom, token_meta(Right), Fun}
-  end.
 
 %% remote call
 translate_module_call(Meta, DotMeta, Right, Module, Fun, TArgs, Arity, Ctx) ->
