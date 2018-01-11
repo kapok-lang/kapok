@@ -208,7 +208,7 @@ Erlang code.
 -import(kapok_scanner, [token_category/1,
                         token_meta/1,
                         token_symbol/1]).
--export([is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
+-export([is_identifier/1, is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
 -include("kapok.hrl").
 
 %% Build token
@@ -279,6 +279,11 @@ build_set(Marker, Args) ->
   {set, token_meta(Marker), Args}.
 
 %% Helper Functions
+
+is_identifier({C, _, _}) when ?is_id(C) ->
+  true;
+is_identifier(_) ->
+  false.
 
 is_plain_dot({C, _, {Left, Right}}) when ?is_dot(C) ->
   is_plain_dot(Left) andalso is_plain_dot(Right);

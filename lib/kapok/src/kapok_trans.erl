@@ -12,7 +12,7 @@
          construct_new_args/5,
          format_error/1]).
 -import(kapok_scanner, [token_meta/1, token_symbol/1, token_text/1]).
--import(kapok_parser, [is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
+-import(kapok_parser, [is_identifier/1, is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
 -import(kapok_trans_collection, [build_tuple/2,
                                  build_map_from/2,
                                  build_list/1,
@@ -249,43 +249,27 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
       end
   end;
 %%  Remote call
-translate({list, Meta, [{dot, DotMeta, _} = Dot | Args]}, Ctx) ->
+translate({list, Meta, [{dot, DotMeta, {Left, Right}} = Dot | Args]}, Ctx) ->
   case is_plain_dot(Dot) of
     true ->
-      %% TODO don't explain module as var if it's written as atom.
-      %% Do the same for fun
       {Module, Fun} = plain_dot_mf(Dot),
       {TArgs, TCtx1} = translate_args(Args, Ctx),
       Arity = length(TArgs),
-      case kapok_ctx:get_var(Meta, TCtx1, Module) of
-        {ok, _} ->
-          M = {identifier, DotMeta, Module},
-          F = case kapok_ctx:get_var(Meta, TCtx1, Fun) of
-                {ok, _} -> {identifier, DotMeta, Fun};
-                error -> {atom, DotMeta, Fun}
-              end,
-          translate_remote_call(Meta, M, F, Arity, 'normal', Arity, TArgs, TCtx1);
-        error ->
-          FunArity = {Fun, Arity},
-          Namespace = ?m(TCtx1, namespace),
-          case Module of
-            Namespace ->
-              %% call to local module
-              case kapok_dispatch:find_local_function(FunArity, TCtx1) of
-                {F2, A2, P2} ->
-                  translate_remote_call(Meta, Module, F2, A2, P2, Arity, TArgs, TCtx1);
-                _ ->
-                  throw({unresolved_local_call, FunArity, Meta})
-              end;
-            _ ->
-              case kapok_dispatch:find_remote_function(Meta, Module, FunArity, TCtx1) of
-                {{M3, F3, A3, P3}, Ctx2} ->
-                  translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, Ctx2);
-                {false, Ctx2} ->
-                  kapok_error:compile_error(Meta, ?m(Ctx2, file),
-                                            "invalid remote call: ~p ~p", [Module, FunArity])
-              end
-          end
+      case is_identifier(Left) of
+        true ->
+          case kapok_ctx:get_var(Meta, TCtx1, Module) of
+            {ok, _} ->
+              %% If module or fun part is a variable, there is no way to figure out the
+              %% signature of the calling function by looking at its declaration or definition.
+              %% So the signature MFAP is assumed to be `{Module, Fun, Arity, 'normal'}`
+              %% as the best guess.
+              FAst = translate_remote_call_fun(DotMeta, Right, Fun, Ctx),
+              translate_remote_call(Meta, Left, FAst, Arity, 'normal', Arity, TArgs, TCtx1);
+            error ->
+              translate_module_call(Meta, DotMeta, Right, Module, Fun, TArgs, Arity, TCtx1)
+          end;
+        false ->
+          translate_module_call(Meta, DotMeta, Right, Module, Fun, TArgs, Arity, TCtx1)
       end;
     false ->
       translate_dot_let(Meta, tuple_to_list(token_symbol(Dot)), Args, Ctx)
@@ -608,7 +592,63 @@ translate_local_call(Meta, F, A, P, Arity, TArgs, Ctx) ->
 translate_local_call(Meta, TF, TArgs, Ctx) ->
   {{call, ?line(Meta), TF, TArgs}, Ctx}.
 
+translate_remote_call_fun(Meta, Right, Fun, Ctx) ->
+  case is_identifier(Right) of
+    true ->
+      case kapok_ctx:get_var(Meta, Ctx, Fun) of
+        {ok, _} -> Right;
+        error -> {atom, token_meta(Right), Fun}
+      end;
+    false ->
+      {atom, token_meta(Right), Fun}
+  end.
+
 %% remote call
+translate_module_call(Meta, DotMeta, Right, Module, Fun, TArgs, Arity, Ctx) ->
+  case is_identifier(Right) of
+    true ->
+      case kapok_ctx:get_var(Meta, Ctx, Fun) of
+        {ok, _} ->
+          %% If module or fun part is a variable, there is no way to figure out the
+          %% signature of the calling function by looking at its declaration or definition.
+          %% So the signature MFAP is assumed to be `{Module, Fun, Arity, 'normal'}`
+          %% as the best guess.
+          MAst = {atom, DotMeta, Module},
+          FAst = Right,
+          translate_remote_call(Meta, MAst, FAst, Arity, 'normal', Arity, TArgs, Ctx);
+        error ->
+          translate_module_fun_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx)
+      end;
+    false ->
+      translate_module_fun_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx)
+  end.
+
+translate_module_fun_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx) ->
+  FunArity = {Fun, Arity},
+  Namespace = ?m(Ctx, namespace),
+  case Module of
+    Namespace ->
+      %% call to local module
+      case kapok_dispatch:find_local_function(FunArity, Ctx) of
+        {F, A, P} ->
+          MAst = {atom, DotMeta, Module},
+          FAst = {atom, DotMeta, F},
+          translate_remote_call(Meta, MAst, FAst, A, P, Arity, TArgs, Ctx);
+        _ ->
+          throw({unresolved_local_call, FunArity, Meta})
+      end;
+    _ ->
+      case kapok_dispatch:find_remote_function(Meta, Module, FunArity, Ctx) of
+        {{M, F, A, P}, Ctx1} ->
+          MAst = {atom, DotMeta, M},
+          FAst = {atom, DotMeta, F},
+          translate_remote_call(Meta, MAst, FAst, A, P, Arity, TArgs, Ctx1);
+        {false, Ctx1} ->
+          kapok_error:compile_error(Meta, ?m(Ctx1, file),
+                                    "invalid remote call: ~p ~p", [Module, FunArity])
+      end
+  end.
+
 translate_remote_call(Meta, M, F, A, P, Arity, TArgs, Ctx) ->
   TArgs1 = construct_new_args('translate', Arity, A, P, TArgs),
   translate_remote_call(Meta, M, F, TArgs1, Ctx).
