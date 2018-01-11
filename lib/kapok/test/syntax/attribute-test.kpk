@@ -1,7 +1,7 @@
 (ns attribute-test.attr
   (use kapok.kunit))
 
-;; TODO test pre-difined attributes
+;; TODO test pre-defined attributes
 ;; behavior
 ;; file
 
