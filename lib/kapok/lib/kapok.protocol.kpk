@@ -108,7 +108,7 @@
 
 (defn derive [protocol-ast for]
   (let [name (kapok_parser.plain_dot_name protocol-ast)
-        plain (kapok.module.concat name #map)]
+        plain (module.concat name #map)]
 
     ;; TODO add checking for whether __deriving__ function exists in module impl.
     ;; refer to `protocol.derive' in Elixir for more info.
@@ -296,9 +296,6 @@
                     [{#identifier meta #defns}
                      id
                      doc
-                     ;; TODO remove this require
-                     `((require (kapok (module
-                                        code-server))))
                      protocol-name-def
                      protocol-functions-def
                      & after]
