@@ -61,10 +61,14 @@ translate_let_args([], Acc, Ctx) ->
 translate_let_args([H], _Acc, Ctx) ->
   Error = {let_odd_forms, {H}},
   kapok_error:form_error(token_meta(H), ?m(Ctx, file), ?MODULE, Error);
-translate_let_args([P1, P2 | T], Acc, Ctx) ->
-  {TP1, TCtx} = translate_let_pattern(P1, Ctx),
-  {TP2, TCtx1} = translate(P2, TCtx),
-  translate_let_args(T, [{match, ?line(token_meta(P1)), TP1, TP2} | Acc], TCtx1).
+translate_let_args([Pattern, Value | T], Acc, Ctx) ->
+  %% Translate the value part first, and then the pattern part.
+  %% Otherwise if there is a call of the pattern in the value part, it will
+  %% cause a weird compile error saying "VAR_xxx is unbound", where `VAR_xxx`
+  %% is the variable name of the translated pattern.
+  {TValue, TCtx} = translate(Value, Ctx),
+  {TPattern, TCtx1} = translate_let_pattern(Pattern, TCtx),
+  translate_let_args(T, [{match, ?line(token_meta(Pattern)), TPattern, TValue} | Acc], TCtx1).
 
 translate_dot_let_arg({C, Meta, Name}, Ctx) when ?is_id(C) ->
   case kapok_ctx:get_var(Meta, Ctx, Name) of
@@ -76,8 +80,8 @@ translate_dot_let_arg({C, Meta, Name}, Ctx) when ?is_id(C) ->
 translate_dot_let_arg({C, Meta, Name}, Ctx) when ?is_keyword_or_atom(C) ->
   {[], Ctx, {atom, Meta, Name}};
 translate_dot_let_arg({_, Meta, _} = Dot, Ctx) ->
-  {TName, TCtx, Name} = translate_dot_let_pattern({identifier, Meta, 'DOT'}, Ctx),
-  {TDot, TCtx1} = translate(Dot, TCtx),
+  {TDot, TCtx} = translate(Dot, Ctx),
+  {TName, TCtx1, Name} = translate_dot_let_pattern({identifier, Meta, 'DOT'}, TCtx),
   Ast = {match, ?line(Meta), TName, TDot},
   Id = {identifier, Meta, Name},
   {[Ast], TCtx1, Id}.
