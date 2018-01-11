@@ -128,6 +128,7 @@ unquote_splicing_expr -> unquote_splicing identifier : build_unquote_splicing('$
 
 %% Bitstring
 
+%% TODO improve the error message `syntax error before: ...` if `bitstring_arg` is not a list.
 bitstring_arg        -> number : build_bitstring_element('$1').
 bitstring_arg        -> list_collection : '$1'.
 commas_bitstring_arg -> bitstring_arg  : '$1'.
