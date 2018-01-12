@@ -1,7 +1,43 @@
 ;;
 
 (defprotocol kapok.sequential
-  "Sequential protocol used by `seq` and `stream` modules."
+  """Sequential protocol used by `seq` and `stream` modules.
+
+  When you invoke a function in the `seq` module, the first argument
+  is usually a collection that must implement this protocol. For example,
+  the expression
+
+      (seq.map [1 2 3] (fn [x] (* x 2)))
+
+  invokes underneath `(sequential.reduce 3)` to perform the reducing
+  operation that builds a mapped list by calling the mapping function
+  `(fn [x] (* x 2))` on every element in the collection and cons'ing the
+  element with an accumulated list.
+
+  Internally, `(seq.map 2)` is implemented as follows:
+
+     (defn map [enum fun]
+       (let [reducer (fn [x acc] {#cont [(fun x) & acc]})]
+         (-> (sequential.reduce enum {#cont []} reducer)
+             (elem 1)
+             lists.reverse)))
+
+  Notice the user given function is wrapped into a `reducer` function.
+  The `reducer` function must return a tagged tuple after each step,
+  as described in the `acc` type.
+
+  The reason the accumulator requires a tagged tuple is to allow the
+  reducer function to communicate to the underlying sequential the end
+  of traversal, allowing any open resource to be properly closed.
+  It also allows suspension of the traversal, which is useful when
+  interleaving between many sequentials is required (as in zip).
+
+  Finally, `(sequential.reduce 3)` will return another tagged tuple,
+  as represented by the `result` type.
+  """
+
+  ;; TODO add acc type
+  ;; TODO add result type
 
   (reduce [collection acc fun]
     "Reduces the collection into a value.")
