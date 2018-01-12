@@ -1188,9 +1188,7 @@
 
 ;; Boolean and Short-circuit Boolean Operators
 
-;; TODO Revise not, and, or to function and renames those macro versions
-;; Change the docs and add exception infos as well.
-(defmacro not [x]
+(defn not [x]
   """Returns `:true` if `x` is logical false, otherwise `:false`.
 
   Allowed in guard tests. Inlined by the compiler.
@@ -1201,12 +1199,7 @@
       :true
 
   """
-  `(case ~x
-     (bool (&when (&or (#erlang.#'=:=' bool :false)
-                       (#erlang.#'=:=' bool :nil)))
-       :true)
-     (_ :false)))
-
+  (erlang.not x))
 
 (defmacro and
   """Boolean and (short-circuit).
@@ -1218,8 +1211,6 @@
 
   Requires all the arguments except the last to be a boolean since
   it short-curcuits.
-
-  Allowed in guard tests and inlined by the compiler when arity is 2.
 
   ## Examples
 
@@ -1249,8 +1240,6 @@
 
   Requires all the arguments except the last to be a boolean since
   it short-circuits.
-
-  Allowed in guard tests and inlined by the compiler when arity is 2.
 
   ## Examples
 

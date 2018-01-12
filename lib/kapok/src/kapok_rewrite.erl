@@ -84,6 +84,7 @@
 ?inline_nfun('kapok.core', 'bsr', 2) -> ?nfun(erlang, 'bsr', 2);
 
 %% boolean operators
+?inline_nfun('kapok.core', 'not', 1) -> ?nfun(erlang, 'not', 1);
 ?inline_nfun('kapok.core', 'xor', 2) -> ?nfun(erlang, 'xor', 2);
 
 %% integer
@@ -120,6 +121,9 @@ rewrite(Meta, Module, Fun, FunMeta, _Arity, _ParaType, Args) ->
     {M, F, Args1} ->
       Dot = {dot, FunMeta, {{identifier, FunMeta, M}, {identifier, FunMeta, F}}},
       {list, Meta, [Dot | Args1]};
+    {F, Args1} ->
+      Id = {identifier, FunMeta, F},
+      {list, Meta, [Id | Args1]};
     false ->
       false
   end.
