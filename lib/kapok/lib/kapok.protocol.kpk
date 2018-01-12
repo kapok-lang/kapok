@@ -253,8 +253,8 @@
         :nil))
 
     `(defn- impl-for? [target]
-      (and (kapok.code-server.#ensure-compiled? target)
-           (kapok.core.#function-exported? target #__impl__ 1)))
+      (kapok.core.#and (kapok.code-server.#ensure-compiled? target)
+                       (kapok.core.#function-exported? target #__impl__ 1)))
 
     &
 
