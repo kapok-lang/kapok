@@ -1191,15 +1191,13 @@
 (defn not [x]
   """Returns `:true` if `x` is logical false, otherwise `:false`.
 
-  Allowed in guard tests. Inlined by the compiler.
-
   ## Examples
 
       kapok> (not :false)
       :true
 
   """
-  (erlang.not x))
+  (false? x))
 
 (defmacro and
   """Boolean and (short-circuit).
@@ -1208,9 +1206,6 @@
   If any one returns `:false`, returns that value and doesn't evaluate
   the left arugments, otherwise it returns the value of the last argument.
   (and) returns `:true`.
-
-  Requires all the arguments except the last to be a boolean since
-  it short-curcuits.
 
   ## Examples
 
@@ -1238,9 +1233,6 @@
   the left arguments, otherwise it returns the value of the last argument.
   (or) return `:false`.
 
-  Requires all the arguments except the last to be a boolean since
-  it short-circuits.
-
   ## Examples
 
       kapok> (or :true :false)
@@ -1264,10 +1256,6 @@
   Returns `:true` if `x` and `y` are evaluated to different logical value
   (`:true` or `:false`), otherwise returns `:false`.
 
-  Requires all the arguments to be a boolean.
-
-  Allowed in guard tests. Inlined by the compiler.
-
   ## Examples
 
       kapok> (xor :true :false)
@@ -1277,7 +1265,8 @@
       :false
 
   """
-  (erlang.xor x y))
+  (!= (true? x)
+      (true? y)))
 
 ;; Tuple Element Operators
 

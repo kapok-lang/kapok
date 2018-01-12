@@ -83,10 +83,6 @@
 ?inline_nfun('kapok.core', 'bit-shift-right', 2) -> ?nfun(erlang, 'bsr', 2);
 ?inline_nfun('kapok.core', 'bsr', 2) -> ?nfun(erlang, 'bsr', 2);
 
-%% boolean operators
-?inline_nfun('kapok.core', 'not', 1) -> ?nfun(erlang, 'not', 1);
-?inline_nfun('kapok.core', 'xor', 2) -> ?nfun(erlang, 'xor', 2);
-
 %% integer
 ?inline_nfun('kapok.integer', 'to-string', 1) -> ?nfun(erlang, integer_to_binary, 1);
 ?inline_nfun('kapok.integer', 'to-string', 2) -> ?nfun(erlang, integer_to_binary, 2);
