@@ -1143,8 +1143,7 @@
                            (core.max entry max-value)})))]
     (case result
       (#first
-       ;; TODO revise to use exception
-       (throw "empty error"))
+       (raise kapok.seq.empty-error []))
       (result
        result))))
 
@@ -2359,11 +2358,9 @@
     (reduce t (fun h acc) fun))
 
   (defn member? [_list _value]
-    ;; TODO add macro `__MODULE__`
-    {#error #'sequential.list'})
+    {#error (__MODULE__)})
   (defn count [_list]
-    ;; TODO add macro `__MODULE__`
-    {#error #'sequential.list'})
+    {#error (__MODULE__)})
   )
 
 (defimpl sequential map
