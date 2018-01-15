@@ -21,6 +21,18 @@
 
   `(== (bit-and ~n 1) 0))
 
+(defn range [first last]
+  (lists.reverse (range first last [])))
+
+(defn range [first last acc]
+  (if (== first last)
+      [first & acc]
+    (if (< first last)
+        (range (inc first) last [first & acc])
+      (let [message (io_lib.format "invalid range: [~s, ~s]" [(inspect first)
+                                                              (inspect last)])]
+        (raise kapok.argument-error message)))))
+
 (defn in-range [i first last]
   (and (>= i first)
        (<= i last)))
