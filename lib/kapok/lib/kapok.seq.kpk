@@ -16,9 +16,9 @@
 
   Internally, `(seq.map 2)` is implemented as follows:
 
-     (defn map [enum fun]
+     (defn map [seq fun]
        (let [reducer (fn [x acc] {#cont [(fun x) & acc]})]
-         (-> (sequential.reduce enum {#cont []} reducer)
+         (-> (sequential.reduce seq {#cont []} reducer)
              (elem 1)
              lists.reverse)))
 
@@ -40,13 +40,44 @@
   ;; TODO add result type
 
   (reduce [collection acc fun]
-    "Reduces the collection into a value.")
+    """Reduces the collection into a value.
+
+    Most of the operations in `seq` are implemented in terms of reduce.
+    This function should apply the given `reducer` function to each
+    item in the collection and proceed as expected by the returned accumulator.
+
+    As an example, here is the implementation of `reduce` for lists:
+
+        (defn reduce [_       {#halt acc}    _fun]  {#halted, acc})
+        (defn reduce [list    {#suspend acc} fun]   {#suspended acc (fn [x] (reduce list x fun))})
+        (defn reduce [[]      {#cont acc}    _fun]  {#done acc})
+        (defn reduce [[h & t] {#cont acc}    fun]   (reduce t (fun h acc) fun))
+
+  """)
 
   (member? [collection value]
-    "Checks if a value exists within the collection.")
+    """Checks if a value exists within the collection.
+
+    If should return `{#ok boolean}`.
+
+    If `{#error (__MODULE__)}` is returned a default algorithm using `reduce`
+    and the match (`===`) operator is used. This algorithm runs in linear time.
+
+    Please force use of the default algorithm unless you can implement
+    an algorithm that is significantly faster.
+    """)
 
   (count [collection]
-    "Retrieves the collection's size."))
+    """Retrieves the collection's size.
+
+    It should return `{#ok size}`.
+
+    If `{#error (__MODULE__)}` is returned a default algorithm using `reduce`
+    and the match (`===`) operator is used. This algorithm runs in linear time.
+
+    Please force use of the default algorithm unless you can implement
+    an algorithm that is significantly faster.
+    """))
 
 (defprotocol kapok.collection
   "A common protocol for built-in collections."
@@ -71,8 +102,28 @@
 ;; TODO add more docs to seq functions
 
 (ns kapok.seq
-  """Provides a set of algorithms to obtain and traverse collections according to
-  the `sequential` protocol."""
+  """Provides a set of algorithms to obtain and traverse collections according
+  to the `sequential` protocol.
+
+      kapok> (seq.map [1 2 3] (fn [x] (* x 2)))
+      [2 4 6]
+
+  Some particular types, like dictionaries, yield a specific format on
+  traversal. For dicts, the argument is always a `{key value}` tuple:
+
+      kapok> (let [dict #{#a 1 #b 2}]
+               (seq.map dict (fn [{k v}] {k (* v 2)})))
+      [{#a 2} {#b 4}]
+
+  Note that the functions in the `seq` module are eager: they always start
+  the traversal of the given collection.
+
+  Since the majority of the functions in `seq` traverse the whole
+  collection and return a list as result, infinite streams need to
+  be carefully used with such functions, as they can potentially run
+  forever.
+  """
+
   (require erlang
            random
            lists
@@ -101,7 +152,26 @@
 (defn all?
   """Invoke the given `fun` for each item in the `collection` and returns
   `false` if at least one invocation returns `false` or `nil`. Otherwise
-  returns `true`."""
+  returns `true`.
+
+  ## Examples
+
+      kapok> (seq.all? [2 4 6] (fn [x] (== (rem 2 x) 0)))
+      :true
+
+      kapok> (seq.all? [2 3 4] (fn [x] (== (rem 2 x) 0)))
+      :false
+
+  If no function is given, it defaults to checking if all items
+  in the collection are truthy values.
+
+      kapok> (seq.all? [1 2 3])
+      :true
+
+      kapok> (seq.all? [1 :nil 3])
+      :false
+
+  """
 
   ([collection fun] (&when (list? collection))
    (do-all? collection fun))
@@ -122,7 +192,26 @@
 (defn any?
   """Invokes the given `fun` for each item in the `collection` and returns
   `true` if at least one invocation returns a truthy value. Returns `false`
-  Otherwise."""
+  Otherwise.
+
+  ## Examples
+
+      kapok> (seq.any? [2 4 6] (fn [x] (== (rem x 2) 1)))
+      :false
+
+      kapok> (seq.any? [2 3 4] (fn [x] (== (rem x 2) 1)))
+      :true
+
+  If no function is given, it defaults to checking if at least one item
+  in the collection is a truthy value.
+
+      kapok> (seq.any? [:false :false :false])
+      :false
+
+      kapok> (seq.any? [:false :true :false])
+      :true
+
+  """
 
   ([collection fun] (&when (list? collection))
    (do-any? collection fun))
@@ -142,7 +231,14 @@
 
 (defn at [collection n &optional default]
   """Finds the element at the given index (zero-based).
-  Returns `default` if index is out of bounds."""
+
+  Returns `default` if index is out of bounds.
+
+  Note this operation takes linear time. In order to access
+  the element at index `n`, it will need to traverse `n`
+  previous elements.
+  """
+
   (case (fetch collection n)
     ({#ok e} e)
     (#error default)))
@@ -163,7 +259,23 @@
   have engouh elements to fill the chuck, then the chunk is
   returned anyway with less than `n` elements. If `pad` is not
   passed at all or is `:nil`, then the partial chunk is discarded
-  from the result."""
+  from the result.
+
+  ## Examples
+
+      kapok> (seq.chunk [1 2 3 4 5 6] 2)
+      [[1 2] [3 4] [5 6]]
+
+      kapok> (seq.chunk [1 2 3 4 5 6] 3 2)
+      [[1 2 3] [3 4 5]]
+
+      kapok> (seq.chunk [1 2 3 4 5 6] 3 2 [7])
+      [[1 2 3] [3 4 5] [5 6 7]]
+
+      kapok> (seq.chunk [1 2 3 4 5 6] 3 3 [])
+      [[1 2 3] [4 5 6]]
+
+  """
 
   (let [limit (erlang.max n step)
         {acc {buf i}} (reduce collection
@@ -177,7 +289,14 @@
          (lists.reverse [buffer & acc]))))))
 
 (defn chunk-by [collection fun]
-  "Splits `collection` on every element for which `fun` returns a new value."
+  """Splits `collection` on every element for which `fun` returns a new value.
+
+  ## Examples
+
+      kapok> (seq.chunk-by [1 2 2 3 4 4 6 7 7] (fn [x] (== (rem x 2) 1))
+      [[1] [2 2] [3] [4 4 6] [7 7]]
+
+  """
 
   (let [{acc res} (reduce collection
                           {[] :nil}
@@ -189,12 +308,32 @@
        []))))
 
 (defn concat [sequentials]
-  """Given a sequential of sequentials, concatenates the sequentials into
-  a single list."""
+  """Given a sequential of sequentials, concatenates the sequentials into a single list.
+
+  ## Examples
+
+      kapok> (seq.concat [[1 2 3] [4 5 6] [7 8 9]])
+      [1 2 3 4 5 6 7 8 9]
+
+      kapok> (seq.concat [[1 [2] 3] [4] [5 6]])
+      [1 [2] 3 4 5 6]
+
+  """
+
   (do-concat sequentials))
 
 (defn concat
-  "Concatenates the enumerable on the right with the enumerable on the left."
+  """Concatenates the sequential on the right with the sequential on the left.
+
+  This function produces the same result as the `op-++` operator for lists.
+
+  ## Examples
+
+      kapok> (seq.concat [1 2 3] [4 5 6])
+      [1 2 3 4 5 6]
+
+  """
+
   ([left right] (&when (&and (list? left)
                              (list? right)))
    (lists.append left right))
@@ -204,7 +343,15 @@
   )
 
 (defn count
-  "Returns the collection's size."
+  """Returns the collection's size.
+
+  ## Examples
+
+      kapok> (seq.count [1 2 3])
+      3
+
+  """
+
   ([collection] (&when (list? collection))
    (erlang.length collection))
 
@@ -221,16 +368,27 @@
   )
 
 (defn dedup [collection]
-  """Enumerate the collection, returning a list where all consecutive
+  """Traverse the collection, returning a list where all consecutive
   duplicated elements are collapsed to a single element."""
   (dedup-by collection (fn [x] x)))
 
 (defn dedup-by [collection fun]
-  """Enumerates the collection, returning a list where all consecutive
+  """Traverse the collection, returning a list where all consecutive
   duplicated elements are collapsed to a single element.
 
   The function `fun` maps every element to a term which is used to
-  determine if two elements are duplicates."""
+  determine if two elements are duplicates.
+
+  ## Examples
+
+      kapok> (seq.dedup-by [{1 #x} {2 #y} {2 #z} {1 #x}] (fn [{x _}] x))
+      [{1 #x} {2 #y} {1 #x}]
+
+      kapok> (seq.dedup-by [5 1 2 3 2 1] (fn [x] (> x 2)))
+      [5 1 3 2]
+
+  """
+
   (let [{list _} (reduce collection
                          {[] []}
                          (reducers.dedup fun))]
@@ -240,9 +398,25 @@
   """Drops the first `count` items from `collection`.
 
   If a negative value `count` is given, the last `count`
-  values will be dropped. The collection is enumerated
+  values will be dropped. The collection is traversed
   once to retrieve the proper index and the remaining
-  calculation is performed from the end."""
+  calculation is performed from the end.
+
+  ## Examples
+
+      kapok> (seq.drop [1 2 3] 2)
+      [3]
+
+      kapok> (seq.drop [1 2 3] 10)
+      []
+
+      kapok> (seq.drop [1 2 3] 0)
+      [1 2 3]
+
+      kapok> (seq.drop [1 2 3] -1)
+      [1 2]
+
+  """
 
   ([collection count] (&when (&and (list? collection)
                                    (>= count 0)))
@@ -267,8 +441,14 @@
        lists.reverse)))
 
 (defn drop-while
-  """Drops items at the beginning of `collection` while `fun` returns
-  a truthy value."""
+  """Drops items at the beginning of `collection` while `fun` returns a truthy value.
+
+  ## Examples
+
+      kapok> (seq.drop-while [1 2 3 4 5] (fn [x] (< x 3)))
+      [3 4 5]
+
+  """
 
   ([collection fun] (&when (list? collection))
    (do-drop-while collection fun))
@@ -281,7 +461,16 @@
 
 (defn each
   """Invokes the given `fun` for each item in the `collection`.
-  Returns `#ok`."""
+  Returns `#ok`.
+
+  ## Examples
+
+      (seq.each ["some" "example"] (fn [x] (io.puts x)))
+      "some"
+      "example"
+      ;;=> #ok
+
+  """
 
   ([collection fun] (&when (list? collection))
    (lists.foreach fun collection)
@@ -296,7 +485,17 @@
    #ok))
 
 (defn empty?
-  """Returns `:true` if the collection is empty, otherwise `:false`."""
+  """Returns `:true` if the collection is empty, otherwise `:false`.
+
+  ## Examples
+
+      kapok> (seq.empty? [])
+      :true
+
+      kapok> (seq.empty? [1 2 3])
+      :false
+
+  """
 
   ([collection] (&when (list? collection))
    (== collection []))
@@ -309,7 +508,30 @@
        (elem 1))))
 
 (defn fetch
-  """Finds the element at the given index (zero-based)."""
+  """Finds the element at the given index (zero-based).
+
+  Returns `{#ok element}` if found, otherwise `#error`.
+
+  A negative index can be passed, which means the collection is
+  traversed once and the index is counted from the end (i.e.
+  `-1` fetches the last element).
+
+  Note this operation takes linear time. In order to access
+  the element at index `n`, it will need to traverse `n`
+  previous elements.
+
+  ## Examples
+
+      kapok> (seq.fetch [2 4 6] 0)
+      {#ok 2}
+
+      kapok> (seq.fetch [2 4 6] 2)
+      {#ok 6}
+
+      kapok> (seq.fetch [2 4 6] 4)
+      #error
+
+  """
 
   ([collection n] (&when (&and (list? collection)
                                (integer? n)
@@ -333,11 +555,45 @@
    (do-fetch (reverse collection) (abs (inc n))))
   )
 
-;; TODO add fetch! impll
+(defn
+    #{:check_remote_call :false}
+    fetch! [collection n]
+  """Find the element at the given index (zero-based).
+
+  Raises `out-of-bounds-error` if the given position
+  is outside the range of the collection.
+
+  Note this operation takes linear time. In order to access
+  the element at index `n`, it will need to traverse `n`
+  previous elements.
+
+  ## Examples
+
+      kapok> (seq.fetch! [2 4 6] 0)
+      2
+
+      kapok> (seq.fetch! [2 4 6] 2)
+      6
+
+      kapok> (seq.fetch! [2 4 6] 4)
+      ** (kapok.seq.out-of-bounds-error) out of bounds error
+
+  """
+  (case (fetch collection n)
+    ({#ok h} h)
+    (#error (raise (kapok.seq.out-of-bounds-error.new))))
+  )
 
 (defn filter
   """Filters the collection, i.e. returns only those elements
-  for which `fun` returns a truthy value."""
+  for which `fun` returns a truthy value.
+
+  ## Examples
+
+      kapok> (seq.filter [1 2 3] (fn [x] (=== (rem x 2) 0)))
+      [2]
+
+  """
 
   ([collection fun] (&when (list? collection))
    (lists.filter fun collection))
@@ -347,7 +603,14 @@
        lists.reverse)))
 
 (defn filter-map
-  """Filters the collection and maps its values in one pass."""
+  """Filters the collection and maps its values in one pass.
+
+  ## Examples
+
+      kapok> (seq.filter-map [1 2 3] (fn [x] (== (rem x 2) 0)) (fn [x] (* x 2)))
+      [4]
+
+  """
 
   ([collection filter mapper] (&when (list? collection))
    (lists.filtermap (fn [x]
@@ -364,7 +627,20 @@
 
 (defn find
   """Returns the first item for which `fun` returns a truthy value. If no such
-  item is found, returns `ifnone`."""
+  item is found, returns `ifnone`.
+
+  ## Examples
+
+      kapok> (seq.find [2 4 6] (fn [x] (== (rem x 2) 1)))
+      :nil
+
+      kapok> (seq.find [2 4 6] 0 (fn [x] (== (rem x 2) 1)))
+      0
+
+      kapok> (seq.find [2 3 4] (fn [x] (== (rem x 2) 1)))
+      3
+
+  """
 
   ([collection fun]
    (find collection :nil fun))
@@ -383,7 +659,20 @@
 
 (defn find-value
   """Similar to `(find 3)`, but returns the value of the function
-  invocation instead of the element itself."""
+  invocation instead of the element itself.
+
+  ## Examples
+
+      kapok> (seq.find-value [2 4 6] (fn [x] (== (rem x 2) 1)))
+      :nil
+
+      kapok> (seq.find-value [2 3 4] (fn [x] (== (rem x 2) 1)))
+      :true
+
+      kapok> (seq.find-value [1 2 3] "no bools!" (fn kapok.core boolean? 1))
+      "no bools!"
+
+  """
 
   ([collection fun]
    (find-value collection :nil fun))
@@ -403,7 +692,17 @@
 
 (defn find-index
   """Similar to `(find 3)`, but returns the index (zero-based)
-  of the element instead of the element itself."""
+  of the element instead of the element itself.
+
+  ## Examples
+
+      kapok> (seq.find-index [2 4 6] (fn [x] (== (rem x 2) 1)))
+      :nil
+
+      kapok> (seq.find-index [2 3 4] (fn [x] (== (rem x 2) 1)))
+      1
+
+  """
 
   ([collection fun] (&when (list? collection))
    (do-find-index collection 0 fun))
@@ -421,7 +720,19 @@
 
 (defn flat-map [collection fun]
   """Returns a new collection appending the result of invoking `fun`
-  on each corresponding item of `collection`."""
+  on each corresponding item of `collection`.
+
+  The given function should return an sequential.
+
+  ## Examples
+
+      kapok> (seq.flat-map [#a #b #c] (fn [x] [x x]))
+      [#a #a #b #b #c #c]
+
+      kapok> (seq.flat-map [{1 3} {4 6}] (fn [{x y}] [x (inc x) y]))
+      [1 2 3 4 5 6]
+
+  """
 
   (-> (reduce collection
               []
@@ -438,7 +749,19 @@
   It expects an accumulator and a function that receives each stream item
   and an accumulator, and must return a tuple containing a new stream
   (often a list) with the new accumulator or a tuple with `#halt` as first
-  element and the accumulator as second."""
+  element and the accumulator as second.
+
+  ## Examples
+
+      kapok> (let [seq [1 2 3 4 5]
+                   n 3]
+               (seq.flat-map-reduce seq 0 (fn [i acc]
+                                            (if (< acc n)
+                                                {[i] (inc acc)}
+                                              {#halt acc}))))
+      {[1 2 3] 3}
+
+  """
 
   (let [{_ {list acc2}} (sequential.reduce collection
                                            {#cont {[] acc}}
@@ -459,7 +782,23 @@
     {(lists.reverse list) acc2}))
 
 (defn intersperse [collection element]
-  "Intersperses `element` between each element of the enumeration."
+  """Intersperses `element` between each element of the collection.
+
+  Complexity: O(n)
+
+  ## Examples
+
+      kapok> (seq.intersperse [1 2 3] 0)
+      [1 0 2 0 3]
+
+      kapok> (seq.intersperse [1] 0)
+      [1]
+
+      kapok> (seq.intersperse [] 0)
+      []
+
+  """
+
   (let [list (-> (reduce collection
                          []
                          (fn [x acc]
@@ -471,10 +810,26 @@
       )))
 
 (defn into
-  "Inserts the given sequential into a collectable."
+  """Inserts the given sequential into a collectable.
+
+  ## Examples
+
+      kapok> (seq.into [1 2] [0])
+      [0 1 2]
+
+      kapok> (seq.into [{#a 1} {#b 2}] #{})
+      #{#a 1 #b 2}
+
+  """
 
   ([collection list] (&when (list? list))
    (lists.append list (to-list collection)))
+
+  ([#{:__struct__ _} &as collection collectable]
+   (do-into collection collectable))
+
+  ([collection #{:__struct__ _} &as collectable]
+   (do-into collection collectable))
 
   ([collection collectable] (&when (&and (map? collection)
                                          (map? collectable)))
@@ -495,7 +850,14 @@
 
 (defn into
   """Inserts the given sequential into a collectable
-  according to the transformation function."""
+  according to the transformation function.
+
+  ## Examples
+
+      kapok> (seq.into [2 3] [3] (fn [x] (* x 3)))
+      [3 6 9]
+
+  """
 
   ([collection list transform] (&when (&and (list? list)
                                             (function? transform 1)))
@@ -514,7 +876,17 @@
   If `joiner` is not passed at all, it defaults to the empty binary.
 
   All items in the collection must be convertible
-  to a binary, otherwise an error is raised."""
+  to a binary, otherwise an error is raised.
+
+  ## Examples
+
+      kapok> (seq.join [1 2 3])
+      "123"
+
+      kapok> (seq.join [1 2 3] " = ")
+      "1 = 2 = 3"
+
+  """
 
   (let [reduced (reduce collection
                         #first
@@ -531,7 +903,17 @@
   """Returns a new collection, where each item is the result
   of invoking `fun` on each corresponding item of `collection`.
 
-  For dicts, the function expects a key-value tuple."""
+  For dicts, the function expects a key-value tuple.
+
+  ## Examples
+
+      kapok> (seq.map [1 2 3] (fn [x] (* 2 x)))
+      [2 4 6]
+
+      kapok> (seq.map [{#a 1} {#b 2}] (fn [{k v}] {k (- v)}))
+      [{#a -1} {#b -2}]
+
+  """
 
   ([collection fun] (&when (list? collection))
    (lists.map fun collection))
@@ -549,7 +931,17 @@
   it defaults to an empty binary.
 
   All items in the collection must be convertible to a binary,
-  otherwise an error is raised."""
+  otherwise an error is raised.
+
+  ## Examples
+
+      kapok> (seq.map-join [1 2 3] (fn [x] (* x 2)))
+      "246"
+
+      kapok> (seq.map-join [1 2 3] " = " (fn [x] (* x 2)))
+      "2 = 4 = 6"
+
+  """
 
   ([collection mapper]
    (map-join collection "" mapper))
@@ -571,7 +963,15 @@
   while also keeping an accumulator. Returns a tuple where the first element
   is mapped collection and the second one is the final accumulator.
 
-  For dicts, the first tuple element must be a `{key, value}` tuple."""
+  For dicts, the first tuple element must be a `{key, value}` tuple.
+
+  ## Examples
+
+      kapok> (seq.map-reduce [1 2 3] 0 (fn [x acc] {(* x 2) (+ x acc)}))
+      {[2 4 6] 6}
+
+  """
+
   ([collection acc fun] (&when (list? collection))
    (lists.mapfoldl fun acc collection))
 
@@ -588,7 +988,10 @@
 
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.max [1 2 3])
+      3
 
   """
   (reduce collection (fn [x acc] (core.max x acc))))
@@ -597,7 +1000,10 @@
   """Returns the maximum value as calculated by the given function.
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.max-by ["a", "aa", "aaa"] (fn [x] (string.length x)))
+      "aaa"
 
   """
 
@@ -634,7 +1040,17 @@
 (defn member?
   """Checks if `value` exists within the `collection`.
 
-  Membership is tested with the match (`===`) operator."""
+  Membership is tested with the match (`===`) operator.
+
+  ## Examples
+
+      kapok> (seq.member? [1 2 3 4 5 6 7] 5)
+      :true
+
+      kapok> (seq.member? [#a #b #c] #d)
+      :false
+
+  """
 
   ([collection value] (&when (list? collection))
    (lists.member value collection))
@@ -654,10 +1070,13 @@
           (elem 1))))))
 
 (defn min [collection]
-  """Returns the minimum value as calculated by the given function.
+  """Returns the minimum value.
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.min [1 2 3])
+      1
 
   """
   (reduce collection (fn [x acc] (core.min x acc))))
@@ -666,7 +1085,10 @@
   """Returns the minimum value as calculated by the given function.
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.min-by ["a", "aa", "aaa"] (fn [x] (string.length x)))
+      "a"
 
   """
 
@@ -704,7 +1126,10 @@
   """Returns a tuple with the minimum and maximum values.
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.minmax [2 3 1])
+      {1 3}
 
   """
 
@@ -727,7 +1152,10 @@
   """Returns a tuple with the minmum and maximum values as calculated by the given function.
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.minmax-by ["aaa", "bb", "c"] (fn [x] (string.length x)))
+      {"c", "aaa"}
 
   """
 
@@ -757,7 +1185,10 @@
 
   Raises `arithmetic-error` if collection contains a non-numeric value.
 
-  ;; TODO add examples
+  ## Examples
+
+      kapok> (seq.sum [1 2 3])
+      6
 
   """
 
@@ -766,7 +1197,14 @@
 (defn partition [collection fun]
   """Partitions `collection` into two collections, where the first one
   contains elements for which `fun` returns a truthy value, and
-  the second one -- for which `fun` returns `:false` or `:nil`."""
+  the second one -- for which `fun` returns `:false` or `:nil`.
+
+  ## Examples
+
+      kapok> (seq.partition [1 2 3] (fn [x] (== (rem [x]) 0)))
+      {[2] [1 3]}
+
+  """
 
   (let [{acc3 acc4} (reduce collection
                             {[] []}
@@ -782,7 +1220,14 @@
   The result is a dict (by default a map) where each key is
   a group and each value is a list of elements from `collection`
   for which `fun` returned that group. Ordering is not necessarily
-  preserved."""
+  preserved.
+
+  ## Examples
+
+      kapok> (seq.group-by ["ant" "buffalo" "cat" "dingo"] (fn string length 1))
+      #{3 => ["cat" "ant"] 7 => ["buffalo"] 5 => ["dingo"]}
+
+  """
 
   ([collection fun]
    (group-by collection #{} fun))
@@ -799,7 +1244,15 @@
 
 (defn reduce
   """Invokes `fun` for each element in the collection passing that element and the
-  accumulator `acc` as arguments."""
+  accumulator `acc` as arguments.`fun`'s return value is stored in `acc`.
+  Returns the accumulator.
+
+  ## Examples
+
+      kapok> (seq.reduce [1 2 3] 0 (fn [x acc] (+ x acc)))
+      6
+
+  """
 
   ([collection acc fun] (&when (list? collection))
    (lists.foldl fun acc collection))
@@ -822,7 +1275,14 @@
   """Invokes `fun` for each element in the collection passing that element
   and the accumulator `acc` as arguments. `fun`'s return value is stored
   in `acc`. The first element of the collection is used as the initial value
-  of `acc`. Returns the accumulator."""
+  of `acc`. Returns the accumulator.
+
+  ## Examples
+
+      kapok> (seq.reduce [1 2 3 4] (fn [x acc] (* x acc)))
+      24
+
+  """
 
   ([[h & t] fun]
    (reduce t h fun))
@@ -846,8 +1306,13 @@
         acc)))))
 
 (defn reject
-  """Returns elements of `collection` for which `fun` returns
-  `:false` or `:nil`."""
+  """Returns elements of `collection` for which `fun` returns `:false` or `:nil`.
+
+  ## Examples
+
+      kapok> (seq.reject [1 2 3] (fn [x] (== (rem x 2) 0)))
+
+  """
 
   ([collection fun] (&when (list? collection))
    (lists.filter (fn [x] (not (fun x)))
@@ -860,7 +1325,14 @@
        lists.reverse)))
 
 (defn reverse
-  """Reverses the collection."""
+  """Reverses the collection.
+
+  ## Exmaples
+
+      kapok> (seq.reverse [1 2 3])
+      [3 2 1]
+
+  """
 
   ([collection] (&when (list? collection))
    (lists.reverse collection))
@@ -869,7 +1341,15 @@
    (reverse collection [])))
 
 (defn reverse
-  """Reverses the collection and appends the tail."""
+  """Reverses the collection and appends the tail.
+  This is an optimization for `(seq.concat (seq.reverse collection) tail)`.
+
+  ## Examples
+
+      kapok> (seq.reverse [1 2 3] [4 5 6])
+      [3 2 1 4 5 6]
+
+  """
 
   ([collection tail] (&when (&and (list? collection)
                                   (list? tail)))
@@ -886,7 +1366,15 @@
   """Reverses the collection in the range from initial position `start`
   through `count` elements. If `count` is greater than the size of
   the rest of the collection, then this function will reverse the rest
-  of the collection."""
+  of the collection.
+
+  ## Examples
+
+      kapok> (seq.reverse-slice [1 2 3 4 5 6] 2 4)
+      [1 2 6 5 4 3]
+
+  """
+
   (let [list (reverse collection)
         length (length list)
         count1 (min count (- length start))]
@@ -898,7 +1386,27 @@
   """Returns a random element of a collection.
   Raises `empty-error` if the collection is empty.
 
-  ;; TODO add docs and examples
+  Notice that you need to explicitly call `(#random.seed 1)` and
+  set a seed value for the random algorithm. Otherwise, the
+  default seed will be set which will always return the same
+  result. For example, one could do the following to set a seed
+  dynamically:
+
+      (#random.seed (#os.timestamp))
+
+  The implementation is based on the
+  [reservoir sampling](http://en.wikipedia.org/wiki/Reservoir_sampling#Relation_to_Fisher-Yates_shuffle)
+  algorithm.
+  It assumes that the sample being returned can fit into memory;
+  the input collection doesn't have to - it is traversed just once.
+
+  ## Examples
+
+      kapok> (seq.random [1 2 3])
+      1
+
+      kapok> (seq.random [1 2 3])
+      2
 
   """
 
@@ -909,24 +1417,37 @@
      e)))
 
 (defn random
-  """Returns a random sublist of a collection."""
+  """Returns a random sublist of a collection.
+
+  Notice this function will traverse the whole collection to
+  get the random sublist of collection. If you want the random
+  number between two integers, the best option is to use the
+  #random module.
+
+  See `(random 1)` for notes on implementation and random seed.
+
+  ## Examples
+
+      kapok> (seq.random (integer.range 1 10) 2)
+      [1 5]
+
+      kapok> (seq.random (integer.range $a $z) 5)
+      #'tfesm'
+
+  """
 
   ([collection count] (&when (> count 0))
-   ;; TODO
    (let [sample (tuple.duplicate :nil count)
-                reducer (fn [x {i sample0}]
-                          (let [j (random-index i)]
-                            (if (< i count)
-                                (let [swapped (elem sample j)]
-                                  {(inc i)
-                                   (-> sample0
-                                       (set-elem i swapped)
-                                       (set-elem j x))})
-                              (if (< j count)
-                                  {(inc i)
-                                   (-> sample0
-                                       (set-elem j x))}))))
-                {n sample1} (reduce collection {0 sample} reducer)]
+         reducer (fn [x {i sample0}]
+                   (let [j (random-index i)]
+                     (if (< i count)
+                         (let [swapped (elem sample0 j)]
+                           {(inc i) (-> sample0
+                                        (set-elem i swapped)
+                                        (set-elem j x))})
+                       {(inc i) (if (< j count)
+                                    (set-elem sample0 j x))})))
+         {n sample1} (reduce collection {0 sample} reducer)]
      (-> sample1
          tuple.to-list
          (take (min count n)))))
@@ -937,7 +1458,14 @@
 (defn scan [seq fun]
   """Applies the given function to each element in the collection,
   storing the result in a list and passing it as the accumulator
-  for the next computation."""
+  for the next computation.
+
+  ## Examples
+
+      kapok> (seq.scan (integer.range 1 5) (fn [x y] (+ x y)))
+      [1 3 6 10 15]
+
+  """
 
   (let [{res _} (reduce seq
                         {[] #first}
@@ -947,14 +1475,39 @@
 (defn scan [seq acc fun]
   """Applies the given function to each element in the collection,
   storing the result in a list and passing it as the accumulator
-  for the next computation. Uses the given `acc` as the staring value."""
+  for the next computation. Uses the given `acc` as the staring value.
+
+  ## Examples
+
+      kapok> (seq.scan (integer.range 1 5) 0 (fn [x y] (+ x y)))
+      [1 3 6 10 15]
+
+  """
   (let [{res _} (reduce seq
                         {[] acc}
                         (reducers.scan-3 fun))]
     (lists.reverse res)))
 
 (defn shuffle [collection]
-  """Returns a list of collection elements shuffled."""
+  """Returns a list of collection elements shuffled.
+
+  Notice that you need to explicitly call `(#random:seed 1)` and
+  set a seed value for the random algorithm. Otherwise, the
+  default seed will be set which will always return the same
+  result. For example, one could do the following to set a seed
+  dynamically:
+
+      (#random.seed (#os.timestamp))
+
+  ## Examples
+
+      kapok> (seq.shuffle [1 2 3])
+      [3 2 1]
+
+      kapok> (seq.shuffle [1 2 3])
+      [3 1 2]
+
+  """
   (let [randomized (reduce collection
                            []
                            (fn [x acc]
@@ -966,7 +1519,20 @@
   until element position `start` , then takes `count` elements.
 
   If the count is greater than collection length, it returns as
-  much as possible. If zero, then it returns `[]`."""
+  much as possible. If zero, then it returns `[]`.
+
+  ## Examples
+
+      kapok> (seq.slice (integer.range 1 100) 5 10)
+      [6 7 8 9 10 11 12 13 14 15]
+
+      kapok> (seq.slice (integer.range 1 10) 5 100)
+      [6 7 8 9 10]
+
+      kapok> (seq.slice (integer.range 1 10) 5 0)
+      []
+
+  """
 
   ([_collection _start 0]
    [])
@@ -1000,7 +1566,14 @@
 (defn sort
   """Sorts the collection according to Kapok's term orderng.
 
-  Uses the merge sort algorithm."""
+  Uses the merge sort algorithm.
+
+  ## Examples
+
+      kapok> (seq.sort [3 2 1])
+      [1 2 3]
+
+  """
 
   ([collection] (&when (list? collection))
    (lists.sort collection))
@@ -1012,7 +1585,28 @@
   """Sorts the collection by the given function.
 
   This function uses the merge sort algorithm. The given function
-  must return `:false` if the first argument is less than right one."""
+  must return `:false` if the first argument is less than right one.
+
+  ## Examples
+
+      kapok> (seq.sort [1 2 3] (fn [x y] (> x y)))
+      [3 2 1]
+
+  The sorting algorithm will be stable as long as the given function
+  returns `:true` for values considered equal:
+
+      kapok> (seq.sort ["some" "kind" "of" "monster"]
+                       (fn [x y] (<= (byte-size x) (byte-size y))))
+      ["of" "some" "kind" "monster"]
+
+  If the function does not return `:true` for equal values, the sorting
+  is not stable and the order of equal terms may be shuffled:
+
+      kapok> (seq.sort ["some" "kind" "of" "monster"]
+                       (fn [x y] (< (byte-size x) (byte-size y))))
+      ["of" "kind" "some" "monster"]
+
+  """
 
   ([collection fun] (&when (list? collection))
    (lists.sort fun collection))
@@ -1025,8 +1619,7 @@
        (sort-terminator fun))))
 
 (defn sort-by [collection mapper &optional (sorter (fn core <= 2))]
-  """Sorts the mapped results of the `collection` according to
-  the `sorter` function.
+  """Sorts the mapped results of the `collection` according to the `sorter` function.
 
   This function maps each element of the collection using the `mapper`
   function. The collection is then sorted by the mapped elements using
@@ -1035,7 +1628,31 @@
   `(sort-by 3)` differs from `(sort 2)` in that it only calculates the
   comparison value for each element in the collection once instead of
   once for each element in each comparison. If the same function is
-  being called on both element, it's also more compact to use `(sort-by 3)`."""
+  being called on both element, it's also more compact to use `(sort-by 3)`.
+
+  This technique is also known as a
+  [Schwartzian Transform](https://en.wikipedia.org/wiki/Schwartzian_transform),
+  or the Lisp decorate-sort-undecorate idiom as the `mapper` is decorating the
+  original `collection`, then `sorter` is sorting the decorations, and finally
+  the `collection` is being undecorated so only the original elements remain,
+  but now in sorted order.
+
+  ## Examples
+
+  Using the default `sorter` of `(<= 2)`:
+
+      kapok> (seq.sort-by ["some" "kind" "of" "monster"]
+                          (fn core byte-size 1))
+      ["of" "some" "kind" "monster"]
+
+  Using a custom `sorter` to override the order:
+
+      kapok> (seq.sort-by ["some" "kind" "of" "monster"]
+                          (fn core byte-size 1)
+                          (fn core >= 2))
+      ["monster" "some" "kind" "of"]
+
+  """
 
   (-> collection
       (map (fn [x] {x (mapper x)}))
@@ -1048,8 +1665,27 @@
   it starts counting from the back to the beginning of the collection.
 
   Be aware that a negative `count` implies the collcetion
-  will be enumerated twice: once to calculate the posittion, and
-  a second time to do the actual splitting."""
+  will be traversed twice: once to calculate the posittion, and
+  a second time to do the actual splitting.
+
+  ## Examples
+
+      kapok> (seq.split [1 2 3] 2)
+      {[1 2] [3]}
+
+      kapok> (seq.split [1 2 3] 10)
+      {[1 2 3] []}
+
+      kapok> (seq.split [1 2 3] 0)
+      {[] [1 2 3]}
+
+      kapok> (seq.split [1 2 3] -1)
+      {[1 2] [3]}
+
+      kapok> (seq.split [1 2 3] -5)
+      {[] [1 2 3]}
+
+  """
 
   ([collection count] (&when (&and (list? collection)
                                    (>= count 0)))
@@ -1069,7 +1705,14 @@
 
 (defn split-while
   """Splits `collection` in two at the position of the element for which
-  `fun` returns `false` for the first time."""
+  `fun` returns `false` for the first time.
+
+  ## Examples
+
+      kapok> (seq.split-while [1 2 3 4] (fn [x] (< x 3)))
+      {[1 2] [3 4]}
+
+  """
 
   ([collection fun] (&when (list? collection))
    (do-split-while collection fun []))
@@ -1090,9 +1733,26 @@
   """Takes the first `count` items from the collection.
 
   `count` must be an integer. If a negative `count` is given, the last `count`
-  values will be taken. For such, the collection is fully enumerated keeping up
+  values will be taken. For such, the collection is fully traversed keeping up
   to `2 * count` elements in memery. Once the end of the collection is reached,
-  the last `count` elements are returned."""
+  the last `count` elements are returned.
+
+  ## Examples
+
+      kapok> (seq.take [1 2 3] 2)
+      [1 2]
+
+      kapok> (seq.take [1 2 3] 10)
+      [1 2 3]
+
+      kapok> (seq.take [1 2 3] 0)
+      []
+
+      kapok> (seq.take [1 2 3] -1)
+      [3]
+
+  """
+
   ([_collection 0]
    [])
 
@@ -1134,7 +1794,14 @@
   starting with the first element.
 
   The second argument specifying every `nth` item must be
-  a non-negative integer."""
+  a non-negative integer.
+
+  ## Examples
+
+      kapok> (seq.take-every (integer.range 1 10) 2)
+      [1 3 5 7 9]
+
+  """
 
   ([_collection 0]
    [])
@@ -1150,8 +1817,14 @@
      (lists.reverse res))))
 
 (defn take-while
-  """Takes the items from the beginning of `collection` while
-  `fun` returns a truthy value."""
+  """Takes the items from the beginning of `collection` while `fun` returns a truthy value.
+
+  ## Examples
+
+      kapok> (seq.take-while [1 2 3] (fn [x] (< x 3)))
+      [1 2]
+
+  """
 
   ([collection fun] (&when (list? collection))
    (do-take-while collection fun))
@@ -1166,7 +1839,14 @@
      (lists.reverse res))))
 
 (defn to-list
-  """Converts `collection` to a list."""
+  """Converts `collection` to a list.
+
+  ## Examples
+
+      kapok> (seq.to-list {1 2 3})
+      [1 2 3]
+
+  """
 
   ([collection] (&when (list? collection))
    collection)
@@ -1175,7 +1855,15 @@
    (lists.reverse (reverse collection))))
 
 (defn uniq [collection]
-  """Traverse the collection, removing all duplicated elements."""
+  """Traverse the collection, removing all duplicated elements.
+
+  ## Examples
+
+      kapok> (-> (seq.uniq [1 2 3 3 2 1])
+                 (seq.to-list))
+      [1 2 3]
+
+  """
 
   (uniq-by collection (fn [x] x)))
 
@@ -1197,7 +1885,14 @@
 
 (defn usort
   """Sorts the collection, eliminating duplicate elements (one element is kept
-  from each group of duplicates)."""
+  from each group of duplicates).
+
+  ## Examples
+
+      kapok> (seq.usort [5 1 2 3 2 1])
+      [1 2 3 5]
+
+  """
 
   ([collection] (&when (list? collection))
    (lists.sort collection))
@@ -1212,7 +1907,14 @@
   from each group of duplicates).
 
   The function `fun` maps every element to a term which is used to
-  sort and dedup by."""
+  sort and dedup by.
+
+  ## Examples
+
+      kapok> (seq.usort-by [5 1 2 3 2 1] (fn [x] (> x 2)))
+      [1 5]
+
+  """
 
   (-> collection
       (sort-by fun)
@@ -1224,7 +1926,17 @@
   of each tuple, respectively.
 
   This function fails unless `collection` is or can be converted into a list of
-  tuples with *exactly* two elements in each tuple."""
+  tuples with *exactly* two elements in each tuple.
+
+  ## Examples
+
+      kapok> (seq.unzip [{#a 1} {#b 2} {#c 3}])
+      {[#a #b #c] [1 2 3]}
+
+      kapok> (seq.unzip #{#a 1 #b 2})
+      {[#a #b] [1 2]}
+
+  """
 
   (let [{list3 list4} (reduce collection
                               {[] []}
@@ -1236,7 +1948,17 @@
   """Zips corresponding elements from two collections into one list
   of tuples.
 
-  The zipping finishes as soon as any sequential completes."""
+  The zipping finishes as soon as any sequential completes.
+
+  ## Examples
+
+      kapok> (seq.zip [1 2 3] [#a #b #c])
+      [{1 #a} {2 #b} {3 #c}]
+
+      kapok> (seq.zip [1 2 3 4 5] [#a #b #c])
+      [{1 #a} {2 #b} {3 #c}]
+
+  """
 
   ([collection1 collection2] (&when (&and (list? collection1)
                                           (list? collection2)))
@@ -1248,7 +1970,14 @@
 
 (defn with-index [collection]
   """Returns the collection with each element wrapped in a tuple
-  alongside its index."""
+  alongside its index.
+
+  ## Examples
+
+      kapok> (seq.with-index [1 2 3])
+      [{1 0} {2 1} {3 2}]
+
+  """
 
   (-> (map-reduce collection
                   0
@@ -1383,14 +2112,13 @@
             (fun acc {#cont x})))))
 
 (defn- into [collection initial fun callback]
-  (case
-      (try (reduce collection initial callback)
-        (catch
-          ((kind reason)
-           (let [stacktrace (erlang.get_stacktrace)]
-             (fun initial #halt)
-             (erlang.raise kind reason stacktrace)))))
-    (acc (fun acc #done))))
+  (try (reduce collection initial callback)
+       ((acc (fun acc #done)))
+    (catch
+      ((kind reason)
+       (let [stacktrace (erlang.get_stacktrace)]
+         (fun initial #halt)
+         (erlang.raise kind reason stacktrace))))))
 
 ;; reverse-slice
 
@@ -1657,23 +2385,3 @@
   (defn count [map]
     {#ok (map-size map)}))
 
-;; TODO
-
-;; (defprotocol seq
-;;   "A protocol for sequence."
-
-;;   ;; clojure seq protocol
-
-;;   (defn first [self]
-;;     "Returns the first item in the collection.")
-
-;;   (defn rest [self]
-;;     "Returns a possibly empty seq of the items after the first.")
-
-;;   (defn next [self]
-;;     """Returns a seq of the items after the first.
-;;     If there are no more items, returns nil.""")
-
-;;   ;; elixir enum protocol
-
-;;   )
