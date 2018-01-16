@@ -7,6 +7,7 @@
          scan/3,
          scan/4,
          format_error/1]).
+-import(kapok_utils, [meta_line/1, meta_column/1]).
 -include("kapok.hrl").
 
 -type category() :: atom().
@@ -76,9 +77,8 @@ scan([], Line, Column, #kapok_scanner_scope{terminators=[]}, Tokens) ->
   {ok, lists:reverse(Tokens), build_meta(Line, Column)};
 
 %% terminator missing
-scan([], EndLine, Column,
-     #kapok_scanner_scope{terminators=[{Open, {{OpenLine, _} ,_}}|_]},
-     Tokens) ->
+scan([], EndLine, Column, #kapok_scanner_scope{terminators=[{Open, Meta}|_]}, Tokens) ->
+  OpenLine = meta_line(Meta),
   Close = terminator(Open),
   {error, {{EndLine, Column}, ?MODULE, {missing_terminator, Close, Open, OpenLine}}, [],
    lists:reverse(Tokens)};
@@ -655,14 +655,15 @@ check_terminator({C, _}, [{O, _}|Terminators])
          O == '#{', C == '}';
          O == '<<', C == '>>' ->
   Terminators;
-check_terminator({C, {Line, Column}}, [{Open, {{OpenLine, _}, _}}|_])
+check_terminator({C, CMeta}, [{Open, OpenMeta}|_])
     when C == ')'; C == ']'; C == '}'; C == '>>' ->
+  OpenLine = meta_line(OpenMeta),
   Close = terminator(Open),
-  {error, {{Line, Column}, ?MODULE,
+  {error, {{meta_line(CMeta), meta_column(CMeta)}, ?MODULE,
            {missing_collection_terminator, atom_to_list(C), Open, OpenLine, Close}}};
-check_terminator({C, {Line, Column}}, [])
+check_terminator({C, Meta}, [])
     when C == ')'; C == ']'; C == '}'; C == '>>' ->
-  {error, {{Line, Column}, ?MODULE, {unexpected_token, atom_to_list(C)}}};
+  {error, {{meta_line(Meta), meta_column(Meta)}, ?MODULE, {unexpected_token, atom_to_list(C)}}};
 check_terminator(_, Terminators) ->
   Terminators.
 
@@ -692,7 +693,7 @@ token_text(Token) ->
 %% Error
 
 format_error({missing_terminator, Close, Open, OpenLine}) ->
-  io_lib:format("missing terminator: ~ts (for ~ts opening at line ~B)", [Close, Open, OpenLine]);
+  io_lib:format("missing terminator: \"~ts\" (for \"~ts\" opening at line ~B)", [Close, Open, OpenLine]);
 format_error({invalid_n_base_char, Char, Base, Line}) ->
   io_lib:format("invalid char: ~tc for ~B-base number at line ~B", [Char, Base, Line]);
 format_error({invalid_eof, escape}) ->
