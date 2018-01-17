@@ -646,7 +646,7 @@
                    #module module
                    #function function
                    #arity arity}]
-    (let [<<("nil.") (fa)>> (exception.format-mfa :nil function arity)]
+    (let [<< "nil." fa >> (exception.format-mfa :nil function arity)]
       (fmt "undefined function: ~s (function ~s is not available)"
            [(exception.format-mfa module function arity)
             fa]))))

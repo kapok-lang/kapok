@@ -201,14 +201,14 @@
 
 (defn- parse-in-base
 
-  ([<< ($-) (bin) >> base] (&when (binary? bin))
+  ([<< $- bin >> base] (&when (binary? bin))
    (case (do-parse bin base)
      (#error
       #error)
      ({number remainder}
       {(- number) remainder})))
 
-  ([<< ($+) (bin) >> base] (&when (binary? bin))
+  ([<< $+ bin >> base] (&when (binary? bin))
    (do-parse bin base))
 
   ([bin base] (&when (binary? bin))
@@ -218,7 +218,7 @@
 
 (defn- do-parse
 
-  ([<< (char) (bin) >> base] (&when (binary? bin))
+  ([<< char bin >> base] (&when (binary? bin))
    (if (valid-digit-in-base? char base)
        (do-parse bin base (parse-digit char base))
      #error))
@@ -226,10 +226,10 @@
   ([_ _]
    #error)
 
-  ([<< (char) (rest) >> base acc] (&when (binary? rest))
+  ([<< char rest >> base acc] (&when (binary? rest))
    (if (valid-digit-in-base? char base)
        (do-parse rest base (+ (* base acc) (parse-digit char base)))
-     {acc << (char) (rest) >>}))
+     {acc << char rest >>}))
 
   ([bitstring _ acc]
    {acc bitstring})

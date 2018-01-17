@@ -114,15 +114,15 @@ world!")))
                  (erlang.list_to_binary #"hello")))
     (assert (=== <<"hello">>
                  (erlang.list_to_binary #"hello")))
-    (assert (=== <<(104), (101), (108), (108) (111)>>
+    (assert (=== <<$h $e $l $l $o>>
                  (erlang.list_to_binary #"hello")))
-    (assert (=== <<(104 (:size 8)) (101 (:size 8)) (108 (:size 8)) (108 (:size 8)) (111 (:size 8))>>
+    (assert (=== <<($h (:size 8)) ($e (:size 8)) ($l (:size 8)) ($l (:size 8)) ($o (:size 8))>>
                  (erlang.list_to_binary #"hello")))
-    (assert (=== <<(104 (:size 8) :little :unsigned :integer (:unit 1))
-                   (101 (:size 8) :little :unsigned :integer (:unit 1))
-                   (108 (:size 8) :little :unsigned :integer (:unit 1))
-                   (108 (:size 8) :little :unsigned :integer (:unit 1))
-                   (111 (:size 8) :little :unsigned :integer (:unit 1))>>
+    (assert (=== <<($h (:size 8) :little :unsigned :integer (:unit 1))
+                   ($e (:size 8) :little :unsigned :integer (:unit 1))
+                   ($l (:size 8) :little :unsigned :integer (:unit 1))
+                   ($l (:size 8) :little :unsigned :integer (:unit 1))
+                   ($o (:size 8) :little :unsigned :integer (:unit 1))>>
                  (erlang.list_to_binary #"hello")))
     ;; list
     ;; literal list

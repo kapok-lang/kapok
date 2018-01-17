@@ -224,7 +224,7 @@
       kapok> (bit-size <<(433 (:size 16)) (3 (:size 3))>>)
       19
 
-      kapok> (bit-size <<1 2 3>>)
+      kapok> (bit-size << 1 2 3 >>)
       24
 
   """
@@ -244,7 +244,7 @@
       kapok> (byte-size <<(433 (:size 16)) (3 (:size 3))>>)
       3
 
-      kapok> (byte-size <<1 2 3>>)
+      kapok> (byte-size << 1 2 3 >>)
       3
 
   """

@@ -37,7 +37,7 @@
                   (<<"">>
                    <<(h :binary)>>)
                   (_
-                   <<(acc :binary) (".") (h :binary)>>))]
+                   <<(acc :binary) "." (h :binary)>>))]
     (do-concat t new-acc)))
 
 (defn- do-concat [[] acc]

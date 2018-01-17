@@ -75,7 +75,7 @@
 (defn- do-read-all [mapped-dev acc]
   (case (io.get_line mapped-dev "")
     (line (&when (binary? line))
-     (do-read-all mapped-dev <<(acc) (line)>>))
+     (do-read-all mapped-dev << acc line >>))
     (#eof acc)
     (other other)))
 
@@ -119,7 +119,7 @@
 (defn- do-binread-all [mapped-dev acc]
   (case (file.read_line mapped-dev)
     ({#ok data}
-     (do-binread-all mapped-dev <<(acc) (data)>>))
+     (do-binread-all mapped-dev << acc data >>))
     (#eof acc)
     (other other)))
 
@@ -286,15 +286,15 @@
 
   ## Examples
 
-      kapok> (let [bin1 <<(1) (2) (3)>>
-                   bin2 <<(4) (5)>>
-                   bin3 <<(6)>>]
+      kapok> (let [bin1 << 1 2 3 >>
+                   bin2 << 4 5 >>
+                   bin3 << 6 >>]
                (io.iodata-to-binary [bin1 1 [2 3 bin2] 4 & bin3]))
       <<1 2 3 1 2 3 4 5 4 6>>
 
-      kapok> (let [bin <<(1) (2) (3)>>]
+      kapok> (let [bin << 1 2 3 >>]
                (io.iodata-to-binary bin))
-      <<1 2 3>>
+      << 1 2 3 >>
 
   """
   (erlang.iolist_to_binary item))
@@ -306,7 +306,7 @@
 
   ## Examples
 
-      kapok> (io.iodata-length [1 2 & <<(3) (4)>>])
+      kapok> (io.iodata-length [1 2 & << 3 4 >>])
       4
 
   """

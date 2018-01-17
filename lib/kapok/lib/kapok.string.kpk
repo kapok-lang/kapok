@@ -26,15 +26,15 @@
   """
   (printable? t))
 
-(defn printable? [<<($\n) (t :binary)>>] (printable? t)) ;; NL  (line feed, new line)
-(defn printable? [<<($\r) (t :binary)>>] (printable? t)) ;; CR  (carriage return)
-(defn printable? [<<($\t) (t :binary)>>] (printable? t)) ;; TAB (horizontal tab)
-(defn printable? [<<($\v) (t :binary)>>] (printable? t)) ;; VT  (vertical tab)
-(defn printable? [<<($\b) (t :binary)>>] (printable? t)) ;; BS  (backspace)
-(defn printable? [<<($\f) (t :binary)>>] (printable? t)) ;; FF  (formfeed)
-(defn printable? [<<($\e) (t :binary)>>] (printable? t)) ;; ESC (escape)
-(defn printable? [<<($\d) (t :binary)>>] (printable? t)) ;; DEL (delete)
-(defn printable? [<<($\a) (t :binary)>>] (printable? t)) ;; BEL (bell)
+(defn printable? [<< $\n (t :binary) >>] (printable? t)) ;; NL  (line feed, new line)
+(defn printable? [<< $\r (t :binary) >>] (printable? t)) ;; CR  (carriage return)
+(defn printable? [<< $\t (t :binary) >>] (printable? t)) ;; TAB (horizontal tab)
+(defn printable? [<< $\v (t :binary) >>] (printable? t)) ;; VT  (vertical tab)
+(defn printable? [<< $\b (t :binary) >>] (printable? t)) ;; BS  (backspace)
+(defn printable? [<< $\f (t :binary) >>] (printable? t)) ;; FF  (formfeed)
+(defn printable? [<< $\e (t :binary) >>] (printable? t)) ;; ESC (escape)
+(defn printable? [<< $\d (t :binary) >>] (printable? t)) ;; DEL (delete)
+(defn printable? [<< $\a (t :binary) >>] (printable? t)) ;; BEL (bell)
 
 (defn printable? [<<>>]
   :true)
@@ -131,8 +131,8 @@
   [binary])
 (defn- split-codepoints [<<(h :utf8) (t :binary)>> count trim]
   [<<(h :utf8)>> & (split-codepoints t (dec count) trim)])
-(defn- split-codepoints [<<(h) (t :binary)>> count trim]
-  [<<(h)>> & (split-codepoints t (dec count) trim)])
+(defn- split-codepoints [<< h (t :binary) >> count trim]
+  [<< h >> & (split-codepoints t (dec count) trim)])
 (defn- split-codepoints [<<>> _ :true]
   [])
 (defn- split-codepoints [<<>> _ :false]

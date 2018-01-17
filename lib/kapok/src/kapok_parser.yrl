@@ -128,9 +128,7 @@ unquote_splicing_expr -> unquote_splicing identifier : build_unquote_splicing('$
 
 %% Bitstring
 
-%% TODO improve the error message `syntax error before: ...` if `bitstring_arg` is not a list.
-bitstring_arg        -> number : build_bitstring_element('$1').
-bitstring_arg        -> list_collection : '$1'.
+bitstring_arg        -> value : build_bitstring_element('$1').
 commas_bitstring_arg -> bitstring_arg  : '$1'.
 commas_bitstring_arg -> ',' bitstring_arg  : '$2'.
 bitstring_arg_list   -> bitstring_arg : ['$1'].
@@ -234,13 +232,20 @@ binary_to_atom_op(false) -> binary_to_atom.
 build_dot(Dot, Left, Right) ->
   {dot, token_meta(Dot), {Left, Right}}.
 
+build_bitstring_element({number, Meta, _} = Token) ->
+  {list, Meta, [Token]};
+
+build_bitstring_element({Category, Meta, _} = Token) when ?is_string(Category) ->
+  {list, Meta, [Token]};
+
+build_bitstring_element({identifier, Meta, _} = Token) ->
+  {list, Meta, [Token]};
+
+build_bitstring_element({list, _, _} = Token) ->
+  Token;
+
 build_bitstring_element(Token) ->
-  Symbol = token_symbol(Token),
-  E = case is_integer(Symbol) of
-        true -> Symbol;
-        false -> throw_invalid_bitstring_element(Token)
-      end,
-  {list, token_meta(Token), [E]}.
+  throw_invalid_bitstring_element(Token).
 
 build_bitstring(Marker, Args) ->
   {bitstring, token_meta(Marker), Args}.

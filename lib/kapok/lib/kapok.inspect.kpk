@@ -70,12 +70,12 @@
       inspect [a]
     (let [binary (atom.to-string a)]
       (cond
-        (valid-atom-identifier? binary) <<(":") (binary :binary)>>
-        :true <<($:) ($') ((inspect.bitstring.escape binary $") :binary) ($')>>)))
+        (valid-atom-identifier? binary) << ":" (binary :binary) >>
+        :true << $: $' ((inspect.bitstring.escape binary $") :binary) $' >>)))
 
   ;; Detect if atom is an simple atom which consists of identifier characters
   ;; (no need to quote).
-  (defn- valid-atom-identifier? [<<(h) (t :binary)>>] (&when (char.identifier-char? h))
+  (defn- valid-atom-identifier? [<< h (t :binary) >>] (&when (char.identifier-char? h))
     (valid-atom-identifier? t))
 
   (defn- valid-atom-identifier? [<<>>]
@@ -95,7 +95,7 @@
     (if (or (== bins #as_strings)
             (and (== bins #infer)
                  (string.printable? thing)))
-        <<($") ((escape thing $") :binary) ($")>>
+        << $" ((escape thing $") :binary) $" >>
       (inspect-bitstring thing opts)))
 
   (defn inspect [thing opts]
@@ -106,30 +106,30 @@
   (defn escape [other char]
     (escape other char <<>>))
 
-  (defn- escape [<< (char) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) (char) >>))
-  (defn- escape [<< ($#) (${) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($#) (${) >>))
-  (defn- escape [<< ($\a) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($a) >>))
-  (defn- escape [<< ($\b) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($b) >>))
-  (defn- escape [<< ($\d) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($d) >>))
-  (defn- escape [<< ($\e) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($e) >>))
-  (defn- escape [<< ($\f) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($f) >>))
-  (defn- escape [<< ($\n) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($n) >>))
-  (defn- escape [<< ($\r) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($r) >>))
-  (defn- escape [<< ($\\) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($\\) >>))
-  (defn- escape [<< ($\t) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($t) >>))
-  (defn- escape [<< ($\v) (t :binary) >> char binary]
-    (escape t char << (binary :binary) ($\\) ($v) >>))
+  (defn- escape [<< char (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ char >>))
+  (defn- escape [<< $# ${ (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $# ${ >>))
+  (defn- escape [<< $\a (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $a >>))
+  (defn- escape [<< $\b (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $b >>))
+  (defn- escape [<< $\d (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $d >>))
+  (defn- escape [<< $\e (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $e >>))
+  (defn- escape [<< $\f (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $f >>))
+  (defn- escape [<< $\n (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $n >>))
+  (defn- escape [<< $\r (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $r >>))
+  (defn- escape [<< $\\ (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $\\ >>))
+  (defn- escape [<< $\t (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $t >>))
+  (defn- escape [<< $\v (t :binary) >> char binary]
+    (escape t char << (binary :binary) $\\ $v >>))
   (defn- escape [<< (h :utf8) (t :binary) >> char binary]
     (let [head <<(h :utf8)>>]
      (if (string.printable? head)
@@ -137,28 +137,28 @@
        (let [<< (byte (:size 8)) (h :binary) >> head
              t1 << (h :binary) (t :binary) >>]
          (escape t1 char << (binary :binary) ((escape-char byte) :binary) >>)))))
-  (defn- escape [<< (h) (t :binary) >> char binary]
+  (defn- escape [<< h (t :binary) >> char binary]
     (escape t char << (binary :binary) ((escape-char h) :binary) >>))
   (defn- escape [<< >> _char binary]
     binary)
 
   ;; Also used by Regex
   (defn- escape-char [0]
-    <<($\\) ($0)>>)
+    << $\\ $0 >>)
 
   (defn- escape-char [char] (&when (< char 0x100))
     (let [<<(a (:size 4)) (b (:size 4))>> <<(char (:size 8))>>]
-     <<($\\) ($x) ((to-hex a)) ((to-hex b))>>))
+     << $\\ $x ((to-hex a)) ((to-hex b)) >>))
 
   (defn- escape-char [char] (&when (< char 0x10000))
     (let [<<(a (:size 4))
             (b (:size 4))
             (c (:size 4))
             (d (:size 4))>> <<(char (:size 16))>>]
-     <<($\\) ($x) (${) ((to-hex a))
-                       ((to-hex b))
-                       ((to-hex c))
-                       ((to-hex d)) ($})>>))
+     << $\\ $x ${ ((to-hex a))
+                  ((to-hex b))
+                  ((to-hex c))
+                  ((to-hex d)) $} >>))
 
   (defn- escape-char [char] (&when (< char 0x1000000))
     (let [<<(a (:size 4))
@@ -167,41 +167,41 @@
             (d (:size 4))
             (e (:size 4))
             (f (:size 4))>> <<(char (:size 24))>>]
-     <<($\\) ($x) (${) ((to-hex a))
-                       ((to-hex b))
-                       ((to-hex c))
-                       ((to-hex d))
-                       ((to-hex e))
-                       ((to-hex f)) ($})>>))
+     << $\\ $x ${ ((to-hex a))
+                  ((to-hex b))
+                  ((to-hex c))
+                  ((to-hex d))
+                  ((to-hex e))
+                  ((to-hex f)) $} >>))
 
   (defn- to-hex [c] (&when (&and (>= c 0) (<= c 9)))
     (+ c $0))
   (defn- to-hex [c] (&when (&and (>= c 10) (<= c 15)))
     (+ (- c 10) $A))
 
-  (defn- append [<<(h) (t :binary)>> binary]
-    (append t <<(binary :binary) (h)>>))
+  (defn- append [<< h (t :binary) >> binary]
+    (append t << (binary :binary) h >>))
   (defn- append [<<>> binary]
     binary)
 
   ;; Bitstrings
 
   (defn- inspect-bitstring [bitstring opts]
-    << ((each-bit bitstring (access.get opts #limit) "<<")) (">>") >>)
+    << ((each-bit bitstring (access.get opts #limit) "<<")) ">>" >>)
 
   (defn- each-bit [_ 0 acc]
-    << (acc) (" ...") >>)
+    << acc " ..." >>)
 
-  (defn- each-bit [<<(h) (t :bitstring)>> counter acc] (&when (!= t <<>>))
-    (each-bit t (decrement counter) <<(acc) ("(") ((integer.to-string h)) (") ")>>))
+  (defn- each-bit [<< h (t :bitstring)>> counter acc] (&when (!= t <<>>))
+    (each-bit t (decrement counter) << acc "(" ((integer.to-string h)) ") " >>))
 
   (defn- each-bit [<<(h (:size 8))>> _counter acc]
-    << (acc) ((integer.to-string h)) >>)
+    << acc ((integer.to-string h)) >>)
 
   (defn- each-bit [bitstring _counter acc]
     (let [size (bit-size bitstring)
           <<(h (:size size))>> bitstring]
-     << (acc) ("(") ((integer.to-string h)) (" (:size ") ((integer.to-string size)) ("))")>>))
+     << acc "(" ((integer.to-string h)) " (:size " ((integer.to-string size)) "))" >>))
 
   (defn- decrement [#infinity]
     #infinity)
@@ -230,7 +230,7 @@
       (or (== lists #as_char_lists)
           (and (== lists #infer)
                (printable? thing)))
-        <<($') ((inspect.bitstring.escape (io.chardata-to-string thing) $') :binary) ($')>>
+        << $' ((inspect.bitstring.escape (io.chardata-to-string thing) $') :binary) $' >>
       (keyword? thing)
         (surround-many "[" thing "]" opts (fn keyword 2))
       :true
@@ -238,7 +238,7 @@
         (surround-many "[" thing "]" opts (fn kapok.inspect.algebra to-doc 2))))
 
   (defn keyword [{key value} opts]
-    (concat <<((key-to-binary key)) (": ")>> (to-doc value opts)))
+    (concat <<((key-to-binary key)) ": " >> (to-doc value opts)))
 
   (defn keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (atom.to-char-list key)
@@ -254,7 +254,7 @@
 
   (defn- key-to-binary [key]
     (case (inspect.atom.inspect key)
-      (<<("#") (right)>> right)
+      (<< "#" right >> right)
       (other other)))
 
   (defn- printable? [[c & cs]] (&when (&and (integer? c)
@@ -298,7 +298,7 @@
 
   (defn inspect [map name opts]
     (let [map1 (maps.to_list map)]
-      (surround-many << ("#") (name) ("{")>>
+      (surround-many << "#" name "{" >>
                      map1
                      "}"
                      opts
@@ -338,7 +338,7 @@
                    (#binary "2r")
                    (#octal "0")
                    (#hex "0x"))]
-      <<(prefix) (value)>>))
+      << prefix value >>))
 
   )
 
@@ -360,7 +360,7 @@
   (defn
       #{:check_remote_call :false}
       inspect [pid _opts]
-    <<("#PID") ((io.iodata-to-binary (erlang.pid_to_list pid)))>>)
+    << "#PID" ((io.iodata-to-binary (erlang.pid_to_list pid))) >>)
   )
 
 (defimpl kapok.inspect port
@@ -381,7 +381,7 @@
       #{:check_remote_call :false}
       inspect [ref _opts]
     (let [(op-++ #"#ref" rest) (erlang.ref_to_list ref)]
-      <<("#Reference") ((io.iodata-to-binary rest))>>))
+      << "#Reference" ((io.iodata-to-binary rest)) >>))
   )
 
 (defimpl kapok.inspect any

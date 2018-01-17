@@ -27,7 +27,7 @@ build_bitstring_element(Fun, [Arg | Left], Meta, Ctx, Acc) ->
   {V, Size, Types} = extract_element_spec(Arg, Ctx#{context := nil}),
   build_bitstring_element(Fun, Left, Meta, Ctx, Acc, V, Size, Types).
 
-build_bitstring_element(Fun, Args, Meta, Ctx, Acc, V, default, Types) when is_binary(V) ->
+build_bitstring_element(Fun, Args, Meta, Ctx, Acc, {C, _, V}, default, Types) when C == list_string ->
   Element =
     case types_allow_splice(Types, []) of
       true ->
@@ -35,28 +35,20 @@ build_bitstring_element(Fun, Args, Meta, Ctx, Acc, V, default, Types) when is_bi
       false ->
         case types_require_conversion(Types) of
           true ->
-            {bin_element,
-             ?line(Meta),
-             {string, 0, kapok_utils:characters_to_list(V)},
-             default,
-             Types};
+            {bin_element, ?line(Meta), {string, 0, kapok_utils:characters_to_list(V)}, default, Types};
           false ->
             kapok_error:compile_error(
                 Meta,
                 ?m(Ctx, file),
-                "invalid types for literal string in bitstring. Accepted types are: "
+                "invalid types for literal list string in bitstring. Accepted types are: "
                 "little, big, utf8, utf16, utf32, bits, bytes, binary, bitstring")
         end
     end,
   build_bitstring_element(Fun, Args, Meta, Ctx, [Element|Acc]);
 
-build_bitstring_element(_Fun, _Args, Meta, Ctx, _Acc, V, _Size, _Types) when is_binary(V) ->
+build_bitstring_element(_Fun, _Args, Meta, Ctx, _Acc, {C, _, _}, _Size, _Types) when C == list_string ->
   kapok_error:compile_error(Meta, ?m(Ctx, file),
                             "size is not supported for literal string in bitstring");
-
-build_bitstring_element(_Fun, _Args, Meta, Ctx, _Acc, V, _Size, _Types)
-    when is_list(V); is_atom(V) ->
-  kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid literal ~ts in bitstring", [V]);
 
 build_bitstring_element(Fun, Args, Meta, Ctx, Acc, V, Size, Types) ->
   {Expr, TCtx} = Fun(V, Ctx),
