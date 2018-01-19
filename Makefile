@@ -18,7 +18,8 @@ QUIET    := @
 export PATH := $(CURDIR)/bin:$(PATH)
 
 lib_dir                := $(CURDIR)/lib
-lib_names              := $(patsubst $(lib_dir)/%,%,$(wildcard $(lib_dir)/*))
+# sort the libs according to their names to preserve compilation orders
+lib_names              := $(sort $(patsubst $(lib_dir)/%,%,$(wildcard $(lib_dir)/*)))
 other_files            := $(CURDIR)/erl_crash.dump
 
 # strip the CURDIR prefix and get the related path for output absolute path
@@ -259,4 +260,5 @@ test:  $(foreach l,$(lib_names),$(call gen-target,test-,$l))
 clean: $(foreach l,$(lib_names),$(call gen-target,clean-,$l))
 	$(QUIET) $(RM) $(other_files)
 
-$(foreach l,$(lib_names),$(call gen-build-for,$l,build-,test-,clean-))
+# add eval call to expand multiple line definitions of variables and rules
+$(eval $(foreach l,$(lib_names),$(call gen-build-for,$l,build-,test-,clean-)))
