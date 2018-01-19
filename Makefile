@@ -256,7 +256,7 @@ endef
 all: build
 
 build: $(foreach l,$(lib_names),$(call gen-target,build-,$l))
-test:  $(foreach l,$(lib_names),$(call gen-target,test-,$l))
+test:  build $(foreach l,$(lib_names),$(call gen-target,test-,$l))
 clean: $(foreach l,$(lib_names),$(call gen-target,clean-,$l))
 	$(QUIET) $(RM) $(other_files)
 
