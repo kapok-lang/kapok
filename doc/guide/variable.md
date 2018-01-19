@@ -14,23 +14,24 @@ Identifiers are the names which refer to namespaces, functions, variables, etc. 
 Identifier must begin with a non-numeric character, and in addition to any alphanumeric characters, it could contain these characters:
 
 ```text
-! $ % * + - / < = > ? @ _ | ~ & # ^
+! $ % * + - / < = > ? @ ^ _ | ~ & #
 ```
 
 like symbols in other Lisp dialects, the valid characters for identifiers are far more than non-Lisp language. For example, valid characters for identifiers in Python could only contain alphanumeric characters and underscore. Notice that the last a few characters are preserved for some other keywords or literal types, as listed below:
 
-```clojure
-~ ~@                    ;; is macro unquote, unquote splicing keyword
-&optional &rest &key    ;; function argument specification
-#"string"               ;; list string
-#'atom' #atom           ;; atom
-```
 
-It would not work using `~ & #` as the start of an identifier. But you could use them in any position after the first char in an identifier, as long as it would not cause confusion with the preserved literal types.
+| preserved identifiers | note |
+| --- | --- |
+| ~ ~@ | is macro unquote, unquote splicing keyword |
+| &optional &rest &key &when &and &or | function argument and guard specification |
+| #"string" | literal list string |
+| #'atom' #atom | literal atom |
 
-Also notice that identifiers in other Erlang VM based programming languages have fewer valid characters. For example, identifiers in Elixir contain only alphanumeric characters and underscore. If you need to write a Kapok module for Elixir code to call, please make sure the identifier name to be compactible.
+Since there are preversed keywords which starts with `~ & #`, it will not work using `~ & #` as the start of normal identifiers for functions or variables. But you could use them in any position after the first char in a normal identifier, as long as it would not cause conflicts with the preserved keywords.
 
-If an identifier that start with underscore(_) and with tailing other characters, the Kapok compiler would not report warning if the identifier is not used. If an identifier is a single underscore, it acts like a placeholder. For example, if we didn’t need to capture a value during the pattern matching, we could specify the special variable _ (an underscore). This acts like a variable but immediately discards any value given to it—in a pattern match, it is like a wildcard saying, “I’ll accept any value here.”
+Also notice that identifiers in other Erlang VM based programming languages have fewer valid characters. For example, identifiers in Elixir contain only alphanumeric characters and underscore. If you need to write a Kapok module for Elixir code(or Erlang code, in a similar case) to call, please make sure the identifier name to be compactible.
+
+Like what's in Erlang, if an identifier that starts with underscore(_) or is just an underscore(_), the Kapok compiler would not report warning if the identifier is not used. If an identifier is a single underscore, it acts like a placeholder. For example, if we didn’t need to capture a value during the pattern matching, we could specify the special variable _ (an underscore). This acts like a variable but immediately discards any value given to it — in a pattern match, it is like a wildcard saying, “I’ll accept any value here.”
 
 The dot character(.) is not a valid character of an identifier. If the dot character occurs between two identifiers, it represents a namespaced-identifier, which is called dot-identifier in whole. A dot-identifier evaluates to the named value in the specified namespace. For example, we could specify a simple namespace in the ns special form, as
 
@@ -68,11 +69,11 @@ the above codes are valid, the `f` function could be called in this way:
 (some-namespace.some-inner-namespace.some-innermost-namespace.f)
 ```
 
-The dot-identifier could be used in namespace name, struct name and protocol name only. It's not allowed to be used as a variable or function because there is no hierarchy needed for them.
+Besides function calls, the dot-identifiers could be used in namespace names, struct names and protocol names. It's not allowed to be used as variable names or function names because there is no hierarchy needed for them.
 
 ### Binding and Pattern Matching
 
-The `let` form is a special form to define local bindings in Lisp. In kapok, it also supports pattern matching like Clojure.
+The `let` form is a special form to define local bindings in Kapok. It supports pattern matching in Clojure style.
 
 A local binding is a named reference which is lexically scoped to the extent of the let expression. It's also called local variable or locals. For example, this is a function in Python:
 
@@ -140,11 +141,11 @@ It shares the same syntax to pattern match a sequential collection, and declare 
       ;; bitstring
       <<(c (:size 5)) (_ (:size 15))>> <<(6 (:size 5)) (7 (:size 3)) (8 (:size 12))>>
       ;; binary
-      <<(d), (_), (_)>> <<(9), (10), (11)>>
+      << d _ _ >> << 9 10 11 >>
       ;; list string
       [e & _] #"hello"
       ;; binary string
-      <<(f), (_) (_) (_) (_)>> "hello"
+      << f _ _ _ _ >> "hello"
       ]
   ;; body
   ...
@@ -162,6 +163,7 @@ It shares the same syntax to pattern match a sequential collection, and declare 
   ;; body
   (+ 1 value)
 )
+;;=> 101
 ```
 
 We omit `:k2` in the pattern and fetch whatever value of `:k1`, refer it as the local `value` and access it in the body of the let form.

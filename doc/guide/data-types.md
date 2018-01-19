@@ -42,7 +42,7 @@ Here are some examples of floats:
 
 All floating-point numbers are transformed to Erlang floating-point numbers, which is internally in IEEE 754 64-bit format, and limited in the range 10^-323 to 10^308.
 
-#### Char
+#### <a id="char">Char</a>
 
 A single character literal could be represented in either `$c`, `$\xhh` or `$\x{hhhhhh}`.
 
@@ -70,7 +70,7 @@ These escape chars are also available in string literal, e.g., it's written `"\n
 
 #### String
 
-There are two string types: character list, binary string.
+There are two string types: list string, binary string.
 
 In Erlang, string is represented by character list. so you could get this in interative shell
 
@@ -81,7 +81,7 @@ true
 
 In Kapok, we use the syntax `#"some string"` for this traditional character list string, it's call list string.
 
-Meanwhile Kapok add a string type called binary string, with the syntax `"some string"`. It is represented as binary interally, and provide a modern utf8 string implemetation.
+Meanwhile Kapok adds a string type called binary string, with the syntax `"some string"`. It is represented as binary interally, and provide a modern utf8 string implemetation.
 
 Both list string and binary string are naturally multiline-capable, without any special syntax (as in, for example, Python):
 
@@ -106,7 +106,7 @@ And it support multiline as well."""
 '''The triple single-quotes act the same as triple double-quotes as string terminator.'''
 ```
 
-The specical escape character are supported in both string types. Refer to previous Char section for more info.
+The specical escape character are supported in both string types. Refer to previous [Char](#char) section for more info.
 
 #### Atom
 
@@ -119,7 +119,7 @@ In Kapok, there are a few ways to write a literal atom:
 #'this atom have space, so we have to use single-quotes as terminators'
 ```
 
-Each of them starts with a # character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes as terminators. It is not recommanded that using a complex combination of non-printable characters or lots of non-printable characters for atoms, since that would be hard to read and write.
+Each of them starts with a # character, followed by a identifier. If there is any space/tab or any other non-printable character, you need to use single-quotes as terminators. It is not recommanded that using a complex combination of non-printable characters or lots of non-printable characters for atoms, since that would be hard to read and write.
 
 #### Keyword
 
@@ -131,7 +131,7 @@ Keywords have different prefix comparing to atoms, you could write keywords as b
 :'this keyword have space, so we have to use single-quotes as terminators'
 ```
 
-Each of them starts with a : character, followed by a symbol. If there is any space/tab or any other non-printable character, you need to use single-quotes or double-quotes as terminators. That same recommandation for atoms applies to keyword as well. It is not good to use a complex combination of non-printable characters or lots of non-printable characters for keywords.
+Each of them starts with a : character, followed by a identifier. If there is any space/tab or any other non-printable character, you need to use single-quotes or double-quotes as terminators. That same recommandation for atoms applies to keyword as well. It is not good to use a complex combination of non-printable characters or lots of non-printable characters for keywords.
 
 Keywords are used in these occasions.
 
@@ -144,7 +144,7 @@ Keywords are used in these occasions.
   :true
   :false
 
-  <<(75 (:size 8) :big :unsigned :integer (:unit 1)) (97) (112 :native) (111) (75 (:unit 1))>>
+  <<(75 (:size 8) :big :unsigned :integer (:unit 1)) 97 (112 :native) 111 (75 (:unit 1))>>
 
   ;; a ns special form
   (ns sample-ns
@@ -153,7 +153,7 @@ Keywords are used in these occasions.
  
 2. function arguments
 
-  Keywords could be used in key-value arguments for function as in Common Lisp.
+  Keywords could be used in key-value arguments for functions as in Common Lisp.
 
   ```clojure
   (defn f [&key (key1 1) (key2 2)]
@@ -163,6 +163,28 @@ Keywords are used in these occasions.
   (f :key1 value1 :key2 value2)
   ```
 
+  Except for these special boolean keywords: `:true`, `:false`, `:nil` (refer to below [Boolean](#boolean) section for more info). Keywords occur in function arguments would be translated to the keys of key-value arguments. But the special boolean keywords mentioned above would be always treated as literal values, even if they are present in the argument list. E.g.
+  
+  ```clojure
+  (defn f [&key a]
+    ...
+   )
+   
+  (f :a :true)      ;; via key `:a`, var `a` is set to value `:true`
+  
+  (g :true :true)   ;; call function `g` with two arguments which are literal boolean `:true`, the first `:true` doesn't present a key
+  ```
+  
+  With such a keyword priority definition, these special keywords `:true`, `:false`, `:nil` could never be used as function argument keys. E.g., it causes a compile error to write
+  
+  ```clojure
+  (defn h [&key (true 1)]
+    ...
+   )
+  ```
+  
+  The identifier `true` is only allowed to used as argument key, the same rule applies to `false` and `nil`. Please use another name as you could always find one.
+
   Notice that Clojure and other Lisp dialects based on Erlang VM, such as LFE and Joxa don't support key-value arguments for function.
 
 3. map accessors and constants
@@ -171,9 +193,9 @@ Keywords are used in these occasions.
 
 Notice that Clojure supports namespaced keywords, which gives the same keyword different meanings for different namespaces. In Kapok, keywords are global and used without namespace.
 
-#### Boolean
+#### <a id="boolean">Boolean</a>
 
-Boolean type in Kapok is the same with Erlang. There is no distinct boolean type; instead, the atoms true and false are given a special interpretation and are used to represent boolean literals.
+Like what's in Erlang, In Kapok there is no distinct boolean type; instead, the keywords true and false are given a special interpretation and are used to represent boolean literals.
 
 ```clojure
 #true  ;=> evaluate to boolean true
@@ -183,21 +205,31 @@ Boolean type in Kapok is the same with Erlang. There is no distinct boolean type
 :false ;=> boolean false
 ```
 
-It's a convention to use `:true` and `:false`, which are in the keyword format, as the boolean true and false in Kapok source code.
+Since atom and keywords share the same implementation in Erlang VM indeed, the atom `#true`, `#false` act as the same boolean values. But it's a convention to use `:true` and `:false`, which are in the keyword format, as the boolean true and false in Kapok source code. Don't mess them in source code.
 
-Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In Kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library function
+Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In Kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library functions: `nil?`, `false?`, `true?`.
 
 ```clojure
 ;; use `nil?`
-(nil? :nil)       ;=> #true
-(nil? [])         ;=> #true
-(nil? :false)     ;=> #true
-(nil? #abc)       ;=> #false
+(nil? :nil)       ;=> :true
+(nil? [])         ;=> :true
+(nil? :false)     ;=> :true
+(nil? #abc)       ;=> :false
+
+;; `false?` is just an alias to `nil?`, so it returns the same result as `nil?`.
+(false? :nil)       ;=> :true
+(false? [])         ;=> :true
+(false? :false)     ;=> :true
+(false? #abc)       ;=> :false
+
 ;; `true?` reverses the result of calling `nil?` 
-(true? :nil)      ;=> #false
+(true? :nil)       ;=> :false
+(true? [])         ;=> :false
+(true? :false)     ;=> :false
+(true? #abc)       ;=> :true
 ```
 
-Please notice in these occasions only the Erlang strict version booleans are allowed:
+Please notice in the following occasions only the Erlang strict version booleans are allowed:
 
 ```text
 guards (function, case)
@@ -206,7 +238,47 @@ inter-operations with Erlang function which expects booleans
 
 #### Comment
 
-Single-line comments are indicated by prefixing the comment with a semicolon (;); all content following a semicolon is ignored entirely. These are equivalent to // in C and Java, and # in Ruby and Python.
+Comments are prefixed by a semicolon. All content following a semicolon is ignored entirely. These are equivalent to // in C and Java, and # in Ruby and Python. These conventions for comments are recommended as usual in Lisp:
+
+1. ';'
+
+    Comments that start with a single semicolon, ';', should all be aligned to the same column on the right of the source code. Such comments usually explain how the code on that line does its job. For example:
+    
+    ```clojure
+    (defn in [n start end]
+      (and (>= n start)  ; check whether n equal-or-bigger than start
+           (<= n end)    ; check whether n less-or-equal than end
+       ))
+    ```
+
+1. ';;'
+
+    Comments that start with two semicolons, ';;', should be aligned to the same level of indentation as the code. Such comments usually describe the purpose of the following lines or the state of the program at that point. For example:
+    
+    ```clojure
+    (let [_ (setup-state)]
+      ...
+      (some-action)
+      
+      ;; verify that state is still valid
+      (verify-state)
+      )
+    ```
+
+    We also normally use two semicolons for comments outside functions.
+    
+    ```clojure
+    ;; Traverse the syntax tree and add tags to internal nodes
+    (defn visit-syntax-tree []
+      ...
+      )
+    ```
+    
+    Note that these comments are different from the function docs. Comments are not stored and access via dev tools like docs. If you want to put down some text to explain what the function does and how to call it properly, to explain precisely what each argument means and how the function inteprets its possible values, it's much better to write docs.
+    
+1. ';;;'
+
+    Comments that start with three semicolons, ';;;', should start at the left margin. We use them for comments which should be considered a heading of major sections of a program. More semicolons such as four ';;;;', are useful when the codes have complex hierarchy of sections. Usually heading comments are not used within a function.
 
 The form-level comment using the `#_` reader macro in Clojure is not supported currently.
 
@@ -237,27 +309,51 @@ These commas are considered whitespace and striped after source code is parsed. 
 
 #### Bitstring and Binary
 
-Bitstring and binary in Kapok are samilir to what in Erlang. A bitstring is a sequence of bits, and a binary is a sequence of bytes. Both bitstring and binary represent a pack of bits except the number of bits in bitstring is not exactly divisible by 8. And they share the same syntax as below:
+Bitstring and binary in Kapok are samilir to their counterparts in Erlang. A bitstring is a sequence of bits, and a binary is a sequence of bytes. Both bitstring and binary represent a pack of bits except the number of bits in bitstring is not exactly divisible by 8. And they share the same syntax as below:
 
 ```clojure
 ;; in list string
 <<#"hello">>
+
 ;; in binary string
 <<"hello">>
+
 ;; in integer lists
-<<(5), (10), (20)>>
-;; in bit syntax
+<< 5 10 20 >>
+
+;;; in bit syntax
+
 ;; with default type specifier list
 <<(2 (:size 5)) (61 (:size 6)) (20 (:size 5))>>
+
 ;; with specified type specifier list
 <<(2 (:size 5) :little :unsigned :integer (:unit 1))
   (61 (:size 6) :little :unsigned :integer (:unit 1))
   (20 (:size 5) :little :unsigned :integer (:unit 1))>>
+
+;; or the mix of all above
+
+(let [v 96]
+  << "hello" v (2 (:size 5)) (20 (:size 5) :little :unsigned :integer (:unit 1)) $? >>)
 ```
 
-The bit syntax in Kapok is similar to what it is in Erlang. It could be taken as a parenthesized version of bit syntax in Erlang.
+Between its special terminators `<<` and `>>`, a bitstring/binary could consisted of 
 
-Bit syntax expressions are used to constructed binaries and bitstrings. They have the following form:
+1. A literal list string or a literal binary string
+1. Elements in a sequence. Each element could be an integer, float, list string, binary string, indentifier or an expression in bit syntax.
+
+With paretheses `(`, `)` as terminators, an expression in bit syntax is call a bit syntax expression. Each expression represents an element of the whole bitstring or binaly. For a simple element which is a simple integer, list string, binary string or indentifier, paretheses could be omitted since it's clear enough it's a standalone element. For example:
+
+```clojure
+;; the following binary are equal
+<< ($h) ($i) >>
+<< $h $i >>
+<< "hi" >>
+(let [a $h]
+  << a $i >>)
+```
+
+The bit syntax in Kapok is similar to its counterpart in Erlang. It could be taken as a parenthesized version of bit syntax in Erlang. In general, a bitstring or binary is constructed by a sequence of bit syntax expressions. It has the following form:
 
 ```clojure
 <<>>
@@ -321,7 +417,7 @@ Although there is a literal type binary string, which is implemented as binary. 
 
 #### List and Literal List
 
-List is the essential to every Lisp dialect: the language syntax is mainly composed of lists. There are two kinds of list in Kapok, the general list and the literal list, the later is usually called list for short.
+List is the essential to every Lisp dialect: the language syntax is mainly composed of lists. There are two kinds of list in Kapok, the general list and the literal list, sometimes the later is also called list for short.
 
 ```clojure
 ;; a general list
@@ -341,7 +437,7 @@ The literal list means to represent the list type for data. So a literal list is
 There are a few reasons to separate the syntax of literal list from general list:
 
 1. List in Erlang has the syntax of square brackets. And we would like to keep the syntax of data list type compactible with Erlang.
-2. Square brackets are used for literal vector type in Clojure. And vector is used often in Clojure code. For instance, the parameters are put inside a vector in a function definition. We need to support defining multiple clauses for a function name, it's samilar to define function with multiple arities in Clojure, so the spuare brackets are needed for the syntax.
+2. Square brackets are used for literal vector type in Clojure. And vector is used often in Clojure code. For instance, the parameters are put inside a vector in a function definition. We need to support defining multiple clauses for a function name, it's samilar to define a function with multiple arities in Clojure, so the spuare brackets are needed for the syntax.
 3. Adding a new syntax for data list would help to clarity the code, although it would add complexity as well.
 
 So we combine the syntax of list in Erlang and the syntax of vector in Clojure, and add a literal list type to use this syntax.
