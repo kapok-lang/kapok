@@ -14,7 +14,7 @@ usage() {
 ** Options can be passed to the erlang runtime using KAPOK_ERL_OPTIONS or --erl" >&2
 }
 
-if [ $# == 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     usage
     exit 1
 fi

@@ -5,7 +5,7 @@ usage() {
   echo "Usage: `basename $0` [options]"
 }
 
-if [ $# -eq 0 ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   usage
   exit 1
 fi
