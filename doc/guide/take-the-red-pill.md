@@ -3,13 +3,40 @@ Take the Red Pill
 
 ## Installing Kapok
 
+Currently Kapok doesn't have a pre-compiled release, so you need to compile it from source. There are dependencies to be set up before doing the compilation.
+
+### Dependencies
+
+To compile from source in platform Unix/Linux or Mac OS, these packages must be installed first: make, erlang, rebar 2.
+
+#### Mac OS X
+
+Update the homebrew to latest before you use homebrew to install these packages, like:
+
+```shell
+$ brew update
+$ brew install erlang rebar
+```
+
+#### Unix/Linux
+
+* Debian/Ubuntu
+
+    Since `yecc` is in a standalone package `erlang-parsetools`, you need to install it besides the package `erlang`.
+
+    ```shell
+    $ sudo aptitude install erlang erlang-parsetools rebar
+    ```
+
+* Other distributions
+
+    Check and install erlang(with yecc), and rebar 2 via package manager of this distribution or source code.
+
 ### Compiling from source
 
-Currently Kapok doesn't have a pre-compiled release, so you need to compile it from source. To compile from source in platform Unix/Linux or Mac OS, these packages must be installed first: Erlang, Rebar.
+Download the latest release, unpack it and then run `make` inside the unpacked directory.
 
-Next you should download the latest release, unpack it and then run `make` inside the unpacked directory.
-
-Or you could also compile from the master branch:
+Or you could compile from the master branch:
 
 ```shell
 $ git clone https://github.com/kapok-lang/kapok.git
