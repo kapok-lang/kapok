@@ -30,7 +30,7 @@ $ brew install erlang rebar
 
 * Other distributions
 
-    Check and install erlang(with yecc), and rebar 2 via package manager of this distribution or source code.
+    Check and install erlang(with yecc), rebar 2 via package manager of your distribution or via source code.
 
 ### Compiling from source
 
