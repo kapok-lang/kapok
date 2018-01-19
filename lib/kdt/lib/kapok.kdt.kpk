@@ -1,10 +1,12 @@
 (ns kapok.kdt
   (require erlang
            init
+           file
            io
            io_lib
            maps
-           re))
+           re
+           kapok.file))
 
 (defn exit [message]
   (io.format message)
@@ -40,26 +42,28 @@
      :false)))
 
 (defn iterate-dir [dir fun]
-  (case (file.list_dir dir)
-    ({#ok filenames}
-     (lists.foreach fun
-                    (lists.map (fn [file]
-                                 (filename.join dir file))
-                               filenames)))
-    ({#error reason}
-     (exit "fail to iterate dir: ~p, reason: ~p~n" [dir reason]))))
+  (when (kapok.file.exists? dir)
+    (case (file.list_dir dir)
+      ({#ok filenames}
+       (lists.foreach fun
+                      (lists.map (fn [file]
+                                   (filename.join dir file))
+                                 filenames)))
+      ({#error reason}
+       (exit "fail to iterate dir: ~p, reason: ~p~n" [dir reason])))))
 
 (defn test-project [dir]
   (let [test-dir (filename.join dir #"test")
         fun (fn itor [path]
-               (if (filelib.is_dir path)
-                   (iterate-dir path itor)
-                 (when (is-test-file path)
-                   (io.format "--- Run ~s ---~n" [path])
-                   (let [cmd (io_lib.format "kapok ~p" [path])
-                         out (os.#cmd cmd)]
-                     (io.format "~s" [out])))))]
-    (io.format "--- run tests for project: ~s ---~n" [test-dir])
+              (when (kapok.file.exists? path)
+                (if (filelib.is_dir path)
+                    (iterate-dir path itor)
+                  (when (is-test-file path)
+                    (io.format "--- Run ~s ---~n" [path])
+                    (let [cmd (io_lib.format "kapok ~p" [path])
+                              out (os.#cmd cmd)]
+                      (io.format "~s" [out]))))))]
+    (io.format "--- run tests for project: ~s ---~n" [dir])
     (iterate-dir test-dir fun))
   )
 
