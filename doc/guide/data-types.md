@@ -455,11 +455,28 @@ Please notice that curly braces are used for literal map in Clojure. We use them
 
 #### Record
 
-**TODO** impl record and write docs for it
+Records are tagged tuple in Erlang. It usually represents a fixed number of data using predetermined atoms as names. A record is declarated in the following syntax:
+
+```erlang
+-record(Name, {
+               %% the next key has default value
+               key1 = DefaultValue1,
+               %% the next line is equivalent to
+               %% key2 = undefined
+               key2,
+               ...
+               })
+```
+
+Usually a record declaration is put down in a header file(with extension .hrl), which is then included by other Erlang source code files to ensure the record is consistent all over its usage.
+
+Generally it's not recommended to use records in Kapok. There is another type of composed data structure, struct(Refer to [Struct](#struct) section for more info), which is used to hold a group of data. And protocols could be defined to work along structs to archive dynamic dispatching during runtime. Sometimes we have to deal with Erlang libraries which uses records in their interfaces, in these cases records must be used. Otherwise structs should be used rather than records.
+
+There are util functions defined in the Kapok standard library for records, such as `defrecord`(define a record) `extract`(extract records from file), etc. Check them out if you need to work with records.
 
 #### Map
 
-Maps in Kapok are just maps in Erlang, which are associative collections of key-value pairs. They are like maps(or dictionaries) in other programming languages. The syntax for literal map in Kapok is a combination of Erlang and Clojure.
+Maps are associative collections of key-value pairs, just are like maps(or dictionaries) in other programming languages. The syntax for literal map in Kapok is a combination of Erlang and Clojure.
 
 ```erlang
 %% a map in Erlang
@@ -478,10 +495,28 @@ Maps in Kapok are just maps in Erlang, which are associative collections of key-
 
 The surrounding `#{}` comes from Erlang. And the key-value pairs are matched by their positions, which is like Clojure. Also notice that `#{}` are used for literal set in Clojure.
 
+Maps in Kapok are implemented as their counterparts in Erlang. You could also use maps in pattern matching likewise:
+
+```clojure
+(let [m #{#a 1
+          #b 2}]
+  (let [#{#a v} m]
+    v))
+;;=> 1
+```
+
+In the second `let` expression, we omit key `#b` in the pattern and only fetch the value of key `#a`, and refer the value as the local `v`.
+
 #### Set
 
-Sets are collections of elements with no duplicate elements. In Kapok sets are implemented as `gb_sets` in Erlang. They are like sets in other programming languages. The syntax for literal map is
+Sets are collections of elements with no duplicate elements, like sets in other programming languages. The syntax for literal map is
 
 ```lisp
 %{1 2 3}
 ```
+
+Sets in Kapok are implemented as `gb_sets` in Erlang. They are not supported in pattern matching. Although there are functions to manipulate sets in the Kapok standard library, currently sets are not supported in most of the protocol defined in the standard library, such as `seq` protocol, etc. Efforts would be taken to add support for sets in these protocols in the future.
+
+#### <a id="struct">Struct</a>
+
+TODO ;; add docs
