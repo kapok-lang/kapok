@@ -1,4 +1,4 @@
-Expressions
+Expression
 ==========
 
 Kapok is a functional programming language. Codes in Kapok are constructed in functions, and then functions are packed into namespaces(or called modules sometimes). And namespaces are organized into files. This way of code organization is just like Erlang.
@@ -79,7 +79,7 @@ The `do` special form evaluates expressions in order and returns the value of th
     (trigger-error)))
 ```
 
-In this `if` expression, only one expression is allowed in each branch. However we need to call multiple functions sometimes, so the `do` forms are used to construct two code blocks when needed. In general, this kind of `if` expressions could be revised to a equivalent `case` form. But sometimes it's clearer to be `if` expression and `do` forms does help.
+In this `if` expression, only one expression is allowed in each branch. However we need to call multiple functions sometimes, so the `do` forms are used to construct two code blocks when needed. In general, this kind of `if` expressions could be revised to a equivalent `case` form. But sometimes it's clearer to be `if` expression and `do` forms do help.
 
 #### send, receive
 
@@ -89,4 +89,4 @@ op-not
 op-or, op-and, op-xor
 op-andalse, op-orelse
 
-### attribute, behaviour
+#### attribute, behaviour
