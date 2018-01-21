@@ -517,7 +517,7 @@ A set is a collection of elements with no duplicate elements, like a set in othe
 
 Sets in Kapok are implemented as `gb_sets` in Erlang. They are not supported in pattern matching. Although there are functions to manipulate sets in the Kapok standard library, currently sets are not supported in most of the protocol defined in the standard library, such as `seq` protocol, etc. Efforts would be taken to add support for sets in these protocols in the future.
 
-#### <a id="struct">Struct</a>
+### <a id="struct">Struct</a>
 
 A struct is a tagged map to wrap a limited number of data with predefined names. The keys for a struct musts be atoms or keywords. A struct definition sits inside the module. The name of the module becomes the name of the map type. Inside the module, the `defstruct` mocro is used to define the map's characteristics. For example:
 
