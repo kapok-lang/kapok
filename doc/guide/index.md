@@ -5,7 +5,7 @@ Lauguage Guide
 
 1. [Take the Red Pill](./take-the-red-pill.md)
 1. [Variable and Pattern Matching](./variable.md)
-1. [Data Types](./data-types.md)
+1. [Data Type](./data-type.md)
 1. [Expression](./expression.md)
 1. [Function](./function.md)
 1. [Macro](./macro.md)

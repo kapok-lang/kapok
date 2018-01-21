@@ -1,4 +1,4 @@
-Data Types
+Data Type
 ==========
 
 ### Primitive Types

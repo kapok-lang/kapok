@@ -32,7 +32,7 @@ In this `let` form, a local `str` is bound to a literal string `"a binary string
 
 In the following body part, there are two expressions, the first one just output some message to stdout, and its return value is ignored. The second add 1 to `arg` and get a value `2` . Since it's the last expression of the whole `let` form, its value `2` will become the value of the whole `let` form.
 
-Aliases are also supported to retain a destructed collection in pattern matching of the `let` form. For example:
+Aliases are also supported to retain destructed collections in pattern matching of the `let` form. For example:
 
 ```
 
@@ -55,13 +55,50 @@ It's verbose and sometimes inconvenient if we need to do pattern matching for fu
 
 #### case
 
-#### if, when
+The `case` form is the only special form built in the compiler for conditional expression. It has the syntax like:
+
+```clojure
+(case condition
+  (pattern1 action-sequence-1)
+  (pattern2 action-sequence-2)
+  ...)
+```
+
+`case` takes an expression `condition` as its first argument, and then the sequence of the "pattern, action-sequence" clauses parenthesized in a general list. These "pattern, action-sequence" clauses are matched from top down one by one. If the value returned by `condition` matches any pattern, then the corresponding action expression sequence is evaluated, the result of evaluating the expression sequence is the value of the whole `case` form. The "action-sequence" is wrapped in a `do` form(see the [do](#do) section for more info) and could contain arbitrary number of expressions. Once the condition value is matched, the following clauses would not be checked or run any more. If no pattern matches, then an exception is raised. So it's usual to write code like:
+
+```
+(case arbitrary-condition
+  (pattern1 action-sequence-1)
+  ...
+  (_ (fallback-action-sequence)))
+```
+
+The last clause uses an underscore `_` to match any value for `arbitrary-condition` to avoid raising exception. In this example, if no pattern matches, the `fallback-action-sequence` will be evaluated as a fail-safe clause.
+
+#### if, when, cond and the other
+
+There are other special forms for conditional expressions: if, if-not, when, when-not, unless, cond. They are macros defined in standard library `kapok.core` and imported by default. Since they are defined in standard library rather than the compiler, strictly speaking they are not as special as `case` because you could perform a hack to override them by introducing a new definition to the same name. This hack would not happen in normal usage. So we could still take these forms as special forms usually. Let's take a glance over them one by one.
+
+`if` takes a condition "test", a "then" expression and an optional "else" expression as its arguments, as the following syntax:
+
+```clojure
+(if test
+    then)
+
+(if test
+    then
+  else)
+```
+
+If "test" evaluated to `:true`, "then" will be evaluated. Otherwise "else" will be evaluated. If "else" is missing and "test" evaluated to `:false`, then `:nil` will be returned for whole `if` form. Either "test" or "then" branch could contain a single expression. If you need pack multiple expressions into the branch, use `do` form(refer to [do](#do) section if necessary).
+
+Note that the value of "test" is checked by the `true?` function in `kapok.core`. It treats any other value rather than `:nil`, `[]`, `:false` to be `:true`, which is different than Erlang. This may be tricky when you need a boolean value to interact with Erlang library interfaces. You could refer to the [boolean data type](./data-type.md#boolean) for more info.
 
 #### try
 
 #### fn
 
-#### do
+#### <a id="do">do</a>
 
 The `do` special form evaluates expressions in order and returns the value of the last. It construct a code block of multiple expressions, and is usually used in place where only one expression is allowed. For example:
 
