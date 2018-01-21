@@ -533,7 +533,7 @@ A struct is a tagged map to wrap a limited number of data with predefined names.
 The defstruct macro takes a optional literal list of derive protocol, and a sequence of fields as its arguments. Each field could be either:
 
 1. A keyword or atom for the field name, with default value `:nil`
-1. A general list of name, default value pair, as the example above
+1. A general list of "name, default value" pair, as the example above
 
 And the defstruct macro will generate a `new` function as a constructor of this struct, and corresonding functions to hook up elixir protocol impl, including derived protocol mapping.
 
