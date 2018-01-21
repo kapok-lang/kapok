@@ -48,8 +48,8 @@
                   ([{#list _ [{c id-meta id-name} expr]}] (&when (struct-field? c))
                    (let [name (validate-field-name file id-meta id-name)]
                      {{#keyword id-meta name} expr}))
-                  ([{_ ast-meta _}]
-                   (kapok_error.compile_error ast-meta file "invalid field arg for defstruct")))
+                  ([{_ ast-meta _} &as arg]
+                   (kapok_error.compile_error ast-meta file "invalid field arg for defstruct: ~p" [arg])))
         fields (lists.map handler args)
         tag {{#keyword meta #__struct__}
              {#list meta [{#identifier meta #__MODULE__}]}}]
@@ -182,6 +182,8 @@
        (handle-defstruct file meta doc derives t))
       ([{#literal_list _ derives} & t]
        (handle-defstruct file meta (empty-doc) derives t))
+      ([{c _ _} &as doc & t] (&when (string? c))
+       (handle-defstruct file meta doc [] t))
       (t (handle-defstruct file meta (empty-doc) [] t)))))
 
 (defn- handle-defprotocol-clause [file meta _protocol _id {_ _ args-list}] (&when (=== args-list []))

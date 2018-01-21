@@ -476,7 +476,7 @@ There are util functions defined in the Kapok standard library for records, such
 
 #### Map
 
-Maps are associative collections of key-value pairs, just are like maps(or dictionaries) in other programming languages. The syntax for literal map in Kapok is a combination of Erlang and Clojure.
+A maps is an associative collection of key-value pairs, just are like a map(or a dictionary) in other programming languages. The syntax for literal map in Kapok is a combination of Erlang and Clojure.
 
 ```erlang
 %% a map in Erlang
@@ -509,7 +509,7 @@ In the second `let` expression, we omit key `#b` in the pattern and only fetch t
 
 #### Set
 
-Sets are collections of elements with no duplicate elements, like sets in other programming languages. The syntax for literal map is
+A set is a collection of elements with no duplicate elements, like a set in other programming languages. The syntax for literal map is
 
 ```lisp
 %{1 2 3}
@@ -519,4 +519,35 @@ Sets in Kapok are implemented as `gb_sets` in Erlang. They are not supported in 
 
 #### <a id="struct">Struct</a>
 
-TODO ;; add docs
+A struct is a tagged map to wrap a limited number of data with predefined names. The keys for a struct musts be atoms or keywords. A struct definition sits inside the module. The name of the module becomes the name of the map type. Inside the module, the `defstruct` mocro is used to define the map's characteristics. For example:
+
+```clojure
+(defns customer
+  (defstruct [kapok.access]
+    :a            ;; default value `:nil`
+    (:b :nil)
+    (:c (+ 1 1))
+    :d))
+```
+
+The defstruct macro takes a optional literal list of derive protocol, and a sequence of fields as its arguments. Each field could be either:
+
+1. A keyword or atom for the field name, with default value `:nil`
+1. A general list of name, default value pair, as the example above
+
+And the defstruct macro will generate a `new` function as a constructor of this struct, and corresonding functions to hook up elixir protocol impl, including derived protocol mapping.
+
+And then we could use this struct as a map, or manipulate it by protocol interface:
+
+```clojure
+(let [s (customer.new :a "no news")]
+  (io.format "s: ~p~n" [s])
+  (io.format "a: ~p~n" [(maps.get #a s)])
+  (io.format "d: ~p~n" [(access.get s #d)]))
+;; the above code outputs:
+;; s: #{'__struct__' => customer,a => <<"no news">>,b => nil,c => 2,d => nil}
+;; a: <<"no news">>
+;; d: nil
+```
+
+A struct is usually connected to protocols. When a struct is defined to derive some protocols, the protocols must be implemented by maps, and this `derive` means to map the protocol implementation for `map` to this struct. Sometimes we need to implement a protocol for a struct using `defimpl` protocol. Refer to protocol section for elaborate details of protocol, its implementation and its interaction with structs.
