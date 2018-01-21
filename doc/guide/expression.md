@@ -55,11 +55,31 @@ It's verbose and sometimes inconvenient if we need to do pattern matching for fu
 
 #### case
 
+#### if, when
+
 #### try
 
 #### fn
 
 #### do
+
+The `do` special form evaluates expressions in order and returns the value of the last. It construct a code block of multiple expressions, and is usually used in place where only one expression is allowed. For example:
+
+```clojure
+(if (state-is-valid?)
+    ;; code block of doing something when state is valid
+    (do
+      (do-something-1)
+      (do-something-2))
+  (if (is-invalid-state-1)
+      ;; code block of handling invalid state
+      (do
+        (log-message)
+        (handle-invalid-state))
+    (trigger-error)))
+```
+
+In this `if` expression, only one expression is allowed in each branch. However we need to call multiple functions sometimes, so the `do` forms are used to construct two code blocks when needed. In general, this kind of `if` expressions could be revised to a equivalent `case` form. But sometimes it's clearer to be `if` expression and `do` forms does help.
 
 #### send, receive
 
