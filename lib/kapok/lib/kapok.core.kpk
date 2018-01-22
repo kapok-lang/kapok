@@ -63,17 +63,27 @@
 
 ;; the conditionals
 
-(defalias false? nil?)
+(defn false?
+  "Returns `:true` if the argument is `:false`, otherwise returns `:false`."
+  ([:false]
+   :true)
+  ([_]
+   :false))
 
 (defn nil?
-  """Returns `:true` if `x` is nil, `:false` otherwise."""
+  "Returns `:true` if `x` is logical nil, otherwise return `:false`."
   ([:nil] :true)
-  ([[]] :true)
   ([:false] :true)
-  ([_] :false))
+  ([[]] :true)
+  ([{}] :true)
+  ([#{}] :true)
+  ([x]
+   (case (sets.is_set x)
+     (:true (== (sets.size x) 0))
+     (:false :false))))
 
 (defn true? [x]
-  """Returns `:true` if `x` is the value true, `:false` otherwise."""
+  "Returns `:true` if `x` is the `:true`, otherwise returns `:false`."
   (erlang.not (false? x)))
 
 (defmacro if [test then &optional else]
