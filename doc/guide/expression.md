@@ -150,7 +150,32 @@ Only when "test" evaluated to `:false`, the "body" is evaluated.
 
 One last thing about these condition forms: that the value of "test" expression, or "condition" expression mentioned above, is checked by the `true?` or `:false?` function in `kapok.core`. They treat `:nil`, `[]`, `:false` to be logical false, and any other value to be logical true. This is different than Erlang, where literally atom `:false` is taken as logical false, atom `:true` is logical true. This may be tricky when you need a boolean value to interact with Erlang library interfaces. You could refer to the [boolean data type](./data-type.md#boolean) for more info.
 
-#### try
+#### try-catch
+
+`try-catch` have the following syntax:
+
+```clojure
+(try expression
+    ;; try body
+    ((pattern1 expression-sequence-1)
+     (pattern2 expression-sequence-2)
+     ...)
+  (catch
+    (exception-pattern-1 expression-sequence-3)
+    (exception-pattern-1 expression-sequence-4)
+    ...)
+  (after
+    expression-sequence-5)
+  )
+```
+
+The first part of this form works like `case` form. Basically it's a case expression `catch` and `after` blocks at the end. It works as follows: First "expression" is evaluated. If this finishes without raising an exception, then the return value of "expression" is pattern matched against the patterns in the try body, "pattern1", "pattern2", and so on, until a match is found. If a match is found, then the following expression sequence is evaluated and its value will become the value of the whole `try-catch` form.
+
+If an exception is raised within "expression", then the catch patterns "exception-pattern-1", and so on, are matched to find which expression sequence should be evaluated correspondingly. The expression pattern has the format of `(excetpion-type error)`. "exception-type" is an atom (one of `#throw`, `#exit`, `#error`) that tells us the how the exception was generated. If "exception-type" is omitted, then the value defaults to `#throw`. "error" could be any term related to this exception.
+
+`try-catch` form has an optional `after` clause. Usually it's used for cleaning up. The code inside the `after` clause is guaranteed to be executed, even if an exception is raised. The code inside the `after` clause is run immediately after any code in "expression", body(if no exception is raised), or `catch` clause(if an exception is raised). The return value of the code in `after` clause is lost.
+
+The ones who is familiar with Erlang will notice that it's the same as its counterpart in Erlang.
 
 #### fn
 

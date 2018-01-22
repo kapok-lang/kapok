@@ -21,8 +21,8 @@
   #ok)
 
 (defn- catcher [n]
-  (try (case (generate-exception n)
-         (val {n #normal val}))
+  (try (generate-exception n)
+       ((val {n #normal val}))
     (catch
       ((:throw x) {n #caught #thrown x})
       ((:exit x) {n #caught #exited x})
@@ -32,8 +32,8 @@
       (do-nothing))))
 
 (defn- catcher-all [n]
-  (try (case (generate-exception n)
-         (val {n #normal val}))
+  (try (generate-exception n)
+       ((val {n #normal val}))
     (catch
         ((kind reason) {n kind reason}))))
 
