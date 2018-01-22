@@ -210,10 +210,69 @@ The "after" clause is optional. This clause has a "timeout" expression and a exp
 
 The ones who is familiar with Erlang would notice that the `receive` form is the same as Erlang in semantics.
 
-#### Operators
+#### Logical Operators
 
-op-not
-op-or, op-and, op-xor
-op-andalse, op-orelse
+In Erlang, there are logical operators: `not`, `or`, `and`, `xor`, `andalso`, `orelse`. In Kapok, we have functions and macros for logical "not", "and", "or" in the standard library `kapok.core`. But these logical operators are still useful, when we need to use them on guards or when we need effective code. Because in the pattern matching guards or function argument guards, only operators are allowed, but not standard library functions or macros. We would discuss guard later when we get to function section. Let's focus on these operators here.
 
+`op-not` takes a single expression as its argument. It checks whether the given expression is evaluated to literal `:false`. It has the syntax:
+
+```
+(op-not expression)
+```
+
+`op-or`, `op-and`, `op-xor` takes one or more than one expression as its arguments. `op-or` checks whether one of the expression is evaluated to literal `:true`. `op-and` checks whether all the expressions are evaluated to literal `:true`. `op-xor` checks whether two expressions have different value from literal `:true`, `:false`. They have the samilar syntax as:
+
+```clojure
+(op-or/op-and/op-xor expression-1)
+                     expression-2
+                     ...)
+```
+
+Please note that when argument number is 1 or more than 2, they have the equivalent relationships as:
+
+```clojure
+(op-or/op-and/op-xor expression-1)
+;; equal to
+expression-1
+
+(op-or/op-and/op-xor expression-1
+                     expression-2
+                     expression-3)
+;; equal to
+(op-or/op-and/op-xor (op-or/op-and/op-xor expression-1
+                                          expression-2)
+                     expression-3)
+```
+
+All `op-or`, `op-and`, `op-xor` will evaluated all their arguments. However there are short-circuit version of them, `op-orelse` and `op-andalso`, which evaluate their arguments only when necessary. They have the syntax:
+
+```clojure
+(op-orelse expression-1
+           expression-2
+           ...)
+
+(op-andalso expression-1
+            expression-2
+            ...)
+```
+
+`op-orelse` first evaluates "expression-1". If "expression-1" evaluates to literal `:true`, "expression-2" is not evaluated. If "expression-1" evaluates to literal `:false`, "expression-2" is evaluated. And so on.
+
+`op-andalso` first evaluates "expression-1". If "expression-1" evaluates to literal `:true`, "expression-2" is evaluated. If "expression-1" evaluates to literal `:false`, "expression-2" is not evaluated.
+
+When the argument number is 1 or more than 2, they have the equivalent relationships as:
+
+```clojure
+(op-orelse/op-andalso expression-1)
+;; equal to
+expression-1
+
+(op-orelse/op-andalso expression-1
+                      expression-2
+                      expression-3)
+;; equal to
+(op-orelse/op-andalso expression-1
+                      (op-orelse/op-andalso expression-2
+                                            expression-3))
+```
 #### attribute, behaviour
