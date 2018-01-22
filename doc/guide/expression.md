@@ -176,6 +176,40 @@ In this `if` expression, only one expression is allowed in each branch. However 
 
 #### send, receive
 
+`send` takes a "pid" and a "message" as its arguments. "pid" is process id, "message" could be any term. It has the syntax:
+
+```clojure
+(send pid message)
+```
+
+Like its counterpart in Erlang, `send` sends "message" to the processed with identifier "pid". Message sending is asynchronous. The sender does not wait but continues with what it was doing. The value of `send` form is defined to be "message". So that you could chain the calls like:
+
+```(clojure)
+(send pid1 (send pid2 message))
+```
+
+This example means: send the "message" to all the process "pid1", "pid2".
+
+`receive` receives a message that has been sent to a process. It has the following syntax:
+
+```clojure
+(receive
+  (pattern1 guard1
+   expression-sequence-1)
+  (pattern2 guard2
+   expression-sequence-2)
+  ...
+  (after timeout
+    expression-sequence-n)
+  )
+```
+
+All the guards along the patterns are optional. When a message arrives at the process, the system tries to match it against "pattern1"(with optional guard); if this succeeds, it evaluates the corresponding expression sequence. If the first pattern does not match, it tries the following "pattern2", and so on. If no pattern matches, the message is saved for later processing, and the process waits for the next message.
+
+The "after" clause is optional. This clause has a "timeout" expression and a exprssion sequence to be evaluated when the timeout value is reached without receive any matched message. It's useful when we need to set a timeout when waiting to receive a message.
+
+The ones who is familiar with Erlang would notice that the `receive` form is the same as Erlang in semantics.
+
 #### Operators
 
 op-not
