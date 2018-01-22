@@ -179,6 +179,44 @@ The ones who is familiar with Erlang will notice that it's the same as its count
 
 #### fn
 
+In kapok, function is a data type, it could be used as arguments to functions and the functions can return functions. We could use `fn` form to define an anonymous function or refer to an existing function. It has the syntax:
+
+```clojure
+;; create reference to a local function
+(fn function arity)
+
+;; create reference to a remote function
+(fn module function arity)
+
+;; define an anonymous function with single clause
+(fn [arguments] guard
+  function-body)
+
+;; define an anonymous function with multiple clauses
+(fn
+  ([arguments1] guard1
+   body1)
+  ([arguments2] guard2
+   body2)
+  ...)
+
+;; define a named function with single clause
+(fn function [arguments] guard
+  body)
+
+;; define a named function with multiple clauses
+(fn function
+  ([arguments1] guard1
+   body1)
+  ([arguments2] guard2
+   body2)
+  ...)
+```
+
+The "function" argument could be any valid identifier, "module" could be identifier or dot-identifier, "arity" is the integer which represent the function arity. The "arguments", "guard", "body", "clause" follow the same rules of a normal function defined in top level of a namespace. Refer to [function](./function.md) chapter for more info.
+
+All these `fn` forms are similiar to their counterparts in Erlang.
+
 #### <a id="do">do</a>
 
 The `do` special form evaluates expressions in order and returns the value of the last. It construct a code block of multiple expressions, and is usually used in place where only one expression is allowed. For example:
@@ -301,3 +339,15 @@ expression-1
                                             expression-3))
 ```
 #### attribute, behaviour
+
+`attribute` define a global named value for a module. And `behaviour` is a special attribute directive to tell the Erlang compiler that the module implement some callbacks following some general rules. They have the following syntax in Kapok:
+
+```
+;; define an attribute `name` with value to be `value`
+(attribute name value)
+
+;; declare a behaviour this module implements
+(behaviour name)
+```
+
+Besides, there are util macros in the standard library `kapok.core` such as `attr`, `get-attr` to access the module attributes.
