@@ -75,11 +75,11 @@ The `case` form is the only special form built in the compiler for conditional e
 
 The last clause uses an underscore `_` to match any value for `arbitrary-condition` to avoid raising exception. In this example, if no pattern matches, the `fallback-action-sequence` will be evaluated as a fail-safe clause.
 
-#### if, when, cond and the other
+#### if, when, cond, other conditional expressions
 
 There are other special forms for conditional expressions: if, if-not, when, when-not, unless, cond. They are macros defined in standard library `kapok.core` and imported by default. Since they are defined in standard library rather than the compiler, strictly speaking they are not as special as `case` because you could perform a hack to override them by introducing a new definition to the same name. This hack would not happen in normal usage. So we could still take these forms as special forms usually. Let's take a glance over them one by one.
 
-`if` takes a condition "test", a "then" expression and an optional "else" expression as its arguments, as the following syntax:
+`if` takes a condition "test", a "then" expression and an optional "else" expression as its arguments, as the following syntax describes:
 
 ```clojure
 (if test
@@ -92,7 +92,63 @@ There are other special forms for conditional expressions: if, if-not, when, whe
 
 If "test" evaluated to `:true`, "then" will be evaluated. Otherwise "else" will be evaluated. If "else" is missing and "test" evaluated to `:false`, then `:nil` will be returned for whole `if` form. Either "test" or "then" branch could contain a single expression. If you need pack multiple expressions into the branch, use `do` form(refer to [do](#do) section if necessary).
 
-Note that the value of "test" is checked by the `true?` function in `kapok.core`. It treats any other value rather than `:nil`, `[]`, `:false` to be `:true`, which is different than Erlang. This may be tricky when you need a boolean value to interact with Erlang library interfaces. You could refer to the [boolean data type](./data-type.md#boolean) for more info.
+`if-not` is the reversed version of `if`. It has the similar syntax of `if`:
+
+```clojure
+(if-not test
+        then)
+
+(if-not test
+        then
+  else)
+```
+
+"then" is evaluated when "test" evaluated to `:false`, otherwise "else" is evaluated.
+
+`when` takes a condition "test" and an expression sequence "body" as its arguments. It has the following syntax:
+
+```clojure
+(when test
+  ;; body
+  expression-1
+  expression-2
+  ...)
+```
+
+The value evaluated by the last expression of "body" would become the value of the whole `when` form. If "test" is evaluated to `:false`, the `when` form returns `#ok`. Since "body" is a expression sequence, it could contain arbitrary number of expressions, no need to wrap them in a `do` block.
+
+`when-not` is the reversed version of `when`. It has the similar syntax of `when`:
+
+```clojure
+(when-not test
+  ;; body
+  expression-1
+  expression-2
+  ...)
+```
+
+Only when "test" evaluated to `:false`, the "body" is evaluated. 
+
+`unless` is an alias to `when-not`. It has the same arguments and semantic like `when-not`, except than the macro name is `unless` but not `when-not`.
+
+`cond` takes a sequence of "condition, action" pairs as it arguments. Either "condition" or "action" is a single expression. They are matched by position like what's in the binding part of `let` form. `cond` has the following syntax:
+
+```clojure
+(cond
+  condition-1 expression-1
+  condition-2 expression-2
+  ...
+  )
+```
+
+`cond` is evaluated as follows: First, "condition-1" is evaluated. If it's evaluated to `:true`, "expression-1" will be evaluated and its value will be the value of the whole `cond` form. If "condition-1" is evaluated to `:false`, "expression-1" will not be evaluated and it will go to the following condition expressions, which is "condition-2" in turn, and do the evaluation likewise. If no condition is evaluated to `:true`, no exception would be raised and the whole `cond` just return value `:nil`. Note the difference of `cond` and `case`: 
+
+1. in the syntax of `case`, "condition", "expression-sequence" pairs require to parenthesized; while they don't in `cond`
+1. it supports expression sequence in `case` while just expression in `cond`
+1. in `case` form, an exception will be raised if no match; while it will not in `cond`
+1. `case` is used in case that we need to switch to different branch of code according to the value of the same condition expression; while `cond` is used when we need to switch to different branch according to different condition expression
+
+One last thing about these condition forms: that the value of "test" expression, or "condition" expression mentioned above, is checked by the `true?` or `:false?` function in `kapok.core`. They treat `:nil`, `[]`, `:false` to be logical false, and any other value to be logical true. This is different than Erlang, where literally atom `:false` is taken as logical false, atom `:true` is logical true. This may be tricky when you need a boolean value to interact with Erlang library interfaces. You could refer to the [boolean data type](./data-type.md#boolean) for more info.
 
 #### try
 
