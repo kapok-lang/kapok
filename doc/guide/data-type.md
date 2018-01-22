@@ -1,7 +1,7 @@
 Data Type
 ==========
 
-### Primitive Types
+### Primitive Type
 
 #### Integer
 
@@ -305,7 +305,7 @@ These commas are considered whitespace and striped after source code is parsed. 
 #{:name new-username, :email email}
 ```
 
-### Collections
+### Collection type
 
 #### Bitstring and Binary
 
