@@ -5,6 +5,7 @@
 
 (ns kapok.core
   (require erlang
+           gb_sets
            lists
            ordsets
            sets
@@ -75,12 +76,16 @@
   ([:nil] :true)
   ([:false] :true)
   ([[]] :true)
+  ([l] (&when (erlang.is_list l))
+   :false)
   ([{}] :true)
+  ([x] (&when (erlang.is_tuple x))
+   ;; a "gb_sets" set are implemented as a tuple
+   (case (gb_sets.is_set x)
+     (:true (gb_sets.is_empty x))
+     (:false :false)))
   ([#{}] :true)
-  ([x]
-   (case (sets.is_set x)
-     (:true (== (sets.size x) 0))
-     (:false :false))))
+  ([_] :false))
 
 (defn true? [x]
   "Returns `:true` if `x` is the `:true`, otherwise returns `:false`."

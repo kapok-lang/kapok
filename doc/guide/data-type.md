@@ -140,7 +140,7 @@ Keywords are used in these occasions.
   Keywords are widely used in literal types and special forms, for example
 
   ```clojure
-  ;; boolean
+  ;; booleans
   :true
   :false
 
@@ -207,29 +207,38 @@ Like what's in Erlang, In Kapok there is no distinct boolean type; instead, the 
 
 Since atom and keywords share the same implementation in Erlang VM indeed, the atom `#true`, `#false` act as the same boolean values. But it's a convention to use `:true` and `:false`, which are in the keyword format, as the boolean true and false in Kapok source code. Don't mess them in source code.
 
-Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In Kapok. if you want to use `nil` or forms which rerturns `nil` as a boolean, please use the standard library functions: `nil?`, `false?`, `true?`.
+Please notice in most Lisp dialects, `nil` is logically false in conditionals. But in Erlang, there is no `nil` and the only logically false is atom false. In Kapok. if you want to use `nil` or forms which returns `nil` as a boolean, please use the standard library functions: `nil?`.
 
 ```clojure
-;; use `nil?`
+;; `nil?` returns `:true` for `:nil`, `:false` and empty built-in collections
 (nil? :nil)       ;=> :true
-(nil? [])         ;=> :true
 (nil? :false)     ;=> :true
+(nil? [])         ;=> :true
+(nil? {})         ;=> :true
+(nil? #{})        ;=> :true
+(nil? %{})        ;=> :true
 (nil? #abc)       ;=> :false
 
-;; `false?` is just an alias to `nil?`, so it returns the same result as `nil?`.
-(false? :nil)       ;=> :true
-(false? [])         ;=> :true
-(false? :false)     ;=> :true
-(false? #abc)       ;=> :false
+;; `false?` returns `:true` only for literal atom/keyword `:false`
+;; which strictly follows the semantics of Erlang
+(false? :false)   ;=> :true
+(false? :nil)     ;=> :false
+(false? [])       ;=> :false
+(false? {})       ;=> :false
+(false? #{})      ;=> :false
+(false? %{})      ;=> :false
+(false? #abc)     ;=> :false
 
-;; `true?` reverses the result of calling `nil?` 
-(true? :nil)       ;=> :false
-(true? [])         ;=> :false
-(true? :false)     ;=> :false
-(true? #abc)       ;=> :true
+;; `true?` returns `:true` only for literal atom/keyword `:true`
+;; which reverses the result of calling `false?`, and strictly follows the semantics of Erlang
+(true? :true)     ;=> :true
+(true? :nil)      ;=> :false
+(true? :false)    ;=> :false
+(true? [])        ;=> :false
+(true? #abc)      ;=> :false
 ```
 
-Please notice in the following occasions only the Erlang strict version booleans are allowed:
+Please notice in the following occasions only the literal `:true`, `:false` booleans are allowed:
 
 ```text
 guards (function, case)

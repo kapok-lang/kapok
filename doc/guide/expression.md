@@ -148,7 +148,7 @@ Only when "test" evaluated to `:false`, the "body" is evaluated.
 1. in `case` form, an exception will be raised if no match; while it will not in `cond`
 1. `case` is used in case that we need to switch to different branch of code according to the value of the same condition expression; while `cond` is used when we need to switch to different branch according to different condition expression
 
-One last thing about these condition forms: that the value of "test" expression, or "condition" expression mentioned above, is checked by the `true?` or `:false?` function in `kapok.core`. They treat `:nil`, `[]`, `:false` to be logical false, and any other value to be logical true. This is different than Erlang, where literally atom `:false` is taken as logical false, atom `:true` is logical true. This may be tricky when you need a boolean value to interact with Erlang library interfaces. You could refer to the [boolean data type](./data-type.md#boolean) for more info.
+One last thing about these condition forms: that the value of "test" expression, or "condition" expression mentioned above, is checked by the `true?` or `:false?` function in `kapok.core`. They treat only literal `:false` to be logical false, and only literal `:true` to be logical true. Don't use any other value rather than literal `:false`, `:true` in this case. You could refer to the [boolean data type](./data-type.md#boolean) for more info.
 
 #### try-catch
 
