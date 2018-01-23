@@ -65,3 +65,18 @@ The `ns` special form could have `require` and `use` clauses. The `require` clau
 ```
 
 `:as`, `:rename` are used to give aliases to modules/namespaces or functions/macros. When there is name clash, or a shorter name is wanted, aliases would be helpful. Since `:only` is inclusive, but `:exclude` is exclusive, they could not be used together in the same use clause.
+
+Another special form to define a namespace is `defns`, it's similar to `ns` except that the namespace code ends at the end of `defns` form, not the end of file. For example:
+
+```
+(defns example-for-defns
+  ;; parenthesize the require/use section, make it distinguished with `defn` etc.
+  ((require io)
+   (use (kapok (seq))))
+
+  (defn f [l]
+    ...)
+  )
+```
+
+At the start of the `defns` form, the require/use section is parenthesized to distinguish them from the later definitions.
