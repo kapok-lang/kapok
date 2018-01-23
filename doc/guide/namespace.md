@@ -68,7 +68,7 @@ The `ns` special form could have `require` and `use` clauses. The `require` clau
 
 Another special form to define a namespace is `defns`, it's similar to `ns` except that the namespace code ends at the end of `defns` form, not the end of file. For example:
 
-```
+```clojure
 (defns example-for-defns
   ;; parenthesize the require/use section, make it distinguished with `defn` etc.
   ((require io)

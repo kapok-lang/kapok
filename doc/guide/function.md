@@ -94,7 +94,7 @@ A rest argument is the last argument after keyword `&rest` in a function definit
 
 In this example, all the actual arguments are packed into `l`, just like we write:
 
-```
+```clojure
 (defn add [l]
   ;; body
   ...)
@@ -158,7 +158,7 @@ Take the `if` macro in standard library for example:
 
 When macro `if` is called in the code, the calling code ast is passed as the arguments "test", "then", "else". And then this macro expands its result and insert it right the place. Assume we call this macro in a context:
 
-```
+```clojure
 (defn call-if []
   (if (check-stat)
       (do-something)
@@ -167,7 +167,7 @@ When macro `if` is called in the code, the calling code ast is passed as the arg
 
 When the `if` macro is expanded, this definition of `call-if` would become:
 
-```
+```clojure
 (defn call-if []
   (case (kapok.core.#true (check-stat))
     (:true (do-something))
