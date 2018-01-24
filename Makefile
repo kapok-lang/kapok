@@ -134,6 +134,7 @@ $1_lib_files           :=       \
   kapok.list.kpk                \
   kapok.list.chars.kpk          \
   kapok.alist.kpk               \
+  kapok.range.kpk               \
   kapok.regex.kpk               \
   kapok.string.kpk              \
   kapok.string.chars.kpk        \

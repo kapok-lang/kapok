@@ -353,14 +353,13 @@
       ]))
 
 (defn- handle-defimpl [file meta protocol type doc defs {ns-acc defn-acc}]
-  (let [{_ protocol-meta _} protocol
-        {_ _ type-name} type]
+  (let [{_ protocol-meta _} protocol]
     (case defs
       ([]
        (let [ns-all (lists.reverse ns-acc)
              defn-all (lists.reverse defn-acc)
              p-name (erlang.atom_to_list (kapok_parser.plain_dot_name protocol))
-             t-name (erlang.atom_to_list type-name)
+             t-name (erlang.atom_to_list (kapok_parser.plain_dot_name type))
              module-name (erlang.list_to_atom
                           (lists.append p-name (lists.append #"." t-name)))
              after (after-defimpl protocol type)
