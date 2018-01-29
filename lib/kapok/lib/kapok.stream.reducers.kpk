@@ -34,6 +34,13 @@
          (_ (next-with-acc ~f entry h {#value value} t))))))
 
 
+(defmacro drop [&optional (f :nil)]
+  `(fn
+     ([_entry (acc h n0 t)] (&when (> n0 0))
+      (skip (acc h (dec n0) t)))
+     ([entry (acc h n0 t)]
+      (next-with-acc ~f entry h n0 t))))
+
 (defmacro drop-while [callback &optional f]
   `(fn [entry (acc h bool t) &as orig]
      (if (and bool

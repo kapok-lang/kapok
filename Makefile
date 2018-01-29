@@ -134,17 +134,18 @@ $1_lib_files           :=       \
   kapok.list.kpk                \
   kapok.list.chars.kpk          \
   kapok.alist.kpk               \
-  kapok.range.kpk               \
   kapok.regex.kpk               \
   kapok.string.kpk              \
   kapok.string.chars.kpk        \
   kapok.access.kpk              \
   kapok.inspect.algebra.kpk     \
   kapok.inspect.kpk             \
+  kapok.range.kpk               \
   kapok.dict.kpk                \
   kapok.stream.reducers.kpk     \
   kapok.collectable.kpk         \
   kapok.seq.kpk                 \
+  kapok.stream.kpk              \
   kapok.record.extractor.kpk    \
   kapok.record.kpk              \
   kapok.io.kpk                  \

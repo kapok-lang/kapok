@@ -2346,7 +2346,7 @@
 
 ;; Implementations of sequential for built-in collections.
 
-(defimpl sequential list
+(defimpl kapok.sequential list
 
   (defn reduce [_ {#halt acc} _fun]
     {#halted acc})
@@ -2363,7 +2363,7 @@
     {#error (__MODULE__)})
   )
 
-(defimpl sequential map
+(defimpl kapok.sequential map
   (require maps)
   (use (kapok (sequential)))
 
