@@ -83,13 +83,25 @@
      (let [value (~callback entry acc0)]
        (next-with-acc ~f value h value t))))
 
+(defmacro take [&optional f]
+  `(fn [entry (acc h n0 t) &as orig]
+     (if (>= n0 1)
+         (next-with-acc ~f entry h (dec n0) t)
+       {#halt orig})))
+
 (defmacro take-every [nth &optional f]
   `(fn
-     ([entry (acc h n t)] (&when (&or (=== n #first)
-                                      (=== n ~nth)))
+     ([entry (acc h n0 t)] (&when (&or (=== n0 #first)
+                                      (=== n0 ~nth)))
       (next-with-acc ~f entry h 1 t))
-     ([_entry (acc h n t)]
-      (skip (acc h (inc n) t)))))
+     ([_entry (acc h n0 t)]
+      (skip (acc h (inc n0) t)))))
+
+(defmacro take-while [callback &optional f]
+  `(fn [entry acc]
+     (if (~callback entry)
+         (next ~f entry acc)
+       {#halt acc})))
 
 (defmacro uniq [callback &optional f]
   `(fn [entry (acc h prev t) &as acc]
@@ -98,3 +110,7 @@
        (if (#gb_sets.#is_member value prev)
            (skip acc)
          (next-with-acc ~f entry h (#gb_sets.#add value prev) t)))))
+
+(defmacro with-index [&optional f]
+  `(fn [entry (acc h counter t)]
+     (next-with-acc ~f {entry counter} h (inc counter) t)))

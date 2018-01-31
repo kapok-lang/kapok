@@ -86,9 +86,13 @@
   returns an anonymous function may return a struct in future releases.
   """
   ((require erlang
+            gb_sets
             lists
             maps
-            (kapok (seq
+            timer
+            (kapok (collectable
+                    list
+                    seq
                     sequential
                     sequential.list
                     (stream.reducers :as reducers)
@@ -288,6 +292,222 @@
     """
     (lazy seq (fn [f1] (reducers.filter fun f1))))
 
+  (defn filter-map [seq filter mapper]
+    """Creates a stream that filters and then maps elements according
+    to given functions.
+
+    Exists for symmetry with `(seq.filter-map 3)`.
+
+    ## Examples
+
+        kapok> (let [s (stream.filter-map (range.new 1 6)
+                                          (fn [x] (== (rem x 2) 0))
+                                          (fn [x] (* x 2)))]
+                 (seq.to-list s))
+        [4 8 12]
+
+    """
+    (lazy seq (fn [f1] (reducers.filter-map filter mapper f1))))
+
+  (defn interval [n]
+    """Creates a stream that emits a value every `n` milliseconds.
+
+    The values emitted are an increasing counter starting at `0`.
+
+    ## Examples
+
+        kapok> (-> (stream.interval 10) seq.take)
+        [0 1 2 3 4 5 6 7 8 9]
+
+    """
+    (unfold 0 (fn [count]
+                (timer.sleep n)
+                {count (inc count)})))
+
+  (defn into [seq collectable &optional (transform (fn [x] x))]
+    """Injects the stream values into the given collectable as a side-effect.
+
+    This function is often used with `(run 1)` since any evaluation
+    is delayed until the stream is excuted. See `(run 1)` for an example.
+    """
+    (fn [x y]
+      (do-into seq collectable transform x y)))
+
+  (defn- do-into [seq collectable transform acc fun]
+    (let [{initial into} (#collectable.#into collectable)
+          composed (fn [x [acc1 & coll]]
+                     (let [coll1 (into coll {#cont (transform x)})
+                           {reason acc2} (fun x acc1)]
+                       {reason [acc2 & coll1]}))]
+      (do-into (fn [x] (sequential.reduce seq x composed)) initial into acc)))
+
+  (defn- do-into [reduce collectable into {command acc}]
+    (try (reduce {command [acc & collectable]})
+        (({#suspended [acc1 & collectable1] continuation}
+          {#suspended acc1 (fn [x] continuation collectable1 into x)})
+         ({reason [acc1 & collectable1]}
+          (into collectable1 #done)
+          {reason acc1}))
+      (catch
+        ((kind reason) (let [stacktrace (system.stacktrace)]
+                         (into collectable #halt)
+                         (erlang.raise kind reason stacktrace))))))
+
+  (defn map [seq fun]
+    """Creates a stream that will apply the given function on sequential.
+
+    ## Examples
+
+        kapok> (let [s (stream.map [1 2 3] (fn [x] (* x 2)))]
+                 (seq.to-list s))
+        [2 4 6]
+
+    """
+    (lazy seq (fn [f1] (reducers.map fun f1))))
+
+  (defn reject [seq fun]
+    """Creates a stream that will reject elements according to
+    the given function on traversal.
+
+    ## Examples
+
+        kapok> (let [s (stream.reject [1 2 3] (fn [x] (== (rem x 2) 0)))]
+                 (seq.to-list s))
+        [1 3]
+
+    """
+    (lazy seq (fn [f1] (reducers.reject fun f1))))
+
+  (defn run [stream]
+    """Runs the given stream.
+
+    This is useful when a stream needs to be run, for side effects,
+    and there is no interest in its return resurt.
+
+    ## Examples
+
+    Open up a file, replace all `#` by `%` and stream to another file
+    without loading the whole file in memory.
+
+        (-> (file.stream! "code")
+            (stream.map (fn [x] (stream.replace x "#" "%")))
+            (stream.into (file.stearm! "new"))
+            (stream.run))
+
+    No computation will be done until we call one of the `seq` functions
+    or `(stream.run 1)`.
+    """
+    (sequential.reduce stream {#count :nil} (fn [_ _] {#cont :nil}))
+    #ok)
+
+  (defn scan [seq fun]
+    """Creates a stream that applies the given function to each
+    element, emits the result and uses the same result as the accumulator
+    for the next computation.
+
+    ## Examples
+
+        kapok> (let [s (stream.scan (range.new 1 5) (fn [x y] (+ x y)))]
+                 (seq.to-list s))
+        [1 3 6 10 15]
+
+    """
+    (lazy seq :first (fn [f1] (reducers.scan-2 fun f1))))
+
+  (defn scan [seq acc fun]
+    """Creates a stream that applies the given function to each
+    element, emits the result and uses the same result as the accumulator
+    for the next computation. Uses the given `acc` as the starting value.
+
+    ## Examples
+
+        kapok> (let [s (stream.scan (range.new 1 5) 0 (fn [x y] (+ x y)))]
+                 (seq.to-list s))
+        [1 3 6 10 15]
+
+    """
+    (lazy seq acc (fn [f1] (reducers.scan-3 fun f1))))
+
+  (defn take
+    """Lazily takes the next `n` items from the sequential and stops traversal.
+
+    If a negative `n` is given, the last `n` values will be taken.
+    For such, the collection is fully traversed keeping up to `2 * n`
+    elements in memory. Once the end of the collection is reached,
+    the last `count` elemnts will be excuted. Therefore, using
+    a negative `n` on an infinite collection will never return.
+
+    ## Examples
+
+        kapok> (let [s (stream.take (range.new 1 100) 5)]
+                 (seq.to-list s))
+        [1 2 3 4 5]
+
+        kapok> (let [s (stream.take (range.new 1 100) -5)]
+                 (seq.to-list s))
+        [96 97 98 99 100]
+
+        kapok> (let [s (-> (stream.cycle [1 2 3])
+                           stream.take)]
+                 (seq.to-list s))
+        [1 2 3 1 2]
+
+    """
+    ([_seq 0]
+     (new :seq []))
+    ([[] _n]
+     (new :seq []))
+    ([seq n] (&when (&and (integer? n) (> n 0)))
+     (lazy seq n (fn [f1] (reducers.take f1))))
+    ([seq n] (&when (&and (integer? n) (< n 0)))
+     (fn [x y]
+       (sequential.reduce (#seq.take seq n) x y))))
+
+  (defn take-every
+    """Creates a stream that takes every `n` items from the sequential.
+
+    The first item as always included, unless `n` is 0.
+
+    `n` must be a non-negative integer, or `function-clause-error` will be raised.
+
+    ## Examples
+
+        kapok> (let [s (stream.take-every (range.new 1 10) 2)]
+                 (seq.to-list s))
+        [1 3 5 7 9]
+
+    """
+    ([seq n] (&when (&and (integer? n) (> n 0)))
+     (lazy seq n (fn [f1] (reducers.take-every n f1))))
+
+    ([_seq 0]
+     (new :seq [])))
+
+  (defn take-while [seq fun]
+    """Lazily takes elements of the sequential while the given function returns `:true`.
+
+    ## Examples
+
+        kapok> (let [s (stream.take-while (range.new 1 100) (fn [x] (<= x 5)))]
+                 (seq.to-list s))
+        [1 2 3 4 5]
+
+    """
+    (lazy seq (fn [f1] (reducers.take-while fun f1))))
+
+  (defn timer [n]
+    """Creates a stream that emits a single value after `n` milliseconds.
+
+    The value emitted is `0`.
+
+    ## Examples
+
+        kapok> (-> (stream.timer 10) seq.to-list)
+        [0]
+
+    """
+    (take (interval n) 1))
+
   (defn transform [seq acc reducer]
     """Transform an existing stream.
 
@@ -391,6 +611,319 @@
   (defn- do-transform-step [x acc]
     {#suspend [x & acc]})
 
+  (defn uniq [seq &optional (fun (fn [x] x))]
+    """Creates a stream that only emits elements if they are unique.
+
+    Keep in mind that, in order to know if an element is unique
+    or not, this function needs to store all unique values emitted
+    by the stream. Therefore, if the stream is infinite, the number
+    of items stored will grow infinitely, never being garbage collected.
+
+    ## Examples
+
+        kapok> (-> (stream.uniq [1 2 3 3 2 1]) seq.to-list)
+        [1 2 3]
+
+        kapok> (-> (stream.uniq [{1 #x} {2 #y} {1 #x}]) seq.to-list)
+        [{1 #x} {2 #y}]
+
+    """
+    ;; TODO revise to use hashset
+    (lazy seq (gb_sets.new) (fn [f1] (reducers.uniq fun f1))))
+
+  (defn with-index [seq]
+    """Creates a stream where each item in the sequential will
+    be wrapped in a tuple alongside its index.
+
+    ## Examples
+
+        kapok> (let [s (stream.with-index [1 2 3])]
+                 (seq.to-list s))
+        [{1 0} {2 1} {3 2}]
+
+    """
+    (lazy seq 0 (fn [f1] (reducers.with-index f1))))
+
+  ;; Combiners
+
+  (defn concat [sequentials]
+    """Creates a stream that traverses each sequential in an sequential.
+
+    ## Examples
+
+        kapok> (let [s (stream.concat [(range.new 1 3) (range.new 4 6) (range.new 7 9)])]
+                 (seq.to-list s))
+        [1 2 3 4 5 6 7 8 9]
+
+    """
+    (flat-map sequentials (fn [x] x)))
+
+  (defn concat [first second]
+    """Creates a stream that traverses the first argument, followed by the second.
+
+    ## Examples
+
+        kapok> (let [s (stream.concat (range.new 1 3) (range.new 4 6))]
+                 (seq.to-list s))
+        [1 2 3 4 5 6]
+
+        kapok> (let [s1 (stream.cycle [1 2 3])
+                     s2 (stearm.cycle [4 5 6])
+                     s (stream.concat s1 s2)]
+                 (seq.take s 6))
+        [1 2 3 1 2 3]
+
+    """
+    (flat-map [first second] (fn [x] x)))
+
+  (defn zip [left right]
+    """Zips two collections together, lazily.
+
+    The zipping finishes as soon as any sequential completes.
+
+    ## Examples
+
+        kapok> (let [concat (stream.#concat (range.new 1 3) (range.new 4 6))
+                     cycle (stream.#cycle [#a #b #c])]
+                 (-> (stream.zip concat cycle) seq.to-list))
+        [{1 #a} {2 #b} {3 #c} {4 #a} {5 #b} {6 #c}]
+
+    """
+    (let [step (fn [x y] (do-zip-step x y))
+          left-fun (fn [x] (sequential.reduce left x step))
+          right-fun (fn [x] (sequential.reduce right x step))]
+      ;; Return a function as a lazy enumerator.
+      (fn [x y]
+        (do-zip [{left-fun []} {right-fun []}] x y))))
+
+  (defn- do-zip [zips {#halt acc} _fun]
+    (do-zip-close zips)
+    {#halted acc})
+
+  (defn- do-zip [zips {#suspend acc} fun]
+    {#suspended acc (fn [x] (do-zip zips x fun))})
+
+  (defn- do-zip [zips {#cont acc} callback]
+    (try (do-zip zips acc callback [] [])
+        (({#next buffer acc} (do-zip buffer acc callback))
+         ({#done _} &as o o))
+      (catch
+        ((kind reason) (let [stacktrace (system.stacktrace)]
+                         (do-zip-close zips)
+                         (erlang.raise kind reason stacktrace))))))
+
+  (defn- do-zip [[{fun fun-acc} & t] acc callback list buffer]
+    (case (fun {#cont fun-acc})
+      ({#suspended [i & fun-acc1] fun1}
+       (do-zip t acc callback [i & list] [{fun1 fun-acc1} & buffer]))
+      ({_ _}
+       (do-zip-close (lists.reverse buffer t))
+       {#done acc})))
+
+  (defn- do-zip [[] acc callback list buffer]
+    (let [zipped (#list.to-tuple (lists.reverse list))]
+      {#next (lists.reverse buffer) (callback zipped acc)}))
+
+  (defn- do-zip-close [[]]
+    #ok)
+  (defn- do-zip-close [{fun acc} & t]
+    (fun {#halt acc})
+    (do-zip-close t))
+
+  (defn- do-zip-step [x acc]
+    {#suspend [x & acc]})
+
+  ;; Sources
+
+  (defn cycle
+    """Creates a stream that cycle through the given sequential, infinitely.
+
+    ## Examples
+
+        kapok> (let [s (stream.cycle [1 2 3])]
+                 (seq.take s 5))
+        [1 2 3 1 2]
+
+    """
+    ([sequential] (&when (list? sequential))
+     (unfold {sequential sequential} (fn
+                                       ([{source [h & t]}]
+                                        {h {source t}})
+                                       ([{[h & t] &as source, []}]
+                                        {h {source t}}))))
+
+    ([sequential]
+     (fn [acc fun]
+       (let [inner (fn [x y] (do-cycle-each x y fun))
+             outer (fn [x] (#sequential.reduce sequential x inner))]
+         (do-cycle outer outer acc)))))
+
+  (defn- do-cycle [reduce cycle acc]
+    (try (reduce acc)
+        (({state acc1} (&when (&or (== state #done)
+                                   (== state #halted)))
+          (do-cycle cycle cycle {#cont acc1}))
+         ({#suspended acc1 continuation}
+          {#suspended acc1 (fn [x] (do-cycle continuation cycle x))}))
+      (catch
+        ({#stream_cycle acc1} {#halted acc1}))))
+
+  (defn do-cycle-each [x acc f]
+    (case (f x acc)
+      ({#halt h}
+       (throw {#stream_cycle h}))
+      ({_ _} &as o
+       o)))
+
+  (defn iterate [start-value next-fun]
+    """Emits a sequence of values, starting with `start-value`. Successive
+    values are generated by calling `next-fun` on the previous value.
+
+    ## Examples
+
+        kapok> (-> (stream.iterate 0 (fn [x] (inc x)))
+                   (seq.take 5))
+        [0 1 2 3 4]
+
+    """
+    (unfold {#ok start-value} (fn
+                                ([{#ok value}]
+                                 {value {#next value}})
+                                ([{#next value}]
+                                 (let [next (next-fun value)]
+                                   {next {#next next}})))))
+
+  (defn repeatly [generator-fun] (&when (function? generator-fun 0))
+    """Returns a stream generated by calling `generator-fun` repeatly.
+
+    ## Examples
+
+        kapok> (-> (stream.repeatly (fn random uniform 0))
+                   (seq.take 3))
+        [0.4435846174457203, 0.7230402056221108, 0.94581636451987]
+
+    """
+    (fn [x y]
+      (do-repeatly generator-fun x y)))
+
+  (defn- do-repeatly [generator-fun {#suspend acc} fun]
+    {#suspended acc (fn [x] (do-repeatly generator-fun x fun))})
+
+  (defn- do-repeatly [_generator-fun {#halt acc} _fun]
+    {#halted acc})
+
+  (defn- do-repeatly [generator-fun {#cont acc} fun]
+    (do-repeatly generator-fun (fun (generator-fun) acc) fun))
+
+  (defn resource [start-fun next-fun after-fun]
+    """Emits a sequence of values for the given resource.
+
+    Similar to `(transform 2)` but the initial accumulated value is
+    computed lazily via `start-fun` and executes an `after-fun` at
+    the end of traversal (both in cases of success and failure).
+
+    Successive values are generated by calling `next-fun` with the
+    previous accumulator (the initial value being the result returned
+    by `start-fun`) and it must return a tuple containing a list
+    of items to be emitted and the next accumulator. The enumeration
+    finishes if it returns `{#halt acc}`.
+
+    As the name says, this function is useful to stream values from
+    resources.
+
+    ## Examples
+
+        (stream.resource (fn [] (file.open! "sample"))
+                         (fn [file]
+                           (case (io.read file #line)
+                             (data (when (binary? data))
+                              {[data] file})
+                             (_
+                              {#halt file})))
+                         (fn [file] (file.close file)))
+
+    """
+
+    (fn [x y]
+      (do-resource (start-fun) next-fun x y after-fun)))
+
+  (defn- do-resource
+    ([next-acc next-fun {#suspend acc} fun after-fun]
+     {#suspended acc (fn [x] (do-resource next-acc next-fun x fun after-fun))})
+
+    ([next-acc _next-fun {#halt acc} _fun after-fun]
+     (after-fun next-acc)
+     {#halted acc})
+
+    ([next-acc next-fun {#cont acc} fun after-fun]
+     (try (case (next-fun next-acc)
+            ({[] next-acc1}
+             {#opt {#cont acc} next-acc1})
+            ({[v] next-acc1}
+             {#opt (fun v acc) next-acc1})
+            ({_ _} &as other
+             other))
+         (({#opt acc1 next-acc2}
+           (do-resource next-acc2 next-fun acc1 fun after-fun))
+          ({#halt next-acc2}
+           (do-resource next-acc2 next-fun {#halt acc} fun after-fun))
+          ({list next-acc2} (&when (list? list))
+           (do-list-resource next-acc2 next-fun {#cont acc} fun after-fun
+                             (fn [x] (sequential.reduce list x fun))))
+          ({seq next-acc2}
+           (let [inner (fn [x y] (do-resource-each x y fun))]
+             (do-seq-resource next-acc2 next-fun {#cont acc} fun after-fun
+                              (fn [x] (sequential.reduce seq x inner))))))
+       (catch
+         ((kind reason) (let [stacktrace (system.stacktrace)]
+                          (after-fun next-acc)
+                          (erlang.raise kind reason stacktrace)))))))
+
+  (defn- do-list-resource [next-acc next-fun acc fun after-fun reduce]
+    (try (reduce acc)
+        (({#done acc1}
+          (do-resource next-acc next-fun {#cont acc1} fun after-fun))
+         ({#halted acc1}
+          (do-resource next-acc next-fun {#halt acc1} fun after-fun))
+         ({#suspended acc1 c}
+          {#suspended acc1 (fn [x] (do-list-resource next-acc next-fun x fun after-fun c))}))
+      (catch
+        ((kind reason) (let [stacktrace (system.stacktrace)]
+                         (after-fun next-acc)
+                         (erlang.raise kind reason stacktrace))))))
+
+  (defn- do-seq-resource [next-acc next-fun {op acc} fun after-fun reduce]
+    (try (reduce {op [#outer & acc]})
+        (({#halted [#outer & acc1]}
+          (do-resource next-acc next-fun {#cont acc1} fun after-fun))
+         ({#halted [#inner & acc1]}
+          (do-resource next-acc next-fun {#halt acc1} fun after-fun))
+         ({#done [_ & acc1]}
+          (do-resource next-acc next-fun {#cont acc1} fun after-fun))
+         ({#suspended [_ & acc1] c}
+          {#suspended acc1 (fn [x] (do-seq-resource next-acc next-fun x fun after-fun c))}))
+      (catch
+        ((kind reason) (let [stacktrace (system.stacktrace)]
+                         (after-fun next-acc)
+                         (erlang.raise kind reason stacktrace))))))
+
+  (defn- do-resource-each [x [#outer & acc] f]
+    (case (f x acc)
+      ({#halt res} {#halt [#inner & res]})
+      ({op res} {op [#outer & res]})))
+
+  (defn unfold [next-acc next-fun]
+    (fn [x y]
+      (do-unfold next-acc next-fun x y)))
+
+  (defn- do-unfold [next-acc next-fun {#suspend acc} fun]
+    {#suspended acc (fn [x] (do-unfold next-acc next-fun x fun))})
+
+  (defn- do-unfold [next-acc next-fun {#cont acc} fun]
+    (case (next-fun next-acc)
+      (:nil {#done acc})
+      ({v next-acc1} (do-unfold next-acc1 next-fun (fun v acc) fun))))
+
   ;; Helpers
 
   (defn- lazy [#{:__struct__ #'kapok.stream'
@@ -429,3 +962,62 @@
   (defn- lazy [seq acc fun done]
     (new :seq seq :funs [fun] :accs [acc] :done done))
   )
+
+(defimpl kapok.sequential kapok.stream
+  (require (kapok (sequential
+                   seq)))
+
+  (defn reduce [lazy acc fun]
+    (do-reduce lazy acc (fn [x [acc1]]
+                          (let [{reason acc1} (fun x acc1)]
+                            {reason [acc1]}))))
+
+  (defn count [_lazy]
+    {#error (__MODULE__)})
+
+  (defn member? [_lazy _value]
+    {#error (__MODULE__)})
+
+  (defn- do-reduce [#{:__struct__ #'kapok.stream'
+                      :seq seq
+                      :funs funs
+                      :accs accs
+                      :done done}
+                    acc
+                    fun]
+    (let [composed (lists.foldl (fn [fun1 acc1] (fun1 acc1)) fun funs)]
+      (do-each (fn [x] (sequential.reduce seq x composed))
+               (and done {done fun})
+               (lists.reverse accs)
+               acc)))
+
+  (defn- do-each [reduce done accs {command acc}]
+    (case (reduce {command [acc & accs]})
+      ({#suspended [acc1 & accs1] continuation}
+       {#suspended acc1 (fn [x] (do-each continuation done accs1 x))})
+      ({#halted accs1}
+       (do-done {#halted accs1} done))
+      ({#done accs1}
+       (do-done {#done accs1} done))))
+
+  (defn- do-done [{reason [acc & _]} :nil]
+    {reason acc})
+  (defn- do-done [{reason [acc & t]} {done fun}]
+    (let [[h & _] (seq.reverse t)]
+      (case (done [acc h] fun)
+        ({#cont [acc1 & _]} {reason acc1})
+        ({#halt [acc1 & _]} {#halted acc1})
+        ({#suspend [acc1 & _]} {#suspended acc1 (fn [x] {#done (elem x 1)})}))))
+
+  )
+
+(defimpl kapok.inspect kapok.stream
+  (use (kapok (inspect.algebra)))
+
+  (defn inspect [#{:seq seq
+                   :funs funs}
+                 opts]
+    (let [inner [{:seq seq} {:funs funs}]]
+      (concat ["#stream<" (to-doc inner opts) ">"])))
+  )
+
