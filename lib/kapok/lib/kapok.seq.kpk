@@ -1256,6 +1256,13 @@
   ([collection acc fun] (&when (list? collection))
    (lists.foldl fun acc collection))
 
+  ([#{:__struct__ _} &as collection acc fun]
+   (-> (sequential.reduce collection
+                          {#cont acc}
+                          (fn [x acc1]
+                            {#cont (fun x acc1)}))
+       (elem 1)))
+
   ([collection acc fun] (&when (map? collection))
    (maps.fold (fn [k v acc0]
                 (fun {k v} acc0))

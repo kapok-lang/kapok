@@ -341,7 +341,9 @@
                        {reason [acc2 & coll1]}))]
       (do-into (fn [x] (sequential.reduce seq x composed)) initial into acc)))
 
-  (defn- do-into [reduce collectable into {command acc}]
+  (defn-
+      #{:check_remote_call :false}
+      do-into [reduce collectable into {command acc}]
     (try (reduce {command [acc & collectable]})
         (({#suspended [acc1 & collectable1] continuation}
           {#suspended acc1 (fn [x] continuation collectable1 into x)})
@@ -703,7 +705,9 @@
   (defn- do-zip [zips {#suspend acc} fun]
     {#suspended acc (fn [x] (do-zip zips x fun))})
 
-  (defn- do-zip [zips {#cont acc} callback]
+  (defn-
+      #{:check_remote_call :false}
+      do-zip [zips {#cont acc} callback]
     (try (do-zip zips acc callback [] [])
         (({#next buffer acc} (do-zip buffer acc callback))
          ({#done _} &as o o))
@@ -847,7 +851,9 @@
     (fn [x y]
       (do-resource (start-fun) next-fun x y after-fun)))
 
-  (defn- do-resource
+  (defn-
+      #{:check_remote_call :false}
+      do-resource
     ([next-acc next-fun {#suspend acc} fun after-fun]
      {#suspended acc (fn [x] (do-resource next-acc next-fun x fun after-fun))})
 
@@ -879,7 +885,9 @@
                           (after-fun next-acc)
                           (erlang.raise kind reason stacktrace)))))))
 
-  (defn- do-list-resource [next-acc next-fun acc fun after-fun reduce]
+  (defn-
+      #{:check_remote_call :false}
+      do-list-resource [next-acc next-fun acc fun after-fun reduce]
     (try (reduce acc)
         (({#done acc1}
           (do-resource next-acc next-fun {#cont acc1} fun after-fun))
@@ -892,7 +900,9 @@
                          (after-fun next-acc)
                          (erlang.raise kind reason stacktrace))))))
 
-  (defn- do-seq-resource [next-acc next-fun {op acc} fun after-fun reduce]
+  (defn-
+      #{:check_remote_call :false}
+      do-seq-resource [next-acc next-fun {op acc} fun after-fun reduce]
     (try (reduce {op [#outer & acc]})
         (({#halted [#outer & acc1]}
           (do-resource next-acc next-fun {#cont acc1} fun after-fun))
@@ -969,8 +979,8 @@
 
   (defn reduce [lazy acc fun]
     (do-reduce lazy acc (fn [x [acc1]]
-                          (let [{reason acc1} (fun x acc1)]
-                            {reason [acc1]}))))
+                          (let [{reason acc2} (fun x acc1)]
+                            {reason [acc2]}))))
 
   (defn count [_lazy]
     {#error (__MODULE__)})
@@ -987,7 +997,9 @@
                     fun]
     (let [composed (lists.foldl (fn [fun1 acc1] (fun1 acc1)) fun funs)]
       (do-each (fn [x] (sequential.reduce seq x composed))
-               (and done {done fun})
+               (if (nil? done)
+                   done
+                 {done fun})
                (lists.reverse accs)
                acc)))
 
