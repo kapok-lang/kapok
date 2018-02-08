@@ -1,0 +1,105 @@
+(defns kapok.file.stream
+  """Defines a `file.stream` struct returned by `(file.stream! 3)`.
+
+  The following fields are public:
+
+      * `path`          - the file path
+      * `modes`         - the file modes
+      * `raw`           - a boolean indicating if bin functions should be used
+      * `line_or_bytes` - if reading should read lines or a given amount of byets
+
+  """
+
+  ((require lists
+            (kapok (seq
+                    stream))))
+
+  (defstruct
+    (:path :nil)
+    (:modes [])
+    (:line_or_bytes :line)
+    (:raw :true))
+
+  (defn build [path modes line-or-bytes]
+    (let [raw (== (lists.keyfind #encoding 1 modes) :false)
+              modes1 (if raw
+                         (if (== (lists.keyfind #read_ahead 1 modes)
+                                 {#read_ahead :false})
+                             [#raw & modes]
+                           [#raw #read_ahead & modes])
+                       modes)]
+      (new :path path :modes modes1 :raw raw :line_or_bytes line-or-bytes)))
+  )
+
+(defimpl kapok.collectable kapok.file.stream
+  (require (file :as erl-file)
+           (kapok (file
+                   io
+                   seq)))
+
+  (defn into [#{:path path
+                :modes modes
+                :raw raw} &as stream]
+    (let [modes1 (seq.filter modes (fn [x] (not (in x [#read]) )))]
+      (case (erl-file.open path [#write & modes1])
+        ({#ok device}
+         {#ok (into device stream raw)})
+        ({#error reason}
+         (raise kapok.file.error [{#reason reason}
+                                  {#action "stream"}
+                                  {#path path}])))))
+
+  (defn- into [device stream raw]
+    (fn
+      ([#ok {#cont x}]
+       (case raw
+         (:true (io.binwrite device x))
+         (:false (io.write device x))))
+      ([#ok #done]
+       ;; If delayed_write option is used and the last write failed will
+       ;; match-error here as {#error _} is returned.
+       (let [#ok (erl-file.close device)]
+         stream))
+      ([#ok #halt]
+       ;; If delayed_write option is used and the last write failed will
+       ;; match-error here as {#error _} is returned.
+       (let [#ok (erl-file.close device)]
+         #ok))))
+  )
+
+(defimpl kapok.sequential kapok.file.stream
+  (require (file :as erl-file)
+           (kapok (file
+                   io
+                   seq
+                   stream)))
+
+  (defn reduce [#{:path path
+                  :modes modes
+                  :line_or_bytes line-or-bytes
+                  :raw raw}
+                acc
+                fun]
+    (let [modes1 (seq.filter modes (fn [x] (not (in x [#write #append]))))
+          start-fun (fn []
+                      (case (erl-file.open path modes1)
+                        ({#ok device}
+                         device)
+                        ({#error reason}
+                         (raise kapok.file.error [{#reason reason}
+                                                  {#action "stream"}
+                                                  {#path path}]))))
+          next-fun (fn [x]
+                     (case raw
+                       (:true
+                        (io.each-binstream x line-or-bytes))
+                       (:false
+                        (io.each-stream x line-or-bytes))))]
+      ((stream.resource start-fun next-fun (fn [f] (erl-file.close f))) acc fun)))
+
+  (defn count [_stream]
+    {#error (__MODULE__)})
+
+  (defn member? [_stream _term]
+    {#error (__MODULE__)})
+  )

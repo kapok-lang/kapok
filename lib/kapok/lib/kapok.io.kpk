@@ -34,7 +34,8 @@
            unicode
            (kapok (access
                    inspect.opts
-                   inspect.algebra)))
+                   inspect.algebra
+                   io.stream)))
   (use (erlang :only (group_leader)))
   )
 
@@ -311,3 +312,21 @@
 
   """
   (erlang.iolist_size item))
+
+(defn each-stream [device what]
+  (case (read device what)
+    (#eof
+     {#halt device})
+    ({#error reason}
+     (raise kapok.io.stream-error [{#reason reason}]))
+    (data
+     {[data] device})))
+
+(defn each-binstream [device what]
+  (case (binread device what)
+    (#eof
+     {#halt device})
+    ({#error reason}
+     (raise kapok.io.stream-error [{#reason reason}]))
+    (data
+     {[data] device})))

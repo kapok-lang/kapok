@@ -148,11 +148,13 @@ $1_lib_files           :=       \
   kapok.stream.kpk              \
   kapok.record.extractor.kpk    \
   kapok.record.kpk              \
+  kapok.io.stream.kpk           \
   kapok.io.kpk                  \
   kapok.process.kpk             \
   kapok.system.kpk              \
   kapok.time.kpk                \
   kapok.path.kpk                \
+  kapok.file.stream.kpk         \
   kapok.file.stat.kpk           \
   kapok.file.kpk
 
