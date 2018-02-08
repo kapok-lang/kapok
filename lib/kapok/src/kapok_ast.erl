@@ -139,12 +139,15 @@ handle_require_element({C1, _, [{identifier, _, Id}, {C2, _, Args}]}, Ctx)
                  Args);
 handle_require_element({Category, Meta, Args}, Ctx) when ?is_list(Category) ->
   case Args of
-    [{identifier, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
-      {Name, TCtx} = handle_require_element(Ast, Ctx),
-      {Name, kapok_ctx:add_require(Meta, TCtx, Id, Name)};
-    [{dot, _, _} = Ast, {keyword, _, 'as'}, {identifier, _, Id}] ->
-      {Name, TCtx} = handle_require_element(Ast, Ctx),
-      {Name, kapok_ctx:add_require(Meta, TCtx, Id, Name)};
+    [{identifier, _, Name}, {keyword, _, 'as'}, {identifier, _, Id}] ->
+      {Name, kapok_ctx:add_require(Meta, Ctx, Id, Name)};
+    [{dot, DotMeta, _} = Dot, {keyword, _, 'as'}, {identifier, _, Id}] ->
+      Name = case is_plain_dot(Dot) of
+               true -> plain_dot_name(Dot);
+               false -> kapok_error:compile_error(
+                            DotMeta, ?m(Ctx, file), "invalid dot expression ~p for require", [Dot])
+             end,
+      {Name, kapok_ctx:add_require(Meta, Ctx, Id, Name)};
     _ ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid require expression ~p", [Args])
   end.

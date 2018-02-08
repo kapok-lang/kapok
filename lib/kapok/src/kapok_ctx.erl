@@ -71,8 +71,7 @@ add_require(Meta, #{requires := Requires} = Ctx, Alias, Original)
                                 [Alias, Original, Alias, Other]);
     error ->
       Requires1 = orddict:store(Alias, Original, Requires),
-      Requires2 = orddict:store(Original, Original, Requires1),
-      Ctx#{requires => Requires2}
+      Ctx#{requires => Requires1}
   end.
 
 delete_require(#{requires := Requires} = Ctx, Original) ->
