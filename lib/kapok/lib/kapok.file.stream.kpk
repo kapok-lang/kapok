@@ -20,7 +20,7 @@
     (:line_or_bytes :line)
     (:raw :true))
 
-  (defn build [path modes line-or-bytes]
+  (defn __build__ [path modes line-or-bytes]
     (let [raw (== (lists.keyfind #encoding 1 modes) :false)
               modes1 (if raw
                          (if (== (lists.keyfind #read_ahead 1 modes)

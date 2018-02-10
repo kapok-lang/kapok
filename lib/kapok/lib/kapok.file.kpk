@@ -74,6 +74,7 @@
            file
            (kapok (file.copy-error
                    file.stat
+                   file.stream
                    io
                    path
                    seq))))
@@ -1015,6 +1016,34 @@
   See `(open 2)`.
   """
   (file.close io-device))
+
+(defn stream! [path &optional (modes []) (line-or-bytes #line)]
+  """Returns a `file.stream` for the given `path` with the given `modes`.
+
+  The stream implements both `sequential` and `collectable` protocols,
+  which means it can be used both for read and write.
+
+  The `line-or-bytes` argument configures how the file is read when
+  streaming, by `#line` (default) or by a given number of bytes.
+
+  Operating the stream can fail on open for the same reasons as
+  `(file.open! 2)`. Note that the file is automatically opened only and
+  every time stearming begins. There is no need to pass `#read` and
+  `#write` modes, as those are automatically set by Kapok.
+
+  ## Raw files
+
+  Since Kapok controls when the streamed file is opened, the underlying
+  device cannot be shared and as such it is convenient to open the file
+  in raw mode for performance reasons. Therefore, Kapok **will** open
+  streams in `#raw` mode with the `#read_ahead` option unless an encoding
+  is specified.
+
+  One may also consider passing the `#delayed_write` option if the stream
+  is meant to be written to under a tight loop.
+  """
+  (let [modes1 (open-defaults modes :true)]
+    (file.stream.__build__ (io.chardata-to-string path) modes1 line-or-bytes)))
 
 (defn chmod [path mode]
   """Changes the `mode` for a given `file`.
