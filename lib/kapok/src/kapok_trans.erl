@@ -242,6 +242,9 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
               case Id of
                 '__MODULE__' ->
                   translate({atom, Meta, ?m(TCtx2, namespace)}, TCtx2);
+                '__DIR__' ->
+                  Dir = kapok_utils:characters_to_binary(filename:dirname(?m(TCtx2, file))),
+                  translate({binary_string, Meta, Dir}, TCtx2);
                 _ ->
                   throw({unresolved_local_call, FunArity, Meta})
               end
