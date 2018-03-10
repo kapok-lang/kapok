@@ -5,7 +5,7 @@ usage() {
   echo "Usage: `basename $0` [options] [kapok file]
 
   -v                Prints version and exit
-  -pa \"path\"        Prepends the giiven path to Erlang code path (*)
+  -pa \"path\"        Prepends the given path to Erlang code path (*)
   -pz \"path\"        Appends the given path to Erlang code path (*)
   --erl \"Options\"   Options to be passed down to erlang runtime
 
