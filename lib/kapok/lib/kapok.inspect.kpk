@@ -84,8 +84,8 @@
     :false))
 
 (defimpl kapok.inspect bitstring
-  (require (kapok (access
-                   integer)))
+  (require (Elixir.Integer :as integer)
+           (kapok (access)))
 
   (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
@@ -191,15 +191,15 @@
     << acc " ..." >>)
 
   (defn- each-bit [<< h (t :bitstring)>> counter acc] (&when (!= t <<>>))
-    (each-bit t (decrement counter) << acc "(" ((integer.to-string h)) ") " >>))
+    (each-bit t (decrement counter) << acc "(" ((integer.to_string h)) ") " >>))
 
   (defn- each-bit [<<(h (:size 8))>> _counter acc]
-    << acc ((integer.to-string h)) >>)
+    << acc ((integer.to_string h)) >>)
 
   (defn- each-bit [bitstring _counter acc]
     (let [size (bit-size bitstring)
           <<(h (:size size))>> bitstring]
-     << acc "(" ((integer.to-string h)) " (:size " ((integer.to-string size)) "))" >>))
+     << acc "(" ((integer.to_string h)) " (:size " ((integer.to_string size)) "))" >>))
 
   (defn- decrement [#infinity]
     #infinity)
@@ -313,12 +313,11 @@
   )
 
 (defimpl kapok.inspect integer
-  (require (kapok (integer)))
 
   (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #base base}]
-    (-> (integer.to-string thing (base-to-value base))
+    (-> (Elixir.Integer.to_string thing (base-to-value base))
         (prepend-prefix base)))
 
   (defn- base-to-value [base]

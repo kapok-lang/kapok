@@ -21,8 +21,7 @@
             (Elixir.IO :as io)
             (Elixir.Enum :as seq))
    (require (kapok (access
-                    alist
-                    integer)))
+                    alist)))
    (use (io_lib :only (format))))
 
   ;; behaviour definition
@@ -393,7 +392,7 @@
   (defn
       #{:check_remote_call :false}
       format-arity [arity] (&when (integer? arity))
-    (format "/~d" [(integer.to-string arity)]))
+    (format "/~d" [(Elixir.Integer.to_string arity)]))
 
   (defn format-file-line [file line]
     """Formats the given file and line as shown in stacktraces.
