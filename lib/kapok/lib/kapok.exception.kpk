@@ -19,9 +19,9 @@
             (Elixir.Symstem :as system)
             (Elixir.Process :as process)
             (Elixir.IO :as io)
-            (Elixir.Enum :as seq))
-   (require (kapok (access
-                    alist)))
+            (Elixir.Enum :as seq)
+            (Elixir.Keyword :as alist))
+   (require (kapok (access)))
    (use (io_lib :only (format))))
 
   ;; behaviour definition
