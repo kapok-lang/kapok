@@ -22,7 +22,6 @@
             (Elixir.Enum :as seq))
    (require (kapok (access
                     alist
-                    atom
                     integer)))
    (use (io_lib :only (format))))
 
@@ -341,7 +340,7 @@
       #{:check_remote_call :false}
       format-application [module]
     (case (application.get_application module)
-      ({#ok app} (format "(~s)" [(atom.to-string app)]))
+      ({#ok app} (format "(~s)" [(Elixir.Atom.to_string app)]))
       (#undefined "")))
 
   (defn

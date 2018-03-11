@@ -127,7 +127,6 @@ $1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_files           :=       \
   kapok.exception.kpk           \
   kapok.char.kpk                \
-  kapok.atom.kpk                \
   kapok.integer.kpk             \
   kapok.list.kpk                \
   kapok.alist.kpk               \

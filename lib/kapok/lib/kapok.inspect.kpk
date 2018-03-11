@@ -48,8 +48,7 @@
   )
 
 (defimpl kapok.inspect atom
-  (require (kapok (atom
-                   char
+  (require (kapok (char
                    inspect.bitstring)))
   (use (kapok ((core :exclude (inspect)))))
 
@@ -68,7 +67,7 @@
   (defn
       #{:check_remote_call :false}
       inspect [a]
-    (let [binary (atom.to-string a)]
+    (let [binary (Elixir.Atom.to_string a)]
       (cond
         (valid-atom-identifier? binary) << ":" (binary :binary) >>
         :true << $: $' ((inspect.bitstring.escape binary $") :binary) $' >>)))
@@ -240,7 +239,7 @@
     (concat <<((key-to-binary key)) ": " >> (to-doc value opts)))
 
   (defn keyword? [[{key _value} & rest]] (&when (atom? key))
-    (case (atom.to-char-list key)
+    (case (Elixir.Atom.to_char_list key)
       ((op-++ #"kapok." _) :false)
       (_ (keyword? rest))))
 
