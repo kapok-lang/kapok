@@ -14,7 +14,7 @@
   duplicated entries for a given key are removed when invoked.
 
   A handful of functions exist to handle duplicated keys, in
-  particular, `(seq.into 2)` allows creating new alist without
+  particular, `(Elixir.Enum.into 2)` allows creating new alist without
   removing duplicated keys, `(get-values 2)` returns all values for
   a given key and `(delete-first 2)` deletes just one of the existing
   entries.
@@ -24,8 +24,7 @@
   all the operations defined in `seq` and `list` can be applied too,
   specially when ordering is required."""
 
-  (require lists
-           (kapok (seq))))
+  (require lists))
 
 (defn alist?
   "Returns `:true` if `term` is an alist; otherwise returns `:false`."
@@ -45,10 +44,10 @@
   [])
 
 (defn new [pairs]
-  """Creates an alist from a sequential.
+  """Creates an alist from a Elixir.Enumerable.
 
   Duplicated entries are removed, the latest one prevails.
-  Unlike `(seq.into sequential [])`, `(alist.new sequential)`
+  Unlike `(Elixir.Enum.into enumerable [])`, `(alist.new enumerable)`
   guarantees the keys are unique.
 
   ## Examples
@@ -62,10 +61,10 @@
 (defn
     #{:check_remote_call :false}
     new [pairs transform] (&when (function? transform 1))
-  """Creates an alist from a sequential via the transformamtion function.
+  """Creates an alist from an enumerable via the transformamtion function.
 
   Duplicated entries are removed, the latest one prevails.
-  Unlike `(seq.into sequential [] fun)`, `(alist.new sequential fun)`
+  Unlike `(Elixir.Enum.into enumerable [] fun)`, `(alist.new enumerable fun)`
   guarantees the keys are unique.
 
   ## Examples
@@ -77,7 +76,7 @@
   (let [fun (fn [el acc]
               (let [{k v} (transform el)]
                 (put-new acc k v)))]
-    (lists.foldr fun [] (seq.reverse pairs))))
+    (lists.foldr fun [] (Elixir.Enum.reverse pairs))))
 
 (defn get [alist key &optional (default :nil)] (&when (&and (list? alist)
                                                             (atom? key)))

@@ -18,12 +18,12 @@
             maps
             (Elixir.Symstem :as system)
             (Elixir.Process :as process)
-            (Elixir.IO :as io))
+            (Elixir.IO :as io)
+            (Elixir.Enum :as seq))
    (require (kapok (access
                     alist
                     atom
-                    integer
-                    seq)))
+                    integer)))
    (use (io_lib :only (format))))
 
   ;; behaviour definition
@@ -359,7 +359,7 @@
       (case tr
         ([] "\n")
         (s (format "    ~s"
-                   [(seq.map-join
+                   [(seq.map_join
                      s
                      "\n    "
                      (fn [x]
@@ -583,7 +583,7 @@
       message [e]
     (let [fun (access.get e #function)
           args (access.get e #args)
-          insp (seq.map-join args
+          insp (seq.map_join args
                              ", "
                              (fn kapok.core inspect 1))
           {#arity arity} (erlang.fun_info fun #arity)]

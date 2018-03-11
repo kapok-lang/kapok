@@ -25,7 +25,7 @@
                (dict.get dict #hello))
       #world
 
-  As well as the `sequential` and `collectable` protocols.
+  As well as the `Elixir.Enumerable` and `Elixir.Collectable` protocols.
 
   ## Match
 

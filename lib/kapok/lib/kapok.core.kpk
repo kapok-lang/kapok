@@ -1750,10 +1750,10 @@
   """Creates and updates structs.
 
   The `struct` argument may be an atom (which defines `defstruct`)
-  or a `struct` itself. The second argument is any `sequential` that
+  or a `struct` itself. The second argument is any `enumerable` that
   emits two-item tuples (key-value pairs) during traversal.
 
-  Keys in the `sequential` that don't exist in the struct are automatically
+  Keys in the `enumerable` that don't exist in the struct are automatically
   discarded.
 
   This function is useful for dynamically creating and updating
@@ -1802,11 +1802,11 @@
    (struct (apply s #__struct__ []) kv))
 
   ([#{:__struct__ _} &as s kv]
-   (kapok.seq.reduce kv
-                     s
-                     (fn [{k v} acc]
-                       (case (and (maps.is_key k acc)
-                                  (!= k #__struct__))
-                         (:true (maps.put k v acc))
-                         (:false acc))))))
+   (Elixir.Enum.reduce kv
+                       s
+                       (fn [{k v} acc]
+                         (case (and (maps.is_key k acc)
+                                    (!= k #__struct__))
+                           (:true (maps.put k v acc))
+                           (:false acc))))))
 

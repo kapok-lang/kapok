@@ -37,7 +37,7 @@
     "Counts how many items are in the range.")
   )
 
-(defimpl kapok.sequential kapok.range
+(defimpl Elixir.Enumerable kapok.range
   (require (kapok (range.iterator)))
 
   (defn reduce [#{:__struct__ #'kapok.range'
