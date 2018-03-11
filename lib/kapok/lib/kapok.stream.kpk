@@ -32,9 +32,9 @@
   example:
 
       (-> (range.new 1 3)
-          (seq.map (fn [x] (io.inspect x)))
+          (seq.map (fn [x] (Elixir.IO.inspect x)))
           (seq.map (fn [x] (* x 2)))
-          (seq.map (fn [x] (io.inspect x))))
+          (seq.map (fn [x] (Elixir.IO.inspect x))))
       1
       2
       3
@@ -48,9 +48,9 @@
   was enumerated three times. Let's see an example with streams:
 
       (let [stream (-> (range.new 1 3)
-                       (stream.map (fn [x] (io.inspect x)))
+                       (stream.map (fn [x] (Elixir.IO.inspect x)))
                        (stream.map (fn [x] (* x 2)))
-                       (stream.map (fn [x] (io.inspect x))))]
+                       (stream.map (fn [x] (Elixir.IO.inspect x))))]
         (seq.to-list stream))
       1
       2
@@ -839,7 +839,7 @@
 
         (stream.resource (fn [] (file.open! "sample"))
                          (fn [file]
-                           (case (io.read file #line)
+                           (case (Elixir.IO.read file #line)
                              (data (when (binary? data))
                               {[data] file})
                              (_

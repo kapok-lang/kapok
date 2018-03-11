@@ -465,7 +465,7 @@
 
   ## Examples
 
-      (seq.each ["some" "example"] (fn [x] (io.puts x)))
+      (seq.each ["some" "example"] (fn [x] (Elixir.IO.puts x)))
       "some"
       "example"
       ;;=> #ok

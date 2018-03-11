@@ -210,10 +210,10 @@
   )
 
 (defimpl kapok.inspect list
-  (require (kapok (atom
+  (require (Elixir.IO :as io)
+           (kapok (atom
                    inspect.atom
-                   inspect.bitstring
-                   io)))
+                   inspect.bitstring)))
   (use (kapok ((inspect.algebra :only (concat
                                        surround-many
                                        to-doc)))))
@@ -230,7 +230,7 @@
       (or (== lists #as_char_lists)
           (and (== lists #infer)
                (printable? thing)))
-        << $' ((inspect.bitstring.escape (io.chardata-to-string thing) $') :binary) $' >>
+        << $' ((inspect.bitstring.escape (io.chardata_to_string thing) $') :binary) $' >>
       (keyword? thing)
         (surround-many "[" thing "]" opts (fn keyword 2))
       :true
@@ -349,7 +349,7 @@
   (defn
       #{:check_remote_call :false}
       inspect [thing _opts]
-    (io.iodata-to-binary (io_lib_format.fwrite_g thing)))
+    (io.iodata_to_binary (io_lib_format.fwrite_g thing)))
   )
 
 
@@ -360,7 +360,7 @@
   (defn
       #{:check_remote_call :false}
       inspect [pid _opts]
-    << "#PID" ((io.iodata-to-binary (erlang.pid_to_list pid))) >>)
+    << "#PID" ((io.iodata_to_binary (erlang.pid_to_list pid))) >>)
   )
 
 (defimpl kapok.inspect port
@@ -370,7 +370,7 @@
   (defn
       #{:check_remote_call :false}
       inspect [port _opts]
-    (io.iodata-to-binary (erlang.port_to_list port)))
+    (io.iodata_to_binary (erlang.port_to_list port)))
   )
 
 (defimpl kapok.inspect reference
@@ -381,7 +381,7 @@
       #{:check_remote_call :false}
       inspect [ref _opts]
     (let [(op-++ #"#ref" rest) (erlang.ref_to_list ref)]
-      << "#Reference" ((io.iodata-to-binary rest)) >>))
+      << "#Reference" ((io.iodata_to_binary rest)) >>))
   )
 
 (defimpl kapok.inspect any

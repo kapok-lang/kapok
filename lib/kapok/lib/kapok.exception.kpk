@@ -17,12 +17,12 @@
             code
             maps
             (Elixir.Symstem :as system)
-            (Elixir.Process :as process))
+            (Elixir.Process :as process)
+            (Elixir.IO :as io))
    (require (kapok (access
                     alist
                     atom
                     integer
-                    io
                     seq)))
    (use (io_lib :only (format))))
 
@@ -765,7 +765,7 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (let [formatted (io.iodata-to-binary (file.format_error
+    (let [formatted (io.iodata_to_binary (file.format_error
                                           (access.get e #reason)))]
       (fmt "could not ~s ~s: ~s" [(access.get e #action)
                                   (access.get e #path)
@@ -787,7 +787,7 @@
   (defn
       #{:check_remote_call :false}
       message [e]
-    (let [formatted (io.iodata-to-binary (file.format_error (access.get e #reason)))
+    (let [formatted (io.iodata_to_binary (file.format_error (access.get e #reason)))
           location (if (access.get e #on)
                        (fmt ". ~s" [(access.get e #on)])
                      "")]

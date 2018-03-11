@@ -1738,7 +1738,7 @@
         limit (case (kapok.access.get opts1 #pretty)
                 (:true (kapok.access.get opts1 #width))
                 (:false #infinity))]
-    (kapok.io.iodata-to-binary (kapok.inspect.algebra.format
+    (Elixir.IO.iodata_to_binary (kapok.inspect.algebra.format
                                 (kapok.inspect.algebra.to-doc arg opts1)
                                 limit))))
 

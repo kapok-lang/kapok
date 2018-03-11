@@ -125,8 +125,8 @@
            maps
            (Elixir.System :as system)
            (Elixir.Process :as process)
+           (Elixir.IO :as io)
            (kapok (access
-                   io
                    inspect.opts
                    inspect.error
                    inspect
@@ -189,7 +189,7 @@
                 (try (do
                       (process.put #inspect-trap :true)
                       (let [res1 (inspect.map.inspect map opts)
-                            res2 (io.iodata-to-binary (format res1 #infinity))
+                            res2 (io.iodata_to_binary (format res1 #infinity))
                             message (io_lib.format "got ~p with message ~s while inspecting ~p"
                                       [(inspect (access.get e #__struct__))
                                        (exception.message e)
