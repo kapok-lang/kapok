@@ -6,7 +6,7 @@
            io_lib
            maps
            re
-           kapok.file))
+           (Elixir.File :as libfile)))
 
 (defn exit [message]
   (io.format message)
@@ -42,7 +42,7 @@
      :false)))
 
 (defn iterate-dir [dir fun]
-  (when (kapok.file.exists? dir)
+  (when (libfile.exists? dir)
     (case (file.list_dir dir)
       ({#ok filenames}
        (lists.foreach fun
@@ -55,7 +55,7 @@
 (defn test-project [dir]
   (let [test-dir (filename.join dir #"test")
         fun (fn itor [path]
-              (when (kapok.file.exists? path)
+              (when (libfile.exists? path)
                 (if (filelib.is_dir path)
                     (iterate-dir path itor)
                   (when (is-test-file path)

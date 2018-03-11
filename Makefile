@@ -149,8 +149,8 @@ $1_lib_files           :=       \
   kapok.process.kpk             \
   kapok.system.kpk              \
   kapok.time.kpk                \
-  kapok.path.kpk                \
-  kapok.file.kpk
+  kapok.path.kpk
+
 
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
