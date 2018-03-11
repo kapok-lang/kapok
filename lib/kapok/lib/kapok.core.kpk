@@ -1588,7 +1588,7 @@
 
 (defmacro to-string
   """Converts the argument to a string according to the
-  `string.chars` protocol.
+  `Elixir.String.Chars` protocol.
 
   ## Examples
 
@@ -1601,7 +1601,7 @@
    arg)
 
   ([arg]
-   `(kapok.string.chars.#to-string ~arg)))
+   `(Elixir.String.Chars.#to_string ~arg)))
 
 (defmacro to-char-list [arg]
   """Converts the argument to a char list according to the `list.chars` protocol.

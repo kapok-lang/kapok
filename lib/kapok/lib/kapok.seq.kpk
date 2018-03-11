@@ -131,9 +131,9 @@
            gb_sets
 
            (Elixir.Collectable :as clt)
+           (Elixir.String.Chars :as chars)
            (kapok (sequential
                    (stream.reducers :as reducers)
-                   (string.chars :as chars)
                    dict
                    tuple))))
 
@@ -2008,7 +2008,7 @@
   ([entry] (&when (binary? entry))
    entry)
   ([entry]
-   (chars.to-string entry)))
+   (chars.to_string entry)))
 
 (defn- random-index [n]
   (dec (rand.uniform (inc n))))
