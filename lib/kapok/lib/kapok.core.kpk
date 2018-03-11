@@ -1459,18 +1459,18 @@
 
   Works like `(raise 1)` but does not generate a new stacktrace.
 
-  Notice that `(system.stacktrace 0)` returns the stacktrace
+  Notice that `(Elixir.System.stacktrace 0)` returns the stacktrace
   of the last exception. That said, it is common to assign
   the stacktrace as the first expression inside a `catch`
   clause as any other exception potentially raised (and
   catched) between the catch clause and the raise call
-  may change the `(system.stacktrace 0)` value.
+  may change the `(Elixir.System.stacktrace 0)` value.
 
   ## Examples
 
       (try (raise "Oops")
         (catch
-          (exception (let [stacktrace (system.stacktrace)]
+          (exception (let [stacktrace (Elixir.System.stacktrace)]
                        (if (== (exception.message exception) "Oops")
                            (reraise exception stacktrace)))))))
 
@@ -1506,7 +1506,7 @@
 
       (try (raise "Oops")
         (catch
-          (exception (let [stacktrace (system.stacktrace)]
+          (exception (let [stacktrace (Elixir.System.stacktrace)]
                        (reraise wrapper-error [{#exception exception}] stacktrace)))))
 
   """

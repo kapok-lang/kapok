@@ -147,7 +147,6 @@ $1_lib_files           :=       \
   kapok.io.stream.kpk           \
   kapok.io.kpk                  \
   kapok.process.kpk             \
-  kapok.system.kpk              \
   kapok.time.kpk
 
 

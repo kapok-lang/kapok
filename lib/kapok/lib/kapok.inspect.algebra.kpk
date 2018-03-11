@@ -123,10 +123,10 @@
 
   (require binary
            maps
+           (Elixir.System :as system)
            (kapok (access
                    io
                    process
-                   system
                    inspect.opts
                    inspect.error
                    inspect

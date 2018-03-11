@@ -3,7 +3,7 @@
 
   Note that stacktraces in Kapok are updated on throw,
   errors and exits. For example, at any given moment,
-  `(system.stackstrace 0)` will return the stacktrace for
+  `(Elixir.System.stackstrace 0)` will return the stacktrace for
   the last throw/error/exit that occurred in the current process.
 
   Do not rely on the particular format returned by the `format`
@@ -15,15 +15,15 @@
 
   ((require application
             code
-            maps)
+            maps
+            (Elixir.Symstem :as system))
    (require (kapok (access
                     alist
                     atom
                     integer
                     io
                     process
-                    seq
-                    system)))
+                    seq)))
    (use (io_lib :only (format))))
 
   ;; behaviour definition
@@ -75,9 +75,9 @@
     for others.
 
     The third argument, a stacktrace, is optional. If it is
-    not supplied `(system.stacktrace 0)` will sometimes be used
+    not supplied `(Elixir.System.stacktrace 0)` will sometimes be used
     to get additional information for the `kind` `#error`. If
-    the stacktrace is unknown and `(system.stacktrace 0)` would
+    the stacktrace is unknown and `(Elixir.system.stacktrace 0)` would
     not return the stacktrace corresponding to the exception
     an empty stacktrace, `[]`, must be used.
     """
@@ -105,9 +105,9 @@
     format as used by Kapok's CLI.
 
     The third argument, a stacktrace, is optional. If it is
-    not supplied `(system.stacktrace 0)` will sometimes be used
+    not supplied `(Elixir.system.stacktrace 0)` will sometimes be used
     to get additional information for the `kind` `#error`. If
-    the stacktrace is unknown and `(system.stacktrace 0)` would
+    the stacktrace is unknown and `(Elixir.system.stacktrace 0)` would
     not return the stacktrace corresponding to the exception
     an empty stacktrace, `[]`, must be used.
     """

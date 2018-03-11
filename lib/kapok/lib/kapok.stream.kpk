@@ -91,12 +91,12 @@
             maps
             timer
             (Elixir.Collectable :as clt)
+            (Elixir.System :as system)
             (kapok (list
                     seq
                     sequential
                     sequential.list
-                    (stream.reducers :as reducers)
-                    system))))
+                    (stream.reducers :as reducers)))))
 
   (defstruct
     (:seq :nil)
