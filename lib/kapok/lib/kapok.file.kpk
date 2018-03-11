@@ -73,8 +73,8 @@
            calender
            file
            (Elixir.File.Stream :as fstream)
+           (Elixir.File.Stat :as fstat)
            (kapok (file.copy-error
-                   file.stat
                    io
                    path
                    seq))))
@@ -219,7 +219,7 @@
 
 (defn stat [path &optional (opts [])]
   """Returns information about the `path`. If it exists, it
-  returns a `{#ok info}` tuple, where info is a `file.stat` struct.
+  returns a `{#ok info}` tuple, where info is a `Elixir.File.Stat` struct.
   Returns `{#error reason}` with the same reasons as `(read 1)` if a failure occurs.
 
   ## Options
@@ -238,12 +238,12 @@
 
   (case (file.read_file_info (io.chardata-to-string path) opts)
     ({#ok fileinfo}
-     {#ok (file.stat.from-record fileinfo)})
+     {#ok (fstat.from_record fileinfo)})
     (error
      error)))
 
 (defn stat! [path &optional (opts [])]
-  """Same as `(stat 2)` but returns the `file.stat` directly and
+  """Same as `(stat 2)` but returns the `Elixir.File.Stat` directly and
   throws `file.error` if an error is returned.
   """
   (case (stat path opts)
@@ -256,7 +256,7 @@
 
 (defn lstat [path &optional (opts [])]
   """Returns information about the `path`. If the file is a symlink sets
-  the `type` to `#symlink` and returns `file.stat` for the link. For any
+  the `type` to `#symlink` and returns `Elixir.File.Stat` for the link. For any
   other file, returns exactly the same values as `(stat 2)`. For more details
   see http://www.erlang.org/doc/man/file.html#read_link_info-2
 
@@ -275,12 +275,12 @@
   """
   (case (file.read_link_info (io.chardata-to-string path) opts)
     ({#ok fileinfo}
-     {#ok (file.stat.from-record fileinfo)})
+     {#ok (fstat.from_record fileinfo)})
     (error
      error)))
 
 (defn lstat! [path &optional (opts [])]
-  """Same as `(lstat 2)` but returns the `file.stat` directly and
+  """Same as `(lstat 2)` but returns the `Elixir.File.Stat` directly and
   throws `file.error` if an error is returned.
   """
   (case (lstat path opts)
@@ -292,10 +292,10 @@
                               {#path (io.chardata-to-string path)}]))))
 
 (defn write-stat [path stat &optional (opts [])]
-  """Writes the given `file.stat` back to the filesystem at the given
+  """Writes the given `Elixir.File.Stat` back to the filesystem at the given
   path. Returns `#ok` or `{#error reason}`.
   """
-  (file.write_file_info (io.chardata-to-string path) (file.stat.to-record stat) opts))
+  (file.write_file_info (io.chardata-to-string path) (fstat.to_record stat) opts))
 
 (defn write-stat! [path stat &optional (opts [])]
   """Same as `(write-stat 3)` but raises an exception if it fails.
