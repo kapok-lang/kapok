@@ -74,7 +74,7 @@
   There are many functions in Kapok's stanard library that return
   streams, some example is:
 
-      * `(io.stream 2)`       - streams input lines, one by one
+      * `(Elixir.IO.Stream 2)`       - streams input lines, one by one
 
   This module also provides many convenience functions for creating streams.
   like `(stream.cycle 1)`, `(stream.unfold 2)`, `(stream.resource 3)` and more.

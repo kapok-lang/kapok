@@ -20,7 +20,7 @@
   there are three exceptions for this rule:
 
     * `#stardard_io` - when the `#standard_io` atom is given,
-      it is treated as a shortcut for `process.group_leader`
+      it is treated as a shortcut for `(Elixir.Process.group_leader)`
 
     * `#stdio` - is a shortcut for `#standard_io`
 
@@ -34,8 +34,7 @@
            unicode
            (kapok (access
                    inspect.opts
-                   inspect.algebra
-                   io.stream)))
+                   inspect.algebra)))
   (use (erlang :only (group_leader)))
   )
 
@@ -197,7 +196,7 @@
 
   ## Examples
 
-      (io.inspect (process.list) [{#width 40}])
+      (io.inspect (Elixir.Process.list) [{#width 40}])
 
   """
   (inspect (group_leader) item opts))
@@ -318,7 +317,7 @@
     (#eof
      {#halt device})
     ({#error reason}
-     (raise kapok.io.stream-error [{#reason reason}]))
+     (raise Elixir.IO.StreamError [{#reason reason}]))
     (data
      {[data] device})))
 
@@ -327,6 +326,6 @@
     (#eof
      {#halt device})
     ({#error reason}
-     (raise kapok.io.stream-error [{#reason reason}]))
+     (raise Elixir.IO.StreamError [{#reason reason}]))
     (data
      {[data] device})))

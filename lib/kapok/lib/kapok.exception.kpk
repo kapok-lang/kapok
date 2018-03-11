@@ -16,13 +16,13 @@
   ((require application
             code
             maps
-            (Elixir.Symstem :as system))
+            (Elixir.Symstem :as system)
+            (Elixir.Process :as process))
    (require (kapok (access
                     alist
                     atom
                     integer
                     io
-                    process
                     seq)))
    (use (io_lib :only (format))))
 
@@ -350,7 +350,7 @@
     """Format the stacktrace.
 
     A stacktrace must be given as an argument. If not, the stacktrace
-    is retrieved from `(process.info 2)`.
+    is retrieved from `(Elixir.Process.info 2)`.
     """
     (let [tr (or trace
                (case (process.info (self)

@@ -124,9 +124,9 @@
   (require binary
            maps
            (Elixir.System :as system)
+           (Elixir.Process :as process)
            (kapok (access
                    io
-                   process
                    inspect.opts
                    inspect.error
                    inspect

@@ -144,11 +144,8 @@ $1_lib_files           :=       \
   kapok.stream.kpk              \
   kapok.record.extractor.kpk    \
   kapok.record.kpk              \
-  kapok.io.stream.kpk           \
   kapok.io.kpk                  \
-  kapok.process.kpk             \
   kapok.time.kpk
-
 
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
 $1_beam_files          := $$(call modules-to-beams,$$($1_beam_output_dir),$$($1_modules))
