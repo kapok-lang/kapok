@@ -143,7 +143,6 @@ $1_lib_files           :=       \
   kapok.range.kpk               \
   kapok.dict.kpk                \
   kapok.stream.reducers.kpk     \
-  kapok.collectable.kpk         \
   kapok.seq.kpk                 \
   kapok.stream.kpk              \
   kapok.record.extractor.kpk    \

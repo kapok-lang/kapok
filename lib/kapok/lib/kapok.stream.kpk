@@ -90,8 +90,8 @@
             lists
             maps
             timer
-            (kapok (collectable
-                    list
+            (Elixir.Collectable :as clt)
+            (kapok (list
                     seq
                     sequential
                     sequential.list
@@ -334,7 +334,7 @@
       (do-into seq collectable transform x y)))
 
   (defn- do-into [seq collectable transform acc fun]
-    (let [{initial into} (#collectable.#into collectable)
+    (let [{initial into} (#clt.#into collectable)
           composed (fn [x [acc1 & coll]]
                      (let [coll1 (into coll {#cont (transform x)})
                            {reason acc2} (fun x acc1)]

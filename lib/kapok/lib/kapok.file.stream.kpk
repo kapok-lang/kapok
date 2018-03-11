@@ -31,7 +31,7 @@
       (new :path path :modes modes1 :raw raw :line_or_bytes line-or-bytes)))
   )
 
-(defimpl kapok.collectable kapok.file.stream
+(defimpl Elixir.Collectable kapok.file.stream
   (require (file :as erl-file)
            (kapok (file
                    io

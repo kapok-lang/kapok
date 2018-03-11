@@ -130,9 +130,9 @@
            maps
            gb_sets
 
+           (Elixir.Collectable :as clt)
            (kapok (sequential
                    (stream.reducers :as reducers)
-                   (collectable :as clt)
                    (string.chars :as chars)
                    dict
                    tuple))))
