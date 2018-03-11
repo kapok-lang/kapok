@@ -148,8 +148,7 @@ $1_lib_files           :=       \
   kapok.io.kpk                  \
   kapok.process.kpk             \
   kapok.system.kpk              \
-  kapok.time.kpk                \
-  kapok.path.kpk
+  kapok.time.kpk
 
 
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
