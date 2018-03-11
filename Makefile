@@ -128,7 +128,6 @@ $1_lib_files           :=       \
   kapok.exception.kpk           \
   kapok.char.kpk                \
   kapok.integer.kpk             \
-  kapok.list.kpk                \
   kapok.alist.kpk               \
   kapok.access.kpk              \
   kapok.inspect.algebra.kpk     \
