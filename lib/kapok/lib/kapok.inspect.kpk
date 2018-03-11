@@ -86,15 +86,14 @@
 
 (defimpl kapok.inspect bitstring
   (require (kapok (access
-                   integer
-                   string)))
+                   integer)))
 
   (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
                    #binaries bins} &as opts] (&when (binary? thing))
     (if (or (== bins #as_strings)
             (and (== bins #infer)
-                 (string.printable? thing)))
+                 (Elixir.String.printable? thing)))
         << $" ((escape thing $") :binary) $" >>
       (inspect-bitstring thing opts)))
 
@@ -132,7 +131,7 @@
     (escape t char << (binary :binary) $\\ $v >>))
   (defn- escape [<< (h :utf8) (t :binary) >> char binary]
     (let [head <<(h :utf8)>>]
-     (if (string.printable? head)
+     (if (Elixir.String.printable? head)
          (escape t char (append head binary))
        (let [<< (byte (:size 8)) (h :binary) >> head
              t1 << (h :binary) (t :binary) >>]

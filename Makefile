@@ -131,7 +131,6 @@ $1_lib_files           :=       \
   kapok.integer.kpk             \
   kapok.list.kpk                \
   kapok.alist.kpk               \
-  kapok.string.kpk              \
   kapok.access.kpk              \
   kapok.inspect.algebra.kpk     \
   kapok.inspect.kpk             \

@@ -88,7 +88,8 @@
   Notice the break was represented as is, because we haven't reached
   a line limit. Once we do, it is replaced by a newline:
 
-      kapok> (let [doc (inspect.algebra.glue (string.duplicate "a" 20) " " "b")]
+      kapok> (let [doc (inspect.algebra.glue
+                         (Elixir.String.duplicate "a" 20) " " "b")]
                (inspect.algebra.format doc 10))
       ["aaaaaaaaaaaaaaaaaaaa", "\n", "b"]
 
@@ -273,7 +274,8 @@
   Notice the break was represented as is, because we haven't reached
   a line limit. Once we do, it is replaced by a newline:
 
-      kapok> (let [doc (inspect.algebra.glue (string.duplicate "a" 20) " " "b")]
+      kapok> (let [doc (inspect.algebra.glue
+                         (Elixir.String.duplicate "a" 20) " " "b")]
               (inspect.algebra.format doc 10))
       ["aaaaaaaaaaaaaaaaaaaa", "\n", "b"]
 
