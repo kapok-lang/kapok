@@ -578,7 +578,7 @@
   {:nil :nil})
 
 (defn- to-list [t] (&when (tuple? t))
-  (tuple.to-list t))
+  (Elixir.Tuple.to_list t))
 
 (defn- to-list [l] (&when (list? l))
   l)

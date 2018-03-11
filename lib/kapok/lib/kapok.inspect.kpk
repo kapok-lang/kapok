@@ -275,13 +275,12 @@
   )
 
 (defimpl kapok.inspect tuple
-  (require (kapok (tuple)))
   (use (kapok ((inspect.algebra :only (surround-many)))))
   (defn inspect [{} _opts]
     "{}")
 
   (defn inspect [tuple opts]
-    (surround-many "{" (tuple.to-list tuple) "}" opts
+    (surround-many "{" (Elixir.Tuple.to_list tuple) "}" opts
                    (fn kapok.inspect.algebra to-doc 2)))
   )
 
