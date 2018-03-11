@@ -3,8 +3,8 @@
 
   (require binary
            unicode
-           (kapok (alist
-                   regex))))
+           (Elixir.Regex :as regex)
+           (kapok (alist))))
 
 (defn printable? [<<(h :utf8) (t :binary)>>]
     (&when (&or (&and (>= h 0x20)
