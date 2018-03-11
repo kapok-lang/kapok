@@ -1604,7 +1604,7 @@
    `(Elixir.String.Chars.#to_string ~arg)))
 
 (defmacro to-char-list [arg]
-  """Converts the argument to a char list according to the `list.chars` protocol.
+  """Converts the argument to a char list according to the `Elixir.List.Chars` protocol.
 
   ## Examples
 
@@ -1613,7 +1613,7 @@
 
   """
 
-  `(kapok.list.chars.#to-char-list ~arg))
+  `(Elixir.List.Chars.#to_char_list ~arg))
 
 (defmacro match? [{#identifier _ #_} &as _pattern _expr]
   """A convenience macro that checks if the right side (an expression) matches

@@ -72,9 +72,9 @@
   (require kapok_utils
            calender
            file
+           (Elixir.File.Stream :as fstream)
            (kapok (file.copy-error
                    file.stat
-                   file.stream
                    io
                    path
                    seq))))
@@ -1018,7 +1018,7 @@
   (file.close io-device))
 
 (defn stream! [path &optional (modes []) (line-or-bytes #line)]
-  """Returns a `file.stream` for the given `path` with the given `modes`.
+  """Returns a `Elixir.File.Stream` for the given `path` with the given `modes`.
 
   The stream implements both `sequential` and `collectable` protocols,
   which means it can be used both for read and write.
@@ -1043,7 +1043,7 @@
   is meant to be written to under a tight loop.
   """
   (let [modes1 (open-defaults modes :true)]
-    (file.stream.__build__ (io.chardata-to-string path) modes1 line-or-bytes)))
+    (fstream.__build__ (io.chardata-to-string path) modes1 line-or-bytes)))
 
 (defn chmod [path mode]
   """Changes the `mode` for a given `file`.

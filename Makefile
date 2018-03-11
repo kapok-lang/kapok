@@ -132,10 +132,8 @@ $1_lib_files           :=       \
   kapok.float.kpk               \
   kapok.tuple.kpk               \
   kapok.list.kpk                \
-  kapok.list.chars.kpk          \
   kapok.alist.kpk               \
   kapok.string.kpk              \
-  kapok.string.chars.kpk        \
   kapok.access.kpk              \
   kapok.inspect.algebra.kpk     \
   kapok.inspect.kpk             \
@@ -152,7 +150,6 @@ $1_lib_files           :=       \
   kapok.system.kpk              \
   kapok.time.kpk                \
   kapok.path.kpk                \
-  kapok.file.stream.kpk         \
   kapok.file.stat.kpk           \
   kapok.file.kpk
 
