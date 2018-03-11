@@ -138,7 +138,6 @@ $1_lib_files           :=       \
   kapok.inspect.algebra.kpk     \
   kapok.inspect.kpk             \
   kapok.range.kpk               \
-  kapok.dict.kpk                \
   kapok.time.kpk
 
 $1_lib_modules         := $$(patsubst %.kpk,%,$$($1_lib_files))
