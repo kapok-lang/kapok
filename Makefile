@@ -129,7 +129,6 @@ $1_lib_files           :=       \
   kapok.char.kpk                \
   kapok.atom.kpk                \
   kapok.integer.kpk             \
-  kapok.float.kpk               \
   kapok.tuple.kpk               \
   kapok.list.kpk                \
   kapok.alist.kpk               \
