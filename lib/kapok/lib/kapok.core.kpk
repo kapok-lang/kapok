@@ -26,7 +26,7 @@
 (defn hd [list]
   """Returns the head of a list, that is, the first element.
 
-  Raises `argument-error` if the list is empty.
+  Raises `Elixir.ArgumentError` if the list is empty.
 
   Allowed in guard tests. Inlined by the compiler.
 
@@ -44,7 +44,7 @@
 (defn tl [list]
   """Returns the tail of a list, that is, the list minus the first element.
 
-  Raises `argument-error` if the list is empty.
+  Raises `Elixir.ArgumentError` if the list is empty.
 
   Allowed in guard tests. Inlined by the compiler.
 
@@ -211,7 +211,7 @@
   Binary are zero-indexed.
 
   If `start` or `length` reference in any way outside the binary, an
-  `argument-error` exception is raised.
+  `Elixir.ArgumentError` exception is raised.
 
   Allowed in guard tests. Inlined by the compiler.
 
@@ -767,7 +767,7 @@
 (defn div [x y]
   """Performs in integer division.
 
-  Raises an `arithmetic-error` exception if one of the arguments is not
+  Raises an `Elixir.ArithmeticError` exception if one of the arguments is not
   an integer.
 
   Allowed in guard tests. Inlined by the compiler.
@@ -783,7 +783,7 @@
 (defn rem [x y]
   """Computes the remainder of an integer division.
 
-  Raises an `arithmetic-error` exception if one of the arguments is not
+  Raises an `Elixir.ArithmeticError` exception if one of the arguments is not
   an integer.
 
   Allowed in guard tests. Inlined by the compiler.
@@ -1404,13 +1404,13 @@
 (defmacro raise [msg]
   """Raises an exception.
 
-  If the argument `msg` is a binary, it raises a `runtime-error` exception
+  If the argument `msg` is a binary, it raises a `Elixir.RuntimeError` exception
   using the given argument as message.
 
   If `msg` as an atom, it just calls `(raises 2)` with the atom as the first
   argument and `[]` as the second argument.
 
-  If `msg` is anything else, raises an `argument-error` exception.
+  If `msg` is anything else, raises an `Elixir.ArgumentError` exception.
 
   ;; TODO add examples
 
@@ -1418,13 +1418,13 @@
 
   (case msg
     (m (&when (#erlang.#is_binary m))
-      `(#erlang.#error (kapok.runtime-error.#exception ~m)))
+      `(#erlang.#error (Elixir.RuntimeError.#exception ~m)))
     (alias (&when (#erlang.#is_atom alias))
       `(#erlang.#error (~alias.#exception [])))
     (_
      `(case ~msg
         (m (&when (#erlang.#is_binary m))
-         (#erlang.#error (kapok.runtime-error.#exception m)))
+         (#erlang.#error (Elixir.RuntimeError.#exception m)))
         (atom (&when (#erlang.#is_atom atom))
          (#erlang.#error (atom.#exception [])))
         (#{#__struct__ struct
@@ -1432,15 +1432,15 @@
          (#erlang.#error other))
         (_
          (#erlang.#error
-          (kapok.argument-error.#exception
+          (Elixir.ArgumentError.#exception
            "(raise 1) expects an alias or a string as the first argument")))))))
 
 (defmacro raise [exception attrs]
   """Raises an exception.
 
   Calls the `(exception 1)` function on the given argument (which has to be
-  a module name like `argument-error` or `runtime-error`) passing `attrs`
-  as the attributes in order to retrieve the exception struct.
+  a module name like `Elixir.ArgumentError` or `Elixir.RuntimeError`)
+  passing `attrs` as the attributes in order to retrieve the exception struct.
 
   Any module that contains a call to the `(defexception 1)` macro automatically
   implements the `(exception 1)` callback expected by `(raise 2)`. See the docs
@@ -1448,8 +1448,8 @@
 
   ## Examples
 
-      kapok> (raise argument-error :message "Sample")
-      ** (argument-error) Sample
+      kapok> (raise Elixir.ArithmeticError :message "Sample")
+      ** (argument error) Sample
 
   """
   `(#erlang.#error (~exception.#exception ~attrs)))
@@ -1478,14 +1478,14 @@
 
   (case msg
     (m (&when (erlang.is_binary m))
-     `(#erlang.#raise #error (kapok.runtime-error.#exception ~m) ~stacktrace))
+     `(#erlang.#raise #error (Elixir.RuntimeError.#exception ~m) ~stacktrace))
     (alias (&when (erlang.is_atom alias))
      `(#erlang.#raise #error (~alias.#exception []) ~stacktrace))
     (_
      `(let [stacktrace ~stacktrace]
        (case ~msg
          (m (&when (#erlang.#is_binary m))
-          (#erlang.#raise #error (kapok.runtime-error.#exception m) stacktrace))
+          (#erlang.#raise #error (Elixir.RuntimeError.#exception m) stacktrace))
          (atom (&when (#erlang.#is_atom atom))
           (#erlang.#raise #error (atom.#exception []) stacktrace))
          (#{#__struct__ struct
@@ -1493,7 +1493,7 @@
           (#erlang.#raise #error other stacktrace))
          (_
           (#erlang.#error
-           (kapok.argument-error.#exception
+           (Elixir.ArgumentError.#exception
             "(reraise 2) expects an alias or a string as the first argument"))))))))
 
 (defmacro reraise [exception attrs stacktrace]
@@ -1639,7 +1639,7 @@
     #{:check_remote_call :false}
     in [_ other]
   (let [message (io_lib.format "only accept list, invalid arg: ~p" [other])]
-    (raise kapok.argument-error [{#message message}])))
+    (raise Elixir.ArgumentError [{#message message}])))
 
 (defmacro -> [x &rest forms]
   "Threads the expr through the forms. Inserts `x` as the

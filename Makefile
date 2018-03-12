@@ -125,7 +125,6 @@ $1_core_lib_files      :=       \
   kapok.protocol.kpk
 $1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_files           :=       \
-  kapok.exception.kpk           \
   kapok.char.kpk                \
   kapok.inspect.kpk             \
   kapok.time.kpk
