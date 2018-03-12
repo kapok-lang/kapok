@@ -20,8 +20,8 @@
             (Elixir.Process :as process)
             (Elixir.IO :as io)
             (Elixir.Enum :as seq)
-            (Elixir.Keyword :as alist))
-   (require (kapok (access)))
+            (Elixir.Keyword :as alist)
+            (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   ;; behaviour definition
@@ -451,8 +451,8 @@
 
 
 (defns kapok.syntax-error
-  ((require (kapok (access
-                    exception)))
+  ((require (Elixir.Access :as access)
+              (kapok (exception)))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
@@ -468,8 +468,8 @@
                   (access.get e #description)])))
 
 (defns kapok.token-missing-error
-  ((require (kapok (access
-                    exception)))
+  ((require (Elixir.Access :as access)
+            (kapok (exception)))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
@@ -485,8 +485,8 @@
                   (access.get e #description)])))
 
 (defns kapok.compile-error
-  ((require (kapok (access
-                    exception)))
+  ((require (Elixir.Access :as access)
+            (kapok (exception)))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
@@ -502,7 +502,7 @@
                   (access.get e #description)])))
 
 (defns kapok.bad-function-error
-  ((require (kapok (access)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
@@ -513,7 +513,7 @@
     (format "expected a function, got: ~s" [(inspect (access.get e #term))])))
 
 (defns kapok.bad-struct-error
-  ((require (kapok (access)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#struct :nil}
@@ -527,7 +527,7 @@
              (inspect (access.get e #term))])))
 
 (defns kapok.match-error
-  ((require (kapok (access)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
@@ -539,7 +539,7 @@
             [(inspect (access.get e #term))])))
 
 (defns kapok.case-clause-error
-  ((require (kapok (access)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
@@ -558,7 +558,7 @@
     (format "no cond clause evaluated to a true value" [])))
 
 (defns kapok.try-clause-error
-  ((require (kapok (access)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#term :nil}])
@@ -569,8 +569,7 @@
     (format "no try clause matching: ~s" [(inspect (access.get e #term))])))
 
 (defns kapok.bad-arity-error
-  ((require (kapok (access
-                    seq)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#function :nil}
@@ -581,7 +580,7 @@
       message [e]
     (let [fun (access.get e #function)
           args (access.get e #args)
-          insp (seq.map_join args
+          insp (Elixir.Enum.map_join args
                              ", "
                              (fn kapok.core inspect 1))
           {#arity arity} (erlang.fun_info fun #arity)]
@@ -650,8 +649,8 @@
             fa]))))
 
 (defns kapok.function-clause-error
-  ((require (kapok (access
-                    exception)))
+  ((require (Elixir.Access :as access)
+            (kapok (exception)))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
@@ -684,8 +683,8 @@
       (new :message message :file file))))
 
 (defns kapok.protocol.undefined-error
-  ((require (kapok (access
-                    exception)))
+  ((require (Elixir.Access :as access)
+            (kapok (exception)))
    (use (io_lib :only (format))))
 
   (defexception [{#protocol :nil}
@@ -704,7 +703,7 @@
         msg))))
 
 (defns kapok.key-error
-  ((require (kapok (access)))
+  ((require (Elixir.Access :as access))
    (use (io_lib :only (format))))
 
   (defexception [{#key :nil}
@@ -751,8 +750,8 @@
 
 (defns kapok.file.error
   ((require file
-            (kapok (access
-                    io)))
+            (Elixir.Access :as access)
+            (Elixir.IO :as io))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
@@ -771,8 +770,8 @@
 
 (defns kapok.file.copy-error
   ((require file
-            (kapok (access
-                    io)))
+            (Elixir.Access :as access)
+            (kapok (io)))
    (use (io_lib :only (format)
                 :rename ((format fmt)))))
 
@@ -797,8 +796,8 @@
   )
 
 (defns kapok.erlang-error
-  ((require (kapok (access
-                    exception
+  ((require (Elixir.Access :as access)
+            (kapok (exception
                     argument-error
                     arithmetic-error
                     system-limit-error

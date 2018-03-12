@@ -40,7 +40,7 @@
       implementations.
   """
 
-  (defstruct [kapok.access]
+  (defstruct
     (:structs :true)
     (:binaries #infer)
     (:char-lists #infer)
@@ -127,8 +127,8 @@
            (Elixir.System :as system)
            (Elixir.Process :as process)
            (Elixir.IO :as io)
-           (kapok (access
-                   inspect.opts
+           (Elixir.Access :as access)
+           (kapok (inspect.opts
                    inspect.error
                    inspect
                    inspect.map))))

@@ -1380,10 +1380,10 @@
                          [`(defn
                                #{:check_remote_call :false}
                                message [exception]
-                             (kapok.access.#get exception #message))])
+                             (Elixir.Access.#get exception #message))])
                       (:false
                        []))
-        struct-def `(defstruct ;;[kapok.access]
+        struct-def `(defstruct
                         ~@fields)]
     [`(behaviour kapok.exception)
 
@@ -1541,7 +1541,7 @@
   a public `function` with given `arity`, otherwise `:false`.
 
   Note that this function does not load the module in case
-  it is not loaded. Check `(code-server.ensure-loaded 1)` for more
+  it is not loaded. Check `(Elixir.Code.ensure_loaded 1)` for more
   information.
 
   ## Examples
@@ -1557,7 +1557,7 @@
   a public `macro` with the given `arity`, otherwise `:false`.
 
   Note that this function does not load the module in case
-  it is not loaded. Check `(code-server.ensure-loaded 1)` for more
+  it is not loaded. Check `(Elixir.Code.ensure_loaded 1)` for more
   information.
 
   ## Examples
@@ -1735,8 +1735,8 @@
   """
 
   (let [opts1 (struct (kapok.inspect.opts.new) opts)
-        limit (case (kapok.access.get opts1 #pretty)
-                (:true (kapok.access.get opts1 #width))
+        limit (case (Elixir.Access.get opts1 #pretty)
+                (:true (Elixir.Access.get opts1 #width))
                 (:false #infinity))]
     (Elixir.IO.iodata_to_binary (kapok.inspect.algebra.format
                                 (kapok.inspect.algebra.to-doc arg opts1)

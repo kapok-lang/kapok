@@ -85,7 +85,7 @@
 
 (defimpl kapok.inspect bitstring
   (require (Elixir.Integer :as integer)
-           (kapok (access)))
+           (Elixir.Access :as access))
 
   (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
