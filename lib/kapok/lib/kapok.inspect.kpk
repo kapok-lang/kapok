@@ -7,7 +7,7 @@
   followed by the inspecting options, represented by the struct
   `inspect.opts`.
 
-  Inspection is done using the functions available in `inspect.algebra`.
+  Inspection is done using the functions available in `Elixir.Inspect.Algebra`.
 
   ## Examples
 
@@ -16,11 +16,11 @@
   implementation:
 
       (defimpl inspect hashset
-        (use inspect.algebra)
+        (use Elixir.Inspect.Algebra)
         (defn inspect [dict opts]
-          (concat ["#hashset<" (to-doc (hashset.to-list dict) opts) ">"])))
+          (concat ["#hashset<" (to_doc (hashset.to-list dict) opts) ">"])))
 
-  The `concat` function comes from `inspect.algebra` and it
+  The `concat` function comes from `Elixir.Inspect.Algebra` and it
   concatenates algebra documents together. In the example above,
   it is concatenating the string `"hashset<"` (all strings are
   valid algebra documents that keep their) formatting when pretty
@@ -212,9 +212,9 @@
            (kapok (atom
                    inspect.atom
                    inspect.bitstring)))
-  (use (kapok ((inspect.algebra :only (concat
-                                       surround-many
-                                       to-doc)))))
+  (use (Elixir.Inspect.Algebra :only (concat
+                                      surround_many
+                                      to_doc)))
 
   (defn inspect [[] _opts]
     "[]")
@@ -230,13 +230,13 @@
                (printable? thing)))
         << $' ((inspect.bitstring.escape (io.chardata_to_string thing) $') :binary) $' >>
       (keyword? thing)
-        (surround-many "[" thing "]" opts (fn keyword 2))
+        (surround_many "[" thing "]" opts (fn keyword 2))
       :true
         ;; TODO add alias checking for names in `(fn remote fun arity)` syntax.
-        (surround-many "[" thing "]" opts (fn kapok.inspect.algebra to-doc 2))))
+        (surround_many "[" thing "]" opts (fn Elixir.Inspect.Algebra to_doc 2))))
 
   (defn keyword [{key value} opts]
-    (concat <<((key-to-binary key)) ": " >> (to-doc value opts)))
+    (concat <<((key-to-binary key)) ": " >> (to_doc value opts)))
 
   (defn keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (Elixir.Atom.to_char_list key)
@@ -273,29 +273,29 @@
   )
 
 (defimpl kapok.inspect tuple
-  (use (kapok ((inspect.algebra :only (surround-many)))))
+  (use (Elixir.Inspect.Algebra :only (surround_many)))
   (defn inspect [{} _opts]
     "{}")
 
   (defn inspect [tuple opts]
-    (surround-many "{" (Elixir.Tuple.to_list tuple) "}" opts
-                   (fn kapok.inspect.algebra to-doc 2)))
+    (surround_many "{" (Elixir.Tuple.to_list tuple) "}" opts
+                   (fn Elixir.Inspect.Algebra to_doc 2)))
   )
 
 (defimpl kapok.inspect map
   (require maps
            (kapok (inspect.list)))
-  (use (kapok ((inspect.algebra :only (concat
-                                       nest
-                                       surround-many
-                                       to-doc)))))
+  (use (Elixir.Inspect.Algebra :only (concat
+                                      nest
+                                      surround_many
+                                      to_doc)))
 
   (defn inspect [map opts]
     (nest (inspect map "" opts) 1))
 
   (defn inspect [map name opts]
     (let [map1 (maps.to_list map)]
-      (surround-many << "#" name "{" >>
+      (surround_many << "#" name "{" >>
                      map1
                      "}"
                      opts
@@ -308,8 +308,8 @@
 
   (defn- to-map [{key value} opts]
     (concat
-     (concat (to-doc key opts) " => ")
-     (to-doc value opts)))
+     (concat (to_doc key opts) " => ")
+     (to_doc value opts)))
   )
 
 (defimpl kapok.inspect integer

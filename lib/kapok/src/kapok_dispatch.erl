@@ -264,14 +264,17 @@ ensure_loaded(Meta, Module, Ctx) ->
   end.
 
 get_optional_functions(Module) ->
+  Fun = fun({F, A}) -> {F, A, 'normal'};
+           ({_F, _A, _P} = FAP) -> FAP
+        end,
   try
     L = Module:'__info__'(functions),
-    ordsets:from_list(L)
+    ordsets:from_list(lists:map(Fun, L))
   catch
     error:undef ->
       try
         L1 = Module:module_info(exports),
-        ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
+        ordsets:from_list(lists:map(Fun, L1))
       catch
         error:undef -> []
       end
@@ -279,14 +282,17 @@ get_optional_functions(Module) ->
 
 get_functions(Meta, Module, Ctx) ->
   ensure_loaded(Meta, Module, Ctx),
+  Fun = fun({F, A}) -> {F, A, 'normal'};
+           ({_F, _A, _P} = FAP) -> FAP
+        end,
   try
     L = Module:'__info__'(functions),
-    ordsets:from_list(L)
+    ordsets:from_list(lists:map(Fun, L))
   catch
     error:undef ->
       try
         L1 = Module:module_info(exports),
-        ordsets:from_list(lists:map(fun({F, A}) -> {F, A, 'normal'} end, L1))
+        ordsets:from_list(lists:map(Fun, L1))
       catch
         error:undef ->
           kapok_error:compile_error(Meta, ?m(Ctx, file),
@@ -297,7 +303,10 @@ get_functions(Meta, Module, Ctx) ->
 get_optional_macros(Module) ->
   try
     L = Module:'__info__'(macros),
-    ordsets:from_list(L)
+    Fun = fun({F, A}) -> {F, A, 'normal'};
+           ({_F, _A, _P} = FAP) -> FAP
+          end,
+    ordsets:from_list(lists:map(Fun, L))
   catch
     error:undef -> []
   end.
@@ -306,7 +315,10 @@ get_macros(Meta, Module, Ctx) ->
   ensure_loaded(Meta, Module, Ctx),
   try
     L = Module:'__info__'(macros),
-    ordsets:from_list(L)
+    Fun = fun({F, A}) -> {F, A, 'normal'};
+           ({_F, _A, _P} = FAP) -> FAP
+          end,
+    ordsets:from_list(lists:map(Fun, L))
  catch
    error:undef -> []
   end.

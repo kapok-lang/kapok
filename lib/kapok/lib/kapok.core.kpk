@@ -1738,8 +1738,8 @@
         limit (case (Elixir.Access.get opts1 #pretty)
                 (:true (Elixir.Access.get opts1 #width))
                 (:false #infinity))]
-    (Elixir.IO.iodata_to_binary (kapok.inspect.algebra.format
-                                (kapok.inspect.algebra.to-doc arg opts1)
+    (Elixir.IO.iodata_to_binary (Elixir.Inspect.Algebra.format
+                                (Elixir.Inspect.Algebra.to_doc arg opts1)
                                 limit))))
 
 ;; struct
