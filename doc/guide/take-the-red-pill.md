@@ -7,7 +7,7 @@ Currently Kapok doesn't have a pre-compiled release, so you need to compile it f
 
 ### Dependencies
 
-To compile from source in platform Unix/Linux or Mac OS, these packages must be installed first: make, erlang, rebar 2.
+To compile from source in platform Unix/Linux or Mac OS, these packages must be installed first: make, erlang, rebar 2. Because the Elixir standard library is widely used in Kapok source code, it's also needed to compile Kapok.
 
 #### Mac OS X
 
@@ -31,6 +31,17 @@ $ brew install erlang rebar
 * Other distributions
 
     Check and install erlang(with yecc), rebar 2 via package manager of your distribution or via source code.
+    
+### Prepare Elixir
+
+Install Elixir using package manager, or compile it from source, and then set environment variable `KAPOK_ERL_OPTIONS` to its beam path:
+
+```
+$ git clone https://github.com/elixir-lang/elixir.git
+$ cd elixir
+$ make
+$ export KAPOK_ERL_OPTIONS="-pz /path/to/elixir/lib/elixir/ebin"
+```
 
 ### Compiling from source
 
