@@ -212,17 +212,17 @@
     (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol: ~p" [clause]))))
 
 (defn- builtin []
-  [{'atom? #atom}
-   {'bitstring? #bitstring}
-   {'integer? #integer}
-   {'float? #float}
-   {'function? #function}
-   {'tuple? #tuple}
-   {'list? #list}
-   {'map? #map}
-   {'pid? #pid}
-   {'port? #port}
-   {'reference? #reference}
+  [{'atom? #Atom}
+   {'bitstring? #BitString}
+   {'integer? #Integer}
+   {'float? #Float}
+   {'function? #Function}
+   {'tuple? #Tuple}
+   {'list? #List}
+   {'map? #Map}
+   {'pid? #PID}
+   {'port? #Port}
+   {'reference? #Reference}
    ])
 
 (defn- after-defprotocol [fallback-to-any builtin]
