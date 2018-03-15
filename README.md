@@ -5,7 +5,7 @@ Kapok is a dynamic, functional, general-purpose programming language. It's a dia
 
 Kapok is designed with goals as below:
 
-1. Be a modern lisp with similiar syntax as Clojure
+1. Has syntax like Clojure
 1. Keep max compatible with the Erlang ecosystem
 1. Be compatible with Elixir to leverage its protocol, lazy interfaces, and a rich set of useful libraries, in terms of unicode string, file, network, etc.
 1. (TODO)Shipped with powerful tools, e.g. project management tool, editor integration, etc.
