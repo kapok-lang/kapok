@@ -153,7 +153,7 @@ Keywords are used in these occasions.
  
 2. function arguments
 
-  Keywords could be used in key-value arguments for functions as in Common Lisp.
+  Keywords could be used in keyword arguments for functions as in Common Lisp.
 
   ```clojure
   (defn f [&key (key1 1) (key2 2)]
@@ -163,7 +163,7 @@ Keywords are used in these occasions.
   (f :key1 value1 :key2 value2)
   ```
 
-  Except for these special boolean keywords: `:true`, `:false`, `:nil` (refer to below [Boolean](#boolean) section for more info). Keywords occur in function arguments would be translated to the keys of key-value arguments. But the special boolean keywords mentioned above would be always treated as literal values, even if they are present in the argument list. E.g.
+  Except for these special boolean keywords: `:true`, `:false`, `:nil` (refer to below [Boolean](#boolean) section for more info). Keywords occur in function arguments would be translated to the keys of keyword arguments. But the special boolean keywords mentioned above would be always treated as literal values, even if they are present in the argument list. E.g.
   
   ```clojure
   (defn f [&key a]
@@ -183,9 +183,9 @@ Keywords are used in these occasions.
    )
   ```
   
-  The identifier `true` is only allowed to used as argument key, the same rule applies to `false` and `nil`. Please use another name as you could always find one.
+  The identifier `true` is not allowed to be used as argument key, the same rule applies to `false` and `nil`. Please use another name as you could always find one.
 
-  Notice that Clojure and other Lisp dialects based on Erlang VM, such as LFE and Joxa don't support key-value arguments for function.
+  Notice that Clojure and other Lisp dialects based on Erlang VM, such as LFE and Joxa don't support keyword arguments for function.
 
 3. map accessors and constants
 
@@ -255,7 +255,7 @@ Comments are prefixed by a semicolon. All content following a semicolon is ignor
     
     ```clojure
     (defn in [n start end]
-      (and (>= n start)  ; check whether n equal-or-bigger than start
+      (and (>= n start)  ; check whether n equal-or-greater than start
            (<= n end)    ; check whether n less-or-equal than end
        ))
     ```
@@ -481,7 +481,7 @@ Usually a record declaration is put down in a header file(with extension .hrl), 
 
 Generally it's not recommended to use records in Kapok. There is another type of composed data structure, struct(Refer to [Struct](#struct) section for more info), which is used to hold a group of data. And protocols could be defined to work along structs to archive dynamic dispatching during runtime. Sometimes we have to deal with Erlang libraries which uses records in their interfaces, in these cases records must be used. Otherwise structs should be used rather than records.
 
-There are util functions defined in the Kapok standard library for records, such as `defrecord`(define a record) `extract`(extract records from file), etc. Check them out if you need to work with records.
+There are util functions defined in the Elixir standard library for records, such as `defrecord`(define a record) `extract`(extract records from file), etc. Check them out if you need to work with records.
 
 #### Map
 
@@ -499,7 +499,7 @@ A maps is an associative collection of key-value pairs, just are like a map(or a
 
 ```clojure
 ;; a map in Kapok
-#{#a 1 #b 2}
+#{:a 1 :b 2}
 ```
 
 The surrounding `#{}` comes from Erlang. And the key-value pairs are matched by their positions, which is like Clojure. Also notice that `#{}` are used for literal set in Clojure.
@@ -507,14 +507,14 @@ The surrounding `#{}` comes from Erlang. And the key-value pairs are matched by 
 Maps in Kapok are implemented as their counterparts in Erlang. You could also use maps in pattern matching likewise:
 
 ```clojure
-(let [m #{#a 1
-          #b 2}]
-  (let [#{#a v} m]
+(let [m #{:a 1
+          :b 2}]
+  (let [#{:a v} m]
     v))
 ;;=> 1
 ```
 
-In the second `let` expression, we omit key `#b` in the pattern and only fetch the value of key `#a`, and refer the value as the local `v`.
+In the second `let` expression, we omit key `:b` in the pattern and only fetch the value of key `:a`, and refer the value as the local `v`.
 
 #### Set
 
@@ -524,7 +524,7 @@ A set is a collection of elements with no duplicate elements, like a set in othe
 %{1 2 3}
 ```
 
-Sets in Kapok are implemented as `gb_sets` in Erlang. They are not supported in pattern matching. Although there are functions to manipulate sets in the Kapok standard library, currently sets are not supported in most of the protocol defined in the standard library, such as `seq` protocol, etc. Efforts would be taken to add support for sets in these protocols in the future.
+Sets in Kapok are implemented as `gb_sets` in Erlang. They are not supported in pattern matching. Although there are functions to manipulate sets in the Elixir standard library, sets are not supported in most of the protocol defined in the Elixir standard library, such as `Enum` protocol, etc. 
 
 ### <a id="struct">Struct</a>
 
@@ -532,7 +532,7 @@ A struct is a tagged map to wrap a limited number of data with predefined names.
 
 ```clojure
 (defns customer
-  (defstruct [kapok.access]
+  (defstruct [derive protocols]
     :a            ;; default value `:nil`
     (:b :nil)
     (:c (+ 1 1))
@@ -552,7 +552,7 @@ And then we could use this struct as a map, or manipulate it by protocol interfa
 (let [s (customer.new :a "no news")]
   (io.format "s: ~p~n" [s])
   (io.format "a: ~p~n" [(maps.get #a s)])
-  (io.format "d: ~p~n" [(access.get s #d)]))
+  (io.format "d: ~p~n" [(Elixir.Access.get s #d)]))
 ;; the above code outputs:
 ;; s: #{'__struct__' => customer,a => <<"no news">>,b => nil,c => 2,d => nil}
 ;; a: <<"no news">>

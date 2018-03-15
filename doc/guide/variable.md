@@ -22,7 +22,7 @@ like symbols in other Lisp dialects, the valid characters for identifiers are fa
 
 | preserved identifiers | note |
 | --- | --- |
-| ~ ~@ | is macro unquote, unquote splicing keyword |
+| ~ ~@ | macro unquote, unquote splicing keyword |
 | &optional &rest &key &when &and &or | function argument and guard specification |
 | #"string" | literal list string |
 | #'atom' #atom | literal atom |
@@ -31,7 +31,7 @@ Since there are preversed keywords which starts with `~ & #`, it will not work u
 
 Also notice that identifiers in other Erlang VM based programming languages have fewer valid characters. For example, identifiers in Elixir contain only alphanumeric characters and underscore. If you need to write a Kapok module for Elixir code(or Erlang code, in a similar case) to call, please make sure the identifier name to be compactible.
 
-Like what's in Erlang, if an identifier that starts with underscore(_) or is just an underscore(_), the Kapok compiler would not report warning if the identifier is not used. If an identifier is a single underscore, it acts like a placeholder. For example, if we didn’t need to capture a value during the pattern matching, we could specify the special variable _ (an underscore). This acts like a variable but immediately discards any value given to it — in a pattern match, it is like a wildcard saying, “I’ll accept any value here.”
+Like what's in Erlang, if an identifier that starts with underscore(\_) or is just an underscore(\_), the Kapok compiler would not report warning if the identifier is not used. If an identifier is a single underscore, it acts like a placeholder. For example, if we didn’t need to capture a value during the pattern matching, we could specify the special variable _ (an underscore). This acts like a variable but immediately discards any value given to it — in a pattern match, it is like a wildcard saying, “I’ll accept any value here.”
 
 The dot character(.) is not a valid character of an identifier. If the dot character occurs between two identifiers, it represents a namespaced-identifier, which is called dot-identifier in whole. A dot-identifier evaluates to the named value in the specified namespace. For example, we could specify a simple namespace in the ns special form, as
 
