@@ -1,7 +1,7 @@
 Variable and Pattern Matching
 ==========
 
-Immutable data plays a important role in functional programming language. Just like what's in Erlang, variables in Kapok are immutable. It means that once a variable is bound, it's illegal to be rebound. The idea behind keeping this variable immutability in Kapok is that it helps us to program better, and it's easy for Kapok to utilize the immutability of Erlang and map the Kapok code to Erlang code.
+Immutable data plays an important role in functional programming language. Just like what's in Erlang, variables in Kapok are immutable. It means that once a variable is bound, it's illegal to be rebound. The idea behind keeping this variable immutability in Kapok is that it helps us to program better, and it's easy for Kapok to utilize the immutability of Erlang and map the Kapok code to Erlang code.
 
 Just like what's in Lisp, there is a keyword `let` used to bind variables. But there is no `setq` or any similar operation to perform imperative style assignment/re-assignment. And it supports pattern matching. Yeah, this good feature from Erlang is kept. In summury, it looks closer to Clojure other than any other older Lisp dialet, when talking about variable binding and pattern matching in Kapok.
 
