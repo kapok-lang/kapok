@@ -155,49 +155,93 @@ translate({list, Meta, [{identifier, OpMeta, Op} = OpAst, Left, Right | T]}, Ctx
   translate({list, Meta, [OpAst, Left, {list, OpMeta, [OpAst, Right | T]}]}, Ctx);
 
 %% fn
-translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Ctx)
+translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Arity}]}, Ctx)
     when ?is_keyword_or_atom(C) ->
-  FunArity = {Id, Number},
+  FunArity = {Id, Arity},
   case kapok_dispatch:find_local_function(FunArity, Ctx) of
-    {Id, Number, _P} ->
+    {Id, Arity, _P} ->
       %% The fun, arity must match `Id', `Arity'
-      translate_fn(Meta, Id, Number, Ctx);
-    false ->
+      translate_fn(Meta, Id, Arity, Ctx);
+    _ ->
       %% check whether it's an imported function/macro
       {R, Ctx1} = kapok_dispatch:find_imported_local_function(Meta, FunArity, Ctx),
       case R of
-        {_M, _F, _A, _P} = MFAP ->
+        {_M, _F, Number, _P} = MFAP ->
           Error = {invalid_fn_local_imported, {{Id, Number}, MFAP}},
           kapok_error:form_error(Meta, ?m(Ctx1, file), ?MODULE, Error);
         _ ->
           throw({unresolved_local_call, FunArity, Meta})
       end
     end;
-translate({list, Meta, [{identifier, _, 'fn'} = AstFn, {C, MetaId, Id}, {number, _, _} = AstNumber]}, Ctx)
+translate({list, Meta, [{identifier, _, 'fn'} = FnAst,
+                        {C, MetaId, Id},
+                        {number, _, _} = ArityAst]},
+          Ctx)
     when ?is_id(C) ->
   case kapok_ctx:get_var(Meta, Ctx, Id) of
     {ok, _Name} ->
       Error = {invalid_fn_local_var, {Id}},
       kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
     _ ->
-      translate({list, Meta, [AstFn, {atom, MetaId, Id}, AstNumber]}, Ctx)
+      translate({list, Meta, [FnAst, {atom, MetaId, Id}, ArityAst]}, Ctx)
   end;
-translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, _} = Dot, {C2, _, Id2}, {number, _, Number}]},
+translate({list, Meta, [{identifier, _, 'fn'},
+                        {C1, Meta1, Module} = ModuleAst,
+                        {C2, Meta2, Fun} = FunAst,
+                        {C3, _, _} = ArityAst]},
           Ctx)
-    when ?is_local_id_or_dot(C1), ?is_local_id(C2) ->
+    when ?is_local_id(C1), ?is_local_id(C2), ?is_number(C3) ->
+  case is_identifier(ModuleAst) of
+    true ->
+      case kapok_ctx:get_var(Meta1, Ctx, Module) of
+        {ok, _} ->
+          FunAst1 = case is_identifier(FunAst) of
+                      true ->
+                        case kapok_ctx:get_var(Meta2, Ctx, Fun) of
+                          {ok, _} -> FunAst;
+                          error -> {atom, Meta2, Fun}
+                        end;
+                      false ->
+                        {atom, Meta2, Fun}
+                    end,
+          translate_fn(Meta, ModuleAst, FunAst1, ArityAst, Ctx);
+        error ->
+          translate_remote_fn(Meta, {atom, Meta1, Module}, FunAst, ArityAst, Ctx)
+      end;
+    false ->
+      translate_remote_fn(Meta, {atom, Meta1, Module}, FunAst, ArityAst, Ctx)
+  end;
+translate({list, Meta, [{identifier, _, 'fn'},
+                        {C1, Meta1, _} = Dot,
+                        {C2, Meta2, Fun} = FunAst,
+                        {number, _, _} = ArityAst]},
+          Ctx)
+    when ?is_dot(C1), ?is_local_id(C2) ->
   case is_plain_dot(Dot) of
     true ->
-      Id1 = plain_dot_name(Dot),
-      translate_fn(Meta, Id1, Id2, Number, Ctx);
+      ModuleAst = {atom, Meta1, plain_dot_name(Dot)},
+      FunAst1 = case is_identifier(FunAst) of
+                  true ->
+                    case kapok_ctx:get_var(Meta2, Ctx, Fun) of
+                      {ok, _} -> FunAst;
+                      error -> {atom, Meta2, Fun}
+                    end;
+                  false ->
+                    {atom, Meta2, Fun}
+                end,
+      translate_fn(Meta, ModuleAst, FunAst1, ArityAst, Ctx);
     false ->
       kapok_error:compile_error(Meta, ?m(Ctx, file), "invalid dot expression ~p for fn", [Dot])
   end;
-translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id, {literal_list, _, _} = Args,
-                        {list, _, [{keyword_when, _, _} | _]} = Guard | Body]}, Ctx) ->
+translate({list, Meta, [{identifier, _, 'fn'},
+                        {identifier, _, _} = Id,
+                        {literal_list, _, _} = Args,
+                        {list, _, [{keyword_when, _, _} | _]} = Guard | Body]},
+          Ctx) ->
   translate_fn(Meta, Id, Args, Guard, Body, Ctx);
-translate({list,
-           Meta,
-           [{identifier, _, 'fn'}, {identifier, _, _} = Id, {literal_list, _, _} = Args | Body]},
+translate({list, Meta, [{identifier, _, 'fn'},
+                        {identifier, _, _} = Id,
+                        {literal_list, _, _} = Args | Body]},
           Ctx) ->
   translate_fn(Meta, Id, Args, [], Body, Ctx);
 translate({list, Meta, [{identifier, _, 'fn'}, {identifier, _, _} = Id | Exprs]}, Ctx) ->
@@ -618,6 +662,56 @@ build_macro_append(Meta, THead, Tail, Ctx) ->
   TAst = build_tuple(Meta, [TListC, TMeta, build_list([TAppend, THead, Tail])]),
   {TAst, TCtx5}.
 
+%% fn remote reference
+translate_remote_fn(Meta,
+                    {C1, Meta1, Module} = MAst,
+                    {_, Meta2, Fun} = FunAst,
+                    {_, _, _} = ArityAst,
+                    Ctx) ->
+  case is_identifier(FunAst) of
+    true ->
+      case kapok_ctx:get_var(Meta2, Ctx, Fun) of
+        {ok, _} ->
+          Original = kapok_dispatch:find_module(Meta, Module, Ctx),
+          MAst1 = {C1, Meta1, Original},
+          translate_fn(Meta, MAst1, FunAst, ArityAst, Ctx);
+         error ->
+          translate_static_remote_fn(Meta, MAst, FunAst, ArityAst, Ctx)
+      end;
+    false ->
+      translate_static_remote_fn(Meta, MAst, FunAst, ArityAst, Ctx)
+  end.
+
+translate_static_remote_fn(Meta,
+                           {_, Meta1, Module},
+                           {_, Meta2, Fun},
+                           {_, _, Arity} = ArityAst,
+                           Ctx) ->
+  FunArity = {Fun, Arity},
+  Namespace = ?m(Ctx, namespace),
+  case Module of
+    Namespace ->
+      case kapok_dispatch:find_local_function(FunArity, Ctx) of
+        {F, Arity, _P} ->
+          MAst = {atom, Meta1, Module},
+          FAst = {atom, Meta2, F},
+          translate_fn(Meta, MAst, FAst, ArityAst, Ctx);
+        _ ->
+          throw({unresolved_local_call, FunArity, Meta})
+      end;
+    _ ->
+      case kapok_dispatch:find_remote_function(Meta, Module, FunArity, Ctx) of
+        {{M, F, Arity, _P}, Ctx1} ->
+          MAst = {atom, Meta1, M},
+          FAst = {atom, Meta2, F},
+          translate_fn(Meta, MAst, FAst, ArityAst, Ctx1);
+        _ ->
+          kapok_error:compile_error(Meta, ?m(Ctx, file),
+                                    "invalid fn remote reference: (fn ~p ~p ~p)",
+                                    [Module, Fun, Arity])
+      end
+  end.
+
 %% local call
 translate_local_call(Meta, F, A, P, Arity, TArgs, Ctx) ->
   {TF, TCtx} = translate(F, Ctx),
@@ -640,13 +734,13 @@ translate_module_call(Meta, DotMeta, Right, Module, Fun, TArgs, Arity, Ctx) ->
           FAst = Right,
           translate_remote_call(Meta, MAst, FAst, Arity, 'normal', Arity, TArgs, Ctx);
         error ->
-          translate_module_fun_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx)
+          translate_static_remote_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx)
       end;
     false ->
-      translate_module_fun_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx)
+      translate_static_remote_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx)
   end.
 
-translate_module_fun_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx) ->
+translate_static_remote_call(Meta, DotMeta, Module, Fun, TArgs, Arity, Ctx) ->
   FunArity = {Fun, Arity},
   Namespace = ?m(Ctx, namespace),
   case Module of

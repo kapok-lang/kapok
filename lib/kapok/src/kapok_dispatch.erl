@@ -2,6 +2,7 @@
 -module(kapok_dispatch).
 -export([default_requires/0,
          default_uses/0,
+         find_module/3,
          find_local_macro/5,
          find_remote_macro/6,
          find_local_function/2,
@@ -20,6 +21,14 @@ default_requires() ->
 default_uses() ->
   [{'kapok.core', 'core'},
    {'kapok.protocol', 'protocol'}].
+
+%% get the original module name in case module is an alias or rename.
+find_module(_Meta, Module, Ctx) ->
+  Requires = ?m(Ctx, requires),
+  case orddict:find(Module, Requires) of
+    {ok, M1} -> M1;
+    error -> Module
+  end.
 
 %% find local/remote macro/function
 
@@ -47,13 +56,8 @@ find_import_macro(Meta, FunArity, FunMeta, Args, Ctx) ->
   {R, Ctx1}.
 
 find_remote_macro(Meta, Module, FunArity, FunMeta, Args, Ctx) ->
-  Requires = ?m(Ctx, requires),
+  Original = find_module(Meta, Module, Ctx),
   Uses = ?m(Ctx, uses),
-  %% get the original module name in case Module is a alias or rename.
-  Original = case orddict:find(Module, Requires) of
-               {ok, M1} -> M1;
-               error -> Module
-             end,
   case orddict:find(Original, Uses) of
     {ok, _} ->
       %% Original is declared in ns use clause.
@@ -110,23 +114,19 @@ find_imported_local_function(Meta, FunArity, Ctx) ->
   {R, Ctx1}.
 
 find_remote_function(Meta, Module, FunArity, Ctx) ->
-  Requires = ?m(Ctx, requires),
+  Original = find_module(Meta, Module, Ctx),
   Uses = ?m(Ctx, uses),
-  Module1 = case orddict:find(Module, Requires) of
-              {ok, M1} -> M1;
-              error -> Module
-            end,
-  case orddict:find(Module1, Uses) of
+  case orddict:find(Original, Uses) of
     {ok, _} ->
-      {D, Ctx1} = find_dispatch(Meta, Module1, FunArity, Ctx),
+      {D, Ctx1} = find_dispatch(Meta, Original, FunArity, Ctx),
       case D of
         {Tag, MFAP} when Tag == macro; Tag == function ->
           {MFAP, Ctx1};
         false ->
-          find_optional_remote_function(Meta, Module1, FunArity, Ctx1)
+          find_optional_remote_function(Meta, Original, FunArity, Ctx1)
       end;
     error ->
-      find_optional_remote_function(Meta, Module1, FunArity, Ctx)
+      find_optional_remote_function(Meta, Original, FunArity, Ctx)
   end.
 
 find_optional_remote_function(Meta, Module, {Fun, Arity} = FunArity, Ctx) ->

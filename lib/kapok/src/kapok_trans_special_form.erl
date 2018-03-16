@@ -151,8 +151,8 @@ translate_fn(Meta, {identifier, _, Name} = Id, Exprs, Ctx) when is_list(Exprs) -
   TCtx3 = kapok_ctx:pop_scope(TCtx2),
   {{'named_fun', ?line(Meta), Name, Clauses}, TCtx3}.
 
-translate_fn(Meta, Module, Name, Arity, Ctx)
-    when is_atom(Module), is_atom(Name), is_number(Arity) ->
+translate_fn(Meta, {C1, _, _} = Module, {C2, _, _} = Name, {C3, _, _} = Arity, Ctx)
+    when ?is_local_id(C1), ?is_local_id(C2), ?is_number(C3) ->
   {TModule, TCtx} = translate(Module, Ctx),
   {TName, TCtx1} = translate(Name, TCtx),
   {TArity, TCtx2} = translate(Arity, TCtx1),
