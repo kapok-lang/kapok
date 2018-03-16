@@ -46,6 +46,21 @@ expand_1(List, Ctx) when is_list(List) ->
 %%   io:format("*** expend __MODULE__ to: ~p ***~n", [?m(Ctx, namespace)]),
 %%   {{atom, Meta, ?m(Ctx, namespace)}, Ctx, true};
 
+%% suppress the expansion of code in special forms `ns', `defns' to avoid
+%% the verbose error report when using Elixir libraries in ns form,
+%% which happens to output messages like:
+%%
+%% =ERROR REPORT==== 16-Mar-2018::17:49:08 ===
+%% Loading of /path/to/elixir/lib/elixir/ebin/Elixir.beam failed: badfile
+%%
+%% =ERROR REPORT==== 16-Mar-2018::17:49:08 ===
+%% beam/beam_load.c(1412): Error loading module 'Elixir':
+%%  module name in object code is elixir
+%%
+expand_1({list, _, [{identifier, _, Id} | _T]} = Ast, Ctx)
+    when ?is_ns(Id); ?is_def_ns(Id) ->
+  {Ast, Ctx, false};
+
 expand_1({list, Meta, [{identifier, _, Id} = Def | T]}, Ctx) when ?is_def(Id) ->
   %% TODO move defs into `core' as predefined macros
   {ET, ECtx, Expanded} = expand_1(T, Ctx),
