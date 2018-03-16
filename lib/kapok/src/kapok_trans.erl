@@ -156,8 +156,32 @@ translate({list, Meta, [{identifier, OpMeta, Op} = OpAst, Left, Right | T]}, Ctx
 
 %% fn
 translate({list, Meta, [{identifier, _, 'fn'}, {C, _, Id}, {number, _, Number}]}, Ctx)
+    when ?is_keyword_or_atom(C) ->
+  FunArity = {Id, Number},
+  case kapok_dispatch:find_local_function(FunArity, Ctx) of
+    {Id, Number, _P} ->
+      %% The fun, arity must match `Id', `Arity'
+      translate_fn(Meta, Id, Number, Ctx);
+    false ->
+      %% check whether it's an imported function/macro
+      {R, Ctx1} = kapok_dispatch:find_imported_local_function(Meta, FunArity, Ctx),
+      case R of
+        {_M, _F, _A, _P} = MFAP ->
+          Error = {invalid_fn_local_imported, {{Id, Number}, MFAP}},
+          kapok_error:form_error(Meta, ?m(Ctx1, file), ?MODULE, Error);
+        _ ->
+          throw({unresolved_local_call, FunArity, Meta})
+      end
+    end;
+translate({list, Meta, [{identifier, _, 'fn'} = AstFn, {C, MetaId, Id}, {number, _, _} = AstNumber]}, Ctx)
     when ?is_id(C) ->
-  translate_fn(Meta, Id, Number, Ctx);
+  case kapok_ctx:get_var(Meta, Ctx, Id) of
+    {ok, _Name} ->
+      Error = {invalid_fn_local_var, {Id}},
+      kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, Error);
+    _ ->
+      translate({list, Meta, [AstFn, {atom, MetaId, Id}, AstNumber]}, Ctx)
+  end;
 translate({list, Meta, [{identifier, _, 'fn'}, {C1, _, _} = Dot, {C2, _, Id2}, {number, _, Number}]},
           Ctx)
     when ?is_local_id_or_dot(C1), ?is_local_id(C2) ->
@@ -217,7 +241,6 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
 
 %% local call
 translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
-  %% translate ast to erlang abstract format
   case kapok_ctx:get_var(Meta, Ctx, Id) of
     {ok, Name} ->
       %% local variable
@@ -232,7 +255,7 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
         {F2, A2, P2} ->
           translate_local_call(Meta, F2, A2, P2, Arity, TArgs, TCtx1);
         false ->
-          %% check whether it's in imported functions/macros
+          %% check whether it's an imported function/macro
           {R3, TCtx2} = kapok_dispatch:find_imported_local_function(Meta, FunArity, TCtx1),
           case R3 of
             {M3, F3, A3, P3} ->
@@ -826,6 +849,10 @@ op_type('op-++') -> '++'.
 
 %% Error
 
+format_error({invalid_fn_local_imported, {{Id, Number}, MFAP}}) ->
+  io_lib:format("invalid fn (~p ~p) refer to remote function call: ~p", [Id, Number, MFAP]);
+format_error({invalid_fn_local_var, {Id}}) ->
+  io_lib:format("invalid var ~p used in fn form", [Id]);
 format_error({parameter_keyword_outside_fun_args, {Token}}) ->
   io_lib:format("invalid ~s outside the arguments of a function definition", [token_text(Token)]);
 format_error({missing_body}) ->
