@@ -284,7 +284,7 @@ translate({list, Meta, [{identifier, _, Form}, {C1, _, Attribute}, Value]},
 %% List
 
 %% local call
-translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
+translate({list, Meta, [{identifier, Meta1, Id} | Args]}, Ctx) ->
   case kapok_ctx:get_var(Meta, Ctx, Id) of
     {ok, Name} ->
       %% local variable
@@ -292,29 +292,31 @@ translate({list, Meta, [{identifier, Meta1, Id}| Args]}, Ctx) ->
       {TArgs, TCtx1} = translate_args(Args, Ctx),
       translate_local_call(Meta, TF, TArgs, TCtx1);
     error ->
-      {TArgs, TCtx1} = translate_args(Args, Ctx),
-      Arity = length(TArgs),
-      FunArity = {Id, Arity},
-      case kapok_dispatch:find_local_function(FunArity, TCtx1) of
-        {F2, A2, P2} ->
-          translate_local_call(Meta, F2, A2, P2, Arity, TArgs, TCtx1);
-        false ->
-          %% check whether it's an imported function/macro
-          {R3, TCtx2} = kapok_dispatch:find_imported_local_function(Meta, FunArity, TCtx1),
-          case R3 of
-            {M3, F3, A3, P3} ->
-              translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TCtx2);
+      translate({list, Meta, [{atom, Meta1, Id} | Args]}, Ctx)
+  end;
+translate({list, Meta, [{C, _, Id} | Args]}, Ctx) when ?is_keyword_or_atom(C) ->
+  {TArgs, TCtx1} = translate_args(Args, Ctx),
+  Arity = length(TArgs),
+  FunArity = {Id, Arity},
+  case kapok_dispatch:find_local_function(FunArity, TCtx1) of
+    {F2, A2, P2} ->
+      translate_local_call(Meta, F2, A2, P2, Arity, TArgs, TCtx1);
+    false ->
+      %% check whether it's an imported function/macro
+      {R3, TCtx2} = kapok_dispatch:find_imported_local_function(Meta, FunArity, TCtx1),
+      case R3 of
+        {M3, F3, A3, P3} ->
+          translate_remote_call(Meta, M3, F3, A3, P3, Arity, TArgs, TCtx2);
+        _ ->
+          %% TODO revise __MODULE__ to be macro, which is expended during compilation.
+          case Id of
+            '__MODULE__' ->
+              translate({atom, Meta, ?m(TCtx2, namespace)}, TCtx2);
+            '__DIR__' ->
+              Dir = kapok_utils:characters_to_binary(filename:dirname(?m(TCtx2, file))),
+              translate({binary_string, Meta, Dir}, TCtx2);
             _ ->
-              %% TODO revise __MODULE__ to be macro, which is expended during compilation.
-              case Id of
-                '__MODULE__' ->
-                  translate({atom, Meta, ?m(TCtx2, namespace)}, TCtx2);
-                '__DIR__' ->
-                  Dir = kapok_utils:characters_to_binary(filename:dirname(?m(TCtx2, file))),
-                  translate({binary_string, Meta, Dir}, TCtx2);
-                _ ->
-                  throw({unresolved_local_call, FunArity, Meta})
-              end
+              throw({unresolved_local_call, FunArity, Meta})
           end
       end
   end;
