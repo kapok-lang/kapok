@@ -55,6 +55,27 @@
   """
   (erlang.tl list))
 
+;; TODO move all these functions to protocol `seq`
+(defn first [list]
+  (case (nil? list)
+    (:true :nil)
+    (:false (head list))))
+
+(defn second [list]
+  (first (tail list)))
+
+(defn next
+  ([[]] :nil)
+  ([[_]] :nil)
+  ([[_ & t]] t)
+  ([_] :nil))
+
+(defn rest
+  ([:nil] [])
+  ([[]] [])
+  ([[_]] [])
+  ([[_ & t]] t))
+
 ;; special forms
 
 (defmacro define [name value]
@@ -126,27 +147,6 @@
   `(case (kapok.core.#true? ~test)
      (:true #ok)
      (:false ~@body)))
-
-;; TODO move all these functions to protocol `seq`
-(defn first [list]
-  (case (nil? list)
-    (:true :nil)
-    (:false (head list))))
-
-(defn second [list]
-  (first (tail list)))
-
-(defn next
-  ([[]] :nil)
-  ([[_]] :nil)
-  ([[_ & t]] t)
-  ([_] :nil))
-
-(defn rest
-  ([:nil] [])
-  ([[]] [])
-  ([[_]] [])
-  ([[_ & t]] t))
 
 (defmacro cond [&rest clauses]
   """Takes a set of test/expr pairs. It evaluates each test one at a time.
