@@ -45,11 +45,13 @@
                   ([{c id-meta id-name}] (&when (struct-field? c))
                    (let [name (validate-field-name file id-meta id-name)]
                      {{#keyword id-meta name} {#atom id-meta #nil}}))
-                  ([{#list _ [{c id-meta id-name} expr]}] (&when (struct-field? c))
+                  ([{#list _ [{c id-meta id-name} expr]}]
+                     (&when (struct-field? c))
                    (let [name (validate-field-name file id-meta id-name)]
                      {{#keyword id-meta name} expr}))
                   ([{_ ast-meta _} &as arg]
-                   (kapok_error.compile_error ast-meta file "invalid field arg for defstruct: ~p" [arg])))
+                   (kapok_error.compile_error
+                    ast-meta file "invalid field arg for defstruct: ~p" [arg])))
         fields (lists.map handler args)
         tag {{#keyword meta #__struct__}
              {#list meta [{#identifier meta #__MODULE__}]}}]
@@ -151,13 +153,15 @@
         #ok)
        (other
         ;; TODO revise to use exception
-        (throw (io_lib.format "expected impl ~p to be an implementation of protocol ~p, but got ~p"
-                              [impl protocol other]))))
+        (throw (io_lib.format
+                "expected impl ~p to be an implementation of protocol ~p, but got ~p"
+                [impl protocol other]))))
       (catch
           ((#throw _)
            (io.format "catch throw~n" [])
            ;; TODO revise to use exception
-           (throw (io_lib.format "impl ~p is not an implementation of a protocol" [impl]))))))
+           (throw (io_lib.format
+                   "impl ~p is not an implementation of a protocol" [impl]))))))
   )
 
 (defn- handle-defstruct [file meta _doc derives args]
@@ -186,9 +190,11 @@
        (handle-defstruct file meta doc [] t))
       (t (handle-defstruct file meta (empty-doc) [] t)))))
 
-(defn- handle-defprotocol-clause [file meta _protocol _id {_ _ args-list}] (&when (=== args-list []))
+(defn- handle-defprotocol-clause [file meta _protocol _id {_ _ args-list}]
+    (&when (=== args-list []))
   ;; TODO revise to use exception
-  (kapok_error.compile_error meta file "protocol functions expect at least one argument"))
+  (kapok_error.compile_error meta file
+                             "protocol functions expect at least one argument"))
 
 (defn- handle-defprotocol-clause [_file
                                   _meta
@@ -204,12 +210,14 @@
 
 (defn- handle-defprotocol-clause [file meta protocol clause]
   (case clause
-    ([{#identifier _ _} &as id {#literal_list _ _} &as args {c _ _}] (&when (string? c))
+    ([{#identifier _ _} &as id {#literal_list _ _} &as args {c _ _}]
+       (&when (string? c))
      ;; TODO add doc
      (handle-defprotocol-clause file meta protocol id args))
     ([{#identifier _ _} &as id {#literal_list _ _} &as args]
      (handle-defprotocol-clause file meta protocol id args))
-    (_ (kapok_error.compile_error meta file "invalid clause args for defprotocol: ~p" [clause]))))
+    (_ (kapok_error.compile_error
+        meta file "invalid clause args for defprotocol: ~p" [clause]))))
 
 (defn- builtin []
   [{'atom? #Atom}
@@ -273,7 +281,8 @@
   )
 
 
-(defn- handle-defprotocol [file meta id doc fallback-to-any clauses {fa-acc def-acc}]
+(defn- handle-defprotocol
+    [file meta id doc fallback-to-any clauses {fa-acc def-acc}]
   (case clauses
     ([]
      (let [fa-list (lists.reverse fa-acc)
@@ -284,14 +293,18 @@
            ;;   * `(__protocol__ 1)` - returns the protocol name when `#name` is given,
            ;;     and a alist with the protocol functions and their arities when `#functions`
            ;;     is given
-           protocol-name-def {#list meta [{#identifier meta #defn}
-                                          {#identifier meta #__protocol__}
-                                          {#literal_list meta [{#atom meta #name}]}
-                                          {#atom meta (kapok_parser.plain_dot_name id)}]}
-           protocol-functions-def {#list meta [{#identifier meta #defn}
-                                               {#identifier meta #__protocol__}
-                                               {#literal_list meta [{#atom meta #functions}]}
-                                               {#literal_list meta fa-list}]}
+           protocol-name-def
+           {#list meta [{#identifier meta #defn}
+                        {#identifier meta #__protocol__}
+                        {#literal_list meta [{#atom meta #name}]}
+                        {#atom meta (kapok_parser.plain_dot_name id)}]}
+
+           protocol-functions-def
+           {#list meta [{#identifier meta #defn}
+                        {#identifier meta #__protocol__}
+                        {#literal_list meta [{#atom meta #functions}]}
+                        {#literal_list meta fa-list}]}
+
            after (after-defprotocol fallback-to-any (builtin))
            ]
        {#list meta (lists.append
@@ -304,11 +317,14 @@
                     def-list)}))
     ([{#list clause-meta clause} & t]
      (let [{fa def} (handle-defprotocol-clause file clause-meta id clause)]
-       (handle-defprotocol file meta id doc fallback-to-any t {[fa & fa-acc] [def & def-acc]})))
+       (handle-defprotocol
+        file meta id doc fallback-to-any t {[fa & fa-acc] [def & def-acc]})))
     ([{_c clause-meta _} & _t]
-     (kapok_error.compile_error clause-meta file "invalid clause for defprotocol: ~p" [clauses]))))
+     (kapok_error.compile_error
+      clause-meta file "invalid clause for defprotocol: ~p" [clauses]))))
 
-(defn- handle-defprotocol [file meta id doc [{#list _ [{#identifier _ #fallback-to-any}]} & clauses]]
+(defn- handle-defprotocol
+    [file meta id doc [{#list _ [{#identifier _ #fallback-to-any}]} & clauses]]
   (handle-defprotocol file meta id doc :true clauses {[] []}))
 
 (defn- handle-defprotocol [file meta id doc clauses]
@@ -321,11 +337,13 @@
     (case id
       ({c1 _ _} (&when (dot-id? c1))
        (case args
-         ([] (kapok_error.compile_error meta file "not enough arguments to define protocol"))
+         ([] (kapok_error.compile_error
+              meta file "not enough arguments to define protocol"))
          ([{c2 _ _} &as doc & t] (&when (string? c2))
           (handle-defprotocol file meta id doc t))
          (t (handle-defprotocol file meta id (empty-doc) t))))
-      (_ (kapok_error.compile_error meta file "invalid id for defprotocol: ~p" [id])))))
+      (_ (kapok_error.compile_error
+          meta file "invalid id for defprotocol: ~p" [id])))))
 
 (defn- handle-defimpl-clause [meta clause]
   (case clause
@@ -375,11 +393,14 @@
       ([{#list clause-meta clause} & t]
        (case (handle-defimpl-clause clause-meta clause)
          ({#ns handled-ns}
-          (handle-defimpl file meta protocol type doc t {[handled-ns & ns-acc] defn-acc}))
+          (handle-defimpl
+           file meta protocol type doc t {[handled-ns & ns-acc] defn-acc}))
          ({#def handled-def}
-          (handle-defimpl file meta protocol type doc t {ns-acc [handled-def & defn-acc]}))))
+          (handle-defimpl
+           file meta protocol type doc t {ns-acc [handled-def & defn-acc]}))))
       ([{_c clause-meta _} &as def & _t]
-       (kapok_error.compile_error clause-meta file "invalid clause for defimpl: ~p" [def])))))
+       (kapok_error.compile_error
+        clause-meta file "invalid clause for defimpl: ~p" [def])))))
 
 (defn- handle-defimpl [file meta protocol type doc defs]
   (handle-defimpl file meta protocol type doc defs {[] []}))
@@ -392,10 +413,12 @@
     (case protocol
       ({c _ _} (&when (dot-id? c))
        (case args
-         ([] (kapok_error.compile_error meta file "not enough arguments to implement protocol"))
+         ([] (kapok_error.compile_error
+              meta file "not enough arguments to implement protocol"))
          ([{c _ _} &as doc & t] (&when (&or (=== c #list_string)
                                             (=== c #binary_string)))
           (handle-defimpl file meta protocol type doc t))
          (t (handle-defimpl file meta protocol type (empty-doc) t)))
        )
-      (_ (kapok_error.compile_error meta file "invalid protocol for defimpl: ~p" [protocol])))))
+      (_ (kapok_error.compile_error
+          meta file "invalid protocol for defimpl: ~p" [protocol])))))
