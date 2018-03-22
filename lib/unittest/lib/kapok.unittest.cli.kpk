@@ -1,4 +1,4 @@
-(ns kapok.kdt
+(ns kapok.unittest.cli
   (require erlang
            init
            file
@@ -20,7 +20,7 @@
   #{#command []
     #dir ""})
 
-(defn- parse-args [[_program #"test" dir & _t] acc]
+(defn- parse-args [[_program dir & _t] acc]
   (let [acc1 (maps.put #command #test acc)
         acc2 (maps.put #dir dir acc1)]
     acc2))
@@ -75,8 +75,6 @@
          (test-project dir))))))
 
 (defn main []
-  """KDT is short for kapok development tool.
-  """
   (let [plain-args (init.get_plain_arguments)
         args (parse-args plain-args)]
     (process-args args)

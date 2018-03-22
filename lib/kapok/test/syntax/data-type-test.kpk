@@ -1,6 +1,6 @@
 (ns data-type
   (require erlang maps gb_sets)
-  (use kapok.kunit))
+  (use kapok.unittest))
 
 (defn to-int [bin]
   (erlang.list_to_integer (erlang.binary_to_list bin)))

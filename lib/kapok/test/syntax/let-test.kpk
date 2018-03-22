@@ -1,6 +1,6 @@
 (ns let-test
   (require erlang)
-  (use kapok.kunit))
+  (use kapok.unittest))
 
 (defn main []
   (test "test simple let"

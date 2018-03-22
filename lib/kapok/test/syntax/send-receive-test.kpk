@@ -1,5 +1,5 @@
 (ns send-receive-test
-  (use kapok.kunit))
+  (use kapok.unittest))
 
 (defn- child []
   (receive

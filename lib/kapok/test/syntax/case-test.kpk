@@ -1,5 +1,5 @@
 (ns case-test
-  (use kapok.kunit))
+  (use kapok.unittest))
 
 (defn f [i]
   (case i

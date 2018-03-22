@@ -10,8 +10,7 @@ ERL      := erl
 ERLC     := erlc
 ESCRIPT  := escript
 KAPOKC   := kapokc
-KDT      := kdt
-
+KUTEST   := kutest
 
 QUIET    := @
 # add local bin into PATH
@@ -87,9 +86,9 @@ define kapokc
   $(QUIET) $(KAPOKC) $(KAPOKC_OPTIONS) -o "$2" "$1"
 endef
 
-# call kdt command line to test a project
-define kdt-test
-  $(QUIET) $(KDT) test $1
+# call unittest command line to test a project
+define unittest
+  $(QUIET) $(KUTEST) $1
 endef
 
 # generate the targets with specified prefix for specified modules
@@ -192,7 +191,7 @@ $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$$(call kapokc,$$<,$$(dir $$@))
 
 $3$1: $2$1
-	$$(call kdt-test,$$(lib_$1_dir))
+	$$(call unittest,$$(lib_$1_dir))
 
 $4$1:
 	$(QUIET) $(RM) $($1_parser_src_file) $($1_beam_files) \
@@ -211,7 +210,7 @@ $($1_lib_beam_files): $($1_beam_output_dir)/%.beam: $($1_lib_dir)/%.kpk
 	$$(call kapokc,$$<,$$(dir $$@))
 
 $3$1:
-	$$(call kdt-test,$$(lib_$1_dir))
+	$$(call unittest,$$(lib_$1_dir))
 
 $4$1:
 	$(QUIET) $(RM) $($1_lib_beam_files)

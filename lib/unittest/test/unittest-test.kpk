@@ -1,11 +1,11 @@
-(ns kunit-test
-  (use kapok.kunit))
+(ns unittest-test
+  (use kapok.unittest))
 
 (defn f []
   1)
 
 (defn main []
-  (test "kunit test case"
+  (test "unittest test case"
         (assert (=== 1 (f)))
         (try (assert (=== 2 (f)))
              (catch ((#error _) #ok)))))

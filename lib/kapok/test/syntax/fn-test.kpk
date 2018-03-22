@@ -1,7 +1,6 @@
 (ns fn-test
   (require lists)
-  (use kapok.kunit))
-
+  (use kapok.unittest))
 
 (defn g [e]
   (inc e))

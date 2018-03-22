@@ -1,3 +1,0 @@
-# This ignore file is a hack to add parent dir "ebin" to git repository
-# Include this file and track it always
-!.gitignore

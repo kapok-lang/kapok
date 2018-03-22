@@ -1,5 +1,5 @@
 #!/bin/sh
-# kapok development tool
+# kapok unittest tool
 
 usage() {
   echo "Usage: `basename $0` [options]"
@@ -22,4 +22,4 @@ readlink_f() {
 
 PROGRAM=$(readlink_f "$0")
 PROGRAM_DIR=$(dirname "$PROGRAM")
-kapok $PROGRAM_DIR/../lib/kdt/lib/kapok.kdt.kpk "$@"
+kapok $PROGRAM_DIR/../lib/unittest/lib/kapok.unittest.cli.kpk "$@"
