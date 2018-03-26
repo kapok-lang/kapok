@@ -126,7 +126,7 @@ handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map)
           K1 when K1 == 'defn'; K1 == 'defn-' -> 'fun_aliases';
           K2 when K2 == 'defmacro'; K2 == 'defmacro-' -> 'macro_aliases'
         end,
-  NewAliasFAPList = filter_aliases(Match, get_kv(Map1, Namespace, Key)),
+  NewAliasFAPList = filter_aliases(Match, get_kv_set(Map1, Namespace, Key)),
   AllFAPList = NewAliasFAPList ++ FAPList,
   SuspendedClauses = get_kv(Map1, Namespace, 'suspended_def_clauses'),
   Folder = fun(FA, D, {Suspended, M} = Acc) ->
@@ -168,8 +168,8 @@ handle_call({namespace_macros, Namespace}, _From, Map) ->
   R = case namespace_exist(Map, Namespace) of
         true ->
           %% direct macro definitions
-          Macros = get_kv(Map, Namespace, 'macros'),
-          Aliases = get_kv(Map, Namespace, 'macro_aliases'),
+          Macros = get_kv_set(Map, Namespace, 'macros'),
+          Aliases = get_kv_set(Map, Namespace, 'macro_aliases'),
           Aliases ++ Macros;
         false ->
           []
@@ -183,9 +183,9 @@ handle_call({namespace_locals, Namespace}, _From, Map) ->
           FunAliases = get_kv(Map, Namespace, 'fun_aliases'),
           Macros = get_kv(Map, Namespace, 'macros'),
           MacroAliases = get_kv(Map, Namespace, 'macro_aliases'),
-          ordsets:union([Funs, Macros, FunAliases, MacroAliases]);
+          gb_sets:to_list(gb_sets:union([Funs, Macros, FunAliases, MacroAliases]));
         false ->
-          ordsets:new()
+          []
       end,
   {reply, R, Map};
 
@@ -232,16 +232,16 @@ code_change(_OldVsn, Map, _Extra) ->
 %% helper functions
 
 new_namespace() ->
-  #{export_funs => [],
-    export_macros => [],
-    funs => [],
-    macros => [],
+  #{export_funs => gb_sets:new(),
+    export_macros => gb_sets:new(),
+    funs => gb_sets:new(),
+    macros => gb_sets:new(),
     aliases => [],
-    fun_aliases => [],
-    macro_aliases => [],
+    fun_aliases => gb_sets:new(),
+    macro_aliases => gb_sets:new(),
     defs => [],
     locals => [],
-    forms => [],
+    forms => gb_sets:new(),
     suspended_def_clauses => [],
     fap_dependencies => [],
     order => 0}.
@@ -306,7 +306,7 @@ is_exported(Map, Namespace, 'defmacro', FAP) ->
   is_exported(maps:get(Namespace, Map), 'export_macros', FAP).
 
 is_exported(NS, Key, FAP) ->
-  ordsets:is_element(FAP, maps:get(Key, NS)).
+  gb_sets:is_element(FAP, maps:get(Key, NS)).
 
 next_order(Namespace, Map) ->
   Key = 'order',
@@ -355,12 +355,13 @@ update_kv(Map, Namespace, Key, Fun) ->
   NS1 = maps:update(Key, Value1, NS),
   maps:update(Namespace, NS1, Map).
 
-add_into_kv_set(Map, Namespace, Key, List) when is_list(List) ->
-  Fun = fun(V) -> ordsets:union([ordsets:from_list(List), V]) end,
-  update_kv(Map, Namespace, Key, Fun);
 add_into_kv_set(Map, Namespace, Key, Value) ->
-  Fun = fun(V) -> ordsets:add_element(Value, V) end,
+  Fun = fun(V) -> gb_sets:add_element(Value, V) end,
   update_kv(Map, Namespace, Key, Fun).
+
+get_kv_set(Map, Namespace, Key) ->
+  Set = get_kv(Map, Namespace, Key),
+  gb_sets:to_list(Set).
 
 add_into_kv_dict(Map, Namespace, Key, DictKey, DictValue) ->
   Fun = fun(V) -> orddict:store(DictKey, DictValue, V) end,
@@ -370,11 +371,8 @@ get_kv_dict(Map, Namespace, Key, DictKey) ->
   Dict = get_kv(Map, Namespace, Key),
   orddict:fetch(DictKey, Dict).
 
-remove_from_kv_set(Map, Namespace, Key, List) when is_list(List) ->
-  Fun = fun(V) -> ordsets:subtract(V, ordsets:from_list(List)) end,
-  update_kv(Map, Namespace, Key, Fun);
 remove_from_kv_set(Map, Namespace, Key, Value) ->
-  Fun = fun(V) -> ordsets:del_element(Value, V) end,
+  Fun = fun(V) -> gb_sets:del_element(Value, V) end,
   update_kv(Map, Namespace, Key, Fun).
 
 remove_from_kv_dict(Map, Namespace, Key, DictKey) ->
@@ -398,12 +396,12 @@ add_into_kv_dict_dict_set(Map, Namespace, Key, Dict1Key, Dict2Key, SetValue) ->
             NewDict2 = case orddict:find(Dict1Key, Dict1) of
                          {ok, Dict2} ->
                            NewSet = case orddict:find(Dict2Key, Dict2) of
-                                      {ok, Set} -> ordsets:add_element(SetValue, Set);
-                                      error -> ordsets:from_list([SetValue])
+                                      {ok, Set} -> gb_sets:add_element(SetValue, Set);
+                                      error -> gb_sets:from_list([SetValue])
                                     end,
                            orddict:store(Dict2Key, NewSet, Dict2);
                          error ->
-                           Set = ordsets:from_list([SetValue]),
+                           Set = gb_sets:from_list([SetValue]),
                            orddict:from_list([{Dict2Key, Set}])
                        end,
             orddict:store(Dict1Key, NewDict2, Dict1)
@@ -452,7 +450,7 @@ check_and_add_alias(Map, Namespace, Kind, FAP) ->
 gen_aliases(Map, Namespace, Alias, Original, Meta) ->
   L = [{'defn', 'funs'}, {'defmacro', 'macros'}],
   lists:foldl(fun ({Kind, Key}, M) ->
-                  Aliases = match_aliases(get_kv(M, Namespace, Key), [{{Alias, Original}, Meta}]),
+                  Aliases = match_aliases(gb_sets:to_list(get_kv(M, Namespace, Key)), [{{Alias, Original}, Meta}]),
                   add_aliases(M, Namespace, Kind, Aliases)
               end,
               Map,
@@ -471,8 +469,8 @@ add_alias(Map, Namespace, Kind, Alias, {_, A, P} = FAP) ->
 
 alias_exist(Map, Namespace, Alias) ->
   NameMatch = fun({A, _FAP}) -> A == Alias end,
-  lists:any(NameMatch, get_kv(Map, Namespace, 'fun_aliases')) orelse
-    lists:any(NameMatch, get_kv(Map, Namespace, 'macro_aliases')).
+  lists:any(NameMatch, get_kv_set(Map, Namespace, 'fun_aliases')) orelse
+    lists:any(NameMatch, get_kv_set(Map, Namespace, 'macro_aliases')).
 
 validate_aliases(Map, Namespace) ->
   Invalid = orddict:fold(fun({Alias, _Original} = AliasOriginal, Meta, Acc) ->
@@ -520,7 +518,7 @@ namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->
   AttrFile = {attribute, Line, file, {kapok_utils:characters_to_list(File), Line}},
   AttrExport = {attribute, Line, export, Exports},
   %% add other forms such as attributes
-  OtherForms = get_kv(Map, Namespace, 'forms'),
+  OtherForms = get_kv_set(Map, Namespace, 'forms'),
   %% The `module_info' functions definitions and exports are added automatically
   %% by the erlang compiler, so it's not necessary to manually add them
   %% in kapok compiler.
@@ -528,26 +526,25 @@ namespace_forms(Namespace, ModuleName, Ctx, Options, Map) ->
   {Forms, Ctx1}.
 
 namespace_exports(NS, Options) ->
-  GetExport = fun({F, A, _P}) -> {F, A} end,
-  Functions = ordsets:from_list(lists:map(GetExport, maps:get('export_funs', NS))),
+  GetExport = fun({F, A, _P}, Acc) -> gb_sets:add_element({F, A}, Acc) end,
+  Functions = gb_sets:fold(GetExport, gb_sets:new(), maps:get('export_funs', NS)),
   Key = case lists:member(export_all_macro, Options) of
           true -> 'macros';
           false -> 'export_macros'
         end,
-  Macros = ordsets:from_list(lists:map(GetExport, maps:get(Key, NS))),
-  Exports = ordsets:union(Functions, Macros),
-  Exports.
+  Macros = gb_sets:fold(GetExport, gb_sets:new(), maps:get(Key, NS)),
+  gb_sets:to_list(gb_sets:union(Functions, Macros)).
 
 private_macros(NS) ->
   Exports = maps:get('export_macros', NS),
   All = maps:get('macros', NS),
-  ordsets:subtract(All, Exports).
+  gb_sets:to_list(gb_sets:subtract(All, Exports)).
 
 namespace_defs(NS, Options) ->
   GetMetaClauses = fun({_Order, Meta}, Clauses, {nil, Acc}) ->
-                       {Meta, Clauses ++ Acc};
+                       {Meta, gb_sets:to_list(Clauses) ++ Acc};
                       (_OrderAndMeta, Clauses, {Meta, Acc}) ->
-                       {Meta, Clauses ++ Acc}
+                       {Meta, gb_sets:to_list(Clauses) ++ Acc}
                    end,
   IterateDefs = fun(FA, MetaClauses, Acc) ->
                     {Meta, ReversedClauses} = orddict:fold(GetMetaClauses, {nil, []}, MetaClauses),
@@ -567,7 +564,7 @@ namespace_defs(NS, Options) ->
                               Match = fun ({PF, PA, _PP}) when PF == F, PA == A -> true;
                                           (_) -> false
                                       end,
-                              case ordsets:filter(Match, PrivateMacros) of
+                              case gb_sets:filter(Match, PrivateMacros) of
                                 [] -> true;
                                 _ -> false
                               end
@@ -585,27 +582,27 @@ namespace_defs(NS, Options) ->
 %% generate the aliases definitions.
 gen_alias_defs(NS, _Options, Defs) ->
   %% insert aliases defs
-  Aliases = maps:get('fun_aliases', NS) ++ maps:get('macro_aliases', NS),
-  lists:foldl(fun({Alias, {F, A, _}}, Acc) ->
-                  case orddict:find({F, A}, Defs) of
-                    {ok, MetaClauses} -> orddict:store({Alias, A}, MetaClauses, Acc);
-                    error -> Acc
-                  end
-              end,
-              orddict:new(),
-              Aliases).
+  Aliases = gb_sets:union(maps:get('fun_aliases', NS), maps:get('macro_aliases', NS)),
+  gb_sets:fold(fun({Alias, {F, A, _}}, Acc) ->
+                   case orddict:find({F, A}, Defs) of
+                     {ok, MetaClauses} -> orddict:store({Alias, A}, MetaClauses, Acc);
+                     error -> Acc
+                   end
+               end,
+               orddict:new(),
+               Aliases).
 
 %% generate the `__info__' function for kapok.
 gen_info_fun(Namespace, Ctx, Options, Map) ->
   NS = maps:get(Namespace, Map),
   %% The `module_info' functions definitions and exports are automatically added by
   %% the erlang compiler, their exports need to be added to the kapok exported functions list.
-  ModuleInfoFunctions = ordsets:from_list([{'module_info', 0, 'normal'},
+  ModuleInfoFunctions = gb_sets:from_list([{'module_info', 0, 'normal'},
                                            {'module_info', 1, 'normal'}]),
-  Functions = ordsets:union(ModuleInfoFunctions, maps:get(export_funs, NS)),
+  Functions = gb_sets:to_list(gb_sets:union(ModuleInfoFunctions, maps:get(export_funs, NS))),
   Macros = case lists:member(export_all_macro, Options) of
-             true -> maps:get(macros, NS);
-             false -> maps:get(export_macros, NS)
+             true -> gb_sets:to_list(maps:get(macros, NS));
+             false -> gb_sets:to_list(maps:get(export_macros, NS))
            end,
   Line = 1,
   {TFunctions, Ctx1} = kapok_trans:translate(kapok_trans:quote([{line, Line}], Functions), Ctx),
