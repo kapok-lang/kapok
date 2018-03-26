@@ -126,7 +126,7 @@ handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map)
           K1 when K1 == 'defn'; K1 == 'defn-' -> 'fun_aliases';
           K2 when K2 == 'defmacro'; K2 == 'defmacro-' -> 'macro_aliases'
         end,
-  NewAliasFAPList = filter_aliases(Match, get_kv_set(Map1, Namespace, Key)),
+  NewAliasFAPList = filter_aliases(Match, orddict:from_list(get_kv_set(Map1, Namespace, Key))),
   AllFAPList = NewAliasFAPList ++ FAPList,
   SuspendedClauses = get_kv(Map1, Namespace, 'suspended_def_clauses'),
   Folder = fun(FA, D, {Suspended, M} = Acc) ->
@@ -135,14 +135,12 @@ handle_call({check_suspended_def_clauses, Namespace, Kind, FAPList}, _From, Map)
                    Acc;
                  _ ->
                    M1 = remove_suspended_def_clause(M, Namespace, FA),
-                   {orddict:store(FA, D, Suspended), M1}
+                   {maps:put(FA, D, Suspended), M1}
                end
            end,
-  {ToHandle, Map2} = orddict:fold(Folder,
-                                  {orddict:new(), Map1},
-                                  SuspendedClauses),
-  Map4 = case ToHandle of
-           [] ->
+  {ToHandle, Map2} = maps:fold(Folder, {maps:new(), Map1}, SuspendedClauses),
+  Map4 = case maps:size(ToHandle) of
+           0 ->
              Map2;
            _ ->
              Map3 = lists:foldl(fun(FAP, M) -> add_def(M, Namespace, Kind, FAP) end,
@@ -194,8 +192,9 @@ handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) 
         true ->
           case lists:member(ignore_suspended_def_clauses, Options) of
             false ->
-              case get_kv(Map, Namespace, 'suspended_def_clauses') of
-                [] ->
+              Suspended = get_kv(Map, Namespace, 'suspended_def_clauses'),
+              case maps:size(Suspended) of
+                0 ->
                   case validate_aliases(Map, Namespace) of
                     {invalid_alias, _} = V ->
                       V;
@@ -203,7 +202,7 @@ handle_call({namespace_forms, Namespace, ModuleName, Ctx, Options}, _From, Map) 
                       {Forms, Ctx1} = namespace_forms(Namespace, ModuleName, Ctx, Options, Map),
                       {ok, Forms, Ctx1}
                   end;
-                Suspended ->
+                _ ->
                   Dependencies = get_kv(Map, Namespace, 'fap_dependencies'),
                   UnresolvedFAInfo = find_unresolved_fa(Suspended, Dependencies),
                   {unresolved, UnresolvedFAInfo, Ctx}
@@ -236,14 +235,13 @@ new_namespace() ->
     export_macros => gb_sets:new(),
     funs => gb_sets:new(),
     macros => gb_sets:new(),
-    aliases => [],
+    aliases => maps:new(),
     fun_aliases => gb_sets:new(),
     macro_aliases => gb_sets:new(),
-    defs => [],
-    locals => [],
+    defs => maps:new(),
     forms => gb_sets:new(),
-    suspended_def_clauses => [],
-    fap_dependencies => [],
+    suspended_def_clauses => maps:new(),
+    fap_dependencies => maps:new(),
     order => 0}.
 
 add_namespace_if_missing(Map, Namespace) ->
@@ -336,12 +334,12 @@ add_suspended_def_clause(Map, Namespace, UnresolvedFA, Meta, FAP, ClauseArgs) ->
 
 remove_suspended_def_clause(Map, Namespace, FA) ->
   Solved = get_kv_dict(Map, Namespace, 'suspended_def_clauses', FA),
-  orddict:fold(fun (_Order, {_Meta, Args}, M) ->
-                   FAP = element(1, Args),
-                   remove_from_kv_dict(M, Namespace, 'fap_dependencies', FAP)
-               end,
-               Map,
-               Solved),
+  maps:fold(fun (_Order, {_Meta, Args}, M) ->
+                FAP = element(1, Args),
+                remove_from_kv_dict(M, Namespace, 'fap_dependencies', FAP)
+            end,
+            Map,
+            Solved),
   remove_from_kv_dict(Map, Namespace, 'suspended_def_clauses', FA).
 
 get_kv(Map, Namespace, Key) ->
@@ -364,47 +362,47 @@ get_kv_set(Map, Namespace, Key) ->
   gb_sets:to_list(Set).
 
 add_into_kv_dict(Map, Namespace, Key, DictKey, DictValue) ->
-  Fun = fun(V) -> orddict:store(DictKey, DictValue, V) end,
+  Fun = fun(V) -> maps:put(DictKey, DictValue, V) end,
   update_kv(Map, Namespace, Key, Fun).
 
 get_kv_dict(Map, Namespace, Key, DictKey) ->
   Dict = get_kv(Map, Namespace, Key),
-  orddict:fetch(DictKey, Dict).
+  maps:get(DictKey, Dict).
 
 remove_from_kv_set(Map, Namespace, Key, Value) ->
   Fun = fun(V) -> gb_sets:del_element(Value, V) end,
   update_kv(Map, Namespace, Key, Fun).
 
 remove_from_kv_dict(Map, Namespace, Key, DictKey) ->
-  Fun = fun(V) -> orddict:erase(DictKey, V) end,
+  Fun = fun(V) -> maps:remove(DictKey, V) end,
   update_kv(Map, Namespace, Key, Fun).
 
 add_into_kv_dict_dict(Map, Namespace, Key, Dict1Key, Dict2Key, Value) ->
   Fun = fun(Dict1) ->
-            NewDict2 = case orddict:find(Dict1Key, Dict1) of
+            NewDict2 = case maps:find(Dict1Key, Dict1) of
                          {ok, Dict2} ->
-                           orddict:store(Dict2Key, Value, Dict2);
+                           maps:put(Dict2Key, Value, Dict2);
                          error ->
-                           orddict:from_list([{Dict2Key, Value}])
+                           maps:from_list([{Dict2Key, Value}])
                        end,
-            orddict:store(Dict1Key, NewDict2, Dict1)
+            maps:put(Dict1Key, NewDict2, Dict1)
         end,
   update_kv(Map, Namespace, Key, Fun).
 
 add_into_kv_dict_dict_set(Map, Namespace, Key, Dict1Key, Dict2Key, SetValue) ->
   Fun = fun(Dict1) ->
-            NewDict2 = case orddict:find(Dict1Key, Dict1) of
+            NewDict2 = case maps:find(Dict1Key, Dict1) of
                          {ok, Dict2} ->
-                           NewSet = case orddict:find(Dict2Key, Dict2) of
+                           NewSet = case maps:find(Dict2Key, Dict2) of
                                       {ok, Set} -> gb_sets:add_element(SetValue, Set);
                                       error -> gb_sets:from_list([SetValue])
                                     end,
-                           orddict:store(Dict2Key, NewSet, Dict2);
+                           maps:put(Dict2Key, NewSet, Dict2);
                          error ->
                            Set = gb_sets:from_list([SetValue]),
-                           orddict:from_list([{Dict2Key, Set}])
+                           maps:from_list([{Dict2Key, Set}])
                        end,
-            orddict:store(Dict1Key, NewDict2, Dict1)
+            maps:put(Dict1Key, NewDict2, Dict1)
         end,
   update_kv(Map, Namespace, Key, Fun).
 
@@ -422,7 +420,7 @@ alias_matcher({F, A, _} = FAP) ->
 
 match_aliases(FAPList, AliasDict) ->
   lists:foldl(fun(FAP, Acc) ->
-                  Match = orddict:fold(alias_matcher(FAP), [], AliasDict),
+                  Match = maps:fold(alias_matcher(FAP), [], AliasDict),
                   Match ++ Acc
               end,
               [],
@@ -449,8 +447,9 @@ check_and_add_alias(Map, Namespace, Kind, FAP) ->
 
 gen_aliases(Map, Namespace, Alias, Original, Meta) ->
   L = [{'defn', 'funs'}, {'defmacro', 'macros'}],
+  AliasDict = maps:from_list([{{Alias, Original}, Meta}]),
   lists:foldl(fun ({Kind, Key}, M) ->
-                  Aliases = match_aliases(gb_sets:to_list(get_kv(M, Namespace, Key)), [{{Alias, Original}, Meta}]),
+                  Aliases = match_aliases(get_kv_set(M, Namespace, Key), AliasDict),
                   add_aliases(M, Namespace, Kind, Aliases)
               end,
               Map,
@@ -473,31 +472,31 @@ alias_exist(Map, Namespace, Alias) ->
     lists:any(NameMatch, get_kv_set(Map, Namespace, 'macro_aliases')).
 
 validate_aliases(Map, Namespace) ->
-  Invalid = orddict:fold(fun({Alias, _Original} = AliasOriginal, Meta, Acc) ->
-                             case alias_exist(Map, Namespace, Alias) of
-                               true -> Acc;
-                               false -> [{AliasOriginal, Meta} | Acc]
-                             end
-                         end,
-                         [],
-                         get_kv(Map, Namespace, 'aliases')),
+  Invalid = maps:fold(fun({Alias, _Original} = AliasOriginal, Meta, Acc) ->
+                          case alias_exist(Map, Namespace, Alias) of
+                            true -> Acc;
+                            false -> [{AliasOriginal, Meta} | Acc]
+                          end
+                      end,
+                      [],
+                      get_kv(Map, Namespace, 'aliases')),
   case Invalid of
     [] -> ok;
     _ -> {invalid_alias, Invalid}
   end.
 
 find_unresolved_fa(Suspended, Dependencies) ->
-  [UnresolvedFA | _] = orddict:fetch_keys(Suspended),
+  [UnresolvedFA | _] = maps:keys(Suspended),
   find_unresolved_fa(Suspended, Dependencies, UnresolvedFA).
 
 find_unresolved_fa(Suspended, Dependencies, UnresolvedFA) ->
-  case kapok_dispatch:filter_fa(UnresolvedFA, orddict:fetch_keys(Dependencies)) of
+  case kapok_dispatch:filter_fa(UnresolvedFA, maps:keys(Dependencies)) of
     [] ->
-      UnresolvedDict = orddict:fetch(UnresolvedFA, Suspended),
-      [{_Order, {FAMeta, _Args}} | _] = orddict:to_list(UnresolvedDict),
+      UnresolvedDict = maps:get(UnresolvedFA, Suspended),
+      [{_Order, {FAMeta, _Args}} | _] = maps:to_list(UnresolvedDict),
       {UnresolvedFA, FAMeta};
     [FAP | _] ->
-      FA = orddict:fetch(FAP, Dependencies),
+      FA = maps:get(FAP, Dependencies),
       find_unresolved_fa(Suspended, Dependencies, FA)
   end.
 
@@ -547,12 +546,12 @@ namespace_defs(NS, Options) ->
                        {Meta, gb_sets:to_list(Clauses) ++ Acc}
                    end,
   IterateDefs = fun(FA, MetaClauses, Acc) ->
-                    {Meta, ReversedClauses} = orddict:fold(GetMetaClauses, {nil, []}, MetaClauses),
+                    {Meta, ReversedClauses} = maps:fold(GetMetaClauses, {nil, []}, MetaClauses),
                     Line = ?line(Meta),
                     Clauses = lists:reverse(ReversedClauses),
                     orddict:store(FA, {Line, Clauses}, Acc)
                 end,
-  AllDefs = orddict:fold(IterateDefs, orddict:new(), maps:get('defs', NS)),
+  AllDefs = maps:fold(IterateDefs, orddict:new(), maps:get('defs', NS)),
   Defs = case lists:member(strip_private_macro, Options) of
            true ->
              PrivateMacros = private_macros(NS),

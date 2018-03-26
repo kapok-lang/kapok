@@ -637,20 +637,20 @@ add_redirect_clause(Meta, Kind, Namespace, Name, TF, TNormalArgs, Extra) ->
 handle_suspended_def_clauses(Namespace, CurrentKind, FAPList, Ctx) ->
   {ToHandle, AliasFAPList} = kapok_symbol_table:check_suspended_def_clauses(
                                  Namespace, CurrentKind, FAPList),
-  orddict:map(fun(_FA, D) ->
-                  lists:map(fun({Order, {_FAMeta, {_FAP, Metadata, Meta, Kind, Name, Args, Guard, Body}}}) ->
-                                OrderedMeta = case meta_order(Meta) of
-                                                0 -> [{order, Order} | Meta];
-                                                Order -> Meta;
-                                                Other -> kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {inconsistent_order, {Order, Other, Name, Meta}})
-                                              end,
-                                %% restore the previous metadata
-                                {Ctx1, _} = kapok_ctx:set_metadata(Ctx, Metadata),
-                                handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx1)
-                            end,
-                            orddict:to_list(D))
-              end,
-              ToHandle),
+  maps:map(fun(_FA, D) ->
+               maps:map(fun(Order, {_FAMeta, {_FAP, Metadata, Meta, Kind, Name, Args, Guard, Body}}) ->
+                            OrderedMeta = case meta_order(Meta) of
+                                            0 -> [{order, Order} | Meta];
+                                            Order -> Meta;
+                                            Other -> kapok_error:form_error(Meta, ?m(Ctx, file), ?MODULE, {inconsistent_order, {Order, Other, Name, Meta}})
+                                          end,
+                            %% restore the previous metadata
+                            {Ctx1, _} = kapok_ctx:set_metadata(Ctx, Metadata),
+                            handle_def_clause(OrderedMeta, Kind, Name, Args, Guard, Body, Ctx1)
+                        end,
+                        D)
+           end,
+           ToHandle),
   R = case ToHandle of
         [] ->
           skip;
