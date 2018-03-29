@@ -424,7 +424,7 @@ The total size of the segement is `Size` * `Unit` bits long. A segment of type `
 
 Although there is a literal type binary string, which is implemented as binary. It's remcommended that use always use the right syntax for the corresponding type, e.g. don't use the binary syntax when a string is needed. It helps to clarify the source code.
 
-#### List and Literal List
+#### List, Literal List and Keyword List
 
 List is the essential to every Lisp dialect: the language syntax is mainly composed of lists. There are two kinds of list in Kapok, the general list and the literal list, sometimes the later is also called list for short.
 
@@ -450,6 +450,15 @@ There are a few reasons to separate the syntax of literal list from general list
 3. Adding a new syntax for data list would help to clarity the code, although it would add complexity as well.
 
 So we combine the syntax of list in Erlang and the syntax of vector in Clojure, and add a literal list type to use this syntax.
+
+Another kind of list is called keyword list. It's called "keyword" in Elixir for a list of two element tuple. Keywords are widely used in Elixir interfaces. In order to easy the writting for this kind of list to interoperate with Elixir interfaces, a syntax sugar is created as keyword list in Kapok:
+
+```clojure
+;; a keyword list
+#[:key1 "value1" :key2 'value2']
+;; equals to a literal list of two element tuple
+[{:key1 "value1"} {:key2 'value2'}]
+```
 
 #### Tuple
 
