@@ -12,6 +12,7 @@ Nonterminals
     non_dot_expr value
     collection_value comma_collection_value collection_value_list collection_values
     open_paren close_paren open_bracket close_bracket list_collection cons_list
+    open_bang_bracket keyword_list
     open_curly close_curly tuple_collection
     paired_comma_collection_values paired_collection_value_list paired_collection_values
     unpaired_collection_value_list unpaired_collection_values open_bang_curly map_collection
@@ -23,7 +24,7 @@ Terminals
     hex_number octal_number n_base_number char_number integer float '+' '-'
     binary_string list_string identifier '.'
     keyword keyword_safe keyword_unsafe atom atom_safe atom_unsafe
-    '(' ')' '[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
+    '(' ')' '[' '#[' ']' '{' '%{' '#{' '}'  '<<' '>>' ','
     unquote_splicing backquote quote unquote
     keyword_as keyword_optional keyword_rest keyword_key keyword_cons
     keyword_when keyword_and keyword_or
@@ -78,6 +79,7 @@ non_dot_expr  -> list_string : '$1'.
 non_dot_expr  -> bitstring_collection : '$1'.
 %% list_collection is included in `dot_value'
 non_dot_expr  -> cons_list: '$1'.
+non_dot_expr  -> keyword_list: '$1'.
 non_dot_expr  -> tuple_collection : '$1'.
 non_dot_expr  -> map_collection : '$1'.
 non_dot_expr  -> set_collection : '$1'.
@@ -167,6 +169,12 @@ list_collection -> open_paren collection_values close_paren: build_list('$1', '$
 cons_list -> open_bracket collection_values keyword_cons value close_bracket : build_cons_list('$3', '$2', '$4').
 cons_list -> open_paren collection_values keyword_cons value close_paren : build_cons_list('$3', '$2', '$4').
 
+open_bang_bracket -> '#[' : '$1'.
+
+keyword_list -> open_bang_bracket close_bracket : build_keyword_list('$1', []).
+keyword_list -> open_bang_bracket paired_collection_values close_bracket : build_keyword_list('$1', '$2').
+keyword_list -> open_bang_bracket unpaired_collection_values close_bracket : throw_unpaired_values('$1', "keyword list").
+
 %% Tuple
 open_curly   -> '{' : '$1'.
 close_curly  -> '}' : '$1'.
@@ -192,7 +200,7 @@ open_bang_curly -> '#{' : '$1'.
 
 map_collection -> open_bang_curly close_curly : build_map('$1', []).
 map_collection -> open_bang_curly paired_collection_values close_curly : build_map('$1', '$2').
-map_collection -> open_bang_curly unpaired_collection_values close_curly : throw_unpaired_map('$1').
+map_collection -> open_bang_curly unpaired_collection_values close_curly : throw_unpaired_values('$1', "map").
 
 %% Set
 
@@ -205,7 +213,8 @@ Erlang code.
 
 -import(kapok_scanner, [token_category/1,
                         token_meta/1,
-                        token_symbol/1]).
+                        token_symbol/1,
+                        token_text/1]).
 -export([is_identifier/1, is_plain_dot/1, plain_dot_name/1, plain_dot_mf/1]).
 -include("kapok.hrl").
 
@@ -274,6 +283,17 @@ build_list(Marker, Args) ->
 build_cons_list(Marker, Head, Tail) ->
   {cons_list, token_meta(Marker), {Head, Tail}}.
 
+build_keyword_list(Marker, Args) ->
+  {nil, RT} = lists:foldl(fun (K, {nil, Acc}) ->
+                              {K, Acc};
+                              (V, {K, Acc}) ->
+                              {nil, [build_tuple(K, [K, V]) | Acc]}
+                          end,
+                          {nil, []},
+                          Args),
+  Tuples = lists:reverse(RT),
+  build_literal_list(Marker, Tuples).
+
 build_tuple(Marker, Args) ->
   {tuple, token_meta(Marker), Args}.
 
@@ -310,11 +330,13 @@ plain_dot_mf({C, _, {Left, Right}}) when ?is_dot(C) ->
   {NameLeft, NameRight}.
 
 %% Errors
-throw(Line, Error, Token) ->
-  throw({error, {Line, ?MODULE, [Error, Token]}}).
+throw(Line, ErrorDesc) ->
+  throw({error, {Line, ?MODULE, ErrorDesc}}).
 
-throw_unpaired_map(Marker) ->
-  throw(?line(token_meta(Marker)), "unpaired values in map", token_symbol(Marker)).
+throw_unpaired_values(Marker, Type) ->
+  Message = io_lib:format("unpaired values for ~s", [Type]),
+  throw(?line(token_meta(Marker)), Message).
 
 throw_invalid_bitstring_element(Token) ->
-  throw(?line(token_meta(Token)), "invalid bitstring element", token_symbol(Token)).
+  Message = io_lib:format("invalid bitstring element: ~s", [token_text(Token)]),
+  throw(?line(token_meta(Token)), Message).

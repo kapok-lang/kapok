@@ -33,6 +33,15 @@ token_meta(Token) ->
 token_symbol({_, _, Symbol}) ->
   Symbol.
 
+token_text({C, _}) ->
+  atom_to_list(C);
+token_text({C, _, Symbol}) when ?is_parameter_keyword(C) ->
+  atom_to_list(Symbol);
+token_text({keyword, _, Atom}) ->
+  io_lib:format(":~s", [Atom]);
+token_text(Token) ->
+  io_lib:format("~p", [token_symbol(Token)]).
+
 build_meta(Line, Column) ->
   [{line, Line}, {column, Column}].
 
@@ -265,9 +274,9 @@ scan([H, H|T], Line, Column, Scope, Tokens) when H == $>; H == $> ->
   Token = {list_to_atom([H, H]), build_meta(Line, Column)},
   handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
-%% map, set
+%% map, set, keyword list
 scan([H1, H2|T], Line, Column, Scope, Tokens)
-    when H1 == $#, H2 == ${; H1 == $%, H2 == ${ ->
+    when H1 == $#, H2 == ${; H1 == $%, H2 == ${; H1 == $#, H2 == $[ ->
   Token = {list_to_atom([H1, H2]), build_meta(Line, Column)},
   handle_terminator(T, Line, Column + 2, Scope, Token, Tokens);
 
@@ -645,7 +654,7 @@ handle_terminator(Token, #kapok_scanner_scope{terminators=Terminators} = Scope) 
   end.
 
 check_terminator({O, _} = New, Terminators)
-    when O == '('; O == '['; O == '{'; O == '%{'; O == '#{'; O == '<<' ->
+    when O == '('; O == '['; O == '{'; O == '%{'; O == '#{'; O == '#['; O == '<<' ->
   [New|Terminators];
 check_terminator({C, _}, [{O, _}|Terminators])
     when O == '(',  C == ')';
@@ -653,6 +662,7 @@ check_terminator({C, _}, [{O, _}|Terminators])
          O == '{',  C == '}';
          O == '%{', C == '}';
          O == '#{', C == '}';
+         O == '#[', C == ']';
          O == '<<', C == '>>' ->
   Terminators;
 check_terminator({C, CMeta}, [{Open, OpenMeta}|_])
@@ -679,16 +689,6 @@ terminator('{') -> '}';
 terminator('%{') -> '}';
 terminator('#{') -> '}';
 terminator('<<') -> '>>'.
-
-%% helpers
-
-token_text({C, _, Symbol}) when ?is_parameter_keyword(C) ->
-  atom_to_list(Symbol);
-token_text({keyword, _, Atom}) ->
-  io_lib:format(":~s", [Atom]);
-token_text(Token) ->
-  io_lib:format("~p", [Token]).
-
 
 %% Error
 
