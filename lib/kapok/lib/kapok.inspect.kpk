@@ -15,14 +15,14 @@
   of existing entities. For example, here is `hashset`'s `inspect`
   implementation:
 
-      (defimpl inspect hashset
+      (defimpl inspect HashSet
         (use Elixir.Inspect.Algebra)
         (defn inspect [dict opts]
-          (concat ["#hashset<" (to_doc (hashset.to-list dict) opts) ">"])))
+          (concat ["#HashSet<" (to_doc (hashset.to-list dict) opts) ">"])))
 
   The `concat` function comes from `Elixir.Inspect.Algebra` and it
   concatenates algebra documents together. In the example above,
-  it is concatenating the string `"hashset<"` (all strings are
+  it is concatenating the string `"HashSet<"` (all strings are
   valid algebra documents that keep their) formatting when pretty
   printed), the document returned by `(inspect.algebra.to-doc 2)` and the
   other string `">"`.
@@ -47,43 +47,39 @@
   (inspect [thing opts])
   )
 
-(defimpl kapok.inspect atom
-  (require (kapok (char
-                   inspect.bitstring)))
+(defimpl kapok.inspect Atom
+  (require (Elixir.Inspect.Algebra :as alg)
+           (kapok (char
+                   (inspect.BitString :as bs))))
   (use (kapok ((core :exclude (inspect)))))
 
-  (defn inspect [atom _opts]
-    (inspect atom))
-
-  (defn inspect [:false]
-    ":false")
-  (defn inspect [:true]
-    ":true")
-  (defn inspect [:nil]
-    ":nil")
-  (defn inspect [#'']
-    ":''")
-
-  (defn
-      #{:check_remote_call :false}
-      inspect [a]
-    (let [binary (Elixir.Atom.to_string a)]
-      (cond
-        (valid-atom-identifier? binary) << ":" (binary :binary) >>
-        :true << $: $' ((inspect.bitstring.escape binary $") :binary) $' >>)))
+  (defn inspect [atom opts]
+    (let [{doc key}
+          (case atom
+            (:false {":false" #boolean})
+            (:true {":true" #boolean})
+            (:nil {":nil" #boolean})
+            (#'' {"#''" #atom})
+            (_ (let [bin (Elixir.Atom.to_string atom)
+                     d (if (valid-atom-identifier? bin)
+                           << "#" (bin :binary) >>
+                         << $# $' ((bs.escape bin $') :binary) $' >>)]
+                 {d #atom})))]
+      (alg.color doc key opts)))
 
   ;; Detect if atom is an simple atom which consists of identifier characters
   ;; (no need to quote).
-  (defn- valid-atom-identifier? [<< h (t :binary) >>] (&when (char.identifier-char? h))
-    (valid-atom-identifier? t))
-
   (defn- valid-atom-identifier? [<<>>]
     :true)
+
+  (defn- valid-atom-identifier? [<< h (t :binary) >>]
+      (&when (char.identifier-char? h))
+    (valid-atom-identifier? t))
 
   (defn- valid-atom-identifier? [_]
     :false))
 
-(defimpl kapok.inspect bitstring
+(defimpl kapok.inspect BitString
   (require (Elixir.Integer :as integer)
            (Elixir.Access :as access))
 
@@ -207,11 +203,11 @@
     (dec counter))
   )
 
-(defimpl kapok.inspect list
+(defimpl kapok.inspect List
   (require (Elixir.IO :as io)
            (kapok (atom
-                   inspect.atom
-                   inspect.bitstring)))
+                   inspect.Atom
+                   inspect.BitString)))
   (use (Elixir.Inspect.Algebra :only (concat
                                       surround_many
                                       to_doc)))
@@ -228,7 +224,7 @@
       (or (== lists #as_char_lists)
           (and (== lists #infer)
                (printable? thing)))
-        << $' ((inspect.bitstring.escape (io.chardata_to_string thing) $') :binary) $' >>
+        << $' ((inspect.BitString.escape (io.chardata_to_string thing) $') :binary) $' >>
       (keyword? thing)
         (surround_many "[" thing "]" opts (fn keyword 2))
       :true
@@ -236,7 +232,7 @@
         (surround_many "[" thing "]" opts (fn Elixir.Inspect.Algebra to_doc 2))))
 
   (defn keyword [{key value} opts]
-    (concat <<((key-to-binary key)) ": " >> (to_doc value opts)))
+    (concat <<((key-to-binary key opts)) ": " >> (to_doc value opts)))
 
   (defn keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (Elixir.Atom.to_char_list key)
@@ -250,8 +246,8 @@
 
   ;; private
 
-  (defn- key-to-binary [key]
-    (case (inspect.atom.inspect key)
+  (defn- key-to-binary [key opts]
+    (case (inspect.Atom.inspect key opts)
       (<< "#" right >> right)
       (other other)))
 
@@ -272,7 +268,7 @@
 
   )
 
-(defimpl kapok.inspect tuple
+(defimpl kapok.inspect Tuple
   (use (Elixir.Inspect.Algebra :only (surround_many)))
   (defn inspect [{} _opts]
     "{}")
@@ -282,9 +278,9 @@
                    (fn Elixir.Inspect.Algebra to_doc 2)))
   )
 
-(defimpl kapok.inspect map
+(defimpl kapok.inspect Map
   (require maps
-           (kapok (inspect.list)))
+           (kapok (inspect.List)))
   (use (Elixir.Inspect.Algebra :only (concat
                                       nest
                                       surround_many
@@ -302,8 +298,8 @@
                      (traverse-fun map))))
 
   (defn- traverse-fun [list]
-    (if (inspect.list.keyword? list)
-        (fn inspect.list keyword 2)
+    (if (inspect.List.keyword? list)
+        (fn inspect.List keyword 2)
       (fn to-map 2)))
 
   (defn- to-map [{key value} opts]
@@ -312,7 +308,7 @@
      (to_doc value opts)))
   )
 
-(defimpl kapok.inspect integer
+(defimpl kapok.inspect Integer
 
   (defn inspect [thing
                  #{:__struct__ #'kapok.inspect.opts'
@@ -338,7 +334,7 @@
 
   )
 
-(defimpl kapok.inspect float
+(defimpl kapok.inspect Float
   (require io_lib_format
            (kapok (io)))
 
@@ -349,7 +345,7 @@
   )
 
 
-(defimpl kapok.inspect pid
+(defimpl kapok.inspect PID
   (require erlang
            (kapok (io)))
 
@@ -359,7 +355,7 @@
     << "#PID" ((io.iodata_to_binary (erlang.pid_to_list pid))) >>)
   )
 
-(defimpl kapok.inspect port
+(defimpl kapok.inspect Port
   (require erlang
            (kapok (io)))
 
@@ -369,7 +365,7 @@
     (io.iodata_to_binary (erlang.port_to_list port)))
   )
 
-(defimpl kapok.inspect reference
+(defimpl kapok.inspect Reference
   (require erlang
            (kapok (io)))
 
@@ -380,19 +376,19 @@
       << "#Reference" ((io.iodata_to_binary rest)) >>))
   )
 
-(defimpl kapok.inspect any
+(defimpl kapok.inspect Any
   (require maps
-           (kapok (inspect.atom
-                   inspect.map)))
+           (kapok (inspect.Atom
+                   inspect.Map)))
 
   (defn inspect [#{:__struct__ struct} &as map opts]
     (try (struct.__struct__)
       ((dunder (if (== (maps.keys dunder) (maps.keys map))
                    (let [pruned (maps.remove #__exception__
                                              (maps.remove #__struct__ map))]
-                     (inspect.map.inspect pruned
-                                          (inspect.atom.inspect struct opts)
+                     (inspect.Map.inspect pruned
+                                          (inspect.Atom.inspect struct opts)
                                           opts)))))
       (catch
-          (_ (inspect.map.inspect map opts)))))
+          (_ (inspect.Map.inspect map opts)))))
   )

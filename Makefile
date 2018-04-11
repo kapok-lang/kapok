@@ -125,6 +125,7 @@ $1_core_lib_files      :=       \
 $1_core_lib_modules    := $$(patsubst %.kpk,%,$$($1_core_lib_files))
 $1_lib_files           :=       \
   kapok.char.kpk                \
+  kapok.inspect.algebra.kpk     \
   kapok.inspect.kpk             \
   kapok.time.kpk
 

@@ -1689,7 +1689,7 @@
 
 (defn
     #{:check_remote_call :false}
-    inspect [arg &optional (opts [])]
+    inspect [term &optional (opts [])]
   """Inspects the given argument according to the `inspect` protocol.
   The secord argument is a alist with options to control inspection.
 
@@ -1734,13 +1734,12 @@
 
   """
 
-  (let [opts1 (struct (kapok.inspect.opts.new) opts)
-        limit (case (Elixir.Access.get opts1 #pretty)
-                (:true (Elixir.Access.get opts1 #width))
-                (:false #infinity))]
-    (Elixir.IO.iodata_to_binary (Elixir.Inspect.Algebra.format
-                                (Elixir.Inspect.Algebra.to_doc arg opts1)
-                                limit))))
+  (let [opts1 (struct #'Elixir.Inspect.Opts' opts)
+        limit (case (Elixir.Map.get opts1 #pretty)
+                (:true (Elixir.Map.get opts1 #width))
+                (:false #infinity))
+        doc (Elixir.Inspect.Algebra.group (kapok.inspect.algebra.to-doc term opts1))]
+    (Elixir.IO.iodata_to_binary (Elixir.Inspect.Algebra.format doc limit))))
 
 ;; struct
 
@@ -1791,7 +1790,7 @@
   """
 
   ([s]
-   (struct s))
+   (struct s []))
 
   ([s []] (&when (&or (erlang.is_atom s)
                       (erlang.is_tuple s)))

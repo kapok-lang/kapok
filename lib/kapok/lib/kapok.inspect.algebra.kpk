@@ -1,0 +1,49 @@
+(ns kapok.inspect.algebra
+  (require (Elixir.Map :as map)
+           (Elixir.System :as system)
+           (Elixir.Process :as process)
+           (Eilxir.IO :as io)
+           (Elixir.Inspect.Algebra :as alg)
+           (kapok (inspect))))
+
+(defn
+    #{:check_remote_call :false}
+    to-doc
+  """Converts an Kapok structure to an algebra document
+  according to the inspect protocol.
+  """
+
+  ([#{:__struct__ _} &as struct opts]
+   (if (map.get opts #structs)
+       (try (inspect.inspect struct opts)
+         (catch
+           (e
+            (let [st (system.stacktrace)]
+              ;; Because we try to raise a nice error message in case
+              ;; we can't inspect a struct, there is a chance the error
+              ;; message itself relies on the struct being printed, so
+              ;; we need to trap the inspected messages to guarantee
+              ;; we won't try to render any failed instruct when building
+              ;; the error message.
+              (if (process.get #inspect-trap)
+                  (inspect.map.inspect struct opts)
+                (try (do
+                      (process.put #inspect-trap :true)
+                      (let [res1 (inspect.map.inspect struct opts)
+                            res2 (io.iodata_to_binary (alg.format res1 #infinity))
+                            message (io_lib.format "got ~p with message ~s while inspecting ~p"
+                                      [(inspect (map.get e #__struct__))
+                                       (exception.message e)
+                                       res2])
+                            exception (inspect.error.exception [{#message message}])]
+                        (if (access.get opts #safe)
+                            (inspect.inspect exception opts)
+                          (reraise exception st))))
+                  (after
+                   (process.delete #inspect-trap))))))))
+     (inspect.map.inspect struct opts))))
+
+(defn
+    #{:check_remote_call :false}
+    to-doc [arg opts]
+  (inspect.inspect arg opts))
