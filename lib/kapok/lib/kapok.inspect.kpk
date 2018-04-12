@@ -65,7 +65,7 @@
   (defn- prepend-prefix [value #decimal]
     value)
   (defn- prepend-prefix [<< $- (value :binary) >> base]
-    << $- ((prepend-prefix value base)) >>)
+    << $- ((prepend-prefix value base) :binary) >>)
   (defn- prepend-prefix [value base]
     (let [prefix (case base
                    (#binary "2r")
@@ -256,30 +256,47 @@
 
 (defimpl kapok.inspect List
   (require (Elixir.IO :as io)
+           (Elixir.List :as list)
+           (Elixir.Inspect.Algebra :as alg)
            (kapok (atom
                    inspect.Atom
                    inspect.BitString)))
-  (use (Elixir.Inspect.Algebra :only (concat
-                                      surround_many
-                                      to_doc)))
 
-  (defn inspect [[] _opts]
-    "[]")
+  (defn inspect [[] opts]
+    (alg.color "[]" #list opts))
 
-  (defn inspect [thing #{:char_lists lists} &as opts]
+  ;; TODO remove #char_list and :as_char_lists handling according to Elixir 2.0
+  (defn inspect [term opts]
+    (let [#{:charlists lists
+            :char_lists lists-deprecated
+            :printable_limit printable-limit} opts
+          lists1 (if (and (== lists #infer)
+                          (!= lists-deprecated #infer))
+                     (case lists-deprecated
+                       (#as_char_lists
+                        (io.warn
+                         "the :char_list inspect option and its #as_char_lists value are deprecated, use the :charlists option and its #as_charlists value instead")
+                        #as_charlists)
+                       (_
+                        (io.warn
+                         "the :char_lists inspect option is deprecated, use :charlists instead")
+                        lists-deprecated))
+                   lists)
+          open (alg.color "[" #list opts)
+          sep (alg.color (alg.break) #list opts)
+          close (alg.color "]" #list opts)]
     (cond
-      (or (== lists #as_char_lists)
-          (and (== lists #infer)
-               (printable? thing)))
-        << $' ((inspect.BitString.escape (io.chardata_to_string thing) $') :binary) $' >>
-      (keyword? thing)
-        (surround_many "[" thing "]" opts (fn keyword 2))
+      (or (== lists1 #as_charlists)
+          (and (== lists1 #infer)
+               (list.ascii_printable? term printable-limit)))
+        (let [inspected (case (inspect.BitString.escape
+                               (io.chardata_to_string term) $" printable-limit)
+                          ({escaped ""} [$# $" escaped $"])
+                          ({escaped _} [$# $" escaped " ..." $"]))]
+          (io.iodata_to_binary inspected))
       :true
-        ;; TODO add alias checking for names in `(fn remote fun arity)` syntax.
-        (surround_many "[" thing "]" opts (fn Elixir.Inspect.Algebra to_doc 2))))
-
-  (defn keyword [{key value} opts]
-    (concat <<((key-to-binary key opts)) ": " >> (to_doc value opts)))
+        (alg.container_doc
+          open term close opts (fn alg to_doc 2) #[:separator sep]))))
 
   (defn keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (Elixir.Atom.to_char_list key)
@@ -290,29 +307,6 @@
     :true)
   (defn keyword? [_other]
     :false)
-
-  ;; private
-
-  (defn- key-to-binary [key opts]
-    (case (inspect.Atom.inspect key opts)
-      (<< "#" right >> right)
-      (other other)))
-
-  (defn- printable? [[c & cs]] (&when (&and (integer? c)
-                                            (op-and (>= c 32)
-                                                    (<= c 126))))
-    (printable? cs))
-  (defn- printable? [[$\n & cs]] (printable? cs))
-  (defn- printable? [[$\r & cs]] (printable? cs))
-  (defn- printable? [[$\t & cs]] (printable? cs))
-  (defn- printable? [[$\v & cs]] (printable? cs))
-  (defn- printable? [[$\b & cs]] (printable? cs))
-  (defn- printable? [[$\f & cs]] (printable? cs))
-  (defn- printable? [[$\e & cs]] (printable? cs))
-  (defn- printable? [[$\a & cs]] (printable? cs))
-  (defn- printable? [[]] :true)
-  (defn- printable? [_] :false)
-
   )
 
 (defimpl kapok.inspect Tuple
