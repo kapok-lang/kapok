@@ -258,9 +258,7 @@
   (require (Elixir.IO :as io)
            (Elixir.List :as list)
            (Elixir.Inspect.Algebra :as alg)
-           (kapok (atom
-                   inspect.Atom
-                   inspect.BitString)))
+           (kapok (inspect.BitString)))
 
   (defn inspect [[] opts]
     (alg.color "[]" #list opts))
@@ -295,8 +293,9 @@
                           ({escaped _} [$# $" escaped " ..." $"]))]
           (io.iodata_to_binary inspected))
       :true
-        (alg.container_doc
-          open term close opts (fn alg to_doc 2) #[:separator sep]))))
+        (alg.container_doc open term close opts
+                           (fn kapok.inspect.algebra to-doc 2)
+                           #[:separator sep]))))
 
   (defn keyword? [[{key _value} & rest]] (&when (atom? key))
     (case (Elixir.Atom.to_char_list key)
@@ -310,13 +309,16 @@
   )
 
 (defimpl kapok.inspect Tuple
-  (use (Elixir.Inspect.Algebra :only (surround_many)))
-  (defn inspect [{} _opts]
-    "{}")
+  (require (Elixir.Tuple :as tuple)
+           (Elixir.Inspect.Algebra :as alg))
 
-  (defn inspect [tuple opts]
-    (surround_many "{" (Elixir.Tuple.to_list tuple) "}" opts
-                   (fn Elixir.Inspect.Algebra to_doc 2)))
+  (defn inspect [term opts]
+    (let [open (alg.color "{" #tuple opts)
+          sep (alg.color (alg.break) #tuple opts)
+          close (alg.color "}" #tuple opts)
+          container-opts #[:separator sep :break #flex]]
+      (alg.container_doc open (tuple.to_list term) close opts
+                         (fn kapok.inspect.algebra to-doc 2) container-opts)))
   )
 
 (defimpl kapok.inspect Map
