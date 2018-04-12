@@ -127,8 +127,7 @@
 
   (defn- each-bit [<< h (t :bitstring)>> counter opts]
     (alg.flex_glue
-      (alg.concat (inspect.Integer.inspect h opts)
-                  (alg.break))
+      (inspect.Integer.inspect h opts)
       (each-bit t (decrement counter) opts)))
 
   (defn- each-bit [bitstring _counter opts]
@@ -281,7 +280,7 @@
                         lists-deprecated))
                    lists)
           open (alg.color "[" #list opts)
-          sep (alg.color (alg.break) #list opts)
+          sep ""
           close (alg.color "]" #list opts)]
     (cond
       (or (== lists1 #as_charlists)
@@ -296,16 +295,6 @@
         (alg.container_doc open term close opts
                            (fn kapok.inspect.algebra to-doc 2)
                            #[:separator sep]))))
-
-  (defn keyword? [[{key _value} & rest]] (&when (atom? key))
-    (case (Elixir.Atom.to_char_list key)
-      ((op-++ #"kapok." _) :false)
-      (_ (keyword? rest))))
-
-  (defn keyword? [[]]
-    :true)
-  (defn keyword? [_other]
-    :false)
   )
 
 (defimpl kapok.inspect Tuple
@@ -314,7 +303,7 @@
 
   (defn inspect [term opts]
     (let [open (alg.color "{" #tuple opts)
-          sep (alg.color (alg.break) #tuple opts)
+          sep ""
           close (alg.color "}" #tuple opts)
           container-opts #[:separator sep :break #flex]]
       (alg.container_doc open (tuple.to_list term) close opts
@@ -323,32 +312,27 @@
 
 (defimpl kapok.inspect Map
   (require maps
+           (Elixir.Inspect.Algebra :as alg)
            (kapok (inspect.List)))
-  (use (Elixir.Inspect.Algebra :only (concat
-                                      nest
-                                      surround_many
-                                      to_doc)))
 
   (defn inspect [map opts]
-    (nest (inspect map "" opts) 1))
+    (inspect map "" opts))
 
   (defn inspect [map name opts]
-    (let [map1 (maps.to_list map)]
-      (surround_many << "#" name "{" >>
-                     map1
-                     "}"
-                     opts
-                     (traverse-fun map))))
+    (let [map1 (maps.to_list map)
+          open (alg.color << "#" (name :binary) "{" >> #map opts)
+          sep (alg.color "," #map opts)
+          close (alg.color "}" #map opts)]
+      (alg.container_doc open map1 close opts (traverse-fun opts)
+                         #[:separator sep :break #strict])))
 
-  (defn- traverse-fun [list]
-    (if (inspect.List.keyword? list)
-        (fn inspect.List keyword 2)
-      (fn to-map 2)))
+  (defn- traverse-fun [opts]
+    (fn [kv o]
+      (to-map kv o (alg.color (alg.break) #map opts))))
 
-  (defn- to-map [{key value} opts]
-    (concat
-     (concat (to_doc key opts) " => ")
-     (to_doc value opts)))
+  (defn- to-map [{key value} opts sep]
+    (alg.concat (alg.concat (kapok.inspect.algebra.to-doc key opts) sep)
+                (kapok.inspect.algebra.to-doc value opts)))
   )
 
 (defimpl kapok.inspect PID
@@ -356,7 +340,7 @@
            (Elixir.IO :as io))
 
   (defn inspect [pid _opts]
-    << "#PID" ((io.iodata_to_binary (erlang.pid_to_list pid))) >>)
+    << "#PID" ((io.iodata_to_binary (erlang.pid_to_list pid)) :binary) >>)
   )
 
 (defimpl kapok.inspect Port
@@ -372,23 +356,25 @@
            (Elixir.IO :as io))
 
   (defn inspect [ref _opts]
-    (let [(op-++ #"#ref" rest) (erlang.ref_to_list ref)]
-      << "#Reference" ((io.iodata_to_binary rest)) >>))
+    (let [(op-++ #"#Ref" rest) (erlang.ref_to_list ref)]
+      << "#Reference" ((io.iodata_to_binary rest) :binary) >>))
   )
 
 (defimpl kapok.inspect Any
   (require maps
-           (kapok (inspect.Atom
-                   inspect.Map)))
+           (kapok ((inspect.Atom :as ins-atom)
+                   (inspect.Map :as ins-map))))
 
-  (defn inspect [#{:__struct__ struct} &as map opts]
-    (try (struct.__struct__)
-      ((dunder (if (== (maps.keys dunder) (maps.keys map))
+  (defn inspect [#{:__struct__ module} &as struct opts]
+    (try (module.__struct__)
+      ((dunder (if (== (maps.keys dunder) (maps.keys struct))
                    (let [pruned (maps.remove #__exception__
-                                             (maps.remove #__struct__ map))]
-                     (inspect.Map.inspect pruned
-                                          (inspect.Atom.inspect struct opts)
-                                          opts)))))
+                                  (maps.remove #__struct__ struct))
+                         colorless-opts (maps.put #syntax_colors #[] opts)]
+                     (ins-map.inspect pruned
+                                      (ins-atom.inspect module colorless-opts)
+                                      opts))
+                  (inspect.Map.inspect struct opts))))
       (catch
-          (_ (inspect.Map.inspect map opts)))))
+          (_ (ins-map.inspect struct opts)))))
   )

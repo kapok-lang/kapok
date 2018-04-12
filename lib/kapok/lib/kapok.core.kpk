@@ -1804,8 +1804,8 @@
    (Elixir.Enum.reduce kv
                        s
                        (fn [{k v} acc]
-                         (case (and (maps.is_key k acc)
-                                    (!= k #__struct__))
+                         (case (op-and (maps.is_key k acc)
+                                       (!= k #__struct__))
                            (:true (maps.put k v acc))
                            (:false acc))))))
 
