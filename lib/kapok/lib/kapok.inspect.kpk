@@ -47,98 +47,144 @@
   (inspect [thing opts])
   )
 
-(defimpl kapok.inspect Atom
-  (require (Elixir.Inspect.Algebra :as alg)
-           (kapok (char
-                   (inspect.BitString :as bs))))
-  (use (kapok ((core :exclude (inspect)))))
+(defimpl kapok.inspect Integer
+  (require (Elixir.Inspect.Algebra :as alg))
 
-  (defn inspect [atom opts]
-    (let [{doc key}
-          (case atom
-            (:false {":false" #boolean})
-            (:true {":true" #boolean})
-            (:nil {":nil" #boolean})
-            (#'' {"#''" #atom})
-            (_ (let [bin (Elixir.Atom.to_string atom)
-                     d (if (valid-atom-identifier? bin)
-                           << "#" (bin :binary) >>
-                         << $# $' ((bs.escape bin $') :binary) $' >>)]
-                 {d #atom})))]
-      (alg.color doc key opts)))
+  (defn inspect [term #{:base base} &as opts]
+    (-> (Elixir.Integer.to_string term (base-to-value base))
+        (prepend-prefix base)
+        (alg.color #number opts)))
 
-  ;; Detect if atom is an simple atom which consists of identifier characters
-  ;; (no need to quote).
-  (defn- valid-atom-identifier? [<<>>]
-    :true)
+  (defn- base-to-value [base]
+    (case base
+      (#binary 2)
+      (#decimal 10)
+      (#octal 8)
+      (#hex 16)))
 
-  (defn- valid-atom-identifier? [<< h (t :binary) >>]
-      (&when (char.identifier-char? h))
-    (valid-atom-identifier? t))
+  (defn- prepend-prefix [value #decimal]
+    value)
+  (defn- prepend-prefix [<< $- (value :binary) >> base]
+    << $- ((prepend-prefix value base)) >>)
+  (defn- prepend-prefix [value base]
+    (let [prefix (case base
+                   (#binary "2r")
+                   (#octal "0")
+                   (#hex "0x"))]
+      << (prefix :binary) (value :binary) >>))
+  )
 
-  (defn- valid-atom-identifier? [_]
-    :false))
+(defimpl kapok.inspect Float
+  (require io_lib_format
+           (Elixir.IO :as io))
+
+  (defn inspect [term _opts]
+    (io.iodata_to_binary (io_lib_format.fwrite_g term)))
+  )
 
 (defimpl kapok.inspect BitString
-  (require (Elixir.Integer :as integer)
-           (Elixir.Access :as access))
+  (require lists
+           (Elixir.Integer :as integer)
+           (Elixir.Map :as map)
+           (Elixir.Inspect.Algebra :as alg)
+           (Elixir.IO :as io)
+           (kapok (inspect.Integer)))
 
-  (defn inspect [thing
-                 #{:__struct__ #'kapok.inspect.opts'
-                   #binaries bins} &as opts] (&when (binary? thing))
-    (if (or (== bins #as_strings)
-            (and (== bins #infer)
-                 (Elixir.String.printable? thing)))
-        << $" ((escape thing $") :binary) $" >>
-      (inspect-bitstring thing opts)))
+  (defn inspect [term opts] (&when (binary? term))
+    (let [#{:binaries bins
+            :base base
+            :printable_limit printable-limit} opts]
+      (if (and (== base #decimal)
+               (or (== bins #as_strings)
+                   (and (== bins #infer)
+                        (Elixir.String.printable? term printable-limit))))
+          (let [inspected (case (escape term $" printable-limit)
+                            ({escaped ""} [$" escaped $"])
+                            ({escaped _} [$" escaped " ..." $"]))]
+            (alg.color (io.iodata_to_binary inspected) #string opts))
+        (inspect-bitstring term opts))))
 
-  (defn inspect [thing opts]
-    (inspect-bitstring thing opts))
+  (defn inspect [term opts]
+    (inspect-bitstring term opts))
+
+  (defn- inspect-bitstring ["" opts]
+    (alg.color "<< >>" #binary opts))
+
+  (defn- inspect-bitstring [bitstring opts]
+    (let [left (alg.color "<< " #binary opts)
+          right (alg.color " >>" #binary opts)
+          inner (each-bit bitstring (map.get opts #limit) opts)]
+      (alg.group (alg.concat (alg.concat left (alg.nest inner 2)) right))))
+
+  (defn- each-bit [_ 0 _]
+    " ...")
+
+  (defn- each-bit [<< >> _counter _opts]
+    #doc_nil)
+
+  (defn- each-bit [<<(h (:size 8))>> _counter opts]
+    (inspect.Integer.inspect h opts))
+
+  (defn- each-bit [<< h (t :bitstring)>> counter opts]
+    (alg.flex_glue
+      (alg.concat (inspect.Integer.inspect h opts)
+                  (alg.break))
+      (each-bit t (decrement counter) opts)))
+
+  (defn- each-bit [bitstring _counter opts]
+    (let [size (bit-size bitstring)
+          <<(h (:size size))>> bitstring]
+      << "(" ((inspect.Integer.inspect h opts) :binary)
+         " (:size " ((integer.to_string size) :binary) "))" >>))
+
+  (defn- decrement [#infinity]
+    #infinity)
+  (defn- decrement [counter]
+    (dec counter))
 
   ;; Escaping
 
-  (defn escape [other char]
-    (escape other char <<>>))
+  (defn- escape-map [$\a] << $\\ $a >>)
+  (defn- escape-map [$\b] << $\\ $b >>)
+  (defn- escape-map [$\d] << $\\ $d >>)
+  (defn- escape-map [$\e] << $\\ $e >>)
+  (defn- escape-map [$\f] << $\\ $f >>)
+  (defn- escape-map [$\n] << $\\ $n >>)
+  (defn- escape-map [$\r] << $\\ $r >>)
+  (defn- escape-map [$\t] << $\\ $t >>)
+  (defn- escape-map [$\v] << $\\ $v >>)
+  (defn- escape-map [$\\] << $\\ $\\ >>)
+  (defn- escape-map [_] :false)
 
-  (defn- escape [<< char (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ char >>))
-  (defn- escape [<< $# ${ (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $# ${ >>))
-  (defn- escape [<< $\a (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $a >>))
-  (defn- escape [<< $\b (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $b >>))
-  (defn- escape [<< $\d (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $d >>))
-  (defn- escape [<< $\e (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $e >>))
-  (defn- escape [<< $\f (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $f >>))
-  (defn- escape [<< $\n (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $n >>))
-  (defn- escape [<< $\r (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $r >>))
-  (defn- escape [<< $\\ (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $\\ >>))
-  (defn- escape [<< $\t (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $t >>))
-  (defn- escape [<< $\v (t :binary) >> char binary]
-    (escape t char << (binary :binary) $\\ $v >>))
-  (defn- escape [<< (h :utf8) (t :binary) >> char binary]
-    (let [head <<(h :utf8)>>]
-     (if (Elixir.String.printable? head)
-         (escape t char (append head binary))
-       (let [<< (byte (:size 8)) (h :binary) >> head
-             t1 << (h :binary) (t :binary) >>]
-         (escape t1 char << (binary :binary) ((escape-char byte) :binary) >>)))))
-  (defn- escape [<< h (t :binary) >> char binary]
-    (escape t char << (binary :binary) ((escape-char h) :binary) >>))
-  (defn- escape [<< >> _char binary]
-    binary)
+  (defn escape [other char &optional (count #infinity) (fun (fn escape-map 1))]
+    (escape other char count [] fun))
 
-  ;; Also used by Regex
-  (defn- escape-char [0]
-    << $\\ $0 >>)
+  (defn- escape [binary _char 0 acc _fun]
+    {(lists.reverse acc) binary})
+
+  (defn- escape [<< char (t :binary) >> char count acc fun]
+    (escape t char (decrement count) [<< $\\ char >> & acc] fun))
+
+  (defn- escape [<< (h :utf8) (t :binary) >> char count acc fun]
+    (let [value (fun h)
+          escaped (or value (escape-char h))]
+      (escape t char (decrement count) [escaped & acc] fun)))
+
+  (defn- escape [<< (a (:size 4)) (b (:size 4)) (t :binary) >> char count acc fun]
+    (escape t char (decrement count) [<< $\\ $x ((to-hex a)) ((to-hex b)) >> & acc] fun))
+
+  (defn- escape [<< >> _char _count acc _fun]
+    {(lists.reverse acc) << >>})
+
+  (defn- escape-char [0] "\\0")
+
+  (defn- escape-char [65279] "\\uFEFF")
+
+  (defn- escape-char [char] (&when (&or (&and (>= char 0x20) (<= char 0x7E))
+                                        (&and (>= char 0xA0) (<= char 0xD7FF))
+                                        (&and (>= char 0xE000) (<= char 0xFFFD))
+                                        (&and (>= char 0x10000) (<= char 0x10FFFF))))
+    << (char :utf8) >>)
 
   (defn- escape-char [char] (&when (< char 0x100))
     (let [<<(a (:size 4)) (b (:size 4))>> <<(char (:size 8))>>]
@@ -149,10 +195,7 @@
             (b (:size 4))
             (c (:size 4))
             (d (:size 4))>> <<(char (:size 16))>>]
-     << $\\ $x ${ ((to-hex a))
-                  ((to-hex b))
-                  ((to-hex c))
-                  ((to-hex d)) $} >>))
+     << $\\ $x ${ ((to-hex a)) ((to-hex b)) ((to-hex c)) ((to-hex d)) $} >>))
 
   (defn- escape-char [char] (&when (< char 0x1000000))
     (let [<<(a (:size 4))
@@ -173,34 +216,42 @@
   (defn- to-hex [c] (&when (&and (>= c 10) (<= c 15)))
     (+ (- c 10) $A))
 
-  (defn- append [<< h (t :binary) >> binary]
-    (append t << (binary :binary) h >>))
-  (defn- append [<<>> binary]
-    binary)
+  )
 
-  ;; Bitstrings
+(defimpl kapok.inspect Atom
+  (require (Elixir.Inspect.Algebra :as alg)
+           (Elixir.IO :as io)
+           (kapok (char
+                   (inspect.BitString :as bs))))
+  (use (kapok ((core :exclude (inspect)))))
 
-  (defn- inspect-bitstring [bitstring opts]
-    << ((each-bit bitstring (access.get opts #limit) "<<")) ">>" >>)
+  (defn inspect [atom opts]
+    (let [{doc key}
+          (case atom
+            (:false {":false" #boolean})
+            (:true {":true" #boolean})
+            (:nil {":nil" #boolean})
+            (#'' {"#''" #atom})
+            (_ (let [b (Elixir.Atom.to_string atom)
+                     d (if (valid-atom-identifier? b)
+                           << "#" (b :binary) >>
+                         (let [{escaped _} (bs.escape b $')
+                               eb (io.iodata_to_binary escaped)]
+                           << $# $' (eb :binary) $' >>))]
+                 {d #atom})))]
+      (alg.color doc key opts)))
 
-  (defn- each-bit [_ 0 acc]
-    << acc " ..." >>)
+  ;; Detect if atom is an simple atom which consists of identifier characters
+  ;; (no need to quote).
+  (defn- valid-atom-identifier? [<<>>]
+    :true)
 
-  (defn- each-bit [<< h (t :bitstring)>> counter acc] (&when (!= t <<>>))
-    (each-bit t (decrement counter) << acc "(" ((integer.to_string h)) ") " >>))
+  (defn- valid-atom-identifier? [<< h (t :binary) >>]
+      (&when (char.identifier-char? h))
+    (valid-atom-identifier? t))
 
-  (defn- each-bit [<<(h (:size 8))>> _counter acc]
-    << acc ((integer.to_string h)) >>)
-
-  (defn- each-bit [bitstring _counter acc]
-    (let [size (bit-size bitstring)
-          <<(h (:size size))>> bitstring]
-     << acc "(" ((integer.to_string h)) " (:size " ((integer.to_string size)) "))" >>))
-
-  (defn- decrement [#infinity]
-    #infinity)
-  (defn- decrement [counter]
-    (dec counter))
+  (defn- valid-atom-identifier? [_]
+    :false)
   )
 
 (defimpl kapok.inspect List
@@ -215,11 +266,7 @@
   (defn inspect [[] _opts]
     "[]")
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [thing
-                 #{:__struct__ #'kapok.inspect.opts'
-                   #char_lists lists} &as opts]
+  (defn inspect [thing #{:char_lists lists} &as opts]
     (cond
       (or (== lists #as_char_lists)
           (and (== lists #infer)
@@ -308,70 +355,27 @@
      (to_doc value opts)))
   )
 
-(defimpl kapok.inspect Integer
-
-  (defn inspect [thing
-                 #{:__struct__ #'kapok.inspect.opts'
-                   #base base}]
-    (-> (Elixir.Integer.to_string thing (base-to-value base))
-        (prepend-prefix base)))
-
-  (defn- base-to-value [base]
-    (case base
-      (#binary 2)
-      (#decimal 10)
-      (#octal 8)
-      (#hex 16)))
-
-  (defn- prepend-prefix [value #decimal]
-    value)
-  (defn- prepend-prefix [value base]
-    (let [prefix (case base
-                   (#binary "2r")
-                   (#octal "0")
-                   (#hex "0x"))]
-      << prefix value >>))
-
-  )
-
-(defimpl kapok.inspect Float
-  (require io_lib_format
-           (kapok (io)))
-
-  (defn
-      #{:check_remote_call :false}
-      inspect [thing _opts]
-    (io.iodata_to_binary (io_lib_format.fwrite_g thing)))
-  )
-
-
 (defimpl kapok.inspect PID
   (require erlang
-           (kapok (io)))
+           (Elixir.IO :as io))
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [pid _opts]
+  (defn inspect [pid _opts]
     << "#PID" ((io.iodata_to_binary (erlang.pid_to_list pid))) >>)
   )
 
 (defimpl kapok.inspect Port
   (require erlang
-           (kapok (io)))
+           (Elixir.IO :as io))
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [port _opts]
+  (defn inspect [port _opts]
     (io.iodata_to_binary (erlang.port_to_list port)))
   )
 
 (defimpl kapok.inspect Reference
   (require erlang
-           (kapok (io)))
+           (Elixir.IO :as io))
 
-  (defn
-      #{:check_remote_call :false}
-      inspect [ref _opts]
+  (defn inspect [ref _opts]
     (let [(op-++ #"#ref" rest) (erlang.ref_to_list ref)]
       << "#Reference" ((io.iodata_to_binary rest)) >>))
   )
