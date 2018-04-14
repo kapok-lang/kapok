@@ -158,7 +158,7 @@
                 [impl protocol other]))))
       (catch
           ((#throw _)
-           (io.format "catch throw~n" [])
+           (io.format "catch throw~n")
            ;; TODO revise to use exception
            (throw (io_lib.format
                    "impl ~p is not an implementation of a protocol" [impl]))))))

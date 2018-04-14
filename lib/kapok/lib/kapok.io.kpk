@@ -1,0 +1,25 @@
+(ns kapok.io
+  (require io
+           io_lib))
+
+(defn format [format &rest data]
+  (io.#format format data))
+
+(defn format-to [io-device format &rest data]
+  (io.#format (map-dev io-device) format data))
+
+(defalias fwrite format)
+(defalias fwrite-to format-to)
+
+(defn sformat [format &rest data]
+  (io_lib.#format format data))
+
+(defalias sfwrite sformat)
+
+(defn- map-dev [#stdio] #standard_io)
+(defn- map-dev [#stderr] #standard_error)
+(defn- map-dev [other] (&when (&or (atom? other)
+                                   (pid? other)
+                                   (tuple? other)))
+  other)
+

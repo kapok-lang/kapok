@@ -1,6 +1,5 @@
 (ns ring-echo
-  (use (erlang :only (+ spawn throw))
-       (io :only (format))))
+  (use (kapok (io))))
 
 (defn repeatedly [n n f acc]
   (lists.reverse [(f) & acc]))
@@ -34,12 +33,12 @@
      (case pidlist
        ([h & t] (send h {#exit, t}))
        ([] #ok))
-     (format #"process exit.~n" [])
+     (io.format #"process exit.~n")
      (send main #ok))
     (other
-     (format #"oh no, something goes wrong! receiving ~p~n" [other]))
+     (io.format #"oh no, something goes wrong! receiving ~p~n" other))
     (after 1000
-     (format #"unexpected timeout")
+     (io.format #"unexpected timeout")
      (throw #'unexpected timeout')))
   )
 
@@ -55,7 +54,7 @@
       ([first & left]
        (send first {{first left} left 1 #"here is the message"}))
       ([]
-       (format #"error: no process to run")
+       (io.format #"error: no process to run")
        (erlang.exit #"no process to run")))
     ;; make sure all processes are exit
     (do-times p (fn []

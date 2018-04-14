@@ -1,5 +1,8 @@
 (ns scanner-test
-  (require kapok_scanner io lists erlang)
+  (require kapok_scanner
+           lists
+           erlang
+           (kapok (io)))
   (use kapok.unittest))
 
 (defn scan [string]
@@ -11,7 +14,7 @@
     (case tokens
       ([token] token)
       (_
-       (io.format "tokens: ~p~n" [tokens])
+       (io.format "tokens: ~p~n" tokens)
        (erlang.throw "expect only one token")))))
 
 (defn scan-error [string]

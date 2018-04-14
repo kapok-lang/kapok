@@ -1,10 +1,6 @@
 (ns sieve-of-eratosthenes
-  (require lists)
-  (use (io :only (format)))
-  (use (erlang :only (/=
-                      rem
-                      +)
-               :rename ((/= !=)))))
+  (require lists
+           (kapok (io))))
 
 (defn- sieve [[] primes]
   (lists.reverse primes))
@@ -20,4 +16,4 @@
 
 (defn main []
   (let [v 1000]
-    (format #"run sieve(~B) return: ~p~n" [v (sieve v)])))
+    (io.format #"run sieve(~B) return: ~p~n" v (sieve v))))

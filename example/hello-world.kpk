@@ -1,6 +1,6 @@
 (ns hello-world
-  (require io))
+  (require (kapok (io))))
 
 (defn main []
-  (io.format #"Hello, ~s~n" [#"World"]))
+  (io.format #"Hello, ~s~n" #"World"))
 

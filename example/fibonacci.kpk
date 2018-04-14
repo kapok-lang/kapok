@@ -1,6 +1,5 @@
 (ns fibonacci
-  (use (erlang :only (> - +)))
-  (require io))
+  (require (kapok (io))))
 
 (defn fibo [0]
   0)
@@ -14,4 +13,4 @@
 
 (defn main []
   (let [n 4]
-    (io.format #"fibonacci(~B) => ~B~n" [n (fibo n)])))
+    (io.format #"fibonacci(~B) => ~B~n" n (fibo n))))

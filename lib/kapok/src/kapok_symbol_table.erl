@@ -537,7 +537,7 @@ namespace_exports(NS, Options) ->
 private_macros(NS) ->
   Exports = maps:get('export_macros', NS),
   All = maps:get('macros', NS),
-  gb_sets:to_list(gb_sets:subtract(All, Exports)).
+  gb_sets:subtract(All, Exports).
 
 namespace_defs(NS, Options) ->
   GetMetaClauses = fun({_Order, Meta}, Clauses, {nil, Acc}) ->
@@ -563,10 +563,7 @@ namespace_defs(NS, Options) ->
                               Match = fun ({PF, PA, _PP}) when PF == F, PA == A -> true;
                                           (_) -> false
                                       end,
-                              case gb_sets:filter(Match, PrivateMacros) of
-                                [] -> true;
-                                _ -> false
-                              end
+                              gb_sets:is_empty(gb_sets:filter(Match, PrivateMacros))
                           end,
                  orddict:filter(Filter, AllDefs)
              end;
